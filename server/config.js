@@ -65,6 +65,9 @@ export function tokenInfo(token) {
       expiresAt: exp,
       expired: exp ? exp < Date.now() : false,
       subscription: payload.SubscriptionStatus || payload.subscriptionStatus || null,
+      // Offre souscrite (« F1 TV Pro Annual », « F1 TV Access Monthly »…) et pays du compte
+      product: payload.SubscribedProduct || payload.subscribedProduct || null,
+      country: payload.ExternalAuthorizationsContextData || payload.country || null,
     };
   } catch {
     return { hasToken: true, expiresAt: null, expired: false };

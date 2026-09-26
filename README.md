@@ -36,6 +36,7 @@ Le bouton **🎙** (en haut à droite) lit le son de la vidéo F1 TV de la séan
 - **Volume**, **🔇 couper le son** (ou touche **C**), **▶ / ⏹**.
 - **Caler sur le dashboard** : le son est automatiquement positionné sur l'instant affiché par le dashboard (donc sur le délai Canal+), grâce à l'horodatage du flux ; **« Décalage du son »** pour affiner à l'oreille.
 - Seul le son est téléchargé (pas la vidéo).
+- **Abonnement requis : F1 TV Pro.** Avec F1 TV Access (seule offre proposée dans certains pays, dont la France), F1 TV refuse la vidéo (« technical package not available ») : l'offre détectée est affichée dans ⚙ Réglages.
 - La ligne d'état indique précisément ce qui se passe (format du flux, protection DRM, erreur F1 TV…). Si F1 TV protège le flux par DRM (Widevine), l'application Windows actuelle ne peut pas le lire : ouvrez alors le dashboard dans Chrome ou Edge (http://127.0.0.1:3000, l'application restant ouverte).
 
 ## 🧩 Disposition et deux écrans

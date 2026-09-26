@@ -114,8 +114,14 @@ async function start() {
     if (prefs.commChannel) q.set('channelId', prefs.commChannel);
     stream = await api(`/api/f1tv/play?${q}`);
     if (!stream.ok) {
-      const t = (stream.tried || []).map((x) => `${x.format} → HTTP ${x.status}${x.message ? ` (${x.message})` : ''}`).join('\n');
-      throw new Error(`F1 TV a refusé le flux. Vérifiez que votre abonnement est « Pro » et que le jeton est valide.\n${t}`);
+      const tried = stream.tried || [];
+      const acc = stream.account || {};
+      const who = [acc.product && `offre « ${acc.product} »`, acc.country && `pays ${acc.country}`].filter(Boolean).join(', ');
+      const t = tried.map((x) => `${x.format} → HTTP ${x.status}${x.message ? ` (${x.message})` : ''}`).join('\n');
+      if (tried.some((x) => /technical package not available/i.test(x.message || ''))) {
+        throw new Error(`F1 TV refuse la vidéo : elle n'est pas incluse dans votre abonnement${who ? ` (${who})` : ''}. Le son et la vidéo des séances font partie de l'offre F1 TV Pro ; l'offre F1 TV Access (la seule proposée dans certains pays, dont la France) ne les inclut pas.\n\nDétail :\n${t}`);
+      }
+      throw new Error(`F1 TV a refusé le flux${who ? ` (${who})` : ''}. Vérifiez que votre abonnement est « Pro » et que le jeton est valide.\n${t}`);
     }
     if (stream.drm && !(await widevineAvailable())) {
       throw new Error(`Ce flux est protégé par DRM (${stream.drm}, ${stream.streamType || stream.format}) et cette version ne contient pas le module Widevine nécessaire pour le lire.\nDans l'application Windows, il faut une version d'Electron avec Widevine (prochaine étape) ; en attendant, essayez dans Chrome ou Edge : http://127.0.0.1:${location.port || 3000}`);

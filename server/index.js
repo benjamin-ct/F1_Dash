@@ -125,7 +125,7 @@ async function handleApi(req, res, url) {
       if (info.expired) return sendJSON(res, 401, { error: 'Jeton F1 TV expiré : reconnectez-vous dans ⚙ Réglages.' });
       const contentId = url.searchParams.get('contentId');
       if (!contentId) return sendJSON(res, 400, { error: 'Paramètre contentId requis' });
-      return sendJSON(res, 200, await playback(contentId, url.searchParams.get('channelId'), token));
+      return sendJSON(res, 200, { ...(await playback(contentId, url.searchParams.get('channelId'), token)), account: { product: info.product, country: info.country } });
     }
 
     case 'GET /api/f1tv/proxy':
