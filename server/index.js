@@ -8,6 +8,7 @@ import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError } from './net.js';
 import { circuit, loops } from './circuits.js';
+import { fiaDocuments } from './fia.js';
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 
@@ -100,6 +101,14 @@ async function handleApi(req, res, url) {
       if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
       const data = await loops(key, year);
       return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Calibration indisponible' });
+    }
+
+    case 'GET /api/fia-docs': {
+      const year = Number(url.searchParams.get('year'));
+      const name = url.searchParams.get('name');
+      if (!year || !name) return sendJSON(res, 400, { error: 'Paramètres year et name requis' });
+      const meeting = { name, country: url.searchParams.get('country'), location: url.searchParams.get('location') };
+      return sendJSON(res, 200, await fiaDocuments(year, meeting));
     }
 
     case 'GET /api/recordings':

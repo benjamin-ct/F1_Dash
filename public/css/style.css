@@ -549,3 +549,15 @@ body.solo .grid > .panel.solo-panel { grid-area: auto !important; }
 .pips i.on { background: var(--yellow); }
 .pips i.on.bw { background: repeating-linear-gradient(135deg, #111 0 3px, #fff 3px 6px); }
 .pips i.on.pen { background: var(--red); }
+.inc-dec { margin: 5px 0 3px; padding: 5px 8px; border-radius: 6px; background: var(--panel-3); border-left: 3px solid var(--muted); font-size: 13px; }
+.inc-dec.penalty { border-left-color: var(--red); }
+.inc-dec.warning, .inc-dec.reprimand { border-left-color: var(--yellow); }
+.inc-dec-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.inc-dec-label { font-weight: 700; }
+.inc-who { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+.inc-who .muted { font-weight: 600; }
+.inc-served { font-size: 11px; color: var(--green); }
+.fia-doc { display: inline-block; margin-top: 3px; font-size: 12px; color: var(--blue); text-decoration: none; }
+.fia-doc:hover { text-decoration: underline; }
+.inc > .fia-doc { display: block; }
+#stewardsSummary a { color: var(--blue); }

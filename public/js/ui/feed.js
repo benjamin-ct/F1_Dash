@@ -1,9 +1,9 @@
 // Direction de course, radios d'équipe, arrêts aux stands.
-import { store, versionOf, on } from '../store.js';
+import { store, versionOf, on, f1Now } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
-import { $, esc, drivers, teamColor, fmtClock, fmtLap } from '../util.js';
+import { $, esc, drivers, teamColor, fmtClock, fmtLap, api } from '../util.js';
 import { parseUtc, parseLapTime } from '/shared/f1.js';
-import { analyzeStewards, isOpen, STATUS_LABEL } from '/shared/stewards.js';
+import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 
 function list(obj) {
   if (!obj) return [];
@@ -159,11 +159,56 @@ function stewardsData() {
   return stwCache;
 }
 
+// Documents officiels FIA de l'épreuve (rafraîchis toutes les 2 min, cache côté serveur).
+let fia = { key: '', docs: [], page: null, at: 0, loading: false };
+
+function fiaState() {
+  const info = store.state.SessionInfo;
+  const name = info?.Meeting?.Name;
+  if (!name) return fia;
+  const year = Number(String(info.Path || '').slice(0, 4)) || new Date(parseUtc(info.StartDate) || Date.now()).getFullYear();
+  const key = `${year}|${name}`;
+  if (key !== fia.key) fia = { key, docs: [], page: null, at: 0, loading: false };
+  if (!fia.loading && Date.now() - fia.at > (fia.error ? 30000 : 120000)) {
+    fia.loading = true;
+    const q = new URLSearchParams({ year, name, country: info.Meeting.Country?.Name || '', location: info.Meeting.Location || '' });
+    const cur = fia;
+    api(`/api/fia-docs?${q}`)
+      .then((r) => { cur.docs = r.docs || []; cur.page = r.page; cur.error = null; })
+      .catch((err) => { cur.error = err.message; })
+      .finally(() => { cur.loading = false; cur.at = Date.now(); stwRenderKey = ''; });
+  }
+  return fia;
+}
+
+const DOC_KIND = { decision: 'Décision', infringement: 'Infraction', offence: 'Infraction', summons: 'Convocation' };
+
+function docLink(doc, dl) {
+  if (!doc) return '';
+  const info = parseFiaDoc(doc);
+  const who = info.cars[0] ? ` — ${esc(dl[info.cars[0]]?.Tla || `voiture ${info.cars[0]}`)}` : '';
+  return `<a class="fia-doc" href="${esc(doc.url)}" target="_blank" rel="noopener" title="${esc(doc.title)}">📄 ${esc(DOC_KIND[info.type] || 'Document')} FIA${info.num ? ` n° ${info.num}` : ''}${who}<span class="muted"> · ${esc(info.subject.replace(/^Cars?\s+[\d\s,&and]+-\s*/i, ''))}</span> ↗</a>`;
+}
+
 let stwRenderKey = '';
+
+function sessionEnded() {
+  const st = store.state.SessionStatus?.Status || store.state.SessionInfo?.SessionStatus;
+  return ['Finished', 'Finalised', 'Ends'].includes(st);
+}
+
+function penaltyState(d) {
+  if (d.kind !== 'penalty' || !/SECOND TIME|DRIVE|STOP/.test(d.text) || store.state.SessionInfo?.Type !== 'Race') return '';
+  if (/SECOND TIME/.test(d.text) && sessionEnded()) return '<span class="muted small">ajoutée à son temps de course</span>';
+  return '<span class="muted small">à purger</span>';
+}
 
 export function renderStewards() {
   const data = stewardsData();
   const dl = drivers(store.state);
+  const docs = fiaState();
+  const now = f1Now();
+  const visible = docs.docs.filter((d) => d.published <= now).length;
   const open = data.incidents.filter(isOpen);
   const badge = $('#stewardsBadge');
   badge.hidden = !open.length;
@@ -173,13 +218,20 @@ export function renderStewards() {
   $('#tlBadge').textContent = tlWarn;
 
   const filter = document.querySelector('input[name=stwFilter]:checked')?.value || 'open';
-  const key = `${stwVer}|${filter}|${Object.keys(dl).length}`;
+  const key = `${stwVer}|${filter}|${Object.keys(dl).length}|${docs.key}|${docs.docs.length}|${visible}|${sessionEnded()}`;
   if (key === stwRenderKey) return;
   stwRenderKey = key;
+  linkFiaDocs(data, docs.docs, now);
 
   const car = (c) => `<span><span class="drv-bar" style="background:${teamColor(dl[c.num])}"></span>${esc(dl[c.num]?.Tla || c.tla)}</span>`;
+  const who = (cars) => cars.map((c) => `<span class="inc-who"><span class="drv-bar" style="background:${teamColor(dl[c.num])}"></span>${esc(dl[c.num]?.Tla || c.tla)}${dl[c.num]?.LastName ? ` <span class="muted">${esc(dl[c.num].LastName)}</span>` : ''}</span>`).join(' ');
+  const decision = (d) => `<div class="inc-dec ${d.kind}"><div class="inc-dec-line"><span class="inc-dec-label">⚖ ${esc(d.label)}</span> pour ${who(d.cars) || '—'}
+      ${d.servedAt ? `<span class="inc-served">purgée à ${fmtClock(d.servedAt)}</span>` : penaltyState(d)}</div>
+      ${d.reason ? `<div class="muted small">${esc(reasonFr(d.reason))}</div>` : ''}
+      ${docLink(d.doc, dl)}</div>`;
   const penalties = data.decisions.filter((d) => d.kind === 'penalty').length;
-  $('#stewardsSummary').textContent = `${open.length} en cours · ${data.incidents.length} au total · ${penalties} pénalité(s)`;
+  const docsNote = docs.page ? ` · <a href="${esc(docs.page)}" target="_blank" rel="noopener">documents FIA ↗</a>` : docs.error ? ' · <span title="' + esc(docs.error) + '">documents FIA indisponibles</span>' : '';
+  $('#stewardsSummary').innerHTML = `${open.length} en cours · ${data.incidents.length} au total · ${penalties} pénalité(s)${docsNote}`;
   const shown = (filter === 'open' ? open : data.incidents).slice().sort((a, b) => (isOpen(b) - isOpen(a)) || b.updated - a.updated);
   const loose = filter === 'all' ? data.decisions.filter((d) => !d.incident) : [];
   $('#stewardsList').innerHTML = shown.length || loose.length
@@ -188,15 +240,17 @@ export function renderStewards() {
           <span class="inc-cars">${inc.cars.map(car).join('')}</span>
           <span class="inc-where">${esc(inc.location || '')}${inc.lap ? ` · tour ${inc.lap}` : ''}</span></div>
         ${inc.reason ? `<div class="inc-reason" title="${esc(inc.reason)}">${esc(reasonFr(inc.reason))}</div>` : ''}
-        ${inc.decisions.map((d) => `<div class="inc-reason"><b>⚖ ${esc(d.label)}</b>${d.servedAt ? ' — purgée' : ''}</div>`).join('')}
-        <ul class="inc-steps">${inc.history.map((h) => `<li title="${esc(h.text)}">${fmtClock(h.t)}${h.lap ? ` (T${h.lap})` : ''} · <b>${esc(h.label)}</b></li>`).join('')}</ul>
+        ${inc.decisions.map(decision).join('')}
+        ${inc.docs.map((d) => docLink(d, dl)).join('')}
+        <ul class="inc-steps">${inc.history.map((h) => `<li title="${esc(h.text)}">${fmtClock(h.t)}${h.lap ? ` (T${h.lap})` : ''} · <b>${esc(h.label)}</b>${h.cars?.length ? ` → ${esc(h.cars.map((c) => dl[c.num]?.Tla || c.tla).join(', '))}` : ''}</li>`).join('')}</ul>
       </div>`).join('') + loose.map((d) => `<div class="inc"><div class="inc-head"><span class="inc-status ${d.kind}">${esc(d.label)}</span>
-        <span class="inc-cars">${d.cars.map(car).join('')}</span><span class="inc-where">${fmtClock(d.t)}</span></div>
-        ${d.reason ? `<div class="inc-reason">${esc(reasonFr(d.reason))}</div>` : ''}</div>`).join('')
+        <span class="inc-cars">${d.cars.map(car).join('')}</span><span class="inc-where">${fmtClock(d.t)}${d.lap ? ` · tour ${d.lap}` : ''}</span></div>
+        ${decision(d)}</div>`).join('')
     : `<div class="note">${filter === 'open' ? 'Aucune enquête en cours.' : 'Aucun incident signalé par les commissaires.'}</div>`;
 
   // Limites de piste
   const race = store.state.SessionInfo?.Type === 'Race';
+  const tlDoc = deletedLapsDoc(docs.docs, store.state.SessionInfo?.Name, sessionEnded() ? Infinity : now);
   $('#tlList').innerHTML = data.trackLimits.length
     ? `<table class="tl-table"><tr><th>Pilote</th><th>Infractions</th><th>Virages</th><th>Dernière</th><th>Statut</th></tr>
       ${data.trackLimits.map((d) => {
@@ -218,6 +272,7 @@ export function renderStewards() {
           <td><span class="pips">${pips}</span> ${n}${other}</td><td>${esc(turns) || '—'}</td>
           <td>${last ? `T${last.lap}${last.time ? ` (${esc(last.time)})` : ''}` : '—'}</td><td>${status}</td></tr>`;
       }).join('')}</table>
+      ${tlDoc ? `<p class="note"><a class="fia-doc" href="${esc(tlDoc.url)}" target="_blank" rel="noopener">📄 Document FIA : ${esc(tlDoc.title.replace(/^Doc \d+ - /, ''))} ↗</a></p>` : ''}
       <p class="note">${race ? 'En course, la direction de course montre en général le drapeau noir et blanc après la 3e infraction ; les suivantes sont transmises aux commissaires (pénalité possible). ' : 'Hors course, un temps supprimé ne compte pas pour le classement. '}« Tour supprimé (PIT) » : infraction pendant un tour qui se termine aux stands.</p>`
     : '<div class="note">Aucun temps supprimé pour limites de piste.</div>';
 }
