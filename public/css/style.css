@@ -189,7 +189,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .panel-body { flex: 1; min-height: 0; overflow: auto; position: relative; }
 .hint { font-size: 12px; }
 
-.tabs { justify-content: flex-start; gap: 4px; padding: 5px 8px; overflow-x: auto; scrollbar-width: none; }
+.tabs { justify-content: flex-start; flex-wrap: wrap; gap: 4px; padding: 5px 8px; }
 .tab { white-space: nowrap; flex: none; background: none; border: none; color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; }
 .tab.active { background: var(--panel-3); color: var(--text); }
 .tabpane { display: none; }
@@ -207,6 +207,11 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 }
 .tower td { padding: 3px 4px; border-bottom: 1px solid #1a1f2b; white-space: nowrap; height: 34px; }
 .tower tr.trow { cursor: pointer; }
+/* Les boutons duel restent visibles quand le classement déborde en largeur. */
+.tower td.c-duel { position: sticky; right: 0; z-index: 1; background: var(--panel); }
+.tower th.c-duel { right: 0; z-index: 3; }
+.tower tr.out td.c-duel { opacity: 1; }
+.tower tr.out td.c-duel .duel-btns { opacity: .45; }
 .tower tr.trow:hover td { background: #171c27; }
 .tower tr.focus td { background: #1a2130; }
 .tower tr.duel-a td:first-child { box-shadow: inset 3px 0 0 var(--blue); }

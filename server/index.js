@@ -122,13 +122,6 @@ async function handleApi(req, res, url) {
       replay.stop();
       live.stop();
       live.start();
-
-for (const sig of ['SIGINT', 'SIGTERM']) {
-  process.on(sig, () => {
-    recorder?.close();
-    process.exit(0);
-  });
-}
       return sendJSON(res, 200, { ok: true });
 
     case 'POST /api/replay': {
