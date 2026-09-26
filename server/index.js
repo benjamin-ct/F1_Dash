@@ -9,6 +9,7 @@ import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError } from './net.js';
 import { circuit, loops } from './circuits.js';
 import { fiaDocuments } from './fia.js';
+import { findSessionContent, playback, proxy as f1tvProxy } from './f1tv.js';
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 
@@ -110,6 +111,26 @@ async function handleApi(req, res, url) {
       const meeting = { name, country: url.searchParams.get('country'), location: url.searchParams.get('location') };
       return sendJSON(res, 200, await fiaDocuments(year, meeting));
     }
+
+    case 'GET /api/f1tv/content': {
+      const meeting = url.searchParams.get('meeting'), session = url.searchParams.get('session');
+      if (!meeting || !session) return sendJSON(res, 400, { error: 'Paramètres meeting et session requis' });
+      return sendJSON(res, 200, await findSessionContent(meeting, session));
+    }
+
+    case 'GET /api/f1tv/play': {
+      const token = getConfig().f1tvToken;
+      const info = tokenInfo(token);
+      if (!info.hasToken) return sendJSON(res, 401, { error: 'Aucun jeton F1 TV : connectez-vous dans ⚙ Réglages.' });
+      if (info.expired) return sendJSON(res, 401, { error: 'Jeton F1 TV expiré : reconnectez-vous dans ⚙ Réglages.' });
+      const contentId = url.searchParams.get('contentId');
+      if (!contentId) return sendJSON(res, 400, { error: 'Paramètre contentId requis' });
+      return sendJSON(res, 200, await playback(contentId, url.searchParams.get('channelId'), token));
+    }
+
+    case 'GET /api/f1tv/proxy':
+    case 'POST /api/f1tv/proxy':
+      return f1tvProxy(req, res, url.searchParams.get('u') || '', getConfig().f1tvToken);
 
     case 'GET /api/recordings':
       return sendJSON(res, 200, listRecordings());

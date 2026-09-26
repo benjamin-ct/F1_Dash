@@ -45,6 +45,7 @@
     <button class="source-badge" id="sourceBadge" title="Source des données (live / replay)">
       <span class="src-dot"></span><span id="sourceLabel">—</span>
     </button>
+    <button class="icon-btn comm-btn" id="commBtn" title="Commentaires en direct F1 TV Pro (touche C : couper / remettre le son)">🎙</button>
     <button class="icon-btn" id="resetUiBtn" title="Réinitialiser l'interface (disposition, panneaux et colonnes par défaut)">⟲</button>
     <button class="icon-btn" id="settingsBtn" title="Réglages (source, replay, F1 TV)">⚙</button>
   </header>
@@ -286,6 +287,32 @@
       </section>
     </div>
   </dialog>
+
+  <div class="comm-panel" id="commPanel" hidden>
+    <div class="comm-head"><b>🎙 Commentaires en direct</b> <span class="muted small">F1 TV Pro</span><button class="icon-btn small" id="commClose" title="Fermer (le son continue)">✕</button></div>
+    <div class="comm-info small" id="commInfo">—</div>
+    <div class="comm-row">
+      <label class="small muted">Canal <select id="commChannel"></select></label>
+      <label class="small muted">Langue <select id="commLang"></select></label>
+    </div>
+    <div class="comm-row">
+      <button class="btn btn-accent" id="commPlay">▶ Écouter</button>
+      <button class="btn" id="commMute" title="Couper / remettre le son (touche C)">🔊</button>
+      <input type="range" id="commVol" min="0" max="1" step="0.05" aria-label="Volume">
+      <span class="small muted" id="commVolVal"></span>
+    </div>
+    <div class="comm-row">
+      <label class="toggle small"><input type="checkbox" id="commSync"> Caler sur le dashboard (délai TV)</label>
+    </div>
+    <div class="comm-row comm-offset">
+      <span class="small muted">Décalage du son</span>
+      <button class="btn small" data-coff="-1">−1</button><button class="btn small" data-coff="-0.2">−0,2</button>
+      <output id="commOffset">0,0 s</output>
+      <button class="btn small" data-coff="0.2">+0,2</button><button class="btn small" data-coff="1">+1</button>
+    </div>
+    <div class="comm-status small" id="commStatus"></div>
+    <video id="commMedia" hidden playsinline></video>
+  </div>
 
   <div class="update-pill" id="updatePill" hidden><span id="updatePillText"></span><button class="btn small btn-accent" id="updatePillBtn">Redémarrer</button><button class="icon-btn small" id="updatePillClose" title="Plus tard (installée à la fermeture)">✕</button></div>
 

@@ -484,7 +484,7 @@ details ol { line-height: 1.6; }
 .grid.has-max { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; grid-template-areas: none !important; }
 .grid.has-max > .panel.maximized { grid-area: auto !important; }
 .panel.hidden-panel { display: none !important; }
-body.solo .topbar .session, body.solo .topbar .hstat, body.solo .brand-name, body.solo #settingsBtn, body.solo #resetUiBtn { display: none; }
+body.solo .topbar .session, body.solo .topbar .hstat, body.solo .brand-name, body.solo #settingsBtn, body.solo #resetUiBtn, body.solo #commBtn { display: none; }
 body.solo { overflow: hidden; }
 
 /* ---------- Disposition libre ---------- */
@@ -661,3 +661,21 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 @media (max-width: 1250px) {
   .topbar { flex-wrap: wrap; row-gap: 6px; }
 }
+
+/* ---------- Commentaires F1 TV ---------- */
+.comm-btn { position: relative; }
+.comm-btn.on::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 6px var(--red); }
+.comm-btn.muted { opacity: .55; }
+.comm-panel { position: fixed; top: 62px; right: 12px; z-index: 900; width: 380px; max-width: calc(100vw - 24px);
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; box-shadow: 0 12px 34px rgba(0, 0, 0, .6);
+  display: flex; flex-direction: column; gap: 8px; }
+.comm-head { display: flex; align-items: center; gap: 6px; }
+.comm-head .icon-btn { margin-left: auto; }
+.comm-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.comm-row select { display: block; margin-top: 2px; background: var(--panel-3); border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; max-width: 170px; }
+.comm-row input[type=range] { flex: 1; accent-color: var(--red); min-width: 90px; }
+.comm-offset output { min-width: 56px; text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; }
+.comm-status { color: var(--text-2); line-height: 1.35; white-space: pre-line; }
+.comm-status.err { color: var(--orange); }
+.comm-status.ok { color: var(--green); }
+.comm-info { color: var(--text-2); }

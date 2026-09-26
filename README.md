@@ -28,6 +28,16 @@ Dashboard **Formule 1 en direct** à lancer sur votre PC pour suivre chaque Gran
 
 Son, message et notification Windows en option pour : SC, VSC, drapeau rouge, reprise, meilleur tour, arrêt ou message de la direction de course concernant **vos pilotes favoris**, abandons, arrivée. Elles sont déclenchées **au rythme de votre délai**, donc au moment où l'image passe à la TV et jamais avant. Réglages dans ⚙ ; touche `M` pour couper le son.
 
+## 🎙 Commentaires en direct (F1 TV Pro)
+
+Le bouton **🎙** (en haut à droite) lit le son de la vidéo F1 TV de la séance affichée — en direct ou en rediffusion — avec votre abonnement **F1 TV Pro** (connexion dans ⚙ Réglages, la même que pour le GPS) :
+
+- **Canal** : « International » (commentaires TV, plusieurs langues) ou « F1 Live » (émission F1 TV) ; **langue** au choix parmi celles du flux (français, anglais, allemand, espagnol, néerlandais, portugais…).
+- **Volume**, **🔇 couper le son** (ou touche **C**), **▶ / ⏹**.
+- **Caler sur le dashboard** : le son est automatiquement positionné sur l'instant affiché par le dashboard (donc sur le délai Canal+), grâce à l'horodatage du flux ; **« Décalage du son »** pour affiner à l'oreille.
+- Seul le son est téléchargé (pas la vidéo).
+- La ligne d'état indique précisément ce qui se passe (format du flux, protection DRM, erreur F1 TV…). Si F1 TV protège le flux par DRM (Widevine), l'application Windows actuelle ne peut pas le lire : ouvrez alors le dashboard dans Chrome ou Edge (http://127.0.0.1:3000, l'application restant ouverte).
+
 ## 🧩 Disposition et deux écrans
 
 La disposition est entièrement libre et conservée d'une session à l'autre :

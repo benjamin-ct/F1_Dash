@@ -15,6 +15,7 @@ import { initAlerts } from './ui/alerts.js';
 import { initRadio, initStewards, renderStewards, initRcmFilters } from './ui/feed.js';
 import { initLayout } from './ui/layout.js';
 import { initUpdates } from './ui/updates.js';
+import { initCommentary } from './ui/commentary.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -71,6 +72,7 @@ initRcmFilters();
 initStewards();
 initLayout();
 initUpdates();
+initCommentary();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));
