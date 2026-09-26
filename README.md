@@ -50,6 +50,20 @@ Dans votre dépôt GitHub : onglet **Actions** → **Application de bureau** →
 
 > Windows peut afficher un avertissement SmartScreen car l'application n'est pas signée : « Informations complémentaires » → « Exécuter quand même ».
 
+#### 🔄 Mise à jour automatique (installateur et version portable)
+
+L'application vérifie les nouvelles versions au démarrage puis toutes les 6 h. Quand une version sort, elle la télécharge en arrière-plan et vérifie son empreinte SHA-256. Elle l'installe ensuite **à la fermeture de l'appli**, ou tout de suite avec le bouton « Redémarrer ». La version installée relance l'installateur en mode silencieux ; la version portable remplace son propre `.exe`. Réglages : ⚙ → *Mises à jour de l'application*.
+
+Comme ce dépôt est privé, l'appli lit les versions sur un **dépôt public qui ne contient que les `.exe`** : `benjamin-ct/F1_Dash-releases`. Configuration à faire une seule fois :
+
+1. Créez le dépôt **public** `F1_Dash-releases` sur <https://github.com/new>, en cochant « Add a README file ».
+2. Créez un jeton : <https://github.com/settings/personal-access-tokens/new>
+   - *Repository access* : **Only select repositories** → `F1_Dash-releases`
+   - *Permissions* → *Contents* : **Read and write**
+3. Dans ce dépôt (`F1_Dash`) : *Settings* → *Secrets and variables* → *Actions* → *New repository secret*. Nom `RELEASES_TOKEN`, valeur : le jeton.
+
+Ensuite, chaque version publiée (Actions → *Application de bureau* → *Run workflow* avec « Version à publier », ou tag `v*`) est copiée sur ce dépôt public, et toutes les applis installées se mettent à jour. Attention : les `.exe` publiés contiennent le code de l'application et sont téléchargeables par tous.
+
 ### Option B : avec Node.js
 
 1. Installez **[Node.js](https://nodejs.org)** (version LTS, 18 ou plus).

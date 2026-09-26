@@ -515,3 +515,10 @@ body.solo .grid > .panel.solo-panel { grid-area: auto !important; }
 #mapCanvas { cursor: grab; }
 #mapCanvas:active { cursor: grabbing; }
 .tower th.t-lap, .tower th.t-gap, .tower th.t-int { text-align: right; }
+
+/* ---------- Mise à jour (appli de bureau) ---------- */
+.update-pill {
+  position: fixed; right: 18px; bottom: 18px; z-index: 90; display: flex; align-items: center; gap: 10px;
+  background: #1e2533; border: 1px solid var(--blue); border-radius: 10px; padding: 8px 10px 8px 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .5); font-weight: 600; font-size: 13px;
+}
