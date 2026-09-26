@@ -9,7 +9,7 @@ import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError } from './net.js';
 import { circuit, loops } from './circuits.js';
 import { fiaDocuments } from './fia.js';
-import { findSessionContent, playback, proxy as f1tvProxy } from './f1tv.js';
+import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 
@@ -20,6 +20,7 @@ const live = new LiveSource(hub, () => {
   return token && !tokenInfo(token).expired ? token : null;
 }, recorder);
 const replay = new ReplaySource(hub);
+for (const h of getConfig().radioHosts || []) allowHost(h);
 
 // ---- HTTP ----
 const MIME = {
@@ -126,6 +127,24 @@ async function handleApi(req, res, url) {
       const contentId = url.searchParams.get('contentId');
       if (!contentId) return sendJSON(res, 400, { error: 'Paramètre contentId requis' });
       return sendJSON(res, 200, { ...(await playback(contentId, url.searchParams.get('channelId'), token)), account: { product: info.product, country: info.country } });
+    }
+
+    case 'POST /api/radio/allow': {
+      // Station ajoutée par l'utilisateur : son hôte est autorisé dans le relais (et mémorisé).
+      const body = await readBody(req);
+      let host;
+      try { host = new URL(body.url).host; } catch { return sendJSON(res, 400, { error: 'Adresse de flux invalide' }); }
+      const hosts = [...new Set([...(getConfig().radioHosts || []), host])];
+      saveConfig({ radioHosts: hosts });
+      allowHost(host);
+      return sendJSON(res, 200, { ok: true, host });
+    }
+
+    case 'GET /api/radio/resolve': {
+      const target = url.searchParams.get('u') || '';
+      const stream = await resolvePlaylist(target);
+      allowHost(new URL(stream).host);
+      return sendJSON(res, 200, { url: stream });
     }
 
     case 'GET /api/f1tv/proxy':

@@ -679,3 +679,6 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .comm-status.err { color: var(--orange); }
 .comm-status.ok { color: var(--green); }
 .comm-info { color: var(--text-2); }
+.comm-src { gap: 14px; }
+.comm-radio-form { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--panel-3); border-radius: 8px; }
+.comm-radio-form input, .comm-radio-form select { background: #0b0e14; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; color: var(--text); }
