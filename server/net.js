@@ -1,0 +1,50 @@
+// Requêtes HTTPS minimalistes (avec prise en charge d'un proxy HTTPS_PROXY si défini).
+import https from 'node:https';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+
+const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
+export const agent = proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined;
+
+export const USER_AGENT = 'Mozilla/5.0 (F1-Dash local dashboard)';
+
+export class HttpError extends Error {
+  constructor(status, url) {
+    super(`HTTP ${status} pour ${url}`);
+    this.status = status;
+  }
+}
+
+export function request(url, { method = 'GET', headers = {}, body, timeout = 20000, redirects = 3 } = {}) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(url, {
+      method,
+      agent,
+      headers: { 'User-Agent': USER_AGENT, ...headers },
+    }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && redirects > 0) {
+        res.resume();
+        const next = new URL(res.headers.location, url).toString();
+        request(next, { method, headers, body, timeout, redirects: redirects - 1 }).then(resolve, reject);
+        return;
+      }
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(timeout, () => req.destroy(new Error(`Délai dépassé pour ${url}`)));
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+export async function getText(url, opts) {
+  const r = await request(url, opts);
+  if (r.status !== 200) throw new HttpError(r.status, url);
+  return r.body.toString('utf8').replace(/^﻿/, '');
+}
+
+export async function getJSON(url, opts) {
+  return JSON.parse(await getText(url, opts));
+}
