@@ -15,11 +15,11 @@ Dashboard **Formule 1 en direct** à lancer sur votre PC pour suivre chaque Gran
 | **Duel** | Choisissez 2 pilotes (boutons **A** / **B** du classement) : **écart en temps réel** (GPS, mis à jour en continu) et écart officiel, **tendance** (« X revient à −0,32 s/tour, rattrapage estimé dans ~6 tours »), graphique de l'écart en direct et à chaque tour (arrêts aux stands marqués), comparaison tour / secteurs / pneus / speed trap, derniers tours côte à côte, **courbe de rythme** des deux pilotes, télémétrie, photos. Boutons ⬆ / ⬇ : **duel automatique** contre la voiture de devant ou de derrière, qui suit les dépassements. |
 | **Stands (simulateur)** | « Si X s'arrête maintenant, il ressort **P8, 1,2 s derrière Y** ». Utilise le temps perdu au stand du circuit (normal, SC ou VSC selon la situation), modifiable. |
 | **Bagarres** | Toutes les paires à moins de 1,5 s, triées par écart, avec la tendance (« se rapproche de −0,2 s/tour ») et un bouton pour ouvrir le duel. |
-| **Direction de course** | Tous les messages de la FIA avec drapeaux, pénalités, enquêtes, limites de piste… |
-| **Enquêtes** | Suivi de chaque incident signalé par les commissaires : noté → sous enquête → après la course → décision (pénalité, avertissement, pas d'action), avec les pilotes, le virage, le motif traduit et l'historique. Pastille orange = enquêtes en cours. |
+| **Direction de course** | Tous les messages de la FIA avec drapeaux, pénalités, enquêtes, limites de piste… Les drapeaux bleus et les temps supprimés peuvent être masqués. |
+| **Enquêtes** | Suivi de chaque incident signalé par les commissaires : noté → sous enquête → après la course → décision (pénalité, avertissement, pas d'action), avec les pilotes, le virage, le motif traduit et l'historique. Chaque sanction indique le pilote pénalisé, et un lien ouvre le document officiel de la FIA (convocation, décision) dès qu'il est publié sur fia.com. Pastille orange = enquêtes en cours. |
 | **Limites de piste** | Tours / temps supprimés par pilote (virages concernés, dernier tour), drapeau noir et blanc et pénalités ; infractions matérialisées par des pastilles. |
 | **Radios** | Radios d'équipe officielles, filtrables (favoris, pilotes du duel), avec **lecture automatique** des nouvelles radios au rythme de votre délai. |
-| **Arrêts** | Temps passé dans la voie des stands, et immobilisation quand la F1 la publie. |
+| **Arrêts** | Résumé (arrêt le plus rapide, médiane), vue chronologique (pneus retirés → montés, voie des stands et immobilisation avec barres de comparaison) ou par pilote (relais et arrêts). Les passages sans changement de pneus (drapeau rouge) sont distingués. |
 | **Télémétrie** | Vitesse, rapport, régime, accélérateur, frein (et DRS avant 2026) du pilote suivi, avec la courbe de vitesse des 30 dernières secondes. |
 | **Pneus** | Stratégie complète de chaque pilote (relais, gommes, nombre de tours), **rythme** du relais en cours et **usure** (évolution du temps au tour, en s/tour). |
 | **Météo / Championnat** | Station météo du circuit ; projection du championnat en direct pendant les courses. |
@@ -30,7 +30,7 @@ Son, message et notification Windows en option pour : SC, VSC, drapeau rouge, re
 
 ## 🧩 Disposition et deux écrans
 
-Chaque panneau a trois boutons : **⤢ agrandir** (Échap pour revenir), **↗ ouvrir dans une nouvelle fenêtre** : le panneau quitte la fenêtre principale et y revient automatiquement quand on ferme sa fenêtre (ou avec « ↙ Remettre ») ; dans l'application Windows, il s'ouvre directement en plein écran sur le second écran ; le délai reste synchronisé entre les fenêtres et **✕ masquer** (réaffichable dans ⚙ → Affichage, où l'on choisit aussi les colonnes du classement).
+Chaque panneau a trois boutons : **⤢ agrandir** (Échap pour revenir), **↗ ouvrir dans une nouvelle fenêtre** : le panneau quitte la fenêtre principale et y revient automatiquement quand on ferme sa fenêtre (ou avec « ↙ Remettre ») ; dans l'application Windows, il s'ouvre directement en plein écran sur le second écran ; le délai, le pilote suivi (clic dans le classement → télémétrie, carte…), le duel et les réglages restent synchronisés entre les fenêtres et **✕ masquer** (réaffichable dans ⚙ → Affichage, où l'on choisit aussi les colonnes du classement). Sur grand écran ou en fenêtre détachée, le classement s'agrandit pour occuper toute la hauteur (désactivable dans ⚙ → Affichage).
 
 ## ⏱ Se caler sur le délai de Canal+
 

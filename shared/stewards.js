@@ -128,7 +128,7 @@ export function analyzeStewards(messages) {
         inc.decisions.push(d);
         inc.status = dec.kind;
         inc.updated = t;
-        inc.history.push({ t, lap, status: dec.kind, label: dec.label + (served ? ' (purgée)' : ''), text: raw });
+        inc.history.push({ t, lap, status: dec.kind, label: dec.label + (served ? ' (purgée)' : ''), cars, text: raw });
         d.incident = inc.id;
       }
       continue;
@@ -172,4 +172,111 @@ export function analyzeStewards(messages) {
 
 export function isOpen(incident) {
   return incident.status === 'noted' || incident.status === 'investigating' || incident.status === 'after';
+}
+
+// ---- Documents officiels de la FIA ----
+const DOC_TYPES = /^(Decision|Infringement|Offence|Summons)\b/i;
+const DOC_STOP = new Set(['car', 'cars', 'with', 'incident', 'alleged', 'involving', 'driver', 'drivers', 'into', 'from', 'during', 'the', 'and']);
+
+/** "Doc 67 - Decision - Car 77 - Turn 15 Incident" -> {num, type, cars, subject} */
+export function parseFiaDoc(doc) {
+  const title = String(doc?.title || '');
+  const m = /^Doc\s+(\d+)\s*[-–]\s*(.*)$/i.exec(title);
+  const rest = m ? m[2] : title;
+  const tm = DOC_TYPES.exec(rest);
+  const cars = [];
+  for (const cm of rest.matchAll(/\bCars?\s+((?:\d+(?:\s*(?:,|and|&)\s*(?=\d))?)+)/gi)) {
+    for (const n of cm[1].match(/\d+/g)) { const num = String(Number(n)); if (!cars.includes(num)) cars.push(num); }
+  }
+  return {
+    num: m ? Number(m[1]) : null,
+    type: tm ? tm[1].toLowerCase() : null,
+    cars,
+    subject: rest.replace(DOC_TYPES, '').replace(/^\s*[-–]\s*/, '').trim(),
+  };
+}
+
+function words(text) {
+  return new Set(String(text || '').toLowerCase().split(/[^a-z]+/).filter((w) => w.length >= 4 && !DOC_STOP.has(w)));
+}
+
+function turnOf(text) {
+  const m = /\bturns?\s+(\d+)/i.exec(String(text || ''));
+  return m ? Number(m[1]) : null;
+}
+
+// Proximité entre un document et un message : mots du motif en commun, même virage.
+function affinity(doc, text) {
+  const dw = words(doc.info.subject);
+  let s = 0;
+  for (const w of words(text)) if (dw.has(w) || [...dw].some((x) => x.slice(0, 6) === w.slice(0, 6))) s++;
+  const a = turnOf(doc.info.subject), b = turnOf(text);
+  if (a !== null && b !== null) s += a === b ? 2 : -2;
+  return s;
+}
+
+function best(cands, score) {
+  let out = null, bs = -Infinity;
+  for (const c of cands) {
+    const s = score(c);
+    if (s > bs) { bs = s; out = c; }
+  }
+  return out;
+}
+
+/**
+ * Rattache les documents FIA aux décisions (doc de décision / d'infraction) et aux enquêtes
+ * (convocation, décision « pas d'action »). En rediffusion, un document publié après `now`
+ * n'est montré que s'il ne dévoile rien : décision déjà annoncée, convocation, enquête close.
+ * @param data résultat d'analyzeStewards (modifié : decision.doc, incident.docs)
+ * @param docs [{title, url, published}]
+ */
+export function linkFiaDocs(data, docs, now = Infinity) {
+  const list = (docs || []).filter((d) => d && d.url && Number.isFinite(d.published))
+    .map((d) => ({ ...d, info: parseFiaDoc(d) })).filter((d) => d.info.type && d.info.cars.length)
+    .sort((a, b) => a.published - b.published);
+  const used = new Set();
+  const HOUR = 3600e3;
+
+  for (const inc of data.incidents) inc.docs = [];
+  for (const d of data.decisions) {
+    d.doc = null;
+    if (!d.cars.length) continue;
+    const inc = d.incident ? data.incidents.find((i) => i.id === d.incident) : null;
+    const text = [d.reason, inc?.reason, inc?.location?.replace('Virage', 'Turn')].filter(Boolean).join(' ');
+    const cands = list.filter((x) => !used.has(x) && x.info.type !== 'summons' && x.info.cars[0] === d.cars[0].num
+      && x.published >= d.t - 30 * 60e3 && x.published <= d.t + 12 * HOUR);
+    const doc = best(cands, (x) => affinity(x, text) * 10 - Math.abs(x.published - d.t) / HOUR);
+    if (doc) { used.add(doc); d.doc = { title: doc.title, url: doc.url, published: doc.published, num: doc.info.num }; }
+  }
+
+  for (const inc of data.incidents) {
+    const nums = inc.cars.map((c) => c.num);
+    const text = [inc.reason, inc.location?.replace('Virage', 'Turn')].filter(Boolean).join(' ');
+    const near = (x) => !used.has(x) && (x.info.type === 'summons' ? x.info.cars.some((n) => nums.includes(n)) : nums.includes(x.info.cars[0])) && x.published >= inc.created - 10 * 60e3 && x.published <= inc.updated + 24 * HOUR;
+    const summons = best(list.filter((x) => near(x) && x.info.type === 'summons'), (x) => affinity(x, text) * 10 - Math.abs(x.published - inc.created) / HOUR);
+    if (summons) { used.add(summons); inc.docs.push({ kind: 'summons', title: summons.title, url: summons.url, published: summons.published, num: summons.info.num }); }
+    // Décision sans sanction (ou avant le message de la direction de course)
+    if (!inc.decisions.some((d) => d.doc)) {
+      const dec = best(list.filter((x) => near(x) && x.info.type !== 'summons' && (affinity(x, text) > 0 || summons)
+        && (x.published <= now || !isOpen(inc))),
+        (x) => affinity(x, text) * 10 - Math.abs(x.published - inc.updated) / HOUR);
+      if (dec) { used.add(dec); inc.docs.push({ kind: 'decision', title: dec.title, url: dec.url, published: dec.published, num: dec.info.num }); }
+    }
+  }
+  return data;
+}
+
+// Document « … Deleted Lap Times » de la session (limites de piste).
+export function deletedLapsDoc(docs, sessionName, now = Infinity) {
+  const name = String(sessionName || '').toLowerCase();
+  const want = /sprint (?:qualifying|shootout)/.test(name) ? /sprint (?:qualifying|shootout)/i
+    : name === 'sprint' ? /^(?:doc \d+ - )?(?:infringement - )?sprint deleted/i
+      : name === 'qualifying' ? /(?<!sprint )qualifying deleted/i
+        : name === 'race' ? /race deleted/i
+          : /practice (\d)/.test(name) ? new RegExp(`practice ${/practice (\d)/.exec(name)[1]} deleted`, 'i') : null;
+  if (!want) return null;
+  const cands = (docs || []).filter((d) => d?.url && /deleted lap times/i.test(d.title) && !/double yellow/i.test(d.title)
+    && want.test(d.title) && (d.published ?? 0) <= now);
+  return cands.sort((a, b) => b.published - a.published)[0] || null;
 }

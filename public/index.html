@@ -100,7 +100,14 @@
         <button class="tab" data-tab="pits">Arrêts</button>
       </div>
       <div class="panel-body">
-        <div class="tabpane active" data-pane="rcm"><ul class="rcm" id="rcmList"></ul></div>
+        <div class="tabpane active" data-pane="rcm">
+          <div class="subbar">
+            <label class="toggle"><input type="checkbox" id="rcmBlue"> Drapeaux bleus</label>
+            <label class="toggle"><input type="checkbox" id="rcmDeleted"> Temps supprimés</label>
+            <span class="muted small" id="rcmHidden"></span>
+          </div>
+          <ul class="rcm" id="rcmList"></ul>
+        </div>
         <div class="tabpane" data-pane="stewards">
           <div class="subbar">
             <label class="toggle"><input type="radio" name="stwFilter" value="open" checked> En cours</label>
@@ -267,6 +274,7 @@
         <div class="row" id="panelOpts"></div>
         <div class="small muted">Colonnes du classement :</div>
         <div class="row" id="colOpts"></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="towerFit"> Agrandir le classement pour remplir la hauteur disponible (grand écran, fenêtre détachée)</label></div>
       </section>
 
       <section class="set-block">

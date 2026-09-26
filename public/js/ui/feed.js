@@ -1,9 +1,9 @@
 // Direction de course, radios d'équipe, arrêts aux stands.
-import { store, versionOf, on } from '../store.js';
+import { store, versionOf, on, f1Now } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
-import { $, esc, drivers, teamColor, fmtClock, fmtLap } from '../util.js';
+import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge, orderedNumbers } from '../util.js';
 import { parseUtc, parseLapTime } from '/shared/f1.js';
-import { analyzeStewards, isOpen, STATUS_LABEL } from '/shared/stewards.js';
+import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 
 function list(obj) {
   if (!obj) return [];
@@ -26,13 +26,24 @@ function rcmFlagClass(m) {
   return '';
 }
 
+function rcmShown(m) {
+  if (!prefs.rcmBlue && m.Flag === 'BLUE') return false;
+  if (!prefs.rcmDeleted && /\bDELETED\b/.test(m.Message || '')) return false;
+  return true;
+}
+
 export function renderRcm() {
-  const v = versionOf(['RaceControlMessages', '__reset']);
+  const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}`;
   if (v === rcmVer) return;
+  const sameList = String(rcmVer).split('|')[0] === v.split('|')[0] || rcmVer === -1;
   rcmVer = v;
-  const msgs = list(store.state.RaceControlMessages?.Messages);
-  const fresh = msgs.length > rcmCount && rcmCount > 0 ? msgs.length - rcmCount : 0;
-  rcmCount = msgs.length;
+  const all = list(store.state.RaceControlMessages?.Messages);
+  const msgs = all.filter(rcmShown);
+  // Surlignage des nouveaux messages (pas quand on change seulement le filtre)
+  const fresh = !sameList && all.length > rcmCount && rcmCount > 0 ? all.slice(rcmCount).filter(rcmShown).length : 0;
+  rcmCount = all.length;
+  const hidden = all.length - msgs.length;
+  $('#rcmHidden').textContent = hidden ? `${hidden} message(s) masqué(s)` : '';
   $('#rcmList').innerHTML = msgs.length
     ? msgs.slice().reverse().map((m, i) => {
       const t = parseUtc(m.Utc);
@@ -64,7 +75,7 @@ export function renderRadio() {
 }
 
 export function renderPits() {
-  const v = versionOf(['PitLaneTimeCollection', 'PitStopSeries', 'DriverList', '__reset']);
+  const v = `${versionOf(['PitLaneTimeCollection', 'PitStopSeries', 'TimingAppData', 'DriverList', '__reset'])}|${prefs.pitView}`;
   if (v === pitVer) return;
   pitVer = v;
   const dl = drivers(store.state);
@@ -76,16 +87,91 @@ export function renderPits() {
       if (ps?.Lap) stationary.set(`${num}-${ps.Lap}`, parseLapTime(ps.PitStopTime));
     }
   }
-  const rows = store.derived.pitLane.slice().sort((a, b) => b.t - a.t);
-  $('#pitList').innerHTML = rows.length
-    ? `<table class="pits"><tr><th>Tour</th><th>Pilote</th><th>Voie des stands</th><th>Immobilisation</th></tr>` +
-      rows.map((p) => {
-        const d = dl[p.num] || {};
-        const st = stationary.get(`${p.num}-${p.lap}`);
-        return `<tr><td>${esc(p.lap ?? '—')}</td><td><span class="drv"><span class="drv-bar" style="background:${teamColor(d)}"></span><b>${esc(d.Tla || p.num)}</b></span></td>
-          <td>${p.duration ? fmtLap(p.duration) + ' s' : '—'}</td><td>${st ? fmtLap(st) + ' s' : '—'}</td></tr>`;
-      }).join('') + '</table>'
-    : '<div class="note">Aucun arrêt aux stands enregistré depuis le début du suivi.</div>';
+  const byDriver = new Map();
+  for (const p of store.derived.pitLane.slice().sort((a, b) => a.t - b.t)) {
+    if (!byDriver.has(p.num)) byDriver.set(p.num, []);
+    byDriver.get(p.num).push(p);
+  }
+  // Pneus avant / après chaque arrêt (n-ième arrêt = passage du relais n au relais n+1)
+  const apps = store.state.TimingAppData?.Lines || {};
+  const stops = [];
+  for (const [num, arr] of byDriver) {
+    const stints = stintsOf(apps[num]);
+    arr.forEach((p, i) => stops.push({ ...p, n: i + 1, st: stationary.get(`${p.num}-${p.lap}`) ?? null, from: stints[i] || null, to: stints[i + 1] || null }));
+  }
+  if (!stops.length) {
+    $('#pitList').innerHTML = '<div class="note">Aucun arrêt aux stands enregistré depuis le début du suivi.</div>';
+    return;
+  }
+  // Passage sans changement de pneus (voie des stands sous drapeau rouge, drive-through…)
+  const sameTyres = (p) => p.from && p.to && p.from.Compound === p.to.Compound && Number(p.to.StartLaps) > 0
+    && Number(p.to.StartLaps) === Number(p.from.TotalLaps);
+  const real = stops.filter((p) => !sameTyres(p));
+  const nth = new Map();
+  for (const p of real.slice().sort((a, b) => a.t - b.t)) { const k = (nth.get(p.num) || 0) + 1; nth.set(p.num, k); p.k = k; }
+  const lanes = real.map((p) => p.duration).filter((x) => x > 0);
+  const stats = real.map((p) => p.st).filter((x) => x > 0);
+  const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
+  const laneMed = med(lanes), stMed = med(stats);
+  const laneMin = Math.min(...lanes), laneMax = Math.max(...lanes);
+  const stMin = stats.length ? Math.min(...stats) : null, stMax = stats.length ? Math.max(...stats) : null;
+  const fastest = (key) => real.filter((p) => p[key] > 0).sort((a, b) => a[key] - b[key])[0];
+  const fSt = fastest('st'), fLane = fastest('duration');
+  const tla = (num) => esc(dl[num]?.Tla || num);
+  const chip = (num) => `<span class="drv"><span class="drv-bar" style="background:${teamColor(dl[num])}"></span><b>${tla(num)}</b></span>`;
+  const sec = (x) => `${x.toFixed(1).replace('.', ',')} s`;
+  const tyre = (s) => (s ? tyreBadge(s.Compound, s.TotalLaps, s.New) : '<span class="muted">?</span>');
+  // Pneus montés : neufs ou d'occasion (avec leur nombre de tours au montage)
+  const fitted = (s) => {
+    if (!s) return '<span class="muted">?</span>';
+    const used = s.New === false || s.New === 'false' || Number(s.StartLaps) > 0;
+    return `${tyreBadge(s.Compound, null, s.New)} <span class="muted small">${used ? `occasion${Number(s.StartLaps) > 0 ? ` (${Number(s.StartLaps)} t.)` : ''}` : 'neufs'}</span>`;
+  };
+  const bar = (val, min, max, cls) => {
+    const w = Number.isFinite(min) && max > min ? 12 + 88 * Math.max(0, Math.min(1, (val - min) / (max - min))) : 50;
+    return `<span class="pbar ${cls}"><i style="width:${w.toFixed(0)}%"></i></span>`;
+  };
+  const stClass = (x) => (x === null ? '' : x <= stMin + 0.15 ? 'best' : x >= 8 ? 'bad' : x >= Math.max(4, (stMed || 3) + 1.2) ? 'slow' : '');
+  const laneNote = (p) => (!p.duration || !laneMed ? '' : p.duration > laneMed + 12 ? '<span class="pit-tag bad" title="Beaucoup plus long que les autres : problème, pénalité purgée ?">très long</span>'
+    : p.st === null && !p.to && p.duration < laneMed - 1.5 ? '<span class="pit-tag" title="Passage sans arrêt (drive-through probable)">sans arrêt ?</span>' : '');
+
+  const summary = `<div class="pit-summary">
+    <div class="pit-card"><div class="muted small">Arrêts</div><div class="pit-big">${real.length}</div><div class="muted small">${byDriver.size} pilote(s)${stops.length > real.length ? ` · +${stops.length - real.length} passage(s) sans changement de pneus` : ''}</div></div>
+    ${fSt ? `<div class="pit-card"><div class="muted small">Arrêt le plus rapide</div><div class="pit-big best">${sec(fSt.st)}</div><div class="small">${chip(fSt.num)} <span class="muted">tour ${esc(fSt.lap ?? '—')}</span></div></div>` : ''}
+    ${fLane ? `<div class="pit-card"><div class="muted small">Voie des stands la plus rapide</div><div class="pit-big">${sec(fLane.duration)}</div><div class="small">${chip(fLane.num)} <span class="muted">tour ${esc(fLane.lap ?? '—')}</span></div></div>` : ''}
+    ${stMed ? `<div class="pit-card"><div class="muted small">Immobilisation médiane</div><div class="pit-big">${sec(stMed)}</div><div class="muted small">voie : ${laneMed ? sec(laneMed) : '—'}</div></div>` : ''}
+  </div>
+  <div class="subbar"><label class="toggle"><input type="radio" name="pitView" value="chrono" ${prefs.pitView !== 'driver' ? 'checked' : ''}> Chronologique</label>
+    <label class="toggle"><input type="radio" name="pitView" value="driver" ${prefs.pitView === 'driver' ? 'checked' : ''}> Par pilote</label></div>`;
+
+  let body;
+  if (prefs.pitView === 'driver') {
+    const order = orderedNumbers(store.state).filter((n) => dl[n]);
+    const nums = [...new Set([...order, ...byDriver.keys()])];
+    body = `<table class="pits"><tr><th>Pilote</th><th>Arr.</th><th>Relais</th><th>Immobilisations</th></tr>${nums.map((num) => {
+      const mine = real.filter((p) => p.num === num);
+      const stints = stintsOf(apps[num]);
+      // Relais consécutifs avec les mêmes pneus (passage sous drapeau rouge…) : fusionnés
+      const merged = [];
+      for (const st of stints) {
+        const prev = merged.at(-1);
+        if (prev && prev.Compound === st.Compound && Number(st.StartLaps) > 0 && Number(st.StartLaps) === Number(prev.TotalLaps)) merged[merged.length - 1] = { ...prev, TotalLaps: st.TotalLaps };
+        else merged.push(st);
+      }
+      const seq = merged.map((st, i) => `${i ? '<span class="muted">→</span>' : ''}${tyreBadge(st.Compound, st.TotalLaps, st.New)}`).join(' ');
+      return `<tr><td>${chip(num)}</td><td class="pit-n">${mine.length}</td><td class="pit-seq">${seq || '<span class="muted">—</span>'}</td>
+        <td>${mine.map((p) => `<span class="pit-pill ${stClass(p.st)}" title="Tour ${esc(p.lap ?? '—')} · voie ${p.duration ? sec(p.duration) : '—'}">T${esc(p.lap ?? '—')} · ${p.st ? sec(p.st) : '—'}</span>`).join(' ') || '<span class="muted">—</span>'}</td></tr>`;
+    }).join('')}</table>`;
+  } else {
+    body = `<table class="pits"><tr><th>Tour</th><th>Pilote</th><th title="Pneus retirés (tours effectués) → pneus montés">Pneus</th><th>Voie des stands</th><th>Immobilisation</th></tr>${stops.slice().sort((a, b) => b.t - a.t).map((p) => `<tr>
+      <td><span class="lap-pill">T${esc(p.lap ?? '—')}</span></td>
+      <td>${chip(p.num)} <span class="muted small">${p.k ? `${p.k}${p.k === 1 ? 'er' : 'e'} arrêt` : 'passage'}</span></td>
+      <td class="pit-tyres">${sameTyres(p) ? `${tyre(p.from)} <span class="muted small">mêmes pneus</span>` : p.from || p.to ? `${tyre(p.from)} <span class="muted">→</span> ${fitted(p.to)}` : '<span class="muted">—</span>'}</td>
+      <td>${p.duration ? `<div class="pit-cell">${bar(p.duration, laneMin, laneMax, 'lane')}<span class="pit-val">${sec(p.duration)}</span>${laneNote(p)}</div>` : '—'}</td>
+      <td>${p.st ? `<div class="pit-cell">${bar(p.st, stMin, stMax, stClass(p.st))}<span class="pit-val ${stClass(p.st)}">${sec(p.st)}</span></div>` : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>`;
+  }
+  $('#pitList').innerHTML = summary + body;
+  for (const r of document.querySelectorAll('input[name=pitView]')) r.onchange = (e) => setPref('pitView', e.target.value);
 }
 
 function radioAllowed(num) {
@@ -107,6 +193,14 @@ function playNext() {
   player.src = next;
   player.play().catch(() => { /* le navigateur exige une interaction préalable */ });
   player.onended = playNext;
+}
+
+export function initRcmFilters() {
+  for (const [id, key] of [['rcmBlue', 'rcmBlue'], ['rcmDeleted', 'rcmDeleted']]) {
+    $(`#${id}`).checked = prefs[key];
+    $(`#${id}`).addEventListener('change', (e) => setPref(key, e.target.checked));
+  }
+  on('prefs', (k) => { if (k === 'rcmBlue' || k === 'rcmDeleted') $(`#${k}`).checked = prefs[k]; });
 }
 
 export function initRadio() {
@@ -159,11 +253,56 @@ function stewardsData() {
   return stwCache;
 }
 
+// Documents officiels FIA de l'épreuve (rafraîchis toutes les 2 min, cache côté serveur).
+let fia = { key: '', docs: [], page: null, at: 0, loading: false };
+
+function fiaState() {
+  const info = store.state.SessionInfo;
+  const name = info?.Meeting?.Name;
+  if (!name) return fia;
+  const year = Number(String(info.Path || '').slice(0, 4)) || new Date(parseUtc(info.StartDate) || Date.now()).getFullYear();
+  const key = `${year}|${name}`;
+  if (key !== fia.key) fia = { key, docs: [], page: null, at: 0, loading: false };
+  if (!fia.loading && Date.now() - fia.at > (fia.error ? 30000 : 120000)) {
+    fia.loading = true;
+    const q = new URLSearchParams({ year, name, country: info.Meeting.Country?.Name || '', location: info.Meeting.Location || '' });
+    const cur = fia;
+    api(`/api/fia-docs?${q}`)
+      .then((r) => { cur.docs = r.docs || []; cur.page = r.page; cur.error = null; })
+      .catch((err) => { cur.error = err.message; })
+      .finally(() => { cur.loading = false; cur.at = Date.now(); stwRenderKey = ''; });
+  }
+  return fia;
+}
+
+const DOC_KIND = { decision: 'Décision', infringement: 'Infraction', offence: 'Infraction', summons: 'Convocation' };
+
+function docLink(doc, dl) {
+  if (!doc) return '';
+  const info = parseFiaDoc(doc);
+  const who = info.cars[0] ? ` — ${esc(dl[info.cars[0]]?.Tla || `voiture ${info.cars[0]}`)}` : '';
+  return `<a class="fia-doc" href="${esc(doc.url)}" target="_blank" rel="noopener" title="${esc(doc.title)}">📄 ${esc(DOC_KIND[info.type] || 'Document')} FIA${info.num ? ` n° ${info.num}` : ''}${who}<span class="muted"> · ${esc(info.subject.replace(/^Cars?\s+[\d\s,&and]+-\s*/i, ''))}</span> ↗</a>`;
+}
+
 let stwRenderKey = '';
+
+function sessionEnded() {
+  const st = store.state.SessionStatus?.Status || store.state.SessionInfo?.SessionStatus;
+  return ['Finished', 'Finalised', 'Ends'].includes(st);
+}
+
+function penaltyState(d) {
+  if (d.kind !== 'penalty' || !/SECOND TIME|DRIVE|STOP/.test(d.text) || store.state.SessionInfo?.Type !== 'Race') return '';
+  if (/SECOND TIME/.test(d.text) && sessionEnded()) return '<span class="muted small">ajoutée à son temps de course</span>';
+  return '<span class="muted small">à purger</span>';
+}
 
 export function renderStewards() {
   const data = stewardsData();
   const dl = drivers(store.state);
+  const docs = fiaState();
+  const now = f1Now();
+  const visible = docs.docs.filter((d) => d.published <= now).length;
   const open = data.incidents.filter(isOpen);
   const badge = $('#stewardsBadge');
   badge.hidden = !open.length;
@@ -173,13 +312,20 @@ export function renderStewards() {
   $('#tlBadge').textContent = tlWarn;
 
   const filter = document.querySelector('input[name=stwFilter]:checked')?.value || 'open';
-  const key = `${stwVer}|${filter}|${Object.keys(dl).length}`;
+  const key = `${stwVer}|${filter}|${Object.keys(dl).length}|${docs.key}|${docs.docs.length}|${visible}|${sessionEnded()}`;
   if (key === stwRenderKey) return;
   stwRenderKey = key;
+  linkFiaDocs(data, docs.docs, now);
 
   const car = (c) => `<span><span class="drv-bar" style="background:${teamColor(dl[c.num])}"></span>${esc(dl[c.num]?.Tla || c.tla)}</span>`;
+  const who = (cars) => cars.map((c) => `<span class="inc-who"><span class="drv-bar" style="background:${teamColor(dl[c.num])}"></span>${esc(dl[c.num]?.Tla || c.tla)}${dl[c.num]?.LastName ? ` <span class="muted">${esc(dl[c.num].LastName)}</span>` : ''}</span>`).join(' ');
+  const decision = (d) => `<div class="inc-dec ${d.kind}"><div class="inc-dec-line"><span class="inc-dec-label">⚖ ${esc(d.label)}</span> pour ${who(d.cars) || '—'}
+      ${d.servedAt ? `<span class="inc-served">purgée à ${fmtClock(d.servedAt)}</span>` : penaltyState(d)}</div>
+      ${d.reason ? `<div class="muted small">${esc(reasonFr(d.reason))}</div>` : ''}
+      ${docLink(d.doc, dl)}</div>`;
   const penalties = data.decisions.filter((d) => d.kind === 'penalty').length;
-  $('#stewardsSummary').textContent = `${open.length} en cours · ${data.incidents.length} au total · ${penalties} pénalité(s)`;
+  const docsNote = docs.page ? ` · <a href="${esc(docs.page)}" target="_blank" rel="noopener">documents FIA ↗</a>` : docs.error ? ' · <span title="' + esc(docs.error) + '">documents FIA indisponibles</span>' : '';
+  $('#stewardsSummary').innerHTML = `${open.length} en cours · ${data.incidents.length} au total · ${penalties} pénalité(s)${docsNote}`;
   const shown = (filter === 'open' ? open : data.incidents).slice().sort((a, b) => (isOpen(b) - isOpen(a)) || b.updated - a.updated);
   const loose = filter === 'all' ? data.decisions.filter((d) => !d.incident) : [];
   $('#stewardsList').innerHTML = shown.length || loose.length
@@ -188,15 +334,17 @@ export function renderStewards() {
           <span class="inc-cars">${inc.cars.map(car).join('')}</span>
           <span class="inc-where">${esc(inc.location || '')}${inc.lap ? ` · tour ${inc.lap}` : ''}</span></div>
         ${inc.reason ? `<div class="inc-reason" title="${esc(inc.reason)}">${esc(reasonFr(inc.reason))}</div>` : ''}
-        ${inc.decisions.map((d) => `<div class="inc-reason"><b>⚖ ${esc(d.label)}</b>${d.servedAt ? ' — purgée' : ''}</div>`).join('')}
-        <ul class="inc-steps">${inc.history.map((h) => `<li title="${esc(h.text)}">${fmtClock(h.t)}${h.lap ? ` (T${h.lap})` : ''} · <b>${esc(h.label)}</b></li>`).join('')}</ul>
+        ${inc.decisions.map(decision).join('')}
+        ${inc.docs.map((d) => docLink(d, dl)).join('')}
+        <ul class="inc-steps">${inc.history.map((h) => `<li title="${esc(h.text)}">${fmtClock(h.t)}${h.lap ? ` (T${h.lap})` : ''} · <b>${esc(h.label)}</b>${h.cars?.length ? ` → ${esc(h.cars.map((c) => dl[c.num]?.Tla || c.tla).join(', '))}` : ''}</li>`).join('')}</ul>
       </div>`).join('') + loose.map((d) => `<div class="inc"><div class="inc-head"><span class="inc-status ${d.kind}">${esc(d.label)}</span>
-        <span class="inc-cars">${d.cars.map(car).join('')}</span><span class="inc-where">${fmtClock(d.t)}</span></div>
-        ${d.reason ? `<div class="inc-reason">${esc(reasonFr(d.reason))}</div>` : ''}</div>`).join('')
+        <span class="inc-cars">${d.cars.map(car).join('')}</span><span class="inc-where">${fmtClock(d.t)}${d.lap ? ` · tour ${d.lap}` : ''}</span></div>
+        ${decision(d)}</div>`).join('')
     : `<div class="note">${filter === 'open' ? 'Aucune enquête en cours.' : 'Aucun incident signalé par les commissaires.'}</div>`;
 
   // Limites de piste
   const race = store.state.SessionInfo?.Type === 'Race';
+  const tlDoc = deletedLapsDoc(docs.docs, store.state.SessionInfo?.Name, sessionEnded() ? Infinity : now);
   $('#tlList').innerHTML = data.trackLimits.length
     ? `<table class="tl-table"><tr><th>Pilote</th><th>Infractions</th><th>Virages</th><th>Dernière</th><th>Statut</th></tr>
       ${data.trackLimits.map((d) => {
@@ -218,6 +366,7 @@ export function renderStewards() {
           <td><span class="pips">${pips}</span> ${n}${other}</td><td>${esc(turns) || '—'}</td>
           <td>${last ? `T${last.lap}${last.time ? ` (${esc(last.time)})` : ''}` : '—'}</td><td>${status}</td></tr>`;
       }).join('')}</table>
+      ${tlDoc ? `<p class="note"><a class="fia-doc" href="${esc(tlDoc.url)}" target="_blank" rel="noopener">📄 Document FIA : ${esc(tlDoc.title.replace(/^Doc \d+ - /, ''))} ↗</a></p>` : ''}
       <p class="note">${race ? 'En course, la direction de course montre en général le drapeau noir et blanc après la 3e infraction ; les suivantes sont transmises aux commissaires (pénalité possible). ' : 'Hors course, un temps supprimé ne compte pas pour le classement. '}« Tour supprimé (PIT) » : infraction pendant un tour qui se termine aux stands.</p>`
     : '<div class="note">Aucun temps supprimé pour limites de piste.</div>';
 }

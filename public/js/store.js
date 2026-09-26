@@ -118,3 +118,18 @@ export function setFocus(num) {
   storageSet('f1dash.focus', num);
   emit('focus', num);
 }
+
+// Plusieurs fenêtres (mode deux écrans) : le pilote suivi et le duel choisis dans une fenêtre
+// s'appliquent aussi aux autres (télémétrie, carte, duel…).
+window.addEventListener('storage', (e) => {
+  if (e.newValue === null) return;
+  let v;
+  try { v = JSON.parse(e.newValue); } catch { return; }
+  if (e.key === 'f1dash.focus' && v !== store.focus) {
+    store.focus = v;
+    emit('focus', v);
+  } else if (e.key === 'f1dash.duel' && JSON.stringify(v) !== JSON.stringify(store.duel)) {
+    store.duel = v;
+    emit('duel', v);
+  }
+});

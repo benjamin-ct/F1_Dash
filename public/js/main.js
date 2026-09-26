@@ -12,7 +12,7 @@ import { renderTelemetry, renderStrategy, renderWeather, renderChampionship } fr
 import { initSettings } from './ui/settings.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
 import { initAlerts } from './ui/alerts.js';
-import { initRadio, initStewards, renderStewards } from './ui/feed.js';
+import { initRadio, initStewards, renderStewards, initRcmFilters } from './ui/feed.js';
 import { initLayout } from './ui/layout.js';
 import { initUpdates } from './ui/updates.js';
 
@@ -58,6 +58,7 @@ initSettings();
 initRaceTools();
 initAlerts();
 initRadio();
+initRcmFilters();
 initStewards();
 initLayout();
 initUpdates();

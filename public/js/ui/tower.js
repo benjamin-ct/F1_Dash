@@ -197,6 +197,32 @@ export function renderTower(force = false) {
   table.className = `tower ${prefs.hiddenCols.map((c) => `hide-${c}`).join(' ')}`;
   table.innerHTML = `${cutInfo}<thead><tr>${head}</tr></thead><tbody>${rows.join('') || '<tr><td class="note">En attente des données de chronométrage…</td></tr>'}</tbody>`;
   if (flashes.size) lastKey = '';
+  fitTower();
+}
+
+// Grand écran / fenêtre détachée : le classement s'agrandit pour occuper toute la hauteur
+// disponible (zoom limité pour que toutes les colonnes restent visibles).
+let fitKey = '';
+
+export function fitTower(force = false) {
+  const table = $('#tower');
+  const wrap = table?.parentElement;
+  if (!wrap || !wrap.clientHeight) return;
+  const rows = table.tBodies[0]?.rows.length || 0;
+  const key = `${wrap.clientWidth}x${wrap.clientHeight}|${rows}|${table.className}|${prefs.towerFit}`;
+  if (key === fitKey && !force) return;
+  fitKey = key;
+  table.style.zoom = '';
+  if (!prefs.towerFit || rows < 5) return;
+  const room = (wrap.clientHeight - 2) / table.offsetHeight;
+  if (room < 1.04) return;
+  let z = Math.min(1.8, Math.floor(room * 50) / 50);
+  while (z > 1.04) {
+    table.style.zoom = z;
+    if (wrap.scrollWidth <= wrap.clientWidth + 1 && wrap.scrollHeight <= wrap.clientHeight + 1) return;
+    z = Math.round((z - 0.04) * 100) / 100;
+  }
+  table.style.zoom = '';
 }
 
 // Temps prévu d'un tour lancé : secteurs réalisés + meilleurs secteurs personnels restants.
@@ -224,6 +250,9 @@ function predictLap(l, st) {
   return { time, done };
 }
 export function initTower() {
+  const wrap = $('#tower').parentElement;
+  if ('ResizeObserver' in window) new ResizeObserver(() => fitTower()).observe(wrap);
+  on('prefs', (k) => { if (k === 'towerFit') fitTower(true); });
   on('reset', () => { freshReset = true; prevPos.clear(); flashes.clear(); });
   $('#tower').addEventListener('click', (e) => {
     const b = e.target.closest('[data-duel]');
