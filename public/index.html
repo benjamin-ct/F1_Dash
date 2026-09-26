@@ -234,6 +234,16 @@
         <div class="small" id="tokenStatus"></div>
       </section>
 
+      <section class="set-block" id="updateBlock" hidden>
+        <h4>🔄 Mises à jour de l'application</h4>
+        <div class="small" id="updateStatus">—</div>
+        <div class="row">
+          <button class="btn" id="updateCheck">Vérifier maintenant</button>
+          <button class="btn btn-accent" id="updateInstall" hidden>Redémarrer et mettre à jour</button>
+          <label class="toggle small"><input type="checkbox" id="updateAuto"> Télécharger et installer automatiquement (à la fermeture de l'appli)</label>
+        </div>
+      </section>
+
       <section class="set-block">
         <h4>🔔 Alertes (synchronisées avec votre délai TV)</h4>
         <div class="row" id="alertOpts"></div>
@@ -254,6 +264,8 @@
       </section>
     </div>
   </dialog>
+
+  <div class="update-pill" id="updatePill" hidden><span id="updatePillText"></span><button class="btn small btn-accent" id="updatePillBtn">Redémarrer</button><button class="icon-btn small" id="updatePillClose" title="Plus tard (installée à la fermeture)">✕</button></div>
 
   <div class="toast" id="toast" hidden></div>
 

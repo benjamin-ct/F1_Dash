@@ -20,6 +20,11 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
+      # Jeton (secret) autorisé à publier sur le dépôt public des versions, lu par la mise à jour automatique.
+      RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+      RELEASES_REPO: benjamin-ct/F1_Dash-releases
     defaults:
       run:
         working-directory: desktop
@@ -29,6 +34,10 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Numéro de version de l'appli = tag publié
+        if: startsWith(env.RELEASE_TAG, 'v')
+        shell: bash
+        run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
       - run: npm run dist
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
@@ -39,11 +48,11 @@ jobs:
             desktop/dist/*.exe
           if-no-files-found: error
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.release_tag, 'v')
+        if: startsWith(env.RELEASE_TAG, 'v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag || github.ref_name }}
-          name: F1 Dash ${{ inputs.release_tag || github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: F1 Dash ${{ env.RELEASE_TAG }}
           target_commitish: ${{ github.sha }}
           files: desktop/dist/*.exe
           body: |
@@ -52,3 +61,20 @@ jobs:
             - **F1-Dash-…-x64-win.exe** : installateur (raccourci « F1 Dash »).
 
             Windows peut afficher un avertissement SmartScreen (application non signée) : « Informations complémentaires » → « Exécuter quand même ».
+      - name: Publication sur le dépôt public (mise à jour automatique)
+        if: startsWith(env.RELEASE_TAG, 'v') && env.RELEASES_TOKEN != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: ${{ env.RELEASES_REPO }}
+          token: ${{ env.RELEASES_TOKEN }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: F1 Dash ${{ env.RELEASE_TAG }}
+          make_latest: true
+          files: desktop/dist/*.exe
+          body: |
+            Application Windows de F1 Dash — installateur et version portable.
+            L'application installée se met à jour toute seule à partir de cette page.
+      - name: Avertissement si le dépôt public n'est pas configuré
+        if: startsWith(env.RELEASE_TAG, 'v') && env.RELEASES_TOKEN == ''
+        shell: bash
+        run: echo "::warning::Secret RELEASES_TOKEN absent — version non publiée sur ${RELEASES_REPO} (pas de mise à jour automatique). Voir README."

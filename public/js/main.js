@@ -14,6 +14,7 @@ import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
 import { initAlerts } from './ui/alerts.js';
 import { initRadio } from './ui/feed.js';
 import { initLayout } from './ui/layout.js';
+import { initUpdates } from './ui/updates.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -57,6 +58,7 @@ initRaceTools();
 initAlerts();
 initRadio();
 initLayout();
+initUpdates();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));

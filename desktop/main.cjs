@@ -92,6 +92,7 @@ function loginF1TV() {
 }
 
 ipcMain.handle('f1tv-login', () => loginF1TV());
+app.whenReady().then(() => require('./updater.cjs').init(ipcMain));
 ipcMain.handle('f1tv-logout', async () => {
   await session.fromPartition('persist:f1tv').clearStorageData();
   return { ok: true };

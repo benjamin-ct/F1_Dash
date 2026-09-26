@@ -26,6 +26,7 @@
     "files": [
       "main.cjs",
       "preload.cjs",
+      "updater.cjs",
       "bundle/**/*",
       "package.json"
     ],
@@ -40,5 +41,8 @@
     "portable": {
       "artifactName": "F1-Dash-${version}-portable.exe"
     }
+  },
+  "f1dash": {
+    "updateRepo": "benjamin-ct/F1_Dash-releases"
   }
 }
