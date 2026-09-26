@@ -144,3 +144,5 @@ livetiming.formula1.com ──SignalR──▶ serveur Node local ──WebSocke
 Tests : `npm test` (lancés aussi automatiquement sur GitHub à chaque modification).
 
 > Projet non officiel, sans lien avec la Formula 1, la FIA ou Canal+. Les données proviennent du flux public F1 Live Timing et sont destinées à un usage personnel.
+>
+> [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/X6Y427QAUT)
