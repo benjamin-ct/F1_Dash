@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>F1 Dash</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e10600'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='900' font-size='15' fill='white' text-anchor='middle'%3EF1%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">F1</span><span class="brand-name">DASH</span></div>
+
+    <div class="session">
+      <div class="session-name" id="sessionName">Connexion…</div>
+      <div class="session-sub" id="sessionSub"></div>
+    </div>
+
+    <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
+
+    <div class="hstat"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div></div>
+    <div class="hstat"><div class="hstat-label">Temps restant</div><div class="hstat-value" id="clockValue">—</div></div>
+    <div class="hstat weather-mini" id="weatherMini" title="Météo"></div>
+
+    <div class="spacer"></div>
+
+    <div class="delay" id="delayBox">
+      <div class="delay-head">
+        <span class="delay-title">Délai</span>
+        <span class="delay-warn" id="delayWarn" hidden title="">⚠</span>
+      </div>
+      <div class="delay-controls">
+        <button class="dbtn" data-step="-5000" title="−5 s (Maj + ←)">−5</button>
+        <button class="dbtn" data-step="-1000" title="−1 s (←)">−1</button>
+        <button class="dbtn" data-step="-100" title="−0,1 s (Alt + ←)">−.1</button>
+        <input id="delayInput" class="delay-input" type="text" inputmode="decimal" aria-label="Délai en secondes">
+        <button class="dbtn" data-step="100" title="+0,1 s (Alt + →)">+.1</button>
+        <button class="dbtn" data-step="1000" title="+1 s (→)">+1</button>
+        <button class="dbtn" data-step="5000" title="+5 s (Maj + →)">+5</button>
+      </div>
+      <select id="presetSelect" class="preset" aria-label="Préréglages de délai"></select>
+      <button class="btn btn-accent" id="syncBtn" title="Caler le délai sur votre diffusion TV (touche S)">🎯 Synchro TV</button>
+    </div>
+
+    <button class="source-badge" id="sourceBadge" title="Source des données (live / replay)">
+      <span class="src-dot"></span><span id="sourceLabel">—</span>
+    </button>
+    <button class="icon-btn" id="settingsBtn" title="Réglages (source, replay, F1 TV)">⚙</button>
+  </header>
+
+  <div class="replaybar" id="replayBar" hidden>
+    <button class="btn" id="rpPlay" title="Pause">❚❚</button>
+    <button class="btn" data-skip="-60000">−60 s</button>
+    <button class="btn" data-skip="-10000">−10 s</button>
+    <input type="range" id="rpRange" min="0" max="1000" value="0" step="1">
+    <button class="btn" data-skip="10000">+10 s</button>
+    <button class="btn" data-skip="60000">+60 s</button>
+    <span class="rp-time" id="rpTime">—</span>
+    <button class="btn" id="rpStart" title="Aller au départ de la session">⏮ Départ</button>
+  </div>
+
+  <main class="grid">
+    <section class="panel p-tower">
+      <div class="panel-head">
+        <h2>Classement</h2>
+        <div class="panel-tools"><span class="hint">Cliquez <b>A</b> / <b>B</b> pour lancer un duel · clic sur un pilote = suivi</span></div>
+      </div>
+      <div class="panel-body tower-wrap"><table class="tower" id="tower"></table></div>
+    </section>
+
+    <section class="panel p-map">
+      <div class="panel-head">
+        <h2>Circuit</h2>
+        <div class="panel-tools">
+          <span class="map-mode" id="mapMode"></span>
+          <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms</label>
+          <label class="toggle"><input type="checkbox" id="mapCorners" checked> Virages</label>
+        </div>
+      </div>
+      <div class="panel-body map-wrap">
+        <canvas id="mapCanvas"></canvas>
+        <div class="map-legend" id="mapLegend"></div>
+        <div class="map-empty" id="mapEmpty">Chargement du tracé…</div>
+      </div>
+    </section>
+
+    <section class="panel p-feed">
+      <div class="panel-head tabs" data-tabs="feed">
+        <button class="tab active" data-tab="rcm">Direction de course</button>
+        <button class="tab" data-tab="radio">Radios</button>
+        <button class="tab" data-tab="pits">Arrêts</button>
+      </div>
+      <div class="panel-body">
+        <div class="tabpane active" data-pane="rcm"><ul class="rcm" id="rcmList"></ul></div>
+        <div class="tabpane" data-pane="radio"><ul class="radio" id="radioList"></ul></div>
+        <div class="tabpane" data-pane="pits"><div id="pitList"></div></div>
+      </div>
+    </section>
+
+    <section class="panel p-duel">
+      <div class="panel-head">
+        <h2>Duel</h2>
+        <div class="panel-tools duel-pick">
+          <select id="duelA" aria-label="Pilote A"></select>
+          <button class="icon-btn small" id="duelSwap" title="Inverser">⇄</button>
+          <select id="duelB" aria-label="Pilote B"></select>
+        </div>
+      </div>
+      <div class="panel-body" id="duelBody"></div>
+    </section>
+
+    <section class="panel p-extra">
+      <div class="panel-head tabs" data-tabs="extra">
+        <button class="tab active" data-tab="telemetry">Télémétrie</button>
+        <button class="tab" data-tab="strategy">Pneus</button>
+        <button class="tab" data-tab="weather">Météo</button>
+        <button class="tab" data-tab="champ">Championnat</button>
+      </div>
+      <div class="panel-body">
+        <div class="tabpane active" data-pane="telemetry" id="telemetry"></div>
+        <div class="tabpane" data-pane="strategy" id="strategy"></div>
+        <div class="tabpane" data-pane="weather" id="weather"></div>
+        <div class="tabpane" data-pane="champ" id="champ"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Synchro TV -->
+  <dialog class="modal" id="syncModal">
+    <form method="dialog" class="modal-head">
+      <h3>🎯 Synchroniser avec ma TV (Canal+…)</h3>
+      <button class="icon-btn" value="close" aria-label="Fermer">✕</button>
+    </form>
+    <div class="modal-body">
+      <ol class="sync-steps">
+        <li>Regardez votre diffusion TV.</li>
+        <li>Au moment <b>exact</b> où vous voyez l'un des événements ci-dessous à l'écran, cliquez sur <b>« Je le vois ! »</b>.</li>
+        <li>Le délai est calculé automatiquement. Affinez ensuite avec ±0,1 s si besoin.</li>
+      </ol>
+      <p class="muted small">Astuce : le plus précis est le <b>changement du compteur de tours</b> en course (le leader franchit la ligne), ou l'extinction des feux au départ.</p>
+      <div class="sync-now">
+        <div>Délai actuel : <b id="syncCurrent">—</b></div>
+        <div class="muted small" id="syncBuffer"></div>
+      </div>
+      <ul class="sync-list" id="syncList"></ul>
+      <div class="sync-save">
+        <input type="text" id="presetName" placeholder="Nom du préréglage (ex. Canal+ salon)" maxlength="40">
+        <button class="btn" id="presetSave">💾 Enregistrer le délai actuel</button>
+      </div>
+      <div class="preset-manage" id="presetManage"></div>
+    </div>
+  </dialog>
+
+  <!-- Réglages -->
+  <dialog class="modal wide" id="settingsModal">
+    <form method="dialog" class="modal-head">
+      <h3>⚙ Source des données</h3>
+      <button class="icon-btn" value="close" aria-label="Fermer">✕</button>
+    </form>
+    <div class="modal-body">
+      <section class="set-block">
+        <h4>🔴 Live</h4>
+        <p class="muted small">Se connecte au flux officiel F1 Live Timing (session en cours ou dernière session).</p>
+        <button class="btn btn-accent" id="goLive">Passer en live</button>
+      </section>
+
+      <section class="set-block">
+        <h4>⏪ Replay d'une session passée</h4>
+        <div class="row">
+          <select id="rpYear"></select>
+          <select id="rpMeeting"></select>
+          <select id="rpSession"></select>
+        </div>
+        <div class="row">
+          <label class="toggle"><input type="radio" name="rpStartAt" value="start" checked> Démarrer 1 min avant le départ</label>
+          <label class="toggle"><input type="radio" name="rpStartAt" value="begin"> Démarrer au début de l'enregistrement</label>
+        </div>
+        <button class="btn btn-accent" id="goReplay">Lancer le replay</button>
+        <span class="muted small" id="rpMsg"></span>
+      </section>
+
+      <section class="set-block">
+        <h4>📡 Positions GPS & télémétrie en live (F1 TV)</h4>
+        <p class="small">Depuis 2025, la F1 réserve les positions GPS et la télémétrie du flux live aux abonnés <b>F1 TV</b>.
+          Sans jeton, le dashboard <b>estime</b> la position des voitures à partir des chronos (mini-secteurs) : c'est moins précis mais fonctionne.
+          Les replays, eux, contiennent toujours le GPS.</p>
+        <details class="small">
+          <summary>Comment récupérer mon jeton F1 TV ?</summary>
+          <ol>
+            <li>Connectez-vous sur <b>f1tv.formula1.com</b> (ou formula1.com) dans votre navigateur.</li>
+            <li>Ouvrez les outils de développement (F12) → onglet <b>Application</b> (Chrome/Edge) ou <b>Stockage</b> (Firefox) → <b>Cookies</b> → <code>https://www.formula1.com</code>.</li>
+            <li>Copiez la <b>valeur</b> du cookie <code>login-session</code> et collez-la ci-dessous (le jeton est extrait automatiquement).</li>
+          </ol>
+          <p>Le jeton est enregistré uniquement sur votre PC (fichier <code>config.json</code>) et n'est envoyé qu'à livetiming.formula1.com. Il expire au bout de quelques jours : il faudra le recoller.</p>
+        </details>
+        <div class="row">
+          <input type="password" id="tokenInput" placeholder="Valeur du cookie login-session ou jeton" autocomplete="off">
+          <button class="btn" id="tokenSave">Enregistrer</button>
+          <button class="btn" id="tokenClear">Supprimer</button>
+        </div>
+        <div class="small" id="tokenStatus"></div>
+      </section>
+
+      <section class="set-block">
+        <h4>⌨ Raccourcis</h4>
+        <p class="small muted">← / → : délai ±1 s · Maj : ±5 s · Alt : ±0,1 s · S : synchro TV · Espace : pause (replay)</p>
+      </section>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

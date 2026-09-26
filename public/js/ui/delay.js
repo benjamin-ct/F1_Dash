@@ -1,0 +1,177 @@
+// Réglage du délai : boutons, saisie, préréglages, raccourcis clavier et synchro TV.
+import { store, setDelay, serverNow, on } from '../store.js';
+import { $, esc, fmtDelay, storageGet, storageSet, drivers } from '../util.js';
+
+// Valeurs de départ indicatives : chaque installation (box, satellite, appli, TNT...) a son
+// propre retard. Utilisez la synchro TV puis enregistrez votre propre préréglage.
+const DEFAULT_PRESETS = [
+  { name: 'Temps réel (0 s)', ms: 0, builtin: true },
+  { name: 'Canal+ TV / box (≈ 10 s, à calibrer)', ms: 10000, builtin: true },
+  { name: 'myCANAL appli / web (≈ 40 s, à calibrer)', ms: 40000, builtin: true },
+];
+
+function customPresets() {
+  return storageGet('f1dash.presets', []);
+}
+
+function allPresets() {
+  return [...DEFAULT_PRESETS, ...customPresets()];
+}
+
+export function toast(msg, ms = 2500) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { t.hidden = true; }, ms);
+}
+
+function renderPresets() {
+  const sel = $('#presetSelect');
+  const presets = allPresets();
+  const match = presets.findIndex((p) => p.ms === store.delay);
+  sel.innerHTML = `<option value="">${match < 0 ? `Personnalisé (${fmtDelay(store.delay)})` : 'Préréglages…'}</option>` +
+    presets.map((p, i) => `<option value="${i}" ${i === match ? 'selected' : ''}>${esc(p.name)}${p.builtin ? '' : ` — ${fmtDelay(p.ms)}`}</option>`).join('');
+
+  const custom = customPresets();
+  $('#presetManage').innerHTML = custom.length
+    ? `<span class="muted small">Mes préréglages :</span>` + custom.map((p, i) => `<span class="chip">${esc(p.name)} · ${fmtDelay(p.ms)}<button data-del="${i}" title="Supprimer">✕</button></span>`).join('')
+    : '';
+}
+
+function renderValue() {
+  const input = $('#delayInput');
+  if (document.activeElement !== input) input.value = (store.delay / 1000).toFixed(1).replace('.', ',');
+  $('#syncCurrent').textContent = fmtDelay(store.delay);
+  renderPresets();
+  renderWarning();
+}
+
+function renderWarning() {
+  const st = store.status;
+  const warn = $('#delayWarn');
+  if (!st || !st.bufferStart) { warn.hidden = true; return; }
+  const available = serverNow() - st.bufferStart;
+  if (store.delay > available + 1000) {
+    warn.hidden = false;
+    warn.title = `Historique insuffisant : le serveur n'a que ${Math.floor(available / 1000)} s de données. L'affichage sera exact une fois ce délai écoulé.`;
+  } else warn.hidden = true;
+}
+
+function parseInput(v) {
+  const n = parseFloat(String(v).replace(',', '.').replace(/[^\d.\-]/g, ''));
+  return Number.isFinite(n) ? n * 1000 : null;
+}
+
+// ---- Synchro TV ----
+const KIND_LABEL = { lap: 'Tour', track: 'Piste', rcm: 'Direction', session: 'Session', pit: 'Stands' };
+
+function renderSyncList() {
+  const modal = $('#syncModal');
+  if (!modal.open) return;
+  const st = store.status;
+  const list = $('#syncList');
+  const now = serverNow();
+  const dl = drivers(store.state);
+  const events = (st?.sync || []).slice().reverse().filter((e) => now - e.t <= (st?.maxDelayMs ?? 600000));
+  if (!events.length) {
+    list.innerHTML = '<li class="empty">Aucun événement récent. Les repères (changement de tour, drapeaux, entrées aux stands, messages de la direction de course) apparaîtront ici dès qu\'ils se produisent en live.</li>';
+  } else {
+    list.innerHTML = events.map((e) => {
+      const ago = (now - e.t) / 1000;
+      const who = e.num ? `${dl[e.num]?.Tla || '#' + e.num} ` : '';
+      return `<li class="${e.kind}">
+        <div><div class="se-text"><span class="se-kind">${KIND_LABEL[e.kind] || e.kind}</span>${esc(who + e.text)}</div>
+        <div class="se-meta">Il y a ${ago.toFixed(1).replace('.', ',')} s en live${e.hint ? ' · ' + esc(e.hint) : ''}</div></div>
+        <button class="btn btn-accent" data-t="${e.t}">Je le vois !</button></li>`;
+    }).join('');
+  }
+  const buf = st?.bufferStart ? Math.floor((now - st.bufferStart) / 1000) : 0;
+  $('#syncBuffer').textContent = `Historique disponible : ${buf >= 3600 ? Math.floor(buf / 60) + ' min' : buf + ' s'}`;
+}
+
+export function initDelay() {
+  renderValue();
+
+  $('#delayBox').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-step]');
+    if (b) setDelay(store.delay + Number(b.dataset.step));
+  });
+
+  const input = $('#delayInput');
+  input.addEventListener('change', () => {
+    const ms = parseInput(input.value);
+    if (ms !== null) setDelay(ms);
+    input.blur();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { input.blur(); renderValue(); }
+    e.stopPropagation();
+  });
+  input.addEventListener('blur', () => {
+    const ms = parseInput(input.value);
+    if (ms !== null && ms !== store.delay) setDelay(ms); else renderValue();
+  });
+  input.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    setDelay(store.delay + (e.deltaY < 0 ? 100 : -100) * (e.shiftKey ? 10 : 1));
+  }, { passive: false });
+
+  $('#presetSelect').addEventListener('change', (e) => {
+    const p = allPresets()[Number(e.target.value)];
+    if (p) { setDelay(p.ms); toast(`Délai : ${fmtDelay(p.ms)} (${p.name})`); }
+  });
+
+  $('#syncBtn').addEventListener('click', openSync);
+  // pointerdown (et non click) : réaction immédiate au moment où l'on appuie,
+  // et la liste rafraîchie en continu ne peut pas "avaler" le clic.
+  $('#syncList').addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('[data-t]');
+    if (!b || e.button !== 0) return;
+    const ms = serverNow() - Number(b.dataset.t);
+    setDelay(ms);
+    toast(`✅ Délai calé sur la TV : ${fmtDelay(store.delay)}`);
+    renderSyncList();
+  });
+
+  $('#presetSave').addEventListener('click', () => {
+    const name = $('#presetName').value.trim() || `Mon délai ${fmtDelay(store.delay)}`;
+    const list = customPresets().filter((p) => p.name !== name);
+    list.push({ name, ms: store.delay });
+    storageSet('f1dash.presets', list);
+    $('#presetName').value = '';
+    renderPresets();
+    toast(`Préréglage « ${name} » enregistré`);
+  });
+  $('#presetManage').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-del]');
+    if (!b) return;
+    const list = customPresets();
+    list.splice(Number(b.dataset.del), 1);
+    storageSet('f1dash.presets', list);
+    renderPresets();
+  });
+
+  // Raccourcis clavier
+  window.addEventListener('keydown', (e) => {
+    if (e.target.closest('input, select, textarea') || e.ctrlKey || e.metaKey) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      const step = e.shiftKey ? 5000 : e.altKey ? 100 : 1000;
+      setDelay(store.delay + (e.key === 'ArrowRight' ? step : -step));
+      e.preventDefault();
+    } else if (e.key === 's' || e.key === 'S') {
+      openSync();
+    }
+  });
+
+  on('delay', renderValue);
+  on('status', () => { renderWarning(); renderSyncList(); });
+  setInterval(renderSyncList, 500);
+}
+
+function openSync() {
+  const m = $('#syncModal');
+  if (!m.open) m.showModal();
+  renderSyncList();
+}
