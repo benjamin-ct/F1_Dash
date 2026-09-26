@@ -22,9 +22,6 @@ jobs:
     runs-on: windows-latest
     env:
       RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
-      # Jeton (secret) autorisé à publier sur le dépôt public des versions, lu par la mise à jour automatique.
-      RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-      RELEASES_REPO: benjamin-ct/F1_Dash-releases
     defaults:
       run:
         working-directory: desktop
@@ -61,20 +58,5 @@ jobs:
             - **F1-Dash-…-x64-win.exe** : installateur (raccourci « F1 Dash »).
 
             Windows peut afficher un avertissement SmartScreen (application non signée) : « Informations complémentaires » → « Exécuter quand même ».
-      - name: Publication sur le dépôt public (mise à jour automatique)
-        if: startsWith(env.RELEASE_TAG, 'v') && env.RELEASES_TOKEN != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          repository: ${{ env.RELEASES_REPO }}
-          token: ${{ env.RELEASES_TOKEN }}
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: F1 Dash ${{ env.RELEASE_TAG }}
-          make_latest: true
-          files: desktop/dist/*.exe
-          body: |
-            Application Windows de F1 Dash — installateur et version portable.
-            L'application installée se met à jour toute seule à partir de cette page.
-      - name: Avertissement si le dépôt public n'est pas configuré
-        if: startsWith(env.RELEASE_TAG, 'v') && env.RELEASES_TOKEN == ''
-        shell: bash
-        run: echo "::warning::Secret RELEASES_TOKEN absent — version non publiée sur ${RELEASES_REPO} (pas de mise à jour automatique). Voir README."
+
+            Les applications déjà installées (v1.2.1 ou plus) se mettent à jour toutes seules à partir de cette page.
