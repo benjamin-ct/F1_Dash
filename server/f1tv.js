@@ -78,14 +78,16 @@ function hostAllowed(host) {
 // Demande du flux pour une vidéo / un canal, avec le jeton de l'abonné (en-tête ascendontoken).
 export async function playback(contentId, channelId, token) {
   const tried = [];
-  for (const format of FORMATS) {
+  // « A » : variante « abonné connecté » de l'API, « R » : variante utilisée historiquement.
+  const variants = FORMATS.flatMap((format) => ['A', 'R'].map((mode) => ({ format, mode })));
+  for (const { format, mode } of variants) {
     const q = new URLSearchParams({ contentId: String(contentId) });
     if (channelId) q.set('channelId', String(channelId));
-    const r = await request(`${BASE}/2.0/R/ENG/${format}/ALL/CONTENT/PLAY?${q}`, { headers: { 'User-Agent': UA, ascendontoken: token, Accept: 'application/json' } });
+    const r = await request(`${BASE}/2.0/${mode}/ENG/${format}/ALL/CONTENT/PLAY?${q}`, { headers: { 'User-Agent': UA, ascendontoken: token, Accept: 'application/json' } });
     let body = {};
     try { body = JSON.parse(r.body.toString('utf8')); } catch { /* réponse non JSON */ }
     const o = body.resultObj || {};
-    tried.push({ format, status: r.status, message: body.message || null, streamType: o.streamType || null });
+    tried.push({ format: `${format} (${mode})`, status: r.status, message: body.message || null, streamType: o.streamType || null });
     if (r.status >= 200 && r.status < 300 && o.url) {
       const u = new URL(o.url);
       allowedHosts.add(u.host);

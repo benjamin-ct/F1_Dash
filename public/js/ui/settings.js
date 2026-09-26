@@ -39,7 +39,8 @@ async function refreshAuth() {
     else {
       const exp = a.expiresAt ? new Date(a.expiresAt).toLocaleString('fr-FR') : 'inconnue';
       const live = store.status?.source?.authenticated;
-      el.innerHTML = `<span style="color:var(--green)">✔ Jeton enregistré</span> · expire le ${esc(exp)}${store.status?.source?.mode === 'live' ? (live ? ' · GPS reçu ✔' : ' · GPS pas encore reçu (normal hors session)') : ''}`;
+      const offer = a.product ? ` · offre « ${esc(a.product)} »${a.country ? ` (${esc(a.country)})` : ''}${/pro/i.test(a.product) ? '' : ' — commentaires 🎙 réservés à F1 TV Pro'}` : '';
+      el.innerHTML = `<span style="color:var(--green)">✔ Jeton enregistré</span> · expire le ${esc(exp)}${offer}${store.status?.source?.mode === 'live' ? (live ? ' · GPS reçu ✔' : ' · GPS pas encore reçu (normal hors session)') : ''}`;
     }
   } catch { /* ignore */ }
 }
