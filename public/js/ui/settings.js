@@ -94,6 +94,28 @@ export function initSettings() {
     const b = e.target.closest('[data-fav]');
     if (b) { toggleFav(b.dataset.fav); renderFavs(); }
   });
+  // La liste des pilotes peut arriver après l'ouverture de la fenêtre : on la rafraîchit.
+  on('prefs', (k) => { if (k === 'favs' && modal.open) renderFavs(); });
+  setInterval(() => { if (modal.open && !$('#favList .fav')) renderFavs(); }, 1000);
+
+  // Application de bureau : connexion F1 TV intégrée (le cookie est lu directement par l'appli).
+  if (window.f1desktop?.isDesktop) {
+    $('#desktopLogin').hidden = false;
+    $('#bookmarkletHelp').hidden = true;
+    $('#desktopLoginBtn').addEventListener('click', async () => {
+      toast('Connectez-vous dans la fenêtre F1 qui vient de s\'ouvrir…', 6000);
+      const res = await window.f1desktop.loginF1TV();
+      if (res?.ok) toast('✅ Connecté à F1 TV : GPS et télémétrie activés en live', 6000);
+      else if (res?.error) toast(res.error, 6000);
+      refreshAuth();
+    });
+    $('#desktopLogoutBtn').addEventListener('click', async () => {
+      await window.f1desktop.logoutF1TV();
+      await api('/api/auth', { method: 'DELETE' }).catch(() => {});
+      toast('Session F1 TV oubliée');
+      refreshAuth();
+    });
+  }
 
   // Jeton F1 TV en un clic : favori à glisser dans la barre du navigateur. Exécuté sur formula1.com,
   // il lit le cookie de session et revient sur le dashboard avec le jeton dans l'URL (#f1tv=…).

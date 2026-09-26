@@ -219,7 +219,12 @@
           </ol>
           <p>Le jeton est enregistré uniquement sur votre PC (fichier <code>config.json</code>) et n'est envoyé qu'à livetiming.formula1.com. Il expire au bout de quelques jours : il faudra le recoller.</p>
         </details>
-        <p class="small"><b>Méthode rapide :</b> glissez ce bouton dans votre barre de favoris → <a class="btn" id="bookmarklet" href="#">📡 F1 Dash : récupérer mon jeton</a>
+        <div class="row" id="desktopLogin" hidden>
+          <button class="btn btn-accent" id="desktopLoginBtn">🔐 Se connecter à F1 TV</button>
+          <span class="small muted">Une fenêtre de connexion formula1.com s'ouvre ; une fois connecté, le jeton est récupéré automatiquement.</span>
+          <button class="btn small" id="desktopLogoutBtn" title="Oublier la session F1 TV mémorisée dans l'application">Se déconnecter</button>
+        </div>
+        <p class="small" id="bookmarkletHelp"><b>Méthode rapide :</b> glissez ce bouton dans votre barre de favoris → <a class="btn" id="bookmarklet" href="#">📡 F1 Dash : récupérer mon jeton</a>
           puis, connecté sur formula1.com, cliquez sur ce favori. <span class="muted">(Si le site bloque la lecture du cookie, utilisez la méthode manuelle.)</span></p>
         <div class="row">
           <input type="password" id="tokenInput" placeholder="Valeur du cookie login-session ou jeton" autocomplete="off">
@@ -232,7 +237,7 @@
       <section class="set-block">
         <h4>🔔 Alertes (synchronisées avec votre délai TV)</h4>
         <div class="row" id="alertOpts"></div>
-        <div class="row"><span class="small">Pilotes favoris :</span><div id="favList" class="fav-list"></div></div>
+        <div class="row"><span class="small">Pilotes favoris (cliquez pour ajouter/retirer — ou sur l'étoile ☆ à côté du nom dans le classement) :</span><div id="favList" class="fav-list"></div></div>
       </section>
 
       <section class="set-block">

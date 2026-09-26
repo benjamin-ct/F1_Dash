@@ -1,6 +1,6 @@
 {
   "name": "f1-dash-desktop",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "F1 Dash — application de bureau",
   "main": "main.cjs",
   "private": true,
@@ -25,6 +25,7 @@
     "productName": "F1 Dash",
     "files": [
       "main.cjs",
+      "preload.cjs",
       "bundle/**/*",
       "package.json"
     ],
