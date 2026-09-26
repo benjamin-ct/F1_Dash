@@ -16,6 +16,8 @@ Dashboard **Formule 1 en direct** à lancer sur votre PC pour suivre chaque Gran
 | **Stands (simulateur)** | « Si X s'arrête maintenant, il ressort **P8, 1,2 s derrière Y** ». Utilise le temps perdu au stand du circuit (normal, SC ou VSC selon la situation), modifiable. |
 | **Bagarres** | Toutes les paires à moins de 1,5 s, triées par écart, avec la tendance (« se rapproche de −0,2 s/tour ») et un bouton pour ouvrir le duel. |
 | **Direction de course** | Tous les messages de la FIA avec drapeaux, pénalités, enquêtes, limites de piste… |
+| **Enquêtes** | Suivi de chaque incident signalé par les commissaires : noté → sous enquête → après la course → décision (pénalité, avertissement, pas d'action), avec les pilotes, le virage, le motif traduit et l'historique. Pastille orange = enquêtes en cours. |
+| **Limites de piste** | Tours / temps supprimés par pilote (virages concernés, dernier tour), drapeau noir et blanc et pénalités ; infractions matérialisées par des pastilles. |
 | **Radios** | Radios d'équipe officielles, filtrables (favoris, pilotes du duel), avec **lecture automatique** des nouvelles radios au rythme de votre délai. |
 | **Arrêts** | Temps passé dans la voie des stands, et immobilisation quand la F1 la publie. |
 | **Télémétrie** | Vitesse, rapport, régime, accélérateur, frein (et DRS avant 2026) du pilote suivi, avec la courbe de vitesse des 30 dernières secondes. |
@@ -110,7 +112,7 @@ livetiming.formula1.com ──SignalR──▶ serveur Node local ──WebSocke
 - `desktop/` : application de bureau Electron (serveur intégré).
 - `shared/` : fusion des mises à jour du flux et données dérivées (historique par tour, arrêts, repères de synchro), communs au serveur et au navigateur.
 - `public/` : l'interface (JavaScript sans étape de build). Le GPS est recalé sur l'horloge officielle du flux, car il arrive environ 2 s après les chronos. Ainsi carte, chronos et TV restent alignés.
-- Tracés des circuits : API publique MultiViewer (mise en cache dans `.cache/`).
+- Tracés des circuits : API publique MultiViewer (mise en cache dans `.cache/`). Pour un circuit absent de cette base (nouveau tracé), le tracé est reconstruit automatiquement à partir du GPS du meilleur tour d'une session archivée.
 
 Tests : `npm test` (lancés aussi automatiquement sur GitHub à chaque modification).
 

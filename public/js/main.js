@@ -12,7 +12,7 @@ import { renderTelemetry, renderStrategy, renderWeather, renderChampionship } fr
 import { initSettings } from './ui/settings.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
 import { initAlerts } from './ui/alerts.js';
-import { initRadio } from './ui/feed.js';
+import { initRadio, initStewards, renderStewards } from './ui/feed.js';
 import { initLayout } from './ui/layout.js';
 import { initUpdates } from './ui/updates.js';
 
@@ -45,6 +45,7 @@ function loop() {
   safe(renderChampionship);
   safe(renderPitSim);
   safe(renderBattles);
+  safe(renderStewards);
   setTimeout(loop, 100);
 }
 
@@ -57,6 +58,7 @@ initSettings();
 initRaceTools();
 initAlerts();
 initRadio();
+initStewards();
 initLayout();
 initUpdates();
 on('status', renderSource);
