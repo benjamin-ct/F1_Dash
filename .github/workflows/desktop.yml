@@ -1,10 +1,16 @@
 name: Application de bureau
 
 # Génère l'installateur Windows (et une version portable) :
-# - à la demande (onglet Actions → « Application de bureau » → Run workflow),
+# - à la demande (onglet Actions → « Application de bureau » → Run workflow) ;
+#   en renseignant « Version à publier » (ex. v1.1.0), le tag et la Release GitHub sont créés ;
 # - ou en poussant un tag v* (ex. v1.1.0), qui crée aussi une Release GitHub.
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Version à publier (ex. v1.1.0) — laisser vide pour un simple test'
+        required: false
+        default: ''
   push:
     tags: ['v*']
 
@@ -33,7 +39,16 @@ jobs:
             desktop/dist/*.exe
           if-no-files-found: error
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(inputs.release_tag, 'v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          name: F1 Dash ${{ inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           files: desktop/dist/*.exe
+          body: |
+            Application Windows de F1 Dash.
+            - **F1-Dash-…-portable.exe** : se lance directement, sans installation.
+            - **F1-Dash-…-x64-win.exe** : installateur (raccourci « F1 Dash »).
+
+            Windows peut afficher un avertissement SmartScreen (application non signée) : « Informations complémentaires » → « Exécuter quand même ».
