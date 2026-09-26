@@ -34,7 +34,8 @@ La disposition est entièrement libre et conservée d'une session à l'autre :
 
 - **Déplacer un panneau** : attrapez sa poignée **⠿** (en haut à droite du panneau) et déposez-le sur un autre panneau — à gauche ou à droite (nouvelle colonne), au-dessus ou en dessous (même colonne), ou au centre pour **échanger** les deux.
 - **Redimensionner** : glissez les espaces entre les colonnes ou entre les panneaux (double-clic : partage égal).
-- **⤢ agrandir** un panneau (Échap pour revenir), **✕ masquer** (réaffichable dans ⚙ → Affichage, où se trouvent aussi « Réinitialiser la disposition » et les colonnes du classement).
+- **⤢ agrandir** un panneau (Échap pour revenir), **✕ masquer** (réaffichable dans ⚙ → Affichage, avec les colonnes du classement).
+- **⟲ Réinitialiser l'interface** (bouton en haut à droite) : disposition, panneaux masqués, colonnes et fenêtres secondaires reviennent à l'état par défaut.
 - **↗ envoyer vers une autre fenêtre** (second écran) : si une fenêtre secondaire est déjà ouverte, un menu propose d'**ajouter le panneau à cette fenêtre** (plusieurs panneaux réunis dans une seule fenêtre) ou d'en ouvrir une nouvelle. Dans la fenêtre secondaire, les panneaux se disposent et se redimensionnent de la même façon ; **↙** remet un panneau dans la fenêtre principale. Les panneaux détachés disparaissent de la fenêtre principale et y reviennent quand on ferme leur fenêtre. Dans l'application Windows, la fenêtre s'ouvre directement en plein écran sur le second écran.
 - Le délai, le pilote suivi (clic dans le classement → télémétrie, carte…), le duel et les réglages restent synchronisés entre toutes les fenêtres.
 - Le classement s'agrandit pour occuper toute la hauteur disponible (désactivable dans ⚙ → Affichage).

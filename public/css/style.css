@@ -55,9 +55,14 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
   padding: 8px 14px;
   background: linear-gradient(180deg, #151a25, #10141c);
   border-bottom: 1px solid var(--border);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   flex: none;
+  min-width: 0;
 }
+.topbar > * { flex-shrink: 0; }
+.topbar > .session { flex-shrink: 1; min-width: 120px; }
+.topbar > .spacer { flex-shrink: 1; min-width: 0; }
+
 .brand { display: flex; align-items: center; gap: 6px; font-weight: 900; letter-spacing: .5px; }
 .logo { background: var(--accent); color: #fff; padding: 1px 7px; border-radius: 5px; font-style: italic; }
 .brand-name { font-size: 16px; }
@@ -254,10 +259,10 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
   border: 3px solid var(--tc); font-size: 10px; font-weight: 900; color: var(--tc); background: #0b0e14;
 }
 .tyre-age { font-size: 11px; color: var(--text-2); margin-left: 4px; }
-.duel-btns { display: flex; gap: 2px; }
+.duel-btns { display: flex; gap: 3px; }
 .ab {
   border: 1px solid var(--border); background: var(--panel-3); color: var(--muted);
-  font-size: 10.5px; font-weight: 900; width: 20px; height: 20px; border-radius: 4px; cursor: pointer; padding: 0;
+  font-size: 11px; font-weight: 900; width: 24px; height: 22px; border-radius: 4px; cursor: pointer; padding: 0;
 }
 .ab.a.on { background: var(--blue); color: #001526; border-color: var(--blue); }
 .ab.b.on { background: var(--orange); color: #221300; border-color: var(--orange); }
@@ -479,7 +484,7 @@ details ol { line-height: 1.6; }
 .grid.has-max { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; grid-template-areas: none !important; }
 .grid.has-max > .panel.maximized { grid-area: auto !important; }
 .panel.hidden-panel { display: none !important; }
-body.solo .topbar .session, body.solo .topbar .hstat, body.solo .brand-name, body.solo #settingsBtn { display: none; }
+body.solo .topbar .session, body.solo .topbar .hstat, body.solo .brand-name, body.solo #settingsBtn, body.solo #resetUiBtn { display: none; }
 body.solo { overflow: hidden; }
 
 /* ---------- Disposition libre ---------- */
@@ -622,4 +627,37 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .grid.custom .panel { container-type: inline-size; }
 @container (max-width: 560px) {
   .panel-tools .hint { display: none; }
+}
+
+/* Barre du haut sur une seule ligne : on compacte progressivement selon la largeur */
+@media (max-width: 1850px) {
+  .topbar { gap: 12px; }
+  .topbar .delay { gap: 6px; }
+  .topbar .preset { max-width: 150px; }
+}
+@media (max-width: 1700px) {
+  .topbar .weather-mini { display: none; }
+  .topbar .session { max-width: 240px; }
+}
+@media (max-width: 1500px) {
+  .topbar { gap: 9px; padding: 8px 10px; }
+  .topbar .brand-name { display: none; }
+  .topbar .hstat-label { font-size: 10px; }
+  .topbar .hstat-value { font-size: 16px; }
+  .topbar .track-status { min-width: 0; padding: 6px 9px; font-size: 13px; }
+  .topbar .dbtn { min-width: 26px; padding: 3px 4px; }
+  .topbar .delay-input { width: 58px; font-size: 17px; }
+  .topbar .preset { max-width: 112px; }
+  .topbar .delay-title { display: none; }
+  .topbar #syncBtn { padding: 5px 8px; }
+  .topbar .source-badge { padding: 4px 9px; }
+  .topbar .icon-btn { padding: 2px 5px; }
+}
+@media (max-width: 1350px) {
+  .topbar .dbtn[data-step="-100"], .topbar .dbtn[data-step="100"] { display: none; }
+  .topbar .session { max-width: 170px; }
+  .topbar .preset { max-width: 96px; }
+}
+@media (max-width: 1250px) {
+  .topbar { flex-wrap: wrap; row-gap: 6px; }
 }
