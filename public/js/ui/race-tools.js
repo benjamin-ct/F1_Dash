@@ -43,7 +43,7 @@ export function renderPitSim(force = false) {
   const key = `${versionOf(['TimingData', 'TrackStatus', 'DriverList', '__reset'])}|${simDriver}|${lossOverride}|${store.focus}`;
   if (key === simKey && !force) return;
   // Pas de reconstruction pendant la saisie, et au plus une fois par seconde.
-  if (!force && (el.contains(document.activeElement) || performance.now() - (renderPitSim.last || 0) < 1000)) return;
+  if (!force && performance.now() - (renderPitSim.last || 0) < 1000) return;
   renderPitSim.last = performance.now();
   simKey = key;
   const s = store.state;
@@ -68,14 +68,46 @@ export function renderPitSim(force = false) {
   const idx = order.findIndex((o) => o.me);
   const slice = order.slice(Math.max(0, idx - 3), idx + 4);
 
-  el.innerHTML = `<div class="pitsim">
-    <div class="row">
-      <select id="simDriver">${gaps.map((g) => `<option value="${g.num}" ${g.num === me ? 'selected' : ''}>${esc(dl[g.num]?.Tla || g.num)}</option>`).join('')}</select>
-      <span class="small">Temps perdu au stand</span>
-      <input id="simLoss" type="number" step="0.5" min="5" max="60" value="${lossVal.toFixed(1)}"> <span class="small muted">s (${lossOverride !== null ? 'manuel' : esc(loss.label)})</span>
-      ${lossOverride !== null ? '<button class="btn small" id="simLossReset">Auto</button>' : ''}
-    </div>
-    <div class="pit-result">
+  // Les commandes sont construites une seule fois : elles ne bougent pas sous la souris
+  // pendant que le résultat se met à jour.
+  if (!el.querySelector('.pitsim-ctrl')) {
+    el.innerHTML = `<div class="pitsim">
+      <div class="pitsim-ctrl">
+        <label class="small muted">Pilote <select id="simDriver"></select></label>
+        <div class="loss-box">
+          <div class="small muted">Temps perdu au stand <span id="simLossSrc"></span></div>
+          <div class="stepper">
+            <button class="btn" data-step="-1" title="−1 s">−1</button>
+            <button class="btn" data-step="-0.5" title="−0,5 s">−0,5</button>
+            <output id="simLossVal"></output>
+            <button class="btn" data-step="0.5" title="+0,5 s">+0,5</button>
+            <button class="btn" data-step="1" title="+1 s">+1</button>
+            <button class="btn small" id="simLossReset" title="Revenir à la valeur du circuit">Auto</button>
+          </div>
+          <input id="simLoss" type="range" min="10" max="45" step="0.1" aria-label="Temps perdu au stand">
+        </div>
+      </div>
+      <div id="simOut"></div>
+      <p class="small muted">Estimation : écart au leader actuel + temps perdu dans la voie des stands (source : MultiViewer, ajustable). Ne tient pas compte des pneus neufs ni du trafic.</p>
+    </div>`;
+    $('#simDriver').onchange = (e) => { simDriver = e.target.value; renderPitSim(true); };
+    const setLoss = (v) => { lossOverride = Math.round(Math.max(5, Math.min(60, v)) * 10) / 10; renderPitSim(true); };
+    $('#simLoss').oninput = (e) => setLoss(parseFloat(e.target.value));
+    el.querySelector('.stepper').onclick = (e) => {
+      const b = e.target.closest('[data-step]');
+      if (b) setLoss((lossOverride ?? defaultLoss().value) + Number(b.dataset.step));
+    };
+    $('#simLossReset').onclick = () => { lossOverride = null; renderPitSim(true); };
+  }
+  const sel = $('#simDriver');
+  const opts = gaps.map((g) => `<option value="${g.num}">${esc(dl[g.num]?.Tla || g.num)}</option>`).join('');
+  if (sel._opts !== opts) { sel.innerHTML = opts; sel._opts = opts; }
+  if (document.activeElement !== sel) sel.value = me;
+  $('#simLossVal').textContent = `${lossVal.toFixed(1).replace('.', ',')} s`;
+  $('#simLossSrc').textContent = `(${lossOverride !== null ? 'réglage manuel' : loss.label})`;
+  if (document.activeElement !== $('#simLoss')) $('#simLoss').value = lossVal;
+  $('#simLossReset').hidden = lossOverride === null;
+  $('#simOut').innerHTML = `<div class="pit-result">
       <div class="small muted">Si <b>${esc(dl[me]?.Tla || me)}</b> s'arrête maintenant (actuellement P${curPos}) :</div>
       <div class="big">P${newPos}</div>
       <div class="small">${ahead ? `à <b>${(projected - ahead.gap).toFixed(1).replace('.', ',')} s</b> derrière ${esc(dl[ahead.num]?.Tla || ahead.num)}` : 'en tête'}${behind ? ` · <b>${(behind.gap - projected).toFixed(1).replace('.', ',')} s</b> devant ${esc(dl[behind.num]?.Tla || behind.num)}` : ''}</div>
@@ -83,13 +115,7 @@ export function renderPitSim(force = false) {
     </div>
     <table class="pit-order">${slice.map((o) => `<tr class="${o.me ? 'me' : ''}"><td>P${order.indexOf(o) + 1}</td>
       <td><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[o.num])}"></span>${esc(dl[o.num]?.Tla || o.num)}${o.me ? ' (après arrêt)' : ''}</span></td>
-      <td style="text-align:right">${o.me ? '' : fmtSigned(o.gap - projected, 1) + ' s'}</td></tr>`).join('')}</table>
-    <p class="small muted">Estimation : écart au leader actuel + temps perdu dans la voie des stands (source : MultiViewer, ajustable). Ne tient pas compte des pneus neufs ni du trafic.</p>
-  </div>`;
-  $('#simDriver').onchange = (e) => { simDriver = e.target.value; renderPitSim(true); };
-  $('#simLoss').onchange = (e) => { const v = parseFloat(e.target.value); lossOverride = Number.isFinite(v) ? v : null; renderPitSim(true); };
-  const r = $('#simLossReset');
-  if (r) r.onclick = () => { lossOverride = null; renderPitSim(true); };
+      <td style="text-align:right">${o.me ? '' : fmtSigned(o.gap - projected, 1) + ' s'}</td></tr>`).join('')}</table>`;
 }
 
 // ---------------- Bagarres ----------------

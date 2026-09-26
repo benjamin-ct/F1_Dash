@@ -117,7 +117,7 @@ export function initLayout() {
     if (e.key === 'Escape' && $('.grid').classList.contains('has-max') && !document.querySelector('dialog[open]')) maximize($('.panel.maximized') ? PANELS.find((p) => panelEl(p.id).classList.contains('maximized')).id : 'map');
   });
   window.addEventListener('resize', applyVisibility);
-  on('prefs', (k) => { if (k === 'hiddenPanels') { applyVisibility(); renderLayoutOptions(); } });
+  on('prefs', (k) => { if (k === 'hiddenPanels') applyVisibility(); if (['hiddenPanels', 'hiddenCols', 'towerFit'].includes(k)) renderLayoutOptions(); });
   applyVisibility();
   renderLayoutOptions();
 }
@@ -129,6 +129,8 @@ export function renderLayoutOptions() {
     if (!id) return;
     setPref('hiddenPanels', e.target.checked ? prefs.hiddenPanels.filter((x) => x !== id) : [...prefs.hiddenPanels, id]);
   };
+  $('#towerFit').checked = prefs.towerFit;
+  $('#towerFit').onchange = (e) => setPref('towerFit', e.target.checked);
   $('#colOpts').innerHTML = COLUMNS.map(([k, name]) => `<label class="toggle small"><input type="checkbox" data-col="${k}" ${prefs.hiddenCols.includes(k) ? '' : 'checked'}> ${esc(name)}</label>`).join('');
   $('#colOpts').onchange = (e) => {
     const k = e.target.dataset.col;
