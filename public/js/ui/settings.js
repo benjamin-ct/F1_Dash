@@ -1,7 +1,8 @@
 // Réglages : choix live / replay, jeton F1 TV, barre de contrôle du replay.
 import { store, serverNow, on } from '../store.js';
-import { $, $$, esc, api, fmtDuration } from '../util.js';
+import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers } from '../util.js';
 import { toast } from './delay.js';
+import { prefs, toggleFav } from '../prefs.js';
 
 let archive = [];
 let dragging = false;
@@ -49,7 +50,10 @@ function renderReplayBar() {
   const active = src?.mode === 'replay' && !src.loading && !src.error;
   bar.hidden = !active;
   if (!active) return;
-  const pos = serverNow() - store.delay - src.anchor;
+  const speed = src.speed || 1;
+  const pos = (serverNow() - store.delay - src.anchor) * speed;
+  const sel = $('#rpSpeed');
+  if (document.activeElement !== sel && Number(sel.value) !== speed) sel.value = String(speed);
   const range = $('#rpRange');
   range.max = String(src.duration);
   if (!dragging) range.value = String(Math.max(0, pos));
@@ -65,8 +69,44 @@ async function control(body) {
 
 export function initSettings() {
   const modal = $('#settingsModal');
-  $('#settingsBtn').addEventListener('click', () => { modal.showModal(); refreshAuth(); });
-  $('#sourceBadge').addEventListener('click', () => { modal.showModal(); refreshAuth(); });
+  const open = () => { modal.showModal(); refreshAuth(); renderRecordings(); renderFavs(); };
+  $('#settingsBtn').addEventListener('click', open);
+  $('#sourceBadge').addEventListener('click', open);
+
+  // Enregistrements locaux
+  $('#recList').addEventListener('click', async (e) => {
+    const play = e.target.closest('[data-play]');
+    const del = e.target.closest('[data-del-rec]');
+    try {
+      if (play) {
+        await api('/api/replay', { method: 'POST', body: { local: play.dataset.play } });
+        modal.close();
+        toast('Lecture de l\'enregistrement…');
+      } else if (del && confirm('Supprimer définitivement cet enregistrement ?')) {
+        await api(`/api/recordings?id=${encodeURIComponent(del.dataset.delRec)}`, { method: 'DELETE' });
+        renderRecordings();
+      }
+    } catch (err) { toast(err.message); }
+  });
+
+  // Favoris
+  $('#favList').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-fav]');
+    if (b) { toggleFav(b.dataset.fav); renderFavs(); }
+  });
+
+  // Jeton F1 TV en un clic : favori à glisser dans la barre du navigateur. Exécuté sur formula1.com,
+  // il lit le cookie de session et revient sur le dashboard avec le jeton dans l'URL (#f1tv=…).
+  const code = `(()=>{const c=document.cookie.split('; ').find(x=>x.startsWith('login-session='));if(!c){alert('F1 Dash : cookie introuvable. Connectez-vous sur formula1.com, ou utilisez la méthode manuelle.');return}location.href='${location.origin}/#f1tv='+encodeURIComponent(c.slice(14))})()`;
+  $('#bookmarklet').href = `javascript:${code}`;
+  $('#bookmarklet').addEventListener('click', (e) => { e.preventDefault(); toast('Glissez ce bouton dans votre barre de favoris, puis cliquez dessus depuis formula1.com', 5000); });
+  const m = /[#&]f1tv=([^&]+)/.exec(location.hash);
+  if (m) {
+    history.replaceState(null, '', location.pathname + location.search);
+    api('/api/auth', { method: 'POST', body: { token: decodeURIComponent(m[1]) } })
+      .then(() => toast('✅ Jeton F1 TV enregistré : GPS et télémétrie activés en live', 5000))
+      .catch((err) => toast(err.message, 6000));
+  }
 
   const now = new Date().getFullYear();
   $('#rpYear').innerHTML = Array.from({ length: now - 2018 + 1 }, (_, i) => now - i).map((y) => `<option>${y}</option>`).join('');
@@ -119,14 +159,15 @@ export function initSettings() {
   });
   $('#rpStart').addEventListener('click', () => {
     const src = store.status?.source;
-    if (src) control({ action: 'seek', toMs: (src.sessionStart || 0) + store.delay });
+    if (src) control({ action: 'seek', toMs: (src.sessionStart || 0) + store.delay * (src.speed || 1) });
   });
   const range = $('#rpRange');
   range.addEventListener('input', () => { dragging = true; });
   range.addEventListener('change', () => {
     dragging = false;
-    control({ action: 'seek', toMs: Number(range.value) + store.delay });
+    control({ action: 'seek', toMs: Number(range.value) + store.delay * (store.status?.source?.speed || 1) });
   });
+  $('#rpSpeed').addEventListener('change', (e) => control({ action: 'speed', speed: Number(e.target.value) }));
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && !e.target.closest('input, select, textarea, button') && store.status?.source?.mode === 'replay') {
       e.preventDefault();
@@ -136,4 +177,23 @@ export function initSettings() {
 
   on('status', renderReplayBar);
   setInterval(renderReplayBar, 250);
+}
+
+async function renderRecordings() {
+  const el = $('#recList');
+  try {
+    const recs = await api('/api/recordings');
+    el.innerHTML = recs.length ? recs.map((r) => `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(r.name)}</span>
+      <span class="muted">${(r.size / 1e6).toFixed(1)} Mo</span>
+      <button class="btn small" data-play="${esc(r.id)}">▶ Rejouer</button><button class="btn small" data-del-rec="${esc(r.id)}" title="Supprimer">🗑</button></div>`).join('')
+      : '<span class="muted small">Aucun enregistrement pour l\'instant : ils se créent automatiquement pendant les sessions live.</span>';
+  } catch (err) { el.textContent = err.message; }
+}
+
+function renderFavs() {
+  const dl = drivers(store.state);
+  const nums = orderedNumbers(store.state).filter((n) => dl[n]);
+  $('#favList').innerHTML = nums.length
+    ? nums.map((n) => `<button class="fav ${prefs.favs.includes(n) ? 'on' : ''}" data-fav="${n}" title="${esc(dl[n].FullName || '')}">${esc(dl[n].Tla || n)}</button>`).join('')
+    : '<span class="muted small">La liste des pilotes apparaît dès que des données sont reçues.</span>';
 }

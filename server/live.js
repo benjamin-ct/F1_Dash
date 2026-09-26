@@ -4,15 +4,18 @@
 import { WebSocket } from 'ws';
 import { agent, request, USER_AGENT } from './net.js';
 import { LIVE_TOPICS, topicName } from '../shared/f1.js';
+import { readRecording } from './recorder.js';
 
 const BASE = 'https://livetiming.formula1.com/signalrcore';
 const WS_URL = 'wss://livetiming.formula1.com/signalrcore';
 const RS = '\x1e';
 
 export class LiveSource {
-  constructor(hub, getToken) {
+  constructor(hub, getToken, recorder = null) {
     this.hub = hub;
     this.getToken = getToken;
+    this.recorder = recorder;
+    this.pending = null; // messages reçus pendant la relecture de l'enregistrement
     this.ws = null;
     this.active = false;
     this.retry = 0;
@@ -31,6 +34,7 @@ export class LiveSource {
   stop() {
     this.active = false;
     this.cleanup();
+    this.recorder?.close();
   }
 
   restart() {
@@ -150,24 +154,59 @@ export class LiveSource {
     if (this.hub.sessionKey !== null && key !== null && key !== this.hub.sessionKey) {
       this.hub.reset({ mode: 'live', label: 'Live', ...this.status });
     }
+    const fresh = this.hub.sessionKey === null && this.hub.events.length === 0;
     if (key !== null) this.hub.sessionKey = key;
+    const file = this.recorder && result.SessionInfo ? this.recorder.open(result.SessionInfo) : null;
 
-    const snapshot = {};
-    for (const [rawTopic, value] of Object.entries(result)) {
-      const topic = topicName(rawTopic);
-      if (rawTopic.endsWith('.z')) this.hub.addStream(topic, value, now);
-      else snapshot[topic] = value;
+    const apply = () => {
+      const snapshot = {};
+      for (const [rawTopic, value] of Object.entries(result)) {
+        const topic = topicName(rawTopic);
+        if (rawTopic.endsWith('.z')) this.addStream(topic, value, now);
+        else snapshot[topic] = value;
+      }
+      this.addEvent('__snapshot', snapshot, now);
+      const authenticated = 'Position.z' in result || 'CarData.z' in result;
+      this.setStatus({ connected: true, error: null, authenticated });
+      this.hub.source.session = sessionLabel(result.SessionInfo);
+    };
+
+    if (fresh && file) {
+      // Redémarrage pendant une session : on recharge l'historique enregistré
+      // avant d'y ajouter les nouveaux messages (le délai TV reste exact).
+      this.pending = [];
+      readRecording(file).then(({ events, stream }) => {
+        if (events.length || stream.length) {
+          this.hub.preload(events, stream);
+          this.hub.source.restored = events.length;
+          console.log(`[live] ${events.length} messages rechargés depuis l'enregistrement local`);
+        }
+      }).catch((err) => console.warn('[live] relecture impossible :', err.message)).finally(() => {
+        apply();
+        const queued = this.pending || [];
+        this.pending = null;
+        for (const [rawTopic, data, t] of queued) this.onFeed(rawTopic, data, t);
+      });
+      return;
     }
-    this.hub.addEvent('__snapshot', snapshot, now);
-    const authenticated = 'Position.z' in result || 'CarData.z' in result;
-    this.setStatus({ connected: true, error: null, authenticated });
-    this.hub.source.session = sessionLabel(result.SessionInfo);
+    apply();
+  }
+
+  addEvent(topic, data, t) {
+    this.hub.addEvent(topic, data, t);
+    this.recorder?.write(t, topic, data);
+  }
+
+  addStream(topic, raw, t) {
+    this.hub.addStream(topic, raw, t);
+    this.recorder?.write(t, topic, raw, true);
   }
 
   onFeed(rawTopic, data, now) {
+    if (this.pending) { this.pending.push([rawTopic, data, now]); return; }
     const topic = topicName(rawTopic);
     if (rawTopic.endsWith('.z')) {
-      this.hub.addStream(topic, data, now);
+      this.addStream(topic, data, now);
       if (!this.status.authenticated) this.setStatus({ authenticated: true });
       return;
     }
@@ -177,7 +216,7 @@ export class LiveSource {
       this.restart();
       return;
     }
-    this.hub.addEvent(topic, data, now);
+    this.addEvent(topic, data, now);
   }
 }
 

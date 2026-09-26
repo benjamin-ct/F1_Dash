@@ -1,6 +1,6 @@
 // Carte du circuit : tracé, secteurs sous drapeau, voitures (GPS ou estimées), virages.
 import { store, displayNow, f1Now } from '../store.js';
-import { $, drivers, teamColor } from '../util.js';
+import { $, api, drivers, teamColor } from '../util.js';
 import { loadTrack } from '../track.js';
 import { parseUtc } from '/shared/f1.js';
 
@@ -32,6 +32,8 @@ function ensureTrack() {
     if (trackKey !== k) return;
     track = t;
     store.positions.setTrack(t);
+    // Emplacement réel des boucles de chrono (calculé une fois par circuit par le serveur).
+    api(`/api/loops?key=${key}&year=${year}`).then((l) => { if (trackKey === k) store.positions.setLoops(l); }).catch(() => {});
     xf = null;
     $('#mapEmpty').hidden = true;
   }).catch((err) => {
@@ -71,9 +73,26 @@ function makeTransform() {
     const [rx, ry] = rot(x, y);
     return [rx * scale + ox, ry * scale + oy];
   };
-  f.screen = track.pts.map((p) => f(p.x, p.y));
   f.scale = scale;
   return f;
+}
+
+// Vue (zoom / déplacement) appliquée par-dessus la projection de base.
+const view = { z: 1, x: 0, y: 0 };
+let followTarget = null;
+
+function withView(base) {
+  const f = (x, y) => {
+    const [bx, by] = base(x, y);
+    return [(bx - size.w / 2) * view.z + size.w / 2 + view.x, (by - size.h / 2) * view.z + size.h / 2 + view.y];
+  };
+  f.base = base;
+  f.screen = track.pts.map((p) => f(p.x, p.y));
+  return f;
+}
+
+function resetView() {
+  view.z = 1; view.x = 0; view.y = 0;
 }
 
 // État des drapeaux par secteur de commissaires, d'après les messages de la direction de course.
@@ -121,7 +140,15 @@ function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, size.w, size.h);
   if (!track) return;
-  if (!xf) xf = makeTransform();
+  if (!xf) xf = { base: makeTransform() };
+  // Suivi du pilote : on centre la vue sur sa voiture (repérée à l'image précédente).
+  if ($('#mapFollow').checked && followTarget) {
+    if (view.z < 2.2) view.z += (2.6 - view.z) * Math.min(1, dt * 3);
+    const tx = -(followTarget[0] - size.w / 2) * view.z, ty = -(followTarget[1] - size.h / 2) * view.z;
+    view.x += (tx - view.x) * Math.min(1, dt * 4);
+    view.y += (ty - view.y) * Math.min(1, dt * 4);
+  }
+  xf = withView(xf.base);
 
   const pts = xf.screen;
   const ts = String(store.state.TrackStatus?.Status || '1');
@@ -159,9 +186,11 @@ function draw() {
     }
   }
 
-  // Ligne de départ/arrivée
+  // Ligne de départ/arrivée (position calibrée si connue)
   {
-    const [x0, y0] = pts[0], [x1, y1] = pts[1];
+    const lp = track.pointAt(store.positions.lineFrac() * track.L);
+    const lp2 = track.pointAt(store.positions.lineFrac() * track.L + track.L / 200);
+    const [x0, y0] = xf(lp.x, lp.y), [x1, y1] = xf(lp2.x, lp2.y);
     const ang = Math.atan2(y1 - y0, x1 - x0) + Math.PI / 2;
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 3;
@@ -207,6 +236,8 @@ function drawCars(dt) {
   const drawOrder = [...order.filter((n) => !special.has(n)), ...order.filter((n) => special.has(n))];
 
   let inPit = 0;
+  const followNum = store.focus || store.duel.a;
+  if (!followNum) followTarget = null;
   for (const num of drawOrder) {
     const l = lines[num] || {};
     if (l.Retired) continue;
@@ -220,6 +251,10 @@ function drawCars(dt) {
       if (e) p = xf(e.x, e.y);
     }
     if (!p) continue;
+    if (num === followNum) {
+      // Coordonnées "de base" (sans vue) pour centrer la vue à l'image suivante.
+      followTarget = [(p[0] - size.w / 2 - view.x) / view.z + size.w / 2, (p[1] - size.h / 2 - view.y) / view.z + size.h / 2];
+    }
     const d = dl[num];
     const col = teamColor(d);
     const isA = store.duel.a === num, isB = store.duel.b === num, isF = store.focus === num;
@@ -270,6 +305,31 @@ function drawCars(dt) {
 
 export function initMap() {
   ctx = canvas().getContext('2d');
+  const c = canvas();
+  // Zoom à la molette autour du curseur, déplacement à la souris, double-clic = vue d'ensemble.
+  c.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = c.getBoundingClientRect();
+    const mx = e.clientX - r.left - size.w / 2, my = e.clientY - r.top - size.h / 2;
+    const z0 = view.z;
+    view.z = Math.max(1, Math.min(8, view.z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+    view.x = mx - ((mx - view.x) * view.z) / z0;
+    view.y = my - ((my - view.y) * view.z) / z0;
+    if (view.z === 1) resetView();
+  }, { passive: false });
+  let drag = null;
+  c.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; c.setPointerCapture(e.pointerId); });
+  c.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    view.x = drag.vx + e.clientX - drag.x;
+    view.y = drag.vy + e.clientY - drag.y;
+    if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 4) $('#mapFollow').checked = false;
+  });
+  c.addEventListener('pointerup', () => { drag = null; });
+  const reset = () => { resetView(); $('#mapFollow').checked = false; };
+  c.addEventListener('dblclick', reset);
+  $('#mapReset').addEventListener('click', reset);
+  $('#mapFollow').addEventListener('change', (e) => { if (!e.target.checked) resetView(); });
   const loop = () => {
     try { draw(); } catch (err) { console.error(err); }
     requestAnimationFrame(loop);

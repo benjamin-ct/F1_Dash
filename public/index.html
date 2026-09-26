@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>F1 Dash</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e10600'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='900' font-size='15' fill='white' text-anchor='middle'%3EF1%3C/text%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -51,6 +48,8 @@
     <button class="icon-btn" id="settingsBtn" title="Réglages (source, replay, F1 TV)">⚙</button>
   </header>
 
+  <div class="flag-banner" id="flagBanner" hidden><span class="fb-icon"></span><span class="fb-text"></span><span class="fb-sub"></span></div>
+
   <div class="replaybar" id="replayBar" hidden>
     <button class="btn" id="rpPlay" title="Pause">❚❚</button>
     <button class="btn" data-skip="-60000">−60 s</button>
@@ -59,6 +58,9 @@
     <button class="btn" data-skip="10000">+10 s</button>
     <button class="btn" data-skip="60000">+60 s</button>
     <span class="rp-time" id="rpTime">—</span>
+    <select id="rpSpeed" class="preset" title="Vitesse de lecture">
+      <option value="0.5">×0,5</option><option value="1" selected>×1</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option>
+    </select>
     <button class="btn" id="rpStart" title="Aller au départ de la session">⏮ Départ</button>
   </div>
 
@@ -78,6 +80,8 @@
           <span class="map-mode" id="mapMode"></span>
           <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms</label>
           <label class="toggle"><input type="checkbox" id="mapCorners" checked> Virages</label>
+          <label class="toggle" title="Centrer la carte sur le pilote suivi (clic sur un pilote du classement)"><input type="checkbox" id="mapFollow"> Suivre</label>
+          <button class="icon-btn small" id="mapReset" title="Réinitialiser le zoom (ou double-clic sur la carte)">⟲</button>
         </div>
       </div>
       <div class="panel-body map-wrap">
@@ -95,7 +99,13 @@
       </div>
       <div class="panel-body">
         <div class="tabpane active" data-pane="rcm"><ul class="rcm" id="rcmList"></ul></div>
-        <div class="tabpane" data-pane="radio"><ul class="radio" id="radioList"></ul></div>
+        <div class="tabpane" data-pane="radio">
+          <div class="subbar">
+            <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
+            <label class="toggle"><input type="checkbox" id="radioAuto"> Lecture automatique des nouvelles radios</label>
+          </div>
+          <ul class="radio" id="radioList"></ul>
+        </div>
         <div class="tabpane" data-pane="pits"><div id="pitList"></div></div>
       </div>
     </section>
@@ -107,6 +117,8 @@
           <select id="duelA" aria-label="Pilote A"></select>
           <button class="icon-btn small" id="duelSwap" title="Inverser">⇄</button>
           <select id="duelB" aria-label="Pilote B"></select>
+          <button class="btn small" id="duelAhead" title="Duel automatique : pilote A contre la voiture juste devant">⬆</button>
+          <button class="btn small" id="duelBehind" title="Duel automatique : pilote A contre la voiture juste derrière">⬇</button>
         </div>
       </div>
       <div class="panel-body" id="duelBody"></div>
@@ -115,12 +127,16 @@
     <section class="panel p-extra">
       <div class="panel-head tabs" data-tabs="extra">
         <button class="tab active" data-tab="telemetry">Télémétrie</button>
+        <button class="tab" data-tab="pitsim" title="Simulateur d'arrêt au stand">Stands</button>
+        <button class="tab" data-tab="battles">Bagarres</button>
         <button class="tab" data-tab="strategy">Pneus</button>
         <button class="tab" data-tab="weather">Météo</button>
-        <button class="tab" data-tab="champ">Championnat</button>
+        <button class="tab" data-tab="champ" title="Projection du championnat">Champ.</button>
       </div>
       <div class="panel-body">
         <div class="tabpane active" data-pane="telemetry" id="telemetry"></div>
+        <div class="tabpane" data-pane="pitsim" id="pitsim"></div>
+        <div class="tabpane" data-pane="battles" id="battles"></div>
         <div class="tabpane" data-pane="strategy" id="strategy"></div>
         <div class="tabpane" data-pane="weather" id="weather"></div>
         <div class="tabpane" data-pane="champ" id="champ"></div>
@@ -140,6 +156,7 @@
         <li>Au moment <b>exact</b> où vous voyez l'un des événements ci-dessous à l'écran, cliquez sur <b>« Je le vois ! »</b>.</li>
         <li>Le délai est calculé automatiquement. Affinez ensuite avec ±0,1 s si besoin.</li>
       </ol>
+      <label class="toggle small spoil-toggle"><input type="checkbox" id="syncSpoilers"> Afficher le détail des événements pas encore vus à la TV (spoilers)</label>
       <p class="muted small">Astuce : le plus précis est le <b>changement du compteur de tours</b> en course (le leader franchit la ligne), ou l'extinction des feux au départ.</p>
       <div class="sync-now">
         <div>Délai actuel : <b id="syncCurrent">—</b></div>
@@ -183,6 +200,12 @@
       </section>
 
       <section class="set-block">
+        <h4>💾 Mes enregistrements</h4>
+        <p class="muted small">Chaque session suivie en live est enregistrée sur ce PC (dossier <code>recordings/</code>) et peut être rejouée immédiatement.</p>
+        <div id="recList" class="rec-list"></div>
+      </section>
+
+      <section class="set-block">
         <h4>📡 Positions GPS & télémétrie en live (F1 TV)</h4>
         <p class="small">Depuis 2025, la F1 réserve les positions GPS et la télémétrie du flux live aux abonnés <b>F1 TV</b>.
           Sans jeton, le dashboard <b>estime</b> la position des voitures à partir des chronos (mini-secteurs) : c'est moins précis mais fonctionne.
@@ -196,6 +219,8 @@
           </ol>
           <p>Le jeton est enregistré uniquement sur votre PC (fichier <code>config.json</code>) et n'est envoyé qu'à livetiming.formula1.com. Il expire au bout de quelques jours : il faudra le recoller.</p>
         </details>
+        <p class="small"><b>Méthode rapide :</b> glissez ce bouton dans votre barre de favoris → <a class="btn" id="bookmarklet" href="#">📡 F1 Dash : récupérer mon jeton</a>
+          puis, connecté sur formula1.com, cliquez sur ce favori. <span class="muted">(Si le site bloque la lecture du cookie, utilisez la méthode manuelle.)</span></p>
         <div class="row">
           <input type="password" id="tokenInput" placeholder="Valeur du cookie login-session ou jeton" autocomplete="off">
           <button class="btn" id="tokenSave">Enregistrer</button>
@@ -205,8 +230,22 @@
       </section>
 
       <section class="set-block">
+        <h4>🔔 Alertes (synchronisées avec votre délai TV)</h4>
+        <div class="row" id="alertOpts"></div>
+        <div class="row"><span class="small">Pilotes favoris :</span><div id="favList" class="fav-list"></div></div>
+      </section>
+
+      <section class="set-block">
+        <h4>🧩 Affichage</h4>
+        <div class="small muted">Panneaux visibles (chaque panneau peut aussi être agrandi ⤢ ou ouvert dans une autre fenêtre ↗, pratique avec deux écrans) :</div>
+        <div class="row" id="panelOpts"></div>
+        <div class="small muted">Colonnes du classement :</div>
+        <div class="row" id="colOpts"></div>
+      </section>
+
+      <section class="set-block">
         <h4>⌨ Raccourcis</h4>
-        <p class="small muted">← / → : délai ±1 s · Maj : ±5 s · Alt : ±0,1 s · S : synchro TV · Espace : pause (replay)</p>
+        <p class="small muted">← / → : délai ±1 s · Maj : ±5 s · Alt : ±0,1 s · S : synchro TV · Espace : pause (replay) · M : couper les alertes sonores · Échap : quitter le panneau agrandi</p>
       </section>
     </div>
   </dialog>

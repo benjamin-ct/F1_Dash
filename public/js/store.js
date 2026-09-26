@@ -11,7 +11,7 @@ export const store = {
   skew: 0,
   delay: storageGet('f1dash.delayMs', 0),
   connected: false,
-  positions: new Positions(() => store.derived.clockOffset),
+  positions: new Positions((utc) => utcToLocal(utc), () => replaySpeed()),
   duel: storageGet('f1dash.duel', { a: null, b: null }),
   focus: storageGet('f1dash.focus', null),
 };
@@ -37,9 +37,22 @@ export function displayNow() {
   return serverNow() - store.delay;
 }
 
-// Heure F1 (UTC) correspondant à l'affichage (utile pour le replay).
+export function replaySpeed() {
+  return store.status?.source?.mode === 'replay' ? store.status.source.speed || 1 : 1;
+}
+
+// Heure F1 (UTC) -> heure locale de réception, d'après le Heartbeat de référence.
+export function utcToLocal(utc) {
+  const ref = store.derived.clockRef;
+  if (!ref) return store.derived.clockOffset === null || store.derived.clockOffset === undefined ? null : utc + store.derived.clockOffset;
+  return ref.t + (utc - ref.utc) / replaySpeed();
+}
+
+// Heure F1 (UTC) correspondant à l'affichage.
 export function f1Now() {
-  return displayNow() - (store.derived.clockOffset ?? 0);
+  const ref = store.derived.clockRef;
+  if (!ref) return displayNow() - (store.derived.clockOffset ?? 0);
+  return ref.utc + (displayNow() - ref.t) * replaySpeed();
 }
 
 function bump(topic) {
@@ -81,6 +94,7 @@ export function handleBatch(msg) {
   }
   for (const t of topics) bump(t);
   ingestStream(msg.stream || []);
+  if (msg.events.length) emit('events', msg.events);
 }
 
 export function setDelay(ms) {
@@ -91,7 +105,8 @@ export function setDelay(ms) {
 }
 
 export function setDuel(slot, num) {
-  store.duel = { ...store.duel, [slot]: num };
+  // Un choix manuel du pilote B désactive le duel automatique devant/derrière.
+  store.duel = { ...store.duel, [slot]: num, ...(slot === 'b' ? { auto: null } : {}) };
   if (slot === 'a' && store.duel.b === num) store.duel.b = null;
   if (slot === 'b' && store.duel.a === num) store.duel.a = null;
   storageSet('f1dash.duel', store.duel);

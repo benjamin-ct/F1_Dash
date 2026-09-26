@@ -55,6 +55,8 @@ export function renderHeader() {
       <div class="wm"><span class="muted">Pluie</span><b>${w.Rainfall === '1' || w.Rainfall === 1 ? '🌧 Oui' : 'Non'}</b></div>` : '';
   }
 
+  renderBanner();
+
   // Temps restant (recalculé à chaque image)
   const ec = s.ExtrapolatedClock;
   let txt = '—';
@@ -89,4 +91,36 @@ export function renderSource() {
     badge.className = 'source-badge';
     lbl.textContent = 'Inactif';
   }
+}
+
+// Bandeau pleine largeur : SC, VSC, drapeau rouge (et drapeau vert à la reprise).
+let bannerState = { status: null, greenUntil: 0 };
+
+function renderBanner() {
+  const st = String(store.state.TrackStatus?.Status || '');
+  const session = store.state.SessionStatus?.Status;
+  const now = performance.now();
+  if (st !== bannerState.status) {
+    if (st === '1' && ['4', '5', '6', '7'].includes(bannerState.status)) bannerState.greenUntil = now + 10000;
+    bannerState.status = st;
+  }
+  const el = $('#flagBanner');
+  let cls = null, text = '', sub = '';
+  if (session === 'Started' || session === 'Aborted') {
+    if (st === '5' || session === 'Aborted') { cls = 'red'; text = 'Drapeau rouge'; sub = 'Session interrompue'; }
+    else if (st === '4') { cls = 'sc'; text = 'Safety car'; sub = 'Voiture de sécurité en piste'; }
+    else if (st === '6') { cls = 'vsc'; text = 'Virtual safety car'; sub = 'Vitesse limitée sur tout le circuit'; }
+    else if (st === '7') { cls = 'vsc'; text = 'Fin de VSC'; sub = 'Reprise imminente'; }
+    else if (st === '2') { cls = 'yellow'; text = 'Drapeau jaune'; sub = 'Incident sur la piste'; }
+    else if (st === '1' && now < bannerState.greenUntil) { cls = 'green'; text = 'Drapeau vert'; sub = 'Reprise de la course'; }
+  }
+  if (!cls) { if (!el.hidden) el.hidden = true; return; }
+  const key = `${cls}|${text}`;
+  if (el._k !== key) {
+    el._k = key;
+    el.className = `flag-banner ${cls}`;
+    el.querySelector('.fb-text').textContent = text;
+    el.querySelector('.fb-sub').textContent = sub;
+  }
+  el.hidden = false;
 }
