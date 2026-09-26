@@ -17,6 +17,9 @@ const DEFAULTS = {
   commSync: true,         // caler le son sur le délai du dashboard
   commOffset: 0,          // décalage manuel du son (s)
   commChannel: null,
+  commSource: 'f1tv',     // 'f1tv' ou 'radio'
+  radioStations: [],      // [{id, name, lang, url}]
+  radioStation: null,
   rcmBlue: true,          // direction de course : drapeaux bleus affichés
   rcmDeleted: true,       // direction de course : temps supprimés affichés
   spoilers: false,

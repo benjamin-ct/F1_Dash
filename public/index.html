@@ -289,11 +289,31 @@
   </dialog>
 
   <div class="comm-panel" id="commPanel" hidden>
-    <div class="comm-head"><b>🎙 Commentaires en direct</b> <span class="muted small">F1 TV Pro</span><button class="icon-btn small" id="commClose" title="Fermer (le son continue)">✕</button></div>
-    <div class="comm-info small" id="commInfo">—</div>
-    <div class="comm-row">
-      <label class="small muted">Canal <select id="commChannel"></select></label>
-      <label class="small muted">Langue <select id="commLang"></select></label>
+    <div class="comm-head"><b>🎙 Commentaires en direct</b><button class="icon-btn small" id="commClose" title="Fermer (le son continue)">✕</button></div>
+    <div class="comm-row comm-src">
+      <label class="toggle small"><input type="radio" name="commSource" value="f1tv"> F1 TV Pro</label>
+      <label class="toggle small"><input type="radio" name="commSource" value="radio"> Radio / flux audio</label>
+    </div>
+    <div class="comm-f1tv">
+      <div class="comm-info small" id="commInfo">—</div>
+      <div class="comm-row">
+        <label class="small muted">Canal <select id="commChannel"></select></label>
+        <label class="small muted">Langue <select id="commLang"></select></label>
+      </div>
+    </div>
+    <div class="comm-radio" hidden>
+      <div class="comm-row">
+        <label class="small muted">Station <select id="radioStation"></select></label>
+        <button class="btn small" id="radioAdd" title="Ajouter une station">＋ Ajouter</button>
+        <button class="btn small" id="radioDel" title="Supprimer cette station">🗑</button>
+      </div>
+      <form class="comm-radio-form" id="radioForm" hidden>
+        <input id="radioName" placeholder="Nom (ex. : Radio F1 FR)" required>
+        <select id="radioLangSel" aria-label="Langue"><option value="FRA">Français</option><option value="ENG">Anglais</option><option value="DEU">Allemand</option><option value="SPA">Espagnol</option><option value="ITA">Italien</option><option value="NLD">Néerlandais</option><option value="POR">Portugais</option></select>
+        <input id="radioUrl" type="url" placeholder="Adresse du flux (MP3/AAC, .m3u8, .pls, .m3u)" required>
+        <div class="comm-row"><button class="btn small btn-accent" type="submit">Enregistrer</button><button class="btn small" type="button" id="radioCancel">Annuler</button></div>
+        <div class="small muted">Collez l'adresse du flux audio d'une radio qui diffuse la course dans votre langue (souvent indiquée sur son site, rubrique « écouter en direct »).</div>
+      </form>
     </div>
     <div class="comm-row">
       <button class="btn btn-accent" id="commPlay">▶ Écouter</button>
@@ -302,7 +322,7 @@
       <span class="small muted" id="commVolVal"></span>
     </div>
     <div class="comm-row">
-      <label class="toggle small"><input type="checkbox" id="commSync"> Caler sur le dashboard (délai TV)</label>
+      <label class="toggle small"><input type="checkbox" id="commSync"> <span id="commSyncLbl">Caler sur le dashboard (délai TV)</span></label>
     </div>
     <div class="comm-row comm-offset">
       <span class="small muted">Décalage du son</span>

@@ -39,6 +39,14 @@ Le bouton **🎙** (en haut à droite) lit le son de la vidéo F1 TV de la séan
 - **Abonnement requis : F1 TV Pro.** Avec F1 TV Access (seule offre proposée dans certains pays, dont la France), F1 TV refuse la vidéo (« technical package not available ») : l'offre détectée est affichée dans ⚙ Réglages.
 - La ligne d'état indique précisément ce qui se passe (format du flux, protection DRM, erreur F1 TV…). Si F1 TV protège le flux par DRM (Widevine), l'application Windows actuelle ne peut pas le lire : ouvrez alors le dashboard dans Chrome ou Edge (http://127.0.0.1:3000, l'application restant ouverte).
 
+### 📻 Radio / flux audio
+
+Dans le panneau 🎙, choisissez **« Radio / flux audio »** pour écouter la station de votre choix (par exemple une radio qui commente la course dans votre langue) :
+
+- **＋ Ajouter** : nom, langue et adresse du flux (MP3/AAC, HLS `.m3u8`, listes `.pls` / `.m3u`) — les stations sont mémorisées ; 🗑 pour en supprimer une.
+- **Retarder du délai du dashboard** : la radio étant en avance sur la TV, le son est automatiquement retardé du délai Canal+ réglé dans le dashboard (jusqu'à 170 s) ; **« Décalage du son »** pour affiner à l'oreille (la radio a elle-même quelques secondes de retard).
+- Même volume, **🔇 / touche C** et **▶ / ⏹** que pour F1 TV.
+
 ## 🧩 Disposition et deux écrans
 
 La disposition est entièrement libre et conservée d'une session à l'autre :

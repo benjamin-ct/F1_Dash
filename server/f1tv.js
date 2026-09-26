@@ -2,6 +2,7 @@
 // chronométrage), demande du flux avec le jeton de l'abonné, et relais local des requêtes du
 // lecteur (manifestes, segments, licence DRM) pour éviter les blocages CORS du navigateur.
 import https from 'node:https';
+import http from 'node:http';
 import { getJSON, request, agent, USER_AGENT } from './net.js';
 
 const BASE = 'https://f1tv.formula1.com';
@@ -71,6 +72,11 @@ export async function contentDetails(contentId) {
 const allowedHosts = new Set(String(process.env.F1TV_PROXY_EXTRA_HOSTS || '').split(',').map((h) => h.trim()).filter(Boolean));
 const CDN_SUFFIXES = ['formula1.com', 'akamaized.net', 'akamaihd.net', 'akamai.net', 'edgesuite.net', 'edgekey.net', 'cloudfront.net', 'fastly.net', 'llnwd.net', 'llnw.net', 'irdeto.com', 'axprod.net', 'drmtoday.com'];
 
+// Stations de radio ajoutées par l'utilisateur (hôtes autorisés pour le relais).
+export function allowHost(host) {
+  if (host) allowedHosts.add(host);
+}
+
 function hostAllowed(host) {
   return allowedHosts.has(host) || CDN_SUFFIXES.some((s) => host === s || host.endsWith(`.${s}`));
 }
@@ -114,14 +120,18 @@ export async function playback(contentId, channelId, token) {
 export function proxy(req, res, target, token) {
   let u;
   try { u = new URL(target); } catch { res.writeHead(400); res.end('URL invalide'); return; }
-  if (u.protocol !== 'https:' || !hostAllowed(u.host)) { res.writeHead(403); res.end('Hôte non autorisé'); return; }
-  const headers = { 'User-Agent': UA, Accept: '*/*', Origin: 'https://f1tv.formula1.com', Referer: 'https://f1tv.formula1.com/' };
+  // HTTPS pour F1 TV ; HTTP accepté seulement pour les stations radio ajoutées par l'utilisateur
+  const okProto = u.protocol === 'https:' || (u.protocol === 'http:' && allowedHosts.has(u.host));
+  if (!okProto || !hostAllowed(u.host)) { res.writeHead(403); res.end('Hôte non autorisé'); return; }
+  const f1 = u.host.endsWith('formula1.com') || u.host.endsWith('akamaized.net');
+  const headers = { 'User-Agent': UA, Accept: '*/*', ...(f1 ? { Origin: 'https://f1tv.formula1.com', Referer: 'https://f1tv.formula1.com/' } : {}) };
   if (req.headers.range) headers.Range = req.headers.range;
   if (u.host.endsWith('formula1.com') && token) headers.ascendontoken = token;
   const ent = req.headers['x-f1tv-entitlement'];
   if (ent) headers.entitlementtoken = ent;
   if (req.method === 'POST') headers['Content-Type'] = req.headers['content-type'] || 'application/octet-stream';
-  const up = https.request(u, { method: req.method === 'POST' ? 'POST' : 'GET', agent, headers }, (r) => {
+  const lib = u.protocol === 'http:' ? http : https;
+  const up = lib.request(u, { method: req.method === 'POST' ? 'POST' : 'GET', ...(u.protocol === 'https:' ? { agent } : {}), headers }, (r) => {
     if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
       r.resume();
       const next = new URL(r.headers.location, u).toString();
@@ -135,8 +145,33 @@ export function proxy(req, res, target, token) {
     r.pipe(res);
   });
   up.on('error', (err) => { if (!res.headersSent) res.writeHead(502); res.end(err.message); });
+  // Lecteur arrêté (flux radio sans fin) : on coupe aussi la connexion en amont
+  res.on('close', () => up.destroy());
   up.setTimeout(20000, () => up.destroy(new Error('Délai dépassé')));
   if (req.method === 'POST') req.pipe(up); else up.end();
+}
+
+// Liste de lecture radio (.pls / .m3u) : première adresse de flux trouvée.
+export async function resolvePlaylist(target) {
+  const u = new URL(target);
+  if (u.protocol !== 'https:' && u.protocol !== 'http:') throw new Error('Adresse invalide');
+  const text = (u.protocol === 'https:'
+    ? (await request(u.toString(), { headers: { 'User-Agent': UA } })).body.toString('utf8')
+    : await new Promise((resolve, reject) => {
+      // Listes de lecture en HTTP simple (fréquent pour les radios)
+      const rq = http.get(u, { headers: { 'User-Agent': UA } }, (r) => {
+        let data = '';
+        r.setEncoding('utf8');
+        r.on('data', (c) => { data += c; if (data.length > 20000) r.destroy(); });
+        r.on('end', () => resolve(data));
+        r.on('close', () => resolve(data));
+      });
+      rq.on('error', reject);
+      rq.setTimeout(15000, () => rq.destroy(new Error('Délai dépassé')));
+    })).slice(0, 20000);
+  const m = /^(?:File\d+=)?\s*(https?:\/\/\S+)/im.exec(text);
+  if (!m) throw new Error('Aucun flux trouvé dans la liste de lecture');
+  return m[1].trim();
 }
 
 export const _test = { containersOf, hostAllowed, USER_AGENT };

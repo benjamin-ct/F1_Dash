@@ -1,5 +1,7 @@
-// Commentaires en direct F1 TV Pro : lecture de la piste audio (langue au choix) de la vidéo F1 TV
-// de la séance, calée sur le délai du dashboard grâce à l'horodatage du flux (PROGRAM-DATE-TIME).
+// Commentaires en direct :
+// - F1 TV Pro : piste audio (langue au choix) de la vidéo F1 TV de la séance, calée sur le délai du
+//   dashboard grâce à l'horodatage du flux (PROGRAM-DATE-TIME) ;
+// - Radio / flux audio : station choisie par l'utilisateur, retardée du délai TV (Web Audio).
 import { store, f1Now, on } from '../store.js';
 import { prefs, setPref } from '../prefs.js';
 import { $, esc, api } from '../util.js';
@@ -18,6 +20,45 @@ let stream = null;       // réponse /api/f1tv/play
 let syncTimer = null;
 
 const media = () => $('#commMedia');
+
+// ---------- Chaîne audio (retard réglable pour la radio) ----------
+let audioCtx = null, srcNode = null, delayNode = null, gainNode = null;
+let radioStarted = 0;
+const MAX_DELAY = 170;
+
+function ensureGraph() {
+  if (audioCtx) return;
+  audioCtx = new AudioContext();
+  srcNode = audioCtx.createMediaElementSource(media());
+  gainNode = audioCtx.createGain();
+  gainNode.connect(audioCtx.destination);
+  srcNode.connect(gainNode);
+}
+
+function setAudioDelay(sec) {
+  if (!audioCtx) return 0;
+  sec = Math.max(0, Math.min(MAX_DELAY, sec));
+  if (sec === 0 && !delayNode) return 0;
+  const cap = delayNode?.delayTime.maxValue ?? 0;
+  if (!delayNode || cap < sec + 2) {
+    // Nouvelle ligne à retard dimensionnée au besoin (la mémoire allouée dépend du maximum)
+    const node = audioCtx.createDelay(Math.min(179, Math.max(30, sec + 30)));
+    srcNode.disconnect();
+    delayNode?.disconnect();
+    srcNode.connect(node).connect(gainNode);
+    delayNode = node;
+  }
+  delayNode.delayTime.setValueAtTime(sec, audioCtx.currentTime);
+  return sec;
+}
+
+function radioDelay() {
+  return (prefs.commSync ? store.delay / 1000 : 0) + prefs.commOffset;
+}
+
+function currentStation() {
+  return prefs.radioStations.find((st) => st.id === prefs.radioStation) || prefs.radioStations[0] || null;
+}
 
 function status(text, cls = '') {
   const el = $('#commStatus');
@@ -104,6 +145,7 @@ async function widevineAvailable() {
 }
 
 async function start() {
+  if (prefs.commSource === 'radio') return startRadio();
   await refreshContent();
   if (!content) { status('Pas de vidéo F1 TV pour cette séance : impossible de lancer les commentaires.', 'err'); return; }
   playing = true;
@@ -126,32 +168,14 @@ async function start() {
     if (stream.drm && !(await widevineAvailable())) {
       throw new Error(`Ce flux est protégé par DRM (${stream.drm}, ${stream.streamType || stream.format}) et cette version ne contient pas le module Widevine nécessaire pour le lire.\nDans l'application Windows, il faut une version d'Electron avec Widevine (prochaine étape) ; en attendant, essayez dans Chrome ou Edge : http://127.0.0.1:${location.port || 3000}`);
     }
-    const shaka = await loadShaka();
-    shaka.polyfill.installAll();
-    if (!shaka.Player.isBrowserSupported()) throw new Error('Navigateur non compatible avec le lecteur audio.');
-    if (!player) {
-      player = new shaka.Player();
-      await player.attach(media());
-      const net = player.getNetworkingEngine();
-      net.registerRequestFilter((type, req) => {
-        req.uris = req.uris.map((u) => (/^https?:/i.test(u) ? proxied(u) : u));
-        if (type === shaka.net.NetworkingEngine.RequestType.LICENSE && stream?.drmToken) req.headers['x-f1tv-entitlement'] = stream.drmToken;
-      });
-      // Les adresses relatives des manifestes se résolvent par rapport à l'adresse d'origine.
-      net.registerResponseFilter((type, res) => {
-        const up = res.headers?.['x-upstream-url'];
-        if (up) res.uri = up;
-      });
-      player.addEventListener('error', (e) => fail(e.detail));
-      player.addEventListener('adaptation', renderLanguages);
-      player.addEventListener('trackschanged', renderLanguages);
-    }
+    await getPlayer();
     player.configure({
       manifest: { disableVideo: true },
       preferredAudio: [{ language: TO_ISO[prefs.commLang] || 'en' }],
       streaming: { bufferingGoal: 20, rebufferingGoal: 2, bufferBehind: 30 },
       drm: stream.drm && stream.laURL ? { servers: { 'com.widevine.alpha': stream.laURL } } : { servers: {} },
     });
+    setAudioDelay(0);
     status(`Chargement du flux (${stream.streamType || stream.format}${stream.drm ? `, DRM ${stream.drm}` : ''})…`);
     await player.load(stream.url);
     applyVolume();
@@ -163,6 +187,75 @@ async function start() {
   } catch (err) {
     fail(err);
   }
+}
+
+async function getPlayer() {
+  const shaka = await loadShaka();
+  shaka.polyfill.installAll();
+  if (!shaka.Player.isBrowserSupported()) throw new Error('Navigateur non compatible avec le lecteur audio.');
+  if (!player) {
+    player = new shaka.Player();
+    await player.attach(media());
+    const net = player.getNetworkingEngine();
+    net.registerRequestFilter((type, req) => {
+      // Toute adresse externe passe par le relais local (jamais deux fois)
+      req.uris = req.uris.map((u) => (/^https?:/i.test(u) && !u.startsWith(location.origin) ? proxied(u) : u));
+      if (type === shaka.net.NetworkingEngine.RequestType.LICENSE && stream?.drmToken) req.headers['x-f1tv-entitlement'] = stream.drmToken;
+    });
+    // Les adresses relatives des manifestes se résolvent par rapport à l'adresse d'origine.
+    net.registerResponseFilter((type, res) => {
+      const up = res.headers?.['x-upstream-url'];
+      if (up) res.uri = up;
+    });
+    player.addEventListener('error', (e) => fail(e.detail));
+    player.addEventListener('adaptation', renderLanguages);
+    player.addEventListener('trackschanged', renderLanguages);
+  }
+  return player;
+}
+
+// ---------- Radio / flux audio ----------
+async function startRadio() {
+  const st = currentStation();
+  if (!st) { status('Ajoutez d\'abord une station avec « ＋ Ajouter ».', 'err'); return; }
+  playing = true;
+  renderButtons();
+  status(`Connexion à « ${st.name} »…`);
+  try {
+    let url = st.url;
+    await api('/api/radio/allow', { method: 'POST', body: { url } });
+    if (/\.(pls|m3u)(\?|$)/i.test(url)) url = (await api(`/api/radio/resolve?u=${encodeURIComponent(url)}`)).url;
+    ensureGraph();
+    await audioCtx.resume();
+    const m = media();
+    if (/\.m3u8(\?|$)/i.test(url)) {
+      const p = await getPlayer();
+      p.configure({ manifest: { disableVideo: true }, streaming: { bufferingGoal: 20, rebufferingGoal: 2, bufferBehind: 30 }, drm: { servers: {} } });
+      await p.load(url);
+    } else {
+      if (player) await player.unload().catch(() => {});
+      m.src = proxied(url);
+    }
+    applyVolume();
+    setAudioDelay(radioDelay());
+    radioStarted = performance.now();
+    await m.play();
+    startSync();
+  } catch (err) {
+    fail(err);
+  }
+}
+
+function radioSyncStep() {
+  const want = radioDelay();
+  const applied = setAudioDelay(want);
+  const since = (performance.now() - radioStarted) / 1000;
+  const st = currentStation();
+  let msg = `« ${st?.name || 'Radio'} » · retard appliqué ${applied.toFixed(1).replace('.', ',')} s`;
+  if (prefs.commSync) msg += ` (délai TV ${(store.delay / 1000).toFixed(1).replace('.', ',')} s ${prefs.commOffset >= 0 ? '+' : '−'} ${Math.abs(prefs.commOffset).toFixed(1).replace('.', ',')} s)`;
+  if (want > MAX_DELAY) status(`${msg}\nRetard limité à ${MAX_DELAY} s.`, 'err');
+  else if (since < applied) status(`${msg}\nLe son arrive dans ${Math.ceil(applied - since)} s…`, 'ok');
+  else status(msg, 'ok');
 }
 
 function describe(err) {
@@ -186,6 +279,8 @@ async function stop(clearStatus = true) {
   clearInterval(syncTimer);
   syncTimer = null;
   try { await player?.unload(); } catch { /* ignore */ }
+  const m = media();
+  if (m.getAttribute('src')) { m.pause(); m.removeAttribute('src'); m.load(); }
   if (clearStatus) status('');
   renderButtons();
 }
@@ -202,8 +297,14 @@ function selectLanguage() {
 
 function applyVolume() {
   const m = media();
-  m.volume = prefs.commVolume;
-  m.muted = prefs.commMuted;
+  if (gainNode) {
+    m.volume = 1;
+    m.muted = false;
+    gainNode.gain.value = prefs.commMuted ? 0 : prefs.commVolume;
+  } else {
+    m.volume = prefs.commVolume;
+    m.muted = prefs.commMuted;
+  }
   $('#commVol').value = prefs.commVolume;
   $('#commVolVal').textContent = `${Math.round(prefs.commVolume * 100)} %`;
   renderButtons();
@@ -217,6 +318,21 @@ function renderButtons() {
   $('#commBtn').classList.toggle('muted', playing && prefs.commMuted);
   $('#commOffset').textContent = `${prefs.commOffset >= 0 ? '+' : ''}${prefs.commOffset.toFixed(1).replace('.', ',')} s`;
   $('#commSync').checked = prefs.commSync;
+  const radio = prefs.commSource === 'radio';
+  $('#commSyncLbl').textContent = radio ? 'Retarder du délai du dashboard (délai TV)' : 'Caler sur le dashboard (délai TV)';
+  document.querySelector('.comm-f1tv').hidden = radio;
+  document.querySelector('.comm-radio').hidden = !radio;
+  for (const r of document.querySelectorAll('input[name=commSource]')) r.checked = r.value === prefs.commSource;
+}
+
+function renderStations() {
+  const sel = $('#radioStation');
+  const list = prefs.radioStations;
+  sel.innerHTML = list.length
+    ? list.map((st) => `<option value="${esc(st.id)}">${esc(st.name)} (${esc(LANG_NAMES[st.lang] || st.lang)})</option>`).join('')
+    : '<option value="">— aucune station —</option>';
+  sel.value = currentStation()?.id || '';
+  $('#radioDel').disabled = !list.length;
 }
 
 // ---------- Synchronisation avec le délai du dashboard ----------
@@ -227,6 +343,7 @@ function startSync() {
 }
 
 function syncStep() {
+  if (prefs.commSource === 'radio') { if (playing) radioSyncStep(); return; }
   const m = media();
   if (!player || !playing || m.paused && m.readyState < 2) return;
   if (!prefs.commSync) { m.playbackRate = 1; return; }
@@ -264,7 +381,7 @@ export function initCommentary() {
   const panel = $('#commPanel');
   $('#commBtn').addEventListener('click', () => {
     panel.hidden = !panel.hidden;
-    if (!panel.hidden) refreshContent();
+    if (!panel.hidden && prefs.commSource !== 'radio') refreshContent();
   });
   $('#commClose').addEventListener('click', () => { panel.hidden = true; });
   $('#commPlay').addEventListener('click', () => (playing ? stop() : start()));
@@ -279,6 +396,37 @@ export function initCommentary() {
     if (playing) { await stop(); start(); }
   });
   $('#commSync').addEventListener('change', (e) => setPref('commSync', e.target.checked));
+  for (const r of document.querySelectorAll('input[name=commSource]')) {
+    r.addEventListener('change', async (e) => {
+      if (playing) await stop();
+      setPref('commSource', e.target.value);
+      status('');
+      if (e.target.value === 'f1tv') refreshContent();
+    });
+  }
+  $('#radioStation').addEventListener('change', async (e) => {
+    setPref('radioStation', e.target.value);
+    if (playing && prefs.commSource === 'radio') { await stop(); start(); }
+  });
+  $('#radioAdd').addEventListener('click', () => { $('#radioForm').hidden = false; $('#radioName').focus(); });
+  $('#radioCancel').addEventListener('click', () => { $('#radioForm').hidden = true; });
+  $('#radioForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const url = $('#radioUrl').value.trim();
+    try { const u = new URL(url); if (!/^https?:$/.test(u.protocol)) throw new Error(); } catch { status('Adresse de flux invalide (elle doit commencer par http:// ou https://).', 'err'); return; }
+    const st = { id: Date.now().toString(36), name: $('#radioName').value.trim() || 'Radio', lang: $('#radioLangSel').value, url };
+    setPref('radioStations', [...prefs.radioStations, st]);
+    setPref('radioStation', st.id);
+    $('#radioForm').reset();
+    $('#radioForm').hidden = true;
+  });
+  $('#radioDel').addEventListener('click', async () => {
+    const st = currentStation();
+    if (!st || !window.confirm(`Supprimer la station « ${st.name} » ?`)) return;
+    if (playing && prefs.commSource === 'radio') await stop();
+    setPref('radioStations', prefs.radioStations.filter((x) => x.id !== st.id));
+    setPref('radioStation', prefs.radioStations[0]?.id || null);
+  });
   panel.querySelector('.comm-offset').addEventListener('click', (e) => {
     const b = e.target.closest('[data-coff]');
     if (b) setPref('commOffset', Math.round((prefs.commOffset + Number(b.dataset.coff)) * 10) / 10);
@@ -288,11 +436,15 @@ export function initCommentary() {
   });
   on('prefs', (k) => {
     if (k === 'commVolume' || k === 'commMuted') applyVolume();
-    if (k === 'commOffset' || k === 'commSync') renderButtons();
+    if (k === 'commOffset' || k === 'commSync' || k === 'commSource') renderButtons();
+    if (k === 'radioStations' || k === 'radioStation') renderStations();
   });
+  on('delay', () => { if (playing && prefs.commSource === 'radio') radioSyncStep(); });
   on('status', () => { if (!panel.hidden) refreshContent(); });
   applyVolume();
   renderSelectors();
+  renderStations();
+  renderButtons();
 }
 
-export const _test = { iso, TO_ISO };
+export const _test = { iso, TO_ISO, graph: () => ({ audioCtx, gainNode, delayNode }) };
