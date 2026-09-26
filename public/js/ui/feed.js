@@ -1,5 +1,6 @@
 // Direction de course, radios d'équipe, arrêts aux stands.
-import { store, versionOf } from '../store.js';
+import { store, versionOf, on } from '../store.js';
+import { prefs, setPref, isFav } from '../prefs.js';
 import { $, esc, drivers, teamColor, fmtClock, fmtLap } from '../util.js';
 import { parseUtc, parseLapTime } from '/shared/f1.js';
 
@@ -42,12 +43,12 @@ export function renderRcm() {
 }
 
 export function renderRadio() {
-  const v = versionOf(['TeamRadio', 'DriverList', '__reset']);
+  const v = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${prefs.radioFilter}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
   if (v === radioVer) return;
   radioVer = v;
   const dl = drivers(store.state);
   const base = store.state.SessionInfo?.Path ? `https://livetiming.formula1.com/static/${store.state.SessionInfo.Path}` : null;
-  const caps = list(store.state.TeamRadio?.Captures).slice().sort((a, b) => parseUtc(b.Utc) - parseUtc(a.Utc));
+  const caps = list(store.state.TeamRadio?.Captures).filter((c) => radioAllowed(c.RacingNumber)).sort((a, b) => parseUtc(b.Utc) - parseUtc(a.Utc));
   const el = $('#radioList');
   // Ne pas reconstruire la liste pendant une lecture audio.
   if ([...el.querySelectorAll('audio')].some((a) => !a.paused)) { radioVer = -1; return; }
@@ -84,4 +85,42 @@ export function renderPits() {
           <td>${p.duration ? fmtLap(p.duration) + ' s' : '—'}</td><td>${st ? fmtLap(st) + ' s' : '—'}</td></tr>`;
       }).join('') + '</table>'
     : '<div class="note">Aucun arrêt aux stands enregistré depuis le début du suivi.</div>';
+}
+
+function radioAllowed(num) {
+  num = String(num);
+  if (prefs.radioFilter === 'fav') return isFav(num);
+  if (prefs.radioFilter === 'duel') return num === store.duel.a || num === store.duel.b;
+  return true;
+}
+
+// ---- Lecture automatique des nouvelles radios (au rythme du délai TV) ----
+const queue = [];
+let player = null;
+
+function playNext() {
+  if (player && !player.paused && !player.ended) return;
+  const next = queue.shift();
+  if (!next) return;
+  player ||= new Audio();
+  player.src = next;
+  player.play().catch(() => { /* le navigateur exige une interaction préalable */ });
+  player.onended = playNext;
+}
+
+export function initRadio() {
+  $('#radioFilter').value = prefs.radioFilter;
+  $('#radioAuto').checked = prefs.radioAuto;
+  $('#radioFilter').addEventListener('change', (e) => setPref('radioFilter', e.target.value));
+  $('#radioAuto').addEventListener('change', (e) => setPref('radioAuto', e.target.checked));
+  on('events', (events) => {
+    if (!prefs.radioAuto) return;
+    const base = store.state.SessionInfo?.Path ? `https://livetiming.formula1.com/static/${store.state.SessionInfo.Path}` : null;
+    if (!base) return;
+    for (const [topic, data] of events) {
+      if (topic !== 'TeamRadio' || !data?.Captures) continue;
+      for (const c of list(data.Captures)) if (c?.Path && radioAllowed(c.RacingNumber)) queue.push(base + c.Path);
+    }
+    playNext();
+  });
 }

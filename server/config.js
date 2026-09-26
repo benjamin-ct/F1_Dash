@@ -4,7 +4,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const FILE = path.join(ROOT, 'config.json');
+// Dossier des données modifiables (config, cache, enregistrements). L'appli de bureau
+// le place dans le profil utilisateur, car les fichiers du programme sont en lecture seule.
+export const DATA_DIR = process.env.F1DASH_DATA_DIR || ROOT;
+fs.mkdirSync(DATA_DIR, { recursive: true });
+const FILE = path.join(DATA_DIR, 'config.json');
 
 const defaults = {
   f1tvToken: null,

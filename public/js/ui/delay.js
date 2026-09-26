@@ -1,6 +1,7 @@
 // Réglage du délai : boutons, saisie, préréglages, raccourcis clavier et synchro TV.
 import { store, setDelay, serverNow, on } from '../store.js';
 import { $, esc, fmtDelay, storageGet, storageSet, drivers } from '../util.js';
+import { prefs, setPref } from '../prefs.js';
 
 // Valeurs de départ indicatives : chaque installation (box, satellite, appli, TNT...) a son
 // propre retard. Utilisez la synchro TV puis enregistrez votre propre préréglage.
@@ -65,6 +66,11 @@ function parseInput(v) {
 
 // ---- Synchro TV ----
 const KIND_LABEL = { lap: 'Tour', track: 'Piste', rcm: 'Direction', session: 'Session', pit: 'Stands' };
+const MASKED = {
+  rcm: 'Message de la direction de course (masqué : pas encore à l\'écran)',
+  pit: 'Un pilote entre aux stands (masqué)',
+  track: 'Changement d\'état de la piste (masqué)',
+};
 
 function renderSyncList() {
   const modal = $('#syncModal');
@@ -77,11 +83,16 @@ function renderSyncList() {
   if (!events.length) {
     list.innerHTML = '<li class="empty">Aucun événement récent. Les repères (changement de tour, drapeaux, entrées aux stands, messages de la direction de course) apparaîtront ici dès qu\'ils se produisent en live.</li>';
   } else {
+    const shownUntil = now - store.delay;
     list.innerHTML = events.map((e) => {
       const ago = (now - e.t) / 1000;
-      const who = e.num ? `${dl[e.num]?.Tla || '#' + e.num} ` : '';
+      // Anti-spoiler : un événement pas encore visible à l'écran (t > heure affichée) est masqué,
+      // sauf les changements de tour qui ne révèlent rien.
+      const hidden = !prefs.spoilers && e.t > shownUntil && e.kind !== 'lap' && e.kind !== 'session';
+      const who = e.num && !hidden ? `${dl[e.num]?.Tla || '#' + e.num} ` : '';
+      const text = hidden ? MASKED[e.kind] || 'Événement (masqué)' : e.text;
       return `<li class="${e.kind}">
-        <div><div class="se-text"><span class="se-kind">${KIND_LABEL[e.kind] || e.kind}</span>${esc(who + e.text)}</div>
+        <div><div class="se-text"><span class="se-kind">${KIND_LABEL[e.kind] || e.kind}</span>${esc(who + text)}</div>
         <div class="se-meta">Il y a ${ago.toFixed(1).replace('.', ',')} s en live${e.hint ? ' · ' + esc(e.hint) : ''}</div></div>
         <button class="btn btn-accent" data-t="${e.t}">Je le vois !</button></li>`;
     }).join('');
@@ -162,6 +173,17 @@ export function initDelay() {
       e.preventDefault();
     } else if (e.key === 's' || e.key === 'S') {
       openSync();
+    }
+  });
+
+  $('#syncSpoilers').checked = prefs.spoilers;
+  $('#syncSpoilers').addEventListener('change', (e) => { setPref('spoilers', e.target.checked); renderSyncList(); });
+
+  // Plusieurs fenêtres (mode deux écrans) : le délai reste identique partout.
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'f1dash.delayMs' && e.newValue !== null) {
+      const ms = Number(JSON.parse(e.newValue));
+      if (Number.isFinite(ms) && ms !== store.delay) setDelay(ms);
     }
   });
 

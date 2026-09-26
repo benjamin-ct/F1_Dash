@@ -102,10 +102,38 @@ export class Hub {
     this.sync = [];
     this.syncCtx = createSyncContext();
     for (const e of events) {
-      for (const s of extractSyncEvents(this.syncCtx, e.topic, e.data, e.t)) this.sync.push(s);
+      for (const s of extractSyncEvents(this.syncCtx, e.topic, e.data, e.t)) {
+        if (e.off !== undefined) s.off = e.off;
+        this.sync.push(s);
+      }
     }
     this.hasPositions = stream.some((s) => s.topic === 'Position');
     this.hasCarData = stream.some((s) => s.topic === 'CarData');
+    this.gen++;
+  }
+
+  // Historique rechargé depuis un enregistrement local (redémarrage pendant une session).
+  preload(events, stream) {
+    this.events = events.concat(this.events);
+    this.stream = stream.concat(this.stream);
+    this.streamOffset = 0;
+    this.syncCtx = createSyncContext();
+    this.sync = [];
+    for (const e of this.events) {
+      for (const s of extractSyncEvents(this.syncCtx, e.topic, e.data, e.t)) this.sync.push(s);
+    }
+    if (this.sync.length > 400) this.sync.splice(0, this.sync.length - 400);
+    this.hasPositions = this.stream.some((s) => s.topic === 'Position');
+    this.hasCarData = this.stream.some((s) => s.topic === 'CarData');
+    this.trimStream();
+    this.gen++;
+  }
+
+  // Recalcule les horodatages du replay : t = anchor + off / speed.
+  retime(anchor, speed) {
+    for (const arr of [this.events, this.stream, this.sync]) {
+      for (const e of arr) if (e.off !== undefined) e.t = anchor + e.off / speed;
+    }
     this.gen++;
   }
 

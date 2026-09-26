@@ -36,11 +36,13 @@ class OffsetEstimator {
 }
 
 export class Positions {
-  // clockOffset() : décalage "heure locale - heure F1" issu du Heartbeat (null si inconnu).
-  // Il sert à placer GPS et télémétrie sur la même échelle de temps que les chronos.
-  constructor(clockOffset = () => null) {
+  // mapUtc(utc) : heure F1 -> heure locale de réception, via le Heartbeat (null si inconnu).
+  // Place GPS et télémétrie sur la même échelle de temps que les chronos (et gère le replay accéléré).
+  constructor(mapUtc = () => null, speed = () => 1) {
     this.track = null;
-    this.clockOffset = clockOffset;
+    this.loops = null;
+    this.mapUtc = mapUtc;
+    this.speed = speed;
     this.reset();
   }
 
@@ -74,9 +76,9 @@ export class Positions {
     if (!Array.isArray(list) || !list.length) return;
     const lastTs = parseUtc(list[list.length - 1].Timestamp);
     this.posOffset.add(t - lastTs);
-    const off = this.clockOffset() ?? this.posOffset.value;
     for (const snap of list) {
-      const ts = parseUtc(snap.Timestamp) + off;
+      const u = parseUtc(snap.Timestamp);
+      const ts = this.mapUtc(u) ?? u + this.posOffset.value;
       for (const [num, e] of Object.entries(snap.Entries || {})) {
         if (!e || (e.X === 0 && e.Y === 0)) continue;
         let arr = this.gps.get(num);
@@ -93,9 +95,9 @@ export class Positions {
     const list = data?.Entries;
     if (!Array.isArray(list) || !list.length) return;
     this.carOffset.add(t - parseUtc(list[list.length - 1].Utc));
-    const off = this.clockOffset() ?? this.carOffset.value;
     for (const entry of list) {
-      const ts = parseUtc(entry.Utc) + off;
+      const u = parseUtc(entry.Utc);
+      const ts = this.mapUtc(u) ?? u + this.carOffset.value;
       for (const [num, c] of Object.entries(entry.Cars || {})) {
         const ch = c?.Channels;
         if (!ch) continue;
@@ -159,8 +161,10 @@ export class Positions {
     const s = arr[Math.max(0, i)];
     if (s.p === null) return;
     const L = this.track.L;
-    const r = s.p - Math.floor(s.p / L) * L;
-    const sampleLap = Math.floor(s.p / L);
+    // Progression mesurée depuis la ligne de chronométrage (pas le début du tracé).
+    const pl = s.p - this.lineFrac() * L;
+    const r = pl - Math.floor(pl / L) * L;
+    const sampleLap = Math.floor(pl / L);
     const expected = r < L / 2 ? laps : laps - 1;
     const diff = expected - sampleLap;
     if (diff === 0) return;
@@ -189,6 +193,23 @@ export class Positions {
     return fb;
   }
 
+  // Boucles de chronométrage calibrées (voir shared/calibrate.js) : emplacement réel
+  // de chaque fin de mini-secteur sur le tracé.
+  setLoops(loops) {
+    this.loops = loops && loops.segs ? loops : null;
+  }
+
+  lineFrac() {
+    return this.loops?.line ?? 0;
+  }
+
+  // q : fraction du tour depuis la ligne (0 = ligne) -> fraction du tracé.
+  loopQ(key, fallback) {
+    const f = this.loops?.segs?.[key];
+    if (f === undefined || f === null) return fallback;
+    return (((f - this.lineFrac()) % 1) + 1) % 1;
+  }
+
   estimateFromTiming(state, num, upd, line, t) {
     const L = this.track.L;
     let est = this.est.get(num);
@@ -198,31 +219,32 @@ export class Positions {
     if (last) est.rate = Math.max(0.3, Math.min(1.2, L / last));
 
     const fb = this.sectorFractions(state);
-    let bestFrac = null;
-    const consider = (f) => { if (bestFrac === null || f > bestFrac) bestFrac = f; };
+    let bestQ = null;
+    const consider = (q) => { if (bestQ === null || q > bestQ) bestQ = q; };
 
     forEachEntry(upd.Sectors, (i, s) => {
       if (!s || typeof s !== 'object' || i > 2) return;
-      const segCount = (() => {
-        const segs = line.Sectors?.[i]?.Segments;
-        return segs ? (Array.isArray(segs) ? segs.length : Object.keys(segs).length) : 0;
-      })();
+      const segs = line.Sectors?.[i]?.Segments;
+      const segCount = segs ? (Array.isArray(segs) ? segs.length : Object.keys(segs).length) : 0;
       forEachEntry(s.Segments, (j, seg) => {
-        if (seg?.Status && segCount) consider(fb[i] + ((j + 1) / segCount) * (fb[i + 1] - fb[i]));
+        if (seg?.Status && seg.Status !== 2064 && segCount) {
+          consider(this.loopQ(`${i}-${j}`, fb[i] + ((j + 1) / segCount) * (fb[i + 1] - fb[i])));
+        }
       });
-      if (s.Value && i < 2) consider(fb[i + 1]);
+      if (s.Value && i < 2) consider(this.loopQ(`S${i}`, fb[i + 1]));
     });
 
-    let frac = bestFrac;
-    if (upd.NumberOfLaps !== undefined && (frac === null || frac >= 0.999)) frac = 0;
-    if (frac === null) return;
-    if (frac >= 0.999) frac = 0;
+    let q = bestQ;
+    if (upd.NumberOfLaps !== undefined && (q === null || q >= 0.97)) q = 0;
+    if (q === null) return;
+    if (q >= 0.97) q = 0;
 
+    const frac = this.lineFrac() + q; // position sur le tracé (peut dépasser 1)
     const lapsDone = Number(line.NumberOfLaps) || 0;
     let p;
     if (est.p0 === null) {
       p = lapsDone * L + frac * L;
-      if (upd.NumberOfLaps === undefined && frac === 0) p += L;
+      if (upd.NumberOfLaps === undefined && q === 0) p += L;
     } else {
       const cur = this.estimatedProgress(num, t);
       const k = Math.round((cur - frac * L) / L);
@@ -230,13 +252,13 @@ export class Positions {
     }
     est.p0 = p;
     est.t0 = t;
-    est.cap = p + 0.12 * L;
+    est.cap = p + (this.loops ? 0.08 : 0.12) * L;
   }
 
   estimatedProgress(num, now) {
     const est = this.est.get(num);
     if (!est || est.p0 === null) return null;
-    return Math.min(est.cap, est.p0 + ((now - est.t0) / 1000) * est.rate);
+    return Math.min(est.cap, est.p0 + ((now - est.t0) / 1000) * est.rate * this.speed());
   }
 
   // ---- Lecture ----

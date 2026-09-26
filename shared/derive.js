@@ -13,6 +13,7 @@ export function createDerived() {
     pitIn: {},       // num -> t entrée stands
     clockOffset: null, // heure locale de réception - heure F1 (ms)
     hbOffsets: [],
+    clockRef: null,  // {t, utc} battement de référence
   };
 }
 
@@ -54,12 +55,17 @@ export function applyEvent(state, derived, topic, data, t) {
   if (topic === 'Heartbeat' && data?.Utc) {
     // Décalage heure locale de réception - heure F1. On garde le minimum des derniers
     // battements (latence la plus faible) pour un recalage stable.
-    const off = t - parseUtc(data.Utc);
+    const utc = parseUtc(data.Utc);
+    const off = t - utc;
     if (Number.isFinite(off)) {
       const list = (derived.hbOffsets ||= []);
-      list.push(off);
+      list.push({ off, t, utc });
       if (list.length > 8) list.shift();
-      derived.clockOffset = Math.min(...list);
+      let best = list[0];
+      for (const h of list) if (h.off < best.off) best = h;
+      derived.clockOffset = best.off;
+      // Point de référence (heure locale, heure F1) : permet aussi le replay accéléré.
+      derived.clockRef = { t: best.t, utc: best.utc };
     }
   } else if (topic === 'TimingData' && data?.Lines) {
     forEachEntry(data.Lines, (num, upd) => {

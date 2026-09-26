@@ -10,6 +10,10 @@ import { initDuel, renderDuel } from './ui/duel.js';
 import { renderRcm, renderRadio, renderPits } from './ui/feed.js';
 import { renderTelemetry, renderStrategy, renderWeather, renderChampionship } from './ui/extra.js';
 import { initSettings } from './ui/settings.js';
+import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
+import { initAlerts } from './ui/alerts.js';
+import { initRadio } from './ui/feed.js';
+import { initLayout } from './ui/layout.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -38,6 +42,8 @@ function loop() {
   safe(renderStrategy);
   safe(renderWeather);
   safe(renderChampionship);
+  safe(renderPitSim);
+  safe(renderBattles);
   setTimeout(loop, 100);
 }
 
@@ -47,6 +53,10 @@ initTower();
 initMap();
 initDuel();
 initSettings();
+initRaceTools();
+initAlerts();
+initRadio();
+initLayout();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));

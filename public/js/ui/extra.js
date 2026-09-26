@@ -1,6 +1,6 @@
 // Onglets : télémétrie du pilote suivi, stratégie pneus, météo, championnat (prévision).
 import { store, displayNow, versionOf, setFocus } from '../store.js';
-import { $, esc, drivers, orderedNumbers, teamColor, stintsOf, compoundInfo, COMPOUNDS } from '../util.js';
+import { $, esc, drivers, orderedNumbers, teamColor, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds } from '../util.js';
 import { lineChart } from './charts.js';
 
 let lastTele = 0;
@@ -33,7 +33,7 @@ export function renderTelemetry() {
   if (el._num !== num) {
     el._num = num;
     const nums = orderedNumbers(store.state).filter((n) => dl[n]);
-    el.innerHTML = `<div class="tele"><div class="tele-head"><span class="drv-bar" style="background:${teamColor(d)}"></span>
+    el.innerHTML = `<div class="tele"><div class="tele-head">${d.HeadshotUrl ? `<img class="tele-photo" src="${esc(d.HeadshotUrl)}" alt="" onerror="this.remove()">` : ''}<span class="drv-bar" style="background:${teamColor(d)}"></span>
       <select id="teleSel">${nums.map((n) => `<option value="${n}" ${n === num ? 'selected' : ''}>${esc(dl[n].Tla)} · ${esc(dl[n].FullName || '')}</option>`).join('')}</select>
       <span class="muted small">(clic sur un pilote du classement pour le suivre)</span></div>
       <div class="gauges" id="teleGauges"></div>
@@ -64,6 +64,8 @@ export function renderTelemetry() {
 export function renderStrategy() {
   const v = versionOf(['TimingAppData', 'LapCount', 'DriverList', 'TimingData', '__reset']);
   if (v === stratVer) return;
+  if (!$('#strategy').classList.contains('active') || performance.now() - (renderStrategy.last || 0) < 1000) return;
+  renderStrategy.last = performance.now();
   stratVer = v;
   const s = store.state;
   const dl = drivers(s);
@@ -78,17 +80,21 @@ export function renderStrategy() {
       start += len;
       return out;
     });
-    return { num, stints, laps: start };
+    return { num, stints, laps: start, pace: stintPace(num) };
   });
   total = Math.max(total, ...rows.map((r) => r.laps), 1);
   $('#strategy').innerHTML = `<div class="strat">
     <div class="strat-legend">${Object.values(COMPOUNDS).map((c) => `<span><span class="tyre" style="--tc:${c.color}">${c.letter}</span> ${c.name}</span>`).join('')}</div>
+    <div class="strat-row strat-headrow"><span></span><span></span><span class="small muted" title="Moyenne des 5 derniers tours propres du relais en cours">Rythme</span><span class="small muted" title="Évolution du temps au tour sur le relais en cours (régression linéaire, hors tours perturbés)">Usure</span></div>
     ${rows.map((r) => `<div class="strat-row"><div class="strat-name" style="border-left:3px solid ${teamColor(dl[r.num])};padding-left:5px">${esc(dl[r.num].Tla)}</div>
       <div class="strat-track">${r.stints.map((st) => {
         const ci = compoundInfo(st.Compound);
         return `<div class="strat-stint" title="${esc(ci.name)} · ${st.len} tour(s)${st.New === 'false' || st.New === false ? ' · pneus déjà utilisés' : ''}" style="left:${(st.from / total) * 100}%;width:${Math.max(0.8, (st.len / total) * 100)}%;background:${ci.color}">${st.len >= 3 ? st.len : ''}</div>`;
-      }).join('')}</div></div>`).join('')}
+      }).join('')}</div>
+      <span class="strat-pace">${r.pace ? fmtLap(r.pace.avg) : '<span class="dim">—</span>'}</span>
+      <span class="strat-deg ${r.pace?.deg > 0.08 ? 'down' : r.pace?.deg < -0.02 ? 'up' : ''}">${r.pace && r.pace.n >= 4 ? `${fmtSigned(r.pace.deg, 2)} s/t` : '<span class="dim">—</span>'}</span></div>`).join('')}
     <div class="strat-axis"><span></span><span style="display:flex;justify-content:space-between"><span>Tour 0</span><span>Tour ${total}</span></span></div>
+    <p class="small muted">Usure : variation moyenne du temps au tour sur le relais en cours (positive = le pilote ralentit, les pneus se dégradent). Le carburant qui s'allège fait gagner ~0,05 s/tour, à garder en tête.</p>
   </div>`;
 }
 
@@ -133,4 +139,27 @@ export function renderChampionship() {
     }).join('')}</table>
     ${teams.length ? `<table class="champ" style="margin-top:10px"><tr><th>Proj.</th><th>Écurie</th><th>Pts actuels</th><th>Pts projetés</th><th></th></tr>
       ${teams.map((t) => `<tr><td>${t.PredictedPosition ?? '—'}</td><td>${esc(t.TeamName || '')}</td><td>${t.CurrentPoints ?? '—'}</td><td><b>${t.PredictedPoints ?? '—'}</b></td><td>${mv(t.CurrentPosition, t.PredictedPosition)}</td></tr>`).join('')}</table>` : ''}`;
+}
+
+// Rythme et dégradation sur le relais en cours (tours "propres" uniquement).
+function stintPace(num) {
+  const laps = store.derived.laps[num] || [];
+  let start = 0;
+  for (let i = laps.length - 1; i >= 0; i--) if (laps[i].pit) { start = i + 1; break; }
+  const pts = laps.slice(start).filter((e) => e.lap > 1 && !e.pit).map((e) => ({ x: e.lap, y: lapSeconds(e.time) })).filter((p) => p.y);
+  if (!pts.length) return null;
+  const med = pts.map((p) => p.y).sort((a, b) => a - b)[Math.floor(pts.length / 2)];
+  const clean = pts.filter((p) => p.y < med * 1.04);
+  if (!clean.length) return null;
+  const last5 = clean.slice(-5);
+  const avg = last5.reduce((a, p) => a + p.y, 0) / last5.length;
+  let deg = 0;
+  if (clean.length >= 2) {
+    const mx = clean.reduce((a, p) => a + p.x, 0) / clean.length;
+    const my = clean.reduce((a, p) => a + p.y, 0) / clean.length;
+    const num2 = clean.reduce((a, p) => a + (p.x - mx) * (p.y - my), 0);
+    const den = clean.reduce((a, p) => a + (p.x - mx) ** 2, 0);
+    deg = den ? num2 / den : 0;
+  }
+  return { avg, deg, n: clean.length };
 }

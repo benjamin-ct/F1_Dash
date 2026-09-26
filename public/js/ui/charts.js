@@ -16,6 +16,7 @@ export function lineChart(el, points, opts = {}) {
   const {
     height = 130, color = '#3ea6ff', yFmt = (v) => v.toFixed(1), xFmt = (v) => String(v),
     tipFmt = (p) => `${xFmt(p.x)} : ${yFmt(p.y)}`, zero = true, markers = [], yMinSpan = 1,
+    extra = [], // séries supplémentaires : [{points, color, label}]
   } = opts;
   el._chart = { points, opts };
   const width = Math.max(200, el.clientWidth || 300);
@@ -24,12 +25,14 @@ export function lineChart(el, points, opts = {}) {
     return;
   }
   const padL = 40, padR = 10, padT = 10, padB = 20;
-  let yMin = Math.min(...points.map((p) => p.y)), yMax = Math.max(...points.map((p) => p.y));
+  const all = [points, ...extra.map((e) => e.points)].flat();
+  let yMin = Math.min(...all.map((p) => p.y)), yMax = Math.max(...all.map((p) => p.y));
   if (zero) { yMin = Math.min(0, yMin); yMax = Math.max(0, yMax); }
   if (yMax - yMin < yMinSpan) { const c = (yMax + yMin) / 2; yMin = c - yMinSpan / 2; yMax = c + yMinSpan / 2; }
   const pad = (yMax - yMin) * 0.08;
   yMin -= pad; yMax += pad;
-  const xMin = points[0].x, xMax = points[points.length - 1].x === xMin ? xMin + 1 : points[points.length - 1].x;
+  const xs = all.map((p) => p.x);
+  const xMin = Math.min(...xs), xMax0 = Math.max(...xs), xMax = xMax0 === xMin ? xMin + 1 : xMax0;
   const X = (x) => padL + ((x - xMin) / (xMax - xMin)) * (width - padL - padR);
   const Y = (y) => padT + (1 - (y - yMin) / (yMax - yMin)) * (height - padT - padB);
 
@@ -45,6 +48,7 @@ export function lineChart(el, points, opts = {}) {
   el.innerHTML = `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img">
     ${grid}${xl}
     <path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${extra.filter((e) => e.points.length).map((e) => `<path d="${e.points.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join('')}" fill="none" stroke="${e.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}
     ${mk}
     <circle cx="${X(last.x)}" cy="${Y(last.y)}" r="4" fill="${color}" stroke="#12161f" stroke-width="2"/>
     <line class="xhair" y1="${padT}" y2="${height - padB}" stroke="#7d879a" stroke-width="1" stroke-dasharray="3 3" visibility="hidden"/>
@@ -65,7 +69,8 @@ export function lineChart(el, points, opts = {}) {
     xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.setAttribute('visibility', 'visible');
     xd.setAttribute('cx', px); xd.setAttribute('cy', py); xd.setAttribute('visibility', 'visible');
     tip.hidden = false;
-    tip.textContent = tipFmt(best);
+    const others = extra.map((e) => e.points.find((p) => p.x === best.x)).filter(Boolean);
+    tip.textContent = opts.tipAll ? opts.tipAll(best.x, [best, ...others]) : tipFmt(best);
     const left = (px / width) * r.width;
     tip.style.left = `${Math.min(r.width - 150, Math.max(0, left + 10))}px`;
     tip.style.top = `${(py / height) * r.height - 30}px`;

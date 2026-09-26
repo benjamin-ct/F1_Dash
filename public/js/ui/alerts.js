@@ -1,0 +1,120 @@
+// Alertes sonores / visuelles. Elles sont déclenchées par les événements *retardés* :
+// elles arrivent donc en même temps que l'image TV, jamais avant (pas de spoiler).
+import { store, on } from '../store.js';
+import { $, esc, drivers } from '../util.js';
+import { prefs, setPref, isFav } from '../prefs.js';
+import { toast } from './delay.js';
+
+let audio = null;
+
+// Petits signaux sonores synthétisés (pas de fichier audio).
+function beep(kind) {
+  if (!prefs.alerts.sound || prefs.muted) return;
+  try {
+    audio ||= new (window.AudioContext || window.webkitAudioContext)();
+    const tones = {
+      red: [[880, 0.18], [660, 0.18], [880, 0.18], [660, 0.3]],
+      sc: [[740, 0.2], [740, 0.2], [740, 0.35]],
+      green: [[660, 0.12], [990, 0.25]],
+      info: [[880, 0.12]],
+      fastest: [[990, 0.1], [1320, 0.2]],
+      fav: [[523, 0.12], [784, 0.2]],
+    }[kind] || [[880, 0.12]];
+    let t = audio.currentTime;
+    for (const [f, d] of tones) {
+      const o = audio.createOscillator();
+      const g = audio.createGain();
+      o.frequency.value = f;
+      o.type = 'triangle';
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g).connect(audio.destination);
+      o.start(t);
+      o.stop(t + d + 0.02);
+      t += d + 0.05;
+    }
+  } catch { /* audio indisponible */ }
+}
+
+function notify(title, body, kind) {
+  beep(kind);
+  toast(`${title}${body ? ' — ' + body : ''}`, 5000);
+  if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+    try { new Notification(title, { body, silent: true }); } catch { /* ignore */ }
+  }
+}
+
+const TRACK_ALERT = {
+  '4': ['🚨 Voiture de sécurité', 'sc'],
+  '5': ['🟥 Drapeau rouge', 'red'],
+  '6': ['🟠 Voiture de sécurité virtuelle', 'sc'],
+};
+
+let lastTrack = null;
+
+function onEvents(events) {
+  const a = prefs.alerts;
+  const dl = drivers(store.state);
+  const tla = (n) => dl[n]?.Tla || `#${n}`;
+  for (const [topic, data] of events) {
+    if (!data || typeof data !== 'object') continue;
+    if (topic === 'TrackStatus' && data.Status && a.flags) {
+      const st = String(data.Status);
+      if (st !== lastTrack) {
+        if (TRACK_ALERT[st]) notify(TRACK_ALERT[st][0], '', TRACK_ALERT[st][1]);
+        else if (st === '1' && ['4', '5', '6', '7'].includes(lastTrack)) notify('🟢 Piste dégagée', 'Reprise de la course', 'green');
+        lastTrack = st;
+      }
+    } else if (topic === 'SessionStatus' && data.Status === 'Finished' && a.finish) {
+      notify('🏁 Drapeau à damier', '', 'green');
+    } else if (topic === 'TimingData' && data.Lines) {
+      for (const [num, l] of Object.entries(data.Lines)) {
+        if (!l || typeof l !== 'object') continue;
+        if (a.fastest && l.LastLapTime?.OverallFastest === true && l.LastLapTime?.Value) {
+          notify(`⏱ Meilleur tour : ${tla(num)}`, l.LastLapTime.Value, 'fastest');
+        }
+        if (a.favPit && isFav(num) && l.InPit === true) notify(`🔧 ${tla(num)} rentre aux stands`, '', 'fav');
+        if (a.retire && (l.Retired === true || l.Stopped === true) && store.state.SessionStatus?.Status === 'Started') notify(`⚠ ${tla(num)} ${l.Retired ? 'abandonne' : 'est arrêté'}`, '', 'info');
+      }
+    } else if (topic === 'RaceControlMessages' && data.Messages && a.favRcm) {
+      const msgs = Array.isArray(data.Messages) ? data.Messages : Object.values(data.Messages);
+      for (const m of msgs) {
+        const nums = new Set([m?.RacingNumber, ...String(m?.Message || '').matchAll(/CAR (\d+)/g)].map((x) => (Array.isArray(x) ? x[1] : x)).filter(Boolean).map(String));
+        const fav = [...nums].find((n) => isFav(n));
+        if (fav && m.Flag !== 'BLUE') notify(`📣 ${tla(fav)} — direction de course`, m.Message, 'fav');
+      }
+    }
+  }
+}
+
+export function initAlerts() {
+  on('reset', () => { lastTrack = String(store.state.TrackStatus?.Status || ''); });
+  on('events', onEvents);
+  window.addEventListener('keydown', (e) => {
+    if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input, select, textarea')) {
+      setPref('muted', !prefs.muted);
+      toast(prefs.muted ? '🔇 Alertes sonores coupées' : '🔊 Alertes sonores activées');
+    }
+  });
+  renderAlertOptions();
+}
+
+const OPTS = [
+  ['sound', 'Son'], ['notify', 'Notification Windows (onglet en arrière-plan)'], ['flags', 'SC / VSC / drapeau rouge'],
+  ['fastest', 'Meilleur tour'], ['favPit', 'Arrêt d\'un favori'], ['favRcm', 'Messages FIA sur un favori'],
+  ['retire', 'Abandons'], ['finish', 'Arrivée'],
+];
+
+export function renderAlertOptions() {
+  const el = $('#alertOpts');
+  el.innerHTML = OPTS.map(([k, label]) => `<label class="toggle small"><input type="checkbox" data-alert="${k}" ${prefs.alerts[k] ? 'checked' : ''}> ${esc(label)}</label>`).join('') +
+    '<button class="btn small" id="alertTest">Tester</button>';
+  el.onchange = (e) => {
+    const k = e.target.dataset.alert;
+    if (!k) return;
+    setPref('alerts', { ...prefs.alerts, [k]: e.target.checked });
+    if (k === 'notify' && e.target.checked && 'Notification' in window) Notification.requestPermission();
+  };
+  el.onclick = (e) => { if (e.target.id === 'alertTest') notify('🚨 Voiture de sécurité', 'Exemple d\'alerte', 'sc'); };
+}

@@ -53,7 +53,7 @@ export function officialGap(state, a, b) {
 }
 
 // Série "écart par tour" : positif = A devant B.
-function lapGapSeries(a, b) {
+export function lapGapSeries(a, b) {
   const la = store.derived.laps[a] || [], lb = store.derived.laps[b] || [];
   const byLap = new Map(lb.map((e) => [e.lap, e]));
   const out = [];
@@ -96,10 +96,11 @@ function fillSelect(sel, value, dl, nums) {
 
 function skeleton() {
   $('#duelBody').innerHTML = `
-    <div class="duel-hero" id="dHero"></div>
+    <div class="duel-hero" id="dHero"><div id="dSideA"></div><div id="dGap"></div><div id="dSideB"></div></div>
     <div class="duel-trend" id="dTrend"></div>
     <div id="dLiveWrap"><div class="chart-title"><span>Écart en direct (GPS) — 3 dernières minutes</span><span>positif = A devant</span></div><div class="duel-chart" id="dLive"></div></div>
     <div id="dLapWrap"><div class="chart-title"><span>Écart à chaque tour (s)</span><span>positif = A devant</span></div><div class="duel-chart" id="dLap"></div></div>
+    <div id="dPaceWrap"><div class="chart-title"><span>Rythme : temps au tour (s)</span><span class="legend-inline" id="dPaceLegend"></span></div><div class="duel-chart" id="dPace"></div></div>
     <table class="cmp" id="dCmp"></table>
     <div id="dTele"></div>
     <div class="chart-title"><span>Derniers tours</span></div>
@@ -134,13 +135,16 @@ function renderHero(a, b) {
   const side = (num, d, cls) => {
     const l = lines[num] || {};
     const pos = l.Position ? `P${l.Position}` : '';
-    return `<div class="duel-side ${cls}"><div class="duel-name"><span class="duel-swatch" style="background:${teamColor(d)}"></span>${esc(d.Tla || num)}</div>
-      <div class="duel-sub">${esc(pos)} · ${esc(d.TeamName || '')}</div></div>`;
+    const photo = d.HeadshotUrl ? `<img class="duel-photo" src="${esc(d.HeadshotUrl)}" alt="" onerror="this.remove()">` : '';
+    return `<div class="duel-side ${cls}"><div class="duel-id">${photo}<div><div class="duel-name"><span class="duel-swatch" style="background:${teamColor(d)}"></span>${esc(d.Tla || num)}</div>
+      <div class="duel-sub">${esc(pos)} · ${esc(d.TeamName || '')}</div></div></div></div>`;
   };
-  $('#dHero').innerHTML = `${side(a, da, 'a')}
-    <div class="duel-gap"><div class="duel-gap-val">${main}${main !== '—' && !main.includes('T') ? '<small style="font-size:16px"> s</small>' : ''}</div>
-      <div class="duel-gap-lbl">${lbl}</div><div class="duel-gap-src">${src}</div></div>
-    ${side(b, db, 'b')}`;
+  // Mise à jour ciblée (évite de recharger les photos à chaque rafraîchissement).
+  const put = (id, html) => { const el = $(id); if (el._h !== html) { el._h = html; el.innerHTML = html; } };
+  put('#dSideA', side(a, da, 'a'));
+  put('#dSideB', side(b, db, 'b'));
+  put('#dGap', `<div class="duel-gap"><div class="duel-gap-val">${main}${main !== '—' && !main.includes('T') ? '<small style="font-size:16px"> s</small>' : ''}</div>
+      <div class="duel-gap-lbl">${lbl}</div><div class="duel-gap-src">${src}</div></div>`);
 
   // Échantillonnage de l'écart GPS pour le graphique "en direct"
   const key = `${a}-${b}-${store.ver.__reset || 0}`;
@@ -193,6 +197,27 @@ function renderSlow(a, b) {
     $('#dTrend').innerHTML = trendText(series, tlaA, tlaB, gapNow);
   } else {
     $('#dTrend').innerHTML = kind === 'quali' ? 'Comparaison sur la partie de qualification en cours.' : 'Comparaison des meilleurs tours de la séance.';
+  }
+
+  // Rythme : temps au tour hors tours de stand, 1er tour et tours anormaux (SC, incidents)
+  const pace = (n) => {
+    const pts = (store.derived.laps[n] || []).filter((e) => !e.pit && e.lap > 1).map((e) => ({ x: e.lap, y: parseLapTime(e.time) })).filter((p) => p.y);
+    const med = pts.map((p) => p.y).sort((x, y) => x - y)[Math.floor(pts.length / 2)];
+    return pts.filter((p) => p.y < med * 1.07).slice(-30);
+  };
+  const pA = pace(a), pB = pace(b);
+  $('#dPaceWrap').hidden = pA.length + pB.length < 2;
+  if (pA.length + pB.length >= 2) {
+    $('#dPaceLegend').innerHTML = `<span><i style="background:#3ea6ff"></i>${esc(tlaA)} (A)</span><span><i style="background:#ff9f1a"></i>${esc(tlaB)} (B)</span>`;
+    const main = pA.length ? pA : pB;
+    lineChart($('#dPace'), main, {
+      height: 120, color: pA.length ? '#3ea6ff' : '#ff9f1a', zero: false, yMinSpan: 1, xFmt: (v) => `T${v}`, yFmt: (v) => v.toFixed(1),
+      extra: pA.length ? [{ points: pB, color: '#ff9f1a' }] : [],
+      tipAll: (x) => {
+        const va = pA.find((p) => p.x === x), vb = pB.find((p) => p.x === x);
+        return `Tour ${x} · ${tlaA} ${va ? fmtLap(va.y) : '—'} · ${tlaB} ${vb ? fmtLap(vb.y) : '—'}`;
+      },
+    });
   }
 
   // Comparatif
@@ -253,6 +278,14 @@ export function renderDuel() {
   const nums = orderedNumbers(s).filter((n) => dl[n]);
   fillSelect($('#duelA'), store.duel.a, dl, nums);
   fillSelect($('#duelB'), store.duel.b, dl, nums);
+  // Duel automatique contre la voiture de devant / derrière
+  if (store.duel.auto && store.duel.a) {
+    const i = nums.indexOf(store.duel.a);
+    const other = store.duel.auto === 'ahead' ? nums[i - 1] : nums[i + 1];
+    if (other && other !== store.duel.b) { store.duel = { ...store.duel, b: other }; skeletonFor = null; }
+  }
+  $('#duelAhead').classList.toggle('on', store.duel.auto === 'ahead');
+  $('#duelBehind').classList.toggle('on', store.duel.auto === 'behind');
   const { a, b } = store.duel;
   if (!a || !b || !dl[a] || !dl[b]) {
     if (skeletonFor !== 'empty') {
@@ -289,5 +322,13 @@ export function initDuel() {
     setDuel('a', b);
     setDuel('b', a);
   });
+  const auto = (mode) => {
+    const a = store.duel.a || store.focus || orderedNumbers(store.state)[1];
+    if (!a) return;
+    store.duel = { a, b: store.duel.b, auto: store.duel.auto === mode ? null : mode };
+    skeletonFor = null;
+  };
+  $('#duelAhead').addEventListener('click', () => auto('ahead'));
+  $('#duelBehind').addEventListener('click', () => auto('behind'));
   on('duel', () => { skeletonFor = null; });
 }

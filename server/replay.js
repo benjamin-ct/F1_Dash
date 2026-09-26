@@ -4,6 +4,7 @@
 import { getText, getJSON, HttpError } from './net.js';
 import { ARCHIVE_TOPICS, topicName } from '../shared/f1.js';
 import { sessionLabel } from './live.js';
+import { readRecording, recordingPath } from './recorder.js';
 
 const STATIC = 'https://livetiming.formula1.com/static/';
 
@@ -34,9 +35,9 @@ async function mapLimit(items, limit, fn) {
   return results;
 }
 
-export async function loadArchive(path, onProgress = () => {}) {
+export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_TOPICS) {
   let done = 0;
-  const parts = await mapLimit(ARCHIVE_TOPICS, 4, async (rawTopic) => {
+  const parts = await mapLimit(topics, 4, async (rawTopic) => {
     try {
       const text = await getText(`${STATIC}${path}${rawTopic}.jsonStream`, { timeout: 120000 });
       return parseStream(text, rawTopic);
@@ -44,7 +45,7 @@ export async function loadArchive(path, onProgress = () => {}) {
       if (!(err instanceof HttpError)) console.warn(`[replay] ${rawTopic}: ${err.message}`);
       return [];
     } finally {
-      onProgress(++done / ARCHIVE_TOPICS.length);
+      onProgress(++done / topics.length);
     }
   });
 
@@ -69,20 +70,42 @@ export async function loadArchive(path, onProgress = () => {}) {
   return { events, stream, duration, startOff: started ? started.off : 0, info };
 }
 
+// Enregistrement local -> même format qu'une archive officielle.
+async function loadLocal(id) {
+  const file = recordingPath(id);
+  if (!file) throw new Error('Enregistrement introuvable');
+  const rec = await readRecording(file);
+  if (!rec.events.length) throw new Error('Enregistrement vide');
+  const t0 = Math.min(rec.events[0].t, rec.stream.length ? rec.stream[0].t : Infinity);
+  const events = rec.events.map((e) => ({ off: e.t - t0, topic: e.topic, data: e.data }));
+  const stream = rec.stream.map((e) => ({ off: e.t - t0, topic: e.topic, raw: e.raw }));
+  const duration = Math.max(events.at(-1).off, stream.length ? stream.at(-1).off : 0);
+  const started = events.find((e) => (e.topic === 'SessionStatus' && e.data?.Status === 'Started'));
+  const snap = events.find((e) => e.topic === '__snapshot' && e.data?.SessionInfo);
+  const info = snap?.data.SessionInfo || events.find((e) => e.topic === 'SessionInfo')?.data;
+  return { events, stream, duration, startOff: started ? started.off : 0, info };
+}
+
 export class ReplaySource {
   constructor(hub) {
     this.hub = hub;
     this.anchor = 0;
+    this.speed = 1;
     this.duration = 0;
     this.loadId = 0;
   }
 
-  async start(path, startOffsetMs) {
+  // source : chemin d'archive officielle ("2026/…/") ou {local: id} pour un enregistrement.
+  async start(source, startOffsetMs) {
     const id = ++this.loadId;
+    const local = typeof source === 'object' && source?.local;
+    const path = local ? `local:${local}` : source;
     this.hub.reset({ mode: 'replay', label: 'Replay', path, loading: true, progress: 0 });
     let archive;
     try {
-      archive = await loadArchive(path, (p) => { if (id === this.loadId) this.hub.source.progress = p; });
+      archive = local
+        ? await loadLocal(local)
+        : await loadArchive(source, (p) => { if (id === this.loadId) this.hub.source.progress = p; });
     } catch (err) {
       if (id === this.loadId) Object.assign(this.hub.source, { loading: false, error: err.message });
       throw err;
@@ -92,20 +115,23 @@ export class ReplaySource {
     const start = Number.isFinite(startOffsetMs) ? startOffsetMs : Math.max(0, archive.startOff - 60000);
     this.duration = archive.duration;
     this.startOff = archive.startOff;
+    this.speed = 1;
     this.anchor = Date.now() - start;
-    const events = archive.events.map((e) => ({ t: this.anchor + e.off, topic: e.topic, data: e.data }));
-    const stream = archive.stream.map((s) => ({ t: this.anchor + s.off, topic: s.topic, raw: s.raw }));
+    const events = archive.events.map((e) => ({ off: e.off, t: this.anchor + e.off, topic: e.topic, data: e.data }));
+    const stream = archive.stream.map((s) => ({ off: s.off, t: this.anchor + s.off, topic: s.topic, raw: s.raw }));
     this.hub.load(events, stream);
     this.hub.source = {
       mode: 'replay',
       label: 'Replay',
       path,
+      local: !!local,
       session: sessionLabel(archive.info),
       loading: false,
       connected: true,
       duration: this.duration,
       sessionStart: this.startOff,
       anchor: this.anchor,
+      speed: this.speed,
     };
   }
 
@@ -113,13 +139,29 @@ export class ReplaySource {
     return this.hub.source.mode === 'replay' && !this.hub.source.loading;
   }
 
+  // Position dans l'enregistrement au bord "live" (sans délai), en ms.
+  position() {
+    return (this.hub.clock() - this.anchor) * this.speed;
+  }
+
+  apply() {
+    this.hub.retime(this.anchor, this.speed);
+    Object.assign(this.hub.source, { anchor: this.anchor, speed: this.speed });
+  }
+
   seek(toMs) {
     if (!this.isActive()) return;
     const to = Math.max(0, Math.min(this.duration, toMs));
-    const newAnchor = this.hub.clock() - to;
-    this.hub.shift(newAnchor - this.anchor, true);
-    this.anchor = newAnchor;
-    this.hub.source.anchor = this.anchor;
+    this.anchor = this.hub.clock() - to / this.speed;
+    this.apply();
+  }
+
+  setSpeed(speed) {
+    if (!this.isActive() || ![0.5, 1, 2, 4, 8].includes(speed)) return;
+    const pos = this.position();
+    this.speed = speed;
+    this.anchor = this.hub.clock() - pos / speed;
+    this.apply();
   }
 
   pause() {

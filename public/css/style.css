@@ -1,3 +1,9 @@
+/* Police Titillium Web (SIL Open Font License, voir /fonts/OFL.txt), incluse localement. */
+@font-face { font-family: 'Titillium Web'; font-style: normal; font-weight: 400; font-display: swap; src: url('/fonts/titillium-400.woff2') format('woff2'); }
+@font-face { font-family: 'Titillium Web'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/titillium-600.woff2') format('woff2'); }
+@font-face { font-family: 'Titillium Web'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/titillium-700.woff2') format('woff2'); }
+@font-face { font-family: 'Titillium Web'; font-style: normal; font-weight: 900; font-display: swap; src: url('/fonts/titillium-900.woff2') format('woff2'); }
+
 :root {
   --bg: #0a0c11;
   --panel: #12161f;
@@ -183,8 +189,8 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .panel-body { flex: 1; min-height: 0; overflow: auto; position: relative; }
 .hint { font-size: 12px; }
 
-.tabs { justify-content: flex-start; gap: 4px; padding: 5px 8px; }
-.tab { background: none; border: none; color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; }
+.tabs { justify-content: flex-start; gap: 4px; padding: 5px 8px; overflow-x: auto; scrollbar-width: none; }
+.tab { white-space: nowrap; flex: none; background: none; border: none; color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; }
 .tab.active { background: var(--panel-3); color: var(--text); }
 .tabpane { display: none; }
 .tabpane.active { display: block; }
@@ -291,6 +297,8 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .pits th { color: var(--muted); font-size: 11px; text-transform: uppercase; position: sticky; top: 0; background: var(--panel); }
 
 /* ---------- Duel ---------- */
+.duel-pick { gap: 5px; }
+.duel-pick select { max-width: 130px; }
 .duel-pick select, .row select, .row input {
   background: var(--panel-3); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px;
 }
@@ -345,11 +353,14 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 
 /* ---------- Stratégie ---------- */
 .strat { padding: 8px 12px; }
-.strat-row { display: grid; grid-template-columns: 44px 1fr; gap: 8px; align-items: center; height: 20px; }
+.strat-row { display: grid; grid-template-columns: 44px 1fr 62px 72px; gap: 8px; align-items: center; height: 20px; }
+.strat-pace, .strat-deg { font-size: 12px; font-weight: 700; text-align: right; }
+.strat-headrow { height: 16px; }
+.strat-headrow span { text-align: right; }
 .strat-name { font-weight: 700; font-size: 12.5px; }
 .strat-track { position: relative; height: 12px; background: #1b2130; border-radius: 3px; }
 .strat-stint { position: absolute; top: 0; height: 12px; border-radius: 3px; border-right: 2px solid var(--panel); font-size: 9px; font-weight: 900; color: #111; display: grid; place-items: center; overflow: hidden; }
-.strat-axis { display: grid; grid-template-columns: 44px 1fr; gap: 8px; font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+.strat-axis { display: grid; grid-template-columns: 44px 1fr 142px; gap: 8px; font-size: 10.5px; color: var(--muted); margin-top: 4px; }
 .strat-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11.5px; color: var(--text-2); margin-bottom: 8px; }
 
 /* ---------- Météo ---------- */
@@ -411,3 +422,88 @@ details ol { line-height: 1.6; }
   position: absolute; pointer-events: none; background: #0b0e14; border: 1px solid var(--border);
   border-radius: 6px; padding: 3px 8px; font-size: 12px; white-space: nowrap; z-index: 5; color: var(--text);
 }
+
+/* ---------- Bandeau drapeau ---------- */
+.flag-banner {
+  display: flex; align-items: center; justify-content: center; gap: 14px; flex: none;
+  padding: 7px 14px; font-weight: 900; font-size: 20px; letter-spacing: 1.5px; text-transform: uppercase;
+  animation: pulse 1.1s infinite;
+}
+.flag-banner .fb-icon { width: 26px; height: 18px; border-radius: 3px; }
+.flag-banner .fb-sub { font-size: 13px; font-weight: 700; letter-spacing: .4px; opacity: .85; text-transform: none; }
+.flag-banner.red { background: var(--red); color: #fff; }
+.flag-banner.red .fb-icon { background: #fff; }
+.flag-banner.sc, .flag-banner.vsc { background: var(--sc); color: #1d1200; }
+.flag-banner.sc .fb-icon, .flag-banner.vsc .fb-icon { background: #1d1200; }
+.flag-banner.yellow { background: var(--yellow); color: #1a1500; animation: none; font-size: 15px; padding: 4px 14px; }
+.flag-banner.yellow .fb-icon { background: #1a1500; }
+.flag-banner.green { background: var(--green); color: #002012; animation: none; font-size: 15px; padding: 4px 14px; }
+.flag-banner.green .fb-icon { background: #002012; }
+
+/* ---------- Contrôles de panneaux ---------- */
+.panel-ctrl { display: flex; gap: 2px; margin-left: auto; flex: none; }
+.panel-ctrl button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 5px; border-radius: 4px; }
+.panel-ctrl button:hover { color: var(--text); background: var(--panel-3); }
+.tabs .panel-ctrl { position: sticky; right: 0; background: var(--panel-2); padding-left: 4px; }
+.grid.has-max > .panel:not(.maximized) { display: none; }
+.grid.has-max { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; grid-template-areas: none !important; }
+.grid.has-max > .panel.maximized { grid-area: auto !important; }
+.panel.hidden-panel { display: none !important; }
+body.solo .topbar .session, body.solo .topbar .hstat, body.solo .brand-name, body.solo #settingsBtn { display: none; }
+body.solo .grid { grid-template-columns: 1fr !important; grid-template-rows: 1fr !important; grid-template-areas: none !important; }
+body.solo .grid > .panel:not(.solo-panel) { display: none; }
+body.solo .grid > .panel.solo-panel { grid-area: auto !important; }
+.btn.small { padding: 2px 7px; font-size: 12px; }
+.btn.on { background: var(--blue); border-color: var(--blue); color: #001526; }
+.subbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+.subbar select { background: var(--panel-3); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+.spoil-toggle { margin: 4px 0 6px; }
+
+/* ---------- Classement : animations, colonnes, qualifs ---------- */
+.tower tr.flash td { background: var(--flash); transition: background .25s linear; }
+.tower.hide-int .c-int, .tower.hide-last .c-last, .tower.hide-best .c-best, .tower.hide-sectors .c-sec,
+.tower.hide-tyre .c-tyre, .tower.hide-pits .c-pits, .tower.hide-speed .c-speed, .tower.hide-duel .c-duel,
+.tower.hide-pred .c-pred, .tower.hide-q .c-q { display: none; }
+.tag.push { background: var(--purple); color: #1a0030; }
+.pred { font-size: 12px; font-weight: 700; }
+.pred small { color: var(--muted); font-weight: 600; }
+.cutline { padding: 4px 10px; font-size: 12px; color: var(--text-2); background: rgba(255,59,48,.08); border-bottom: 1px solid var(--border); }
+.cutline b { color: var(--text); }
+.fav-star { color: var(--yellow); font-size: 11px; }
+
+/* ---------- Duel : photos, rythme ---------- */
+.duel-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; object-position: top; background: var(--panel-3); border: 2px solid var(--border); }
+.duel-side .duel-id { display: flex; align-items: center; gap: 8px; }
+.duel-side.b .duel-id { flex-direction: row-reverse; }
+.legend-inline { display: flex; gap: 12px; font-size: 11.5px; color: var(--text-2); }
+.legend-inline i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+.tele-photo { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; object-position: top; background: var(--panel-3); }
+
+/* ---------- Bagarres / arrêt simulé ---------- */
+.battle { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #1a1f2b; }
+.battle-pair { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.battle-gap { font-size: 18px; font-weight: 900; }
+.battle-sub { font-size: 12px; color: var(--muted); }
+.battle.hot .battle-gap { color: var(--green); }
+.pitsim { padding: 10px 12px; }
+.pitsim .row select, .pitsim .row input { background: var(--panel-3); border: 1px solid var(--border); border-radius: 6px; padding: 3px 6px; }
+.pitsim .row input { width: 70px; }
+.pit-result { background: var(--panel-2); border-radius: 10px; padding: 12px 14px; margin: 8px 0; }
+.pit-result .big { font-size: 30px; font-weight: 900; line-height: 1; }
+.pit-order { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.pit-order td { padding: 3px 8px; border-bottom: 1px solid #1a1f2b; font-size: 13px; }
+.pit-order tr.me td { background: rgba(62, 166, 255, .15); font-weight: 700; }
+
+/* ---------- Réglages ---------- */
+.rec-list { display: flex; flex-direction: column; gap: 4px; max-height: 190px; overflow: auto; }
+.rec { display: flex; align-items: center; gap: 8px; background: var(--panel-2); padding: 5px 8px; border-radius: 7px; font-size: 12.5px; }
+.rec .rec-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fav-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.fav { border: 1px solid var(--border); background: var(--panel-3); border-radius: 999px; padding: 1px 9px; font-size: 12px; cursor: pointer; font-weight: 700; }
+.fav.on { background: var(--yellow); color: #1a1500; border-color: var(--yellow); }
+#bookmarklet { cursor: grab; }
+
+/* ---------- Carte ---------- */
+#mapCanvas { cursor: grab; }
+#mapCanvas:active { cursor: grabbing; }
+.tower th.t-lap, .tower th.t-gap, .tower th.t-int { text-align: right; }
