@@ -1,7 +1,7 @@
 // Tableau de classement (course / qualifications / essais).
 import { store, setDuel, setFocus, versionOf, displayNow, f1Now, on } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
-import { prefs, isFav } from '../prefs.js';
+import { prefs, isFav, toggleFav } from '../prefs.js';
 import { segmentClass, parseUtc } from '/shared/f1.js';
 
 let lastKey = '';
@@ -128,7 +128,7 @@ export function renderTower(force = false) {
       if (dlt) posDelta = `<span class="pos-delta ${dlt > 0 ? 'up' : 'down'}">${dlt > 0 ? '▲' : '▼'}${Math.abs(dlt)}</span>`;
     }
 
-    const drv = `<td><div class="drv"><span class="drv-bar" style="background:${teamColor(d)}"></span><span class="drv-num">${esc(d.RacingNumber || num)}</span><span class="drv-tla" title="${esc(d.FullName || '')} — ${esc(d.TeamName || '')}">${esc(d.Tla || num)}</span>${isFav(num) ? '<span class="fav-star" title="Favori">★</span>' : ''}<span class="drv-tags">${tags.join('')}</span></div></td>`;
+    const drv = `<td><div class="drv"><span class="drv-bar" style="background:${teamColor(d)}"></span><span class="drv-num">${esc(d.RacingNumber || num)}</span><span class="drv-tla" title="${esc(d.FullName || '')} — ${esc(d.TeamName || '')}">${esc(d.Tla || num)}</span><button class="fav-btn ${isFav(num) ? 'on' : ''}" data-fav="${num}" title="${isFav(num) ? 'Retirer des favoris' : 'Ajouter aux favoris (alertes, radios…)'}">${isFav(num) ? '★' : '☆'}</button><span class="drv-tags">${tags.join('')}</span></div></td>`;
     const sectors = list(l.Sectors);
     const secCells = [0, 1, 2].map((i) => sectorCell(sectors[i])).join('');
     const tyre = `<td class="c-tyre">${stint ? tyreBadge(stint.Compound, stint.TotalLaps, stint.New) : '<span class="dim">—</span>'}</td>`;
@@ -230,6 +230,12 @@ export function initTower() {
     if (b) {
       const slot = b.dataset.duel;
       setDuel(slot, store.duel[slot] === b.dataset.num ? null : b.dataset.num);
+      renderTower(true);
+      return;
+    }
+    const fav = e.target.closest('[data-fav]');
+    if (fav) {
+      toggleFav(fav.dataset.fav);
       renderTower(true);
       return;
     }

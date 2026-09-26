@@ -474,7 +474,10 @@ body.solo .grid > .panel.solo-panel { grid-area: auto !important; }
 .pred small { color: var(--muted); font-weight: 600; }
 .cutline { padding: 4px 10px; font-size: 12px; color: var(--text-2); background: rgba(255,59,48,.08); border-bottom: 1px solid var(--border); }
 .cutline b { color: var(--text); }
-.fav-star { color: var(--yellow); font-size: 11px; }
+.fav-btn { background: none; border: none; padding: 0 2px; cursor: pointer; color: var(--muted); font-size: 13px; line-height: 1; opacity: 0; }
+.fav-btn.on { color: var(--yellow); opacity: 1; }
+.tower tr.trow:hover .fav-btn { opacity: 1; }
+.fav-btn:hover { color: var(--yellow); }
 
 /* ---------- Duel : photos, rythme ---------- */
 .duel-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; object-position: top; background: var(--panel-3); border: 2px solid var(--border); }
