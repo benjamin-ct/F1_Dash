@@ -1,5 +1,5 @@
 // Mise à jour automatique de l'application Windows (installateur et version portable).
-// Les versions sont lues sur le dépôt public de publication (package.json → f1dash.updateRepo),
+// Les versions sont lues sur les Releases du dépôt public (package.json → f1dash.updateRepo),
 // téléchargées en arrière-plan, vérifiées (empreinte SHA-256 fournie par GitHub), puis installées :
 // - installateur : exécution silencieuse du nouvel installateur, puis relance de l'appli ;
 // - portable : remplacement du fichier .exe (l'ancien est renommé puis supprimé au démarrage suivant).
@@ -10,7 +10,7 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 
 const pkg = require('./package.json');
-const REPO = process.env.F1DASH_UPDATE_REPO || pkg.f1dash?.updateRepo || 'benjamin-ct/F1_Dash-releases';
+const REPO = process.env.F1DASH_UPDATE_REPO || pkg.f1dash?.updateRepo || 'benjamin-ct/F1_Dash';
 const CHECK_EVERY_MS = 6 * 3600 * 1000;
 
 const state = {
