@@ -94,11 +94,22 @@
     <section class="panel p-feed">
       <div class="panel-head tabs" data-tabs="feed">
         <button class="tab active" data-tab="rcm">Direction de course</button>
+        <button class="tab" data-tab="stewards" title="Suivi des enquêtes des commissaires">Enquêtes <span class="tab-badge" id="stewardsBadge" hidden></span></button>
+        <button class="tab" data-tab="tracklimits" title="Tours et temps supprimés pour limites de piste">Limites de piste <span class="tab-badge" id="tlBadge" hidden></span></button>
         <button class="tab" data-tab="radio">Radios</button>
         <button class="tab" data-tab="pits">Arrêts</button>
       </div>
       <div class="panel-body">
         <div class="tabpane active" data-pane="rcm"><ul class="rcm" id="rcmList"></ul></div>
+        <div class="tabpane" data-pane="stewards">
+          <div class="subbar">
+            <label class="toggle"><input type="radio" name="stwFilter" value="open" checked> En cours</label>
+            <label class="toggle"><input type="radio" name="stwFilter" value="all"> Toutes</label>
+            <span class="muted small" id="stewardsSummary"></span>
+          </div>
+          <div id="stewardsList"></div>
+        </div>
+        <div class="tabpane" data-pane="tracklimits"><div id="tlList"></div></div>
         <div class="tabpane" data-pane="radio">
           <div class="subbar">
             <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>

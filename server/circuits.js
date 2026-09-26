@@ -6,7 +6,7 @@ import zlib from 'node:zlib';
 import { getJSON, HttpError } from './net.js';
 import { DATA_DIR } from './config.js';
 import { Track } from '../shared/track.js';
-import { calibrateLoops } from '../shared/calibrate.js';
+import { calibrateLoops, buildTrackFromArchive } from '../shared/calibrate.js';
 import { loadArchive, seasonIndex } from './replay.js';
 
 export const CACHE_DIR = path.join(DATA_DIR, '.cache');
@@ -20,10 +20,19 @@ function writeCache(name, data) {
   fs.writeFileSync(path.join(CACHE_DIR, name), JSON.stringify(data));
 }
 
+const building = new Map();
+
 export async function circuit(key, year) {
   const name = `circuit-${key}-${year}.json`;
   const cached = readCache(name);
   if (cached) return cached;
+  if (building.has(name)) return building.get(name);
+  const job = fetchCircuit(key, year, name).finally(() => building.delete(name));
+  building.set(name, job);
+  return job;
+}
+
+async function fetchCircuit(key, year, name) {
   // Le tracé de l'année peut ne pas encore exister : on remonte les saisons précédentes.
   for (let y = year; y >= year - 6; y--) {
     try {
@@ -34,6 +43,23 @@ export async function circuit(key, year) {
       }
     } catch (err) {
       if (!(err instanceof HttpError)) throw err;
+    }
+  }
+  // Circuit inconnu de MultiViewer (nouveau tracé) : reconstruction à partir du GPS d'une archive.
+  for (const p of (await candidateSessions(key, year)).slice(0, 3)) {
+    try {
+      const arc = await loadArchive(p, undefined, ['Heartbeat', 'TimingData', 'Position.z']);
+      const positions = arc.stream.filter((s) => s.topic === 'Position')
+        .map((s) => ({ off: s.off, data: JSON.parse(zlib.inflateRawSync(Buffer.from(s.raw, 'base64')).toString('utf8')) }));
+      const data = buildTrackFromArchive(arc.events, positions);
+      if (data) {
+        data.source = p;
+        writeCache(name, data);
+        console.log(`[circuit] tracé ${key} reconstruit à partir du GPS (${p})`);
+        return data;
+      }
+    } catch (err) {
+      console.warn(`[circuit] ${p} : ${err.message}`);
     }
   }
   return null;

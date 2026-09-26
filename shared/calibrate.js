@@ -23,16 +23,9 @@ function circularMedian(values, L) {
   return ((m % L) + L) % L;
 }
 
-/**
- * @param track   instance de Track
- * @param events  [{off, topic, data}] triés : TimingData et Heartbeat
- * @param positions [{off, data}] messages Position décompressés
- * @returns {{L, segs: Object<string, number>, sectors: number[], samples: number}}
- */
-export function calibrateLoops(track, events, positions) {
-  const L = track.L;
-  // Décalage "offset d'archive - heure F1" : même recalage que dans le navigateur (Heartbeat),
-  // calculé localement (minimum glissant) car l'horloge des archives peut faire des sauts.
+// Conversion heure F1 (UTC, ms) -> offset d'archive, par minimum glissant sur les Heartbeat
+// (l'horloge des archives peut faire des sauts). Renvoie null sans Heartbeat.
+export function archiveClock(events) {
   const hbs = events.filter((e) => e.topic === 'Heartbeat' && e.data?.Utc)
     .map((e) => ({ utc: parseUtc(e.data.Utc), d: e.off - parseUtc(e.data.Utc) }))
     .filter((h) => Number.isFinite(h.utc)).sort((a, b) => a.utc - b.utc);
@@ -42,7 +35,7 @@ export function calibrateLoops(track, events, positions) {
     for (let k = Math.max(0, i - 4); k <= Math.min(hbs.length - 1, i + 4); k++) m = Math.min(m, hbs[k].d);
     return { utc: h.utc, d: m };
   });
-  const toOff = (utc) => {
+  return (utc) => {
     let lo = 0, hi = smooth.length - 1;
     while (hi - lo > 1) {
       const mid = (lo + hi) >> 1;
@@ -51,6 +44,18 @@ export function calibrateLoops(track, events, positions) {
     const h = Math.abs(smooth[lo].utc - utc) <= Math.abs(smooth[hi].utc - utc) ? smooth[lo] : smooth[hi];
     return utc + h.d;
   };
+}
+
+/**
+ * @param track   instance de Track
+ * @param events  [{off, topic, data}] triés : TimingData et Heartbeat
+ * @param positions [{off, data}] messages Position décompressés
+ * @returns {{L, segs: Object<string, number>, sectors: number[], samples: number}}
+ */
+export function calibrateLoops(track, events, positions) {
+  const L = track.L;
+  const toOff = archiveClock(events);
+  if (!toOff) return null;
 
   const samples = new Map(); // num -> [{off, r}]
   const hints = new Map();
@@ -131,5 +136,72 @@ export function calibrateLoops(track, events, positions) {
     line: segs.LINE ?? 0,
     samples: total,
     spread,
+  };
+}
+
+/**
+ * Reconstruit le tracé d'un circuit absent de la base MultiViewer à partir du GPS d'une session :
+ * on prend le tour chronométré le plus rapide et les positions de ce pilote pendant ce tour.
+ * @returns données au format MultiViewer ({x, y, trackPositionTime, rotation, …}) ou null
+ */
+export function buildTrackFromArchive(events, positions) {
+  const toOff = archiveClock(events);
+  if (!toOff) return null;
+  // Fins de tour (changement de NumberOfLaps) par pilote, hors passages aux stands
+  const laps = new Map();
+  const pit = {};
+  for (const e of events) {
+    if (e.topic !== 'TimingData' || !e.data?.Lines) continue;
+    for (const [num, upd] of Object.entries(e.data.Lines)) {
+      if (!upd || typeof upd !== 'object') continue;
+      if (upd.InPit !== undefined) pit[num] = upd.InPit;
+      if (upd.PitOut) pit[num] = true;
+      if (upd.NumberOfLaps !== undefined) {
+        if (!laps.has(num)) laps.set(num, []);
+        laps.get(num).push({ off: e.off, pit: !!pit[num] });
+        if (!upd.InPit) pit[num] = false;
+      }
+    }
+  }
+  let best = null;
+  for (const [num, ends] of laps) {
+    for (let i = 1; i < ends.length; i++) {
+      const d = ends[i].off - ends[i - 1].off;
+      if (ends[i].pit || ends[i - 1].pit || d < 40000 || d > 200000) continue;
+      if (!best || d < best.d) best = { num, from: ends[i - 1].off, to: ends[i].off, d };
+    }
+  }
+  if (!best) return null;
+  const pts = [];
+  for (const msg of positions) {
+    for (const snap of msg.data?.Position || []) {
+      const e = snap.Entries?.[best.num];
+      if (!e || (e.X === 0 && e.Y === 0)) continue;
+      const off = toOff(parseUtc(snap.Timestamp));
+      if (off >= best.from && off <= best.to && (!pts.length || off > pts[pts.length - 1].off)) pts.push({ off, x: e.X, y: e.Y });
+    }
+  }
+  if (pts.length < 100) return null;
+  // Orientation : rotation (pas de 5°) qui donne le cadre le plus compact, en format paysage.
+  let rotation = 0, bestArea = Infinity;
+  for (let r = 0; r < 180; r += 5) {
+    const a = (r * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const p of pts) {
+      const rx = p.x * c - p.y * s, ry = p.x * s + p.y * c;
+      if (rx < x0) x0 = rx; if (rx > x1) x1 = rx; if (ry < y0) y0 = ry; if (ry > y1) y1 = ry;
+    }
+    const area = (x1 - x0) * (y1 - y0);
+    if (area < bestArea) { bestArea = area; rotation = (x1 - x0) >= (y1 - y0) ? r : r + 90; }
+  }
+  return {
+    x: pts.map((p) => p.x),
+    y: pts.map((p) => p.y),
+    trackPositionTime: pts.map((p) => (p.off - best.from) / 1000),
+    rotation,
+    candidateLap: { driverNumber: best.num, lapTime: best.d / 1000 },
+    corners: [],
+    marshalSectors: [],
+    generated: true,
   };
 }
