@@ -378,6 +378,7 @@ function initChannel() {
   if (!channel) return;
   channel.onmessage = (e) => {
     const { type, win, panels, panel } = e.data || {};
+    if (type === 'reset' && !isMain) { window.close(); return; }
     if (!win || win === WIN) {
       if (type === 'add' && win === WIN && PANELS.some((p) => p.id === panel) && !locate(panel)) {
         addAsColumn(panel);
@@ -466,8 +467,18 @@ export function initLayout() {
   renderLayoutOptions();
 }
 
-export function resetLayout() {
+// Retour à l'interface par défaut : disposition, panneaux masqués, colonnes du classement ;
+// les fenêtres secondaires se ferment (leurs panneaux reviennent dans la fenêtre principale).
+export function resetLayout(ask = true) {
   if (!isMain) return;
+  if (ask && !window.confirm('Réinitialiser l\'interface ?\n\nDisposition des panneaux, panneaux masqués, colonnes du classement et fenêtres secondaires reviennent à l\'état par défaut.')) return;
+  channel?.postMessage({ type: 'reset', win: WIN });
+  others.clear();
+  storageSet(LAYOUTS_KEY, {});
+  unmaximize();
+  if (prefs.hiddenPanels.length) setPref('hiddenPanels', []);
+  if (prefs.hiddenCols.length) setPref('hiddenCols', []);
+  if (!prefs.towerFit) setPref('towerFit', true);
   layout = normalize(defaultLayout());
   render(true);
   save();
@@ -482,8 +493,7 @@ export function renderLayoutOptions() {
   };
   $('#towerFit').checked = prefs.towerFit;
   $('#towerFit').onchange = (e) => setPref('towerFit', e.target.checked);
-  const reset = $('#layoutReset');
-  if (reset) reset.onclick = () => resetLayout();
+  for (const b of [$('#layoutReset'), $('#resetUiBtn')]) if (b) b.onclick = () => resetLayout();
   $('#colOpts').innerHTML = COLUMNS.map(([k, name]) => `<label class="toggle small"><input type="checkbox" data-col="${k}" ${prefs.hiddenCols.includes(k) ? '' : 'checked'}> ${esc(name)}</label>`).join('');
   $('#colOpts').onchange = (e) => {
     const k = e.target.dataset.col;

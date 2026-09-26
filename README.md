@@ -28,13 +28,24 @@ Dashboard **Formule 1 en direct** à lancer sur votre PC pour suivre chaque Gran
 
 Son, message et notification Windows en option pour : SC, VSC, drapeau rouge, reprise, meilleur tour, arrêt ou message de la direction de course concernant **vos pilotes favoris**, abandons, arrivée. Elles sont déclenchées **au rythme de votre délai**, donc au moment où l'image passe à la TV et jamais avant. Réglages dans ⚙ ; touche `M` pour couper le son.
 
+## 🎙 Commentaires en direct (F1 TV Pro)
+
+Le bouton **🎙** (en haut à droite) lit le son de la vidéo F1 TV de la séance affichée — en direct ou en rediffusion — avec votre abonnement **F1 TV Pro** (connexion dans ⚙ Réglages, la même que pour le GPS) :
+
+- **Canal** : « International » (commentaires TV, plusieurs langues) ou « F1 Live » (émission F1 TV) ; **langue** au choix parmi celles du flux (français, anglais, allemand, espagnol, néerlandais, portugais…).
+- **Volume**, **🔇 couper le son** (ou touche **C**), **▶ / ⏹**.
+- **Caler sur le dashboard** : le son est automatiquement positionné sur l'instant affiché par le dashboard (donc sur le délai Canal+), grâce à l'horodatage du flux ; **« Décalage du son »** pour affiner à l'oreille.
+- Seul le son est téléchargé (pas la vidéo).
+- La ligne d'état indique précisément ce qui se passe (format du flux, protection DRM, erreur F1 TV…). Si F1 TV protège le flux par DRM (Widevine), l'application Windows actuelle ne peut pas le lire : ouvrez alors le dashboard dans Chrome ou Edge (http://127.0.0.1:3000, l'application restant ouverte).
+
 ## 🧩 Disposition et deux écrans
 
 La disposition est entièrement libre et conservée d'une session à l'autre :
 
 - **Déplacer un panneau** : attrapez sa poignée **⠿** (en haut à droite du panneau) et déposez-le sur un autre panneau — à gauche ou à droite (nouvelle colonne), au-dessus ou en dessous (même colonne), ou au centre pour **échanger** les deux.
 - **Redimensionner** : glissez les espaces entre les colonnes ou entre les panneaux (double-clic : partage égal).
-- **⤢ agrandir** un panneau (Échap pour revenir), **✕ masquer** (réaffichable dans ⚙ → Affichage, où se trouvent aussi « Réinitialiser la disposition » et les colonnes du classement).
+- **⤢ agrandir** un panneau (Échap pour revenir), **✕ masquer** (réaffichable dans ⚙ → Affichage, avec les colonnes du classement).
+- **⟲ Réinitialiser l'interface** (bouton en haut à droite) : disposition, panneaux masqués, colonnes et fenêtres secondaires reviennent à l'état par défaut.
 - **↗ envoyer vers une autre fenêtre** (second écran) : si une fenêtre secondaire est déjà ouverte, un menu propose d'**ajouter le panneau à cette fenêtre** (plusieurs panneaux réunis dans une seule fenêtre) ou d'en ouvrir une nouvelle. Dans la fenêtre secondaire, les panneaux se disposent et se redimensionnent de la même façon ; **↙** remet un panneau dans la fenêtre principale. Les panneaux détachés disparaissent de la fenêtre principale et y reviennent quand on ferme leur fenêtre. Dans l'application Windows, la fenêtre s'ouvre directement en plein écran sur le second écran.
 - Le délai, le pilote suivi (clic dans le classement → télémétrie, carte…), le duel et les réglages restent synchronisés entre toutes les fenêtres.
 - Le classement s'agrandit pour occuper toute la hauteur disponible (désactivable dans ⚙ → Affichage).

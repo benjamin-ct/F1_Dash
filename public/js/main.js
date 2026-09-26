@@ -15,6 +15,7 @@ import { initAlerts } from './ui/alerts.js';
 import { initRadio, initStewards, renderStewards, initRcmFilters } from './ui/feed.js';
 import { initLayout } from './ui/layout.js';
 import { initUpdates } from './ui/updates.js';
+import { initCommentary } from './ui/commentary.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -32,7 +33,16 @@ function safe(fn) {
   try { fn(); } catch (err) { console.error(err); }
 }
 
+// Pendant un clic (bouton de souris enfoncé), on ne reconstruit pas l'interface : sinon le
+// bouton visé (A/B du classement, onglets…) peut être remplacé entre l'appui et le relâchement
+// et le clic est perdu. Sécurité : reprise au bout de 1,5 s.
+let pressedAt = 0;
+window.addEventListener('pointerdown', () => { pressedAt = performance.now(); }, true);
+for (const evt of ['pointerup', 'pointercancel', 'blur']) window.addEventListener(evt, () => { pressedAt = 0; }, true);
+window.addEventListener('click', () => { pressedAt = 0; }, true);
+
 function loop() {
+  if (pressedAt && performance.now() - pressedAt < 1500) { setTimeout(loop, 50); return; }
   safe(renderHeader);
   safe(renderTower);
   safe(renderDuel);
@@ -62,6 +72,7 @@ initRcmFilters();
 initStewards();
 initLayout();
 initUpdates();
+initCommentary();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));

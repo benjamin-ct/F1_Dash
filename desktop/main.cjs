@@ -4,6 +4,7 @@ const { app, BrowserWindow, shell, Menu, screen, ipcMain, session } = require('e
 const path = require('node:path');
 const net = require('node:net');
 const { pathToFileURL } = require('node:url');
+const fs = require('node:fs');
 
 function portFree(port) {
   return new Promise((resolve) => {
@@ -20,6 +21,33 @@ async function pickPort() {
 }
 
 let mainWindow = null;
+
+// Taille et position de la fenêtre principale, conservées d'un lancement à l'autre
+// (au premier lancement : plein écran fenêtré / maximisée).
+function stateFile() {
+  return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function loadWindowState() {
+  try {
+    const st = JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
+    const b = st.bounds;
+    // Fenêtre encore visible sur un des écrans actuels ?
+    const visible = b && screen.getAllDisplays().some((d) => {
+      const a = d.workArea;
+      return b.x + 100 < a.x + a.width && b.x + b.width - 100 > a.x && b.y >= a.y - 20 && b.y + 60 < a.y + a.height;
+    });
+    return { bounds: visible ? b : null, maximized: st.maximized !== false };
+  } catch {
+    return { bounds: null, maximized: true };
+  }
+}
+
+function saveWindowState(win) {
+  try {
+    fs.writeFileSync(stateFile(), JSON.stringify({ bounds: win.getNormalBounds(), maximized: win.isMaximized() || win.isFullScreen() }));
+  } catch { /* disque en lecture seule : tant pis */ }
+}
 
 // Écran différent de celui de la fenêtre principale (second écran), s'il existe.
 function otherDisplay() {
@@ -105,9 +133,13 @@ async function start() {
   await import(pathToFileURL(path.join(__dirname, 'bundle', 'server', 'index.js')).href);
 
   Menu.setApplicationMenu(null);
+  const ws = loadWindowState();
   mainWindow = new BrowserWindow({
     width: 1600,
     height: 950,
+    // Premier lancement : toute la zone utile de l'écran (en plus de maximize(), selon le système)
+    ...(ws.bounds || screen.getPrimaryDisplay().workArea),
+    show: false,
     minWidth: 900,
     minHeight: 600,
     backgroundColor: '#0a0c11',
@@ -141,6 +173,13 @@ async function start() {
   // Laisse le serveur démarrer avant de charger la page.
   const load = (tries = 0) => mainWindow.loadURL(url).catch(() => tries < 20 && setTimeout(() => load(tries + 1), 250));
   setTimeout(load, 300);
+  if (ws.maximized) mainWindow.maximize();
+  mainWindow.show();
+  // Sauvegarde à chaque changement de taille / position (et à la fermeture)
+  let saveTimer = null;
+  const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => mainWindow && saveWindowState(mainWindow), 800); };
+  for (const evt of ['resize', 'move', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) mainWindow.on(evt, saveSoon);
+  mainWindow.on('close', () => { clearTimeout(saveTimer); saveWindowState(mainWindow); });
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 

@@ -11,6 +11,12 @@ const DEFAULTS = {
   radioAuto: false,
   radioFilter: 'all',
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'
+  commLang: 'FRA',        // commentaires F1 TV : langue
+  commVolume: 0.8,
+  commMuted: false,
+  commSync: true,         // caler le son sur le délai du dashboard
+  commOffset: 0,          // décalage manuel du son (s)
+  commChannel: null,
   rcmBlue: true,          // direction de course : drapeaux bleus affichés
   rcmDeleted: true,       // direction de course : temps supprimés affichés
   spoilers: false,
