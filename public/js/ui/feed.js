@@ -1,5 +1,5 @@
 // Direction de course, radios d'équipe, arrêts aux stands.
-import { store, versionOf, on, f1Now } from '../store.js';
+import { store, versionOf, on, f1Now, displayNow } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
 import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge, orderedNumbers } from '../util.js';
 import { parseUtc, parseLapTime } from '/shared/f1.js';
@@ -74,12 +74,40 @@ export function renderRadio() {
     : '<li class="note">Aucune radio d\'équipe pour l\'instant.</li>';
 }
 
+// Immobilisation estimée par la télémétrie (vitesse nulle) quand la F1 ne fournit pas le temps
+// officiel : plus longue période à l'arrêt pendant le passage dans la voie des stands.
+// Mémorisée, car l'historique télémétrie n'est conservé que quelques minutes.
+const telemetryStops = new Map();
+let telemetryVer = 0;
+
+function estimateStationary(p) {
+  if (!p.duration || !p.t) return null;
+  const samples = store.positions.carHistory(p.num, p.t - (p.duration + 15) * 1000, p.t + 5000);
+  if (samples.length < 10) return null;
+  let best = 0;
+  for (let i = 0; i < samples.length; i++) {
+    if (!(samples[i].speed <= 1)) continue;
+    let j = i;
+    while (j + 1 < samples.length && samples[j + 1].speed <= 1) j++;
+    const end = samples[j + 1] ? samples[j + 1].t : null;   // premier échantillon en mouvement
+    if (end && i > 0) best = Math.max(best, (end - samples[i].t) / 1000);
+    i = j;
+  }
+  return best >= 1 && best < 60 ? best : null;
+}
+
+function updateTelemetryStops(official) {
+  for (const p of store.derived.pitLane) {
+    const k = `${p.num}-${p.lap}`;
+    if (official.has(k) || telemetryStops.has(k)) continue;
+    if (displayNow() - p.t > 240000) { telemetryStops.set(k, null); continue; }
+    const v = estimateStationary(p);
+    if (v) { telemetryStops.set(k, v); telemetryVer++; }
+  }
+}
+
 export function renderPits() {
-  const v = `${versionOf(['PitLaneTimeCollection', 'PitStopSeries', 'TimingAppData', 'DriverList', '__reset'])}|${prefs.pitView}`;
-  if (v === pitVer) return;
-  pitVer = v;
-  const dl = drivers(store.state);
-  // Temps d'immobilisation (si le flux PitStopSeries est disponible)
+  // Temps d'immobilisation officiels (flux PitStopSeries ou PitStop selon les séances)
   const stationary = new Map();
   for (const [num, arr] of Object.entries(store.state.PitStopSeries?.PitTimes || {})) {
     for (const p of list(arr)) {
@@ -87,6 +115,24 @@ export function renderPits() {
       if (ps?.Lap) stationary.set(`${num}-${ps.Lap}`, parseLapTime(ps.PitStopTime));
     }
   }
+  for (const ps of store.derived.pitStops || []) {
+    if (!(ps.time > 0)) continue;
+    let lap = ps.lap;
+    if (!lap) {
+      // Rapprochement avec le passage dans la voie des stands le plus proche dans le temps
+      const near = store.derived.pitLane.filter((x) => x.num === ps.num && Math.abs(x.t - ps.t) < 90000)
+        .sort((a, b) => Math.abs(a.t - ps.t) - Math.abs(b.t - ps.t))[0];
+      lap = near?.lap;
+    }
+    if (lap && !stationary.has(`${ps.num}-${lap}`)) stationary.set(`${ps.num}-${lap}`, ps.time);
+  }
+  updateTelemetryStops(stationary);
+  const v = `${versionOf(['PitLaneTimeCollection', 'PitStopSeries', 'PitStop', 'TimingAppData', 'DriverList', '__reset'])}|${prefs.pitView}|${telemetryVer}`;
+  if (v === pitVer) return;
+  pitVer = v;
+  const dl = drivers(store.state);
+  const estimated = new Set();
+  for (const [k, val] of telemetryStops) if (val && !stationary.has(k)) { stationary.set(k, val); estimated.add(k); }
   const byDriver = new Map();
   for (const p of store.derived.pitLane.slice().sort((a, b) => a.t - b.t)) {
     if (!byDriver.has(p.num)) byDriver.set(p.num, []);
@@ -97,7 +143,7 @@ export function renderPits() {
   const stops = [];
   for (const [num, arr] of byDriver) {
     const stints = stintsOf(apps[num]);
-    arr.forEach((p, i) => stops.push({ ...p, n: i + 1, st: stationary.get(`${p.num}-${p.lap}`) ?? null, from: stints[i] || null, to: stints[i + 1] || null }));
+    arr.forEach((p, i) => stops.push({ ...p, n: i + 1, st: stationary.get(`${p.num}-${p.lap}`) ?? null, est: estimated.has(`${p.num}-${p.lap}`), from: stints[i] || null, to: stints[i + 1] || null }));
   }
   if (!stops.length) {
     $('#pitList').innerHTML = '<div class="note">Aucun arrêt aux stands enregistré depuis le début du suivi.</div>';
@@ -137,7 +183,7 @@ export function renderPits() {
 
   const summary = `<div class="pit-summary">
     <div class="pit-card"><div class="muted small">Arrêts</div><div class="pit-big">${real.length}</div><div class="muted small">${byDriver.size} pilote(s)${stops.length > real.length ? ` · +${stops.length - real.length} passage(s) sans changement de pneus` : ''}</div></div>
-    ${fSt ? `<div class="pit-card"><div class="muted small">Arrêt le plus rapide</div><div class="pit-big best">${sec(fSt.st)}</div><div class="small">${chip(fSt.num)} <span class="muted">tour ${esc(fSt.lap ?? '—')}</span></div></div>` : ''}
+    ${fSt ? `<div class="pit-card"><div class="muted small">Arrêt le plus rapide</div><div class="pit-big best">${fSt.est ? "≈" : ""}${sec(fSt.st)}</div><div class="small">${chip(fSt.num)} <span class="muted">tour ${esc(fSt.lap ?? '—')}</span></div></div>` : ''}
     ${fLane ? `<div class="pit-card"><div class="muted small">Voie des stands la plus rapide</div><div class="pit-big">${sec(fLane.duration)}</div><div class="small">${chip(fLane.num)} <span class="muted">tour ${esc(fLane.lap ?? '—')}</span></div></div>` : ''}
     ${stMed ? `<div class="pit-card"><div class="muted small">Immobilisation médiane</div><div class="pit-big">${sec(stMed)}</div><div class="muted small">voie : ${laneMed ? sec(laneMed) : '—'}</div></div>` : ''}
   </div>
@@ -160,7 +206,7 @@ export function renderPits() {
       }
       const seq = merged.map((st, i) => `${i ? '<span class="muted">→</span>' : ''}${tyreBadge(st.Compound, st.TotalLaps, st.New)}`).join(' ');
       return `<tr><td>${chip(num)}</td><td class="pit-n">${mine.length}</td><td class="pit-seq">${seq || '<span class="muted">—</span>'}</td>
-        <td>${mine.map((p) => `<span class="pit-pill ${stClass(p.st)}" title="Tour ${esc(p.lap ?? '—')} · voie ${p.duration ? sec(p.duration) : '—'}">T${esc(p.lap ?? '—')} · ${p.st ? sec(p.st) : '—'}</span>`).join(' ') || '<span class="muted">—</span>'}</td></tr>`;
+        <td>${mine.map((p) => `<span class="pit-pill ${stClass(p.st)}" title="Tour ${esc(p.lap ?? '—')} · voie ${p.duration ? sec(p.duration) : '—'}">T${esc(p.lap ?? '—')} · ${p.st ? `${p.est ? '≈' : ''}${sec(p.st)}` : '—'}</span>`).join(' ') || '<span class="muted">—</span>'}</td></tr>`;
     }).join('')}</table>`;
   } else {
     body = `<table class="pits"><tr><th>Tour</th><th>Pilote</th><th title="Pneus retirés (tours effectués) → pneus montés">Pneus</th><th>Voie des stands</th><th>Immobilisation</th></tr>${stops.slice().sort((a, b) => b.t - a.t).map((p) => `<tr>
@@ -168,7 +214,7 @@ export function renderPits() {
       <td>${chip(p.num)} <span class="muted small">${p.k ? `${p.k}${p.k === 1 ? 'er' : 'e'} arrêt` : 'passage'}</span></td>
       <td class="pit-tyres">${sameTyres(p) ? `${tyre(p.from)} <span class="muted small">mêmes pneus</span>` : p.from || p.to ? `${tyre(p.from)} <span class="muted">→</span> ${fitted(p.to)}` : '<span class="muted">—</span>'}</td>
       <td>${p.duration ? `<div class="pit-cell">${bar(p.duration, laneMin, laneMax, 'lane')}<span class="pit-val">${sec(p.duration)}</span>${laneNote(p)}</div>` : '—'}</td>
-      <td>${p.st ? `<div class="pit-cell">${bar(p.st, stMin, stMax, stClass(p.st))}<span class="pit-val ${stClass(p.st)}">${sec(p.st)}</span></div>` : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>`;
+      <td>${p.st ? `<div class="pit-cell">${bar(p.st, stMin, stMax, stClass(p.st))}<span class="pit-val ${stClass(p.st)}"${p.est ? ' title="Estimé par la télémétrie (vitesse nulle) : la F1 ne fournit pas le temps officiel pour cette séance"' : ''}>${p.est ? '≈' : ''}${sec(p.st)}</span></div>` : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>`;
   }
   $('#pitList').innerHTML = summary + body;
   for (const r of document.querySelectorAll('input[name=pitView]')) r.onchange = (e) => setPref('pitView', e.target.value);
