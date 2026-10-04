@@ -10,6 +10,7 @@ export function createDerived() {
     laps: {},        // num -> [{lap, t, time, gap, int, pos, s:[s1,s2,s3], pit, compound}]
     pending: {},     // num -> {s: [..]} secteurs du tour en cours
     pitLane: [],     // [{num, lap, duration, t}]
+    pitStops: [],    // temps d'immobilisation (topic PitStop) : [{num, lap, time, t}]
     pitIn: {},       // num -> t entrée stands
     clockOffset: null, // heure locale de réception - heure F1 (ms)
     hbOffsets: [],
@@ -71,6 +72,9 @@ export function applyEvent(state, derived, topic, data, t) {
     forEachEntry(data.Lines, (num, upd) => {
       if (upd && typeof upd === 'object') onTimingLine(state, derived, num, upd, t, prevPit[num]);
     });
+  } else if (topic === 'PitStop' && data?.RacingNumber && data.PitStopTime) {
+    // Un message par arrêt ; le tour n'est pas toujours renseigné (rapproché ensuite par l'heure).
+    (derived.pitStops ||= []).push({ num: String(data.RacingNumber), lap: data.Lap ? Number(data.Lap) : null, time: parseLapTime(data.PitStopTime), t });
   } else if (topic === 'PitLaneTimeCollection' && data?.PitTimes) {
     forEachEntry(data.PitTimes, (num, p) => {
       if (!p || !p.Duration) return;

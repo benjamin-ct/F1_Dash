@@ -5,7 +5,7 @@ export const LIVE_TOPICS = [
   'Heartbeat', 'CarData.z', 'Position.z', 'ExtrapolatedClock', 'TopThree', 'TimingStats',
   'TimingAppData', 'WeatherData', 'TrackStatus', 'SessionStatus', 'DriverList',
   'RaceControlMessages', 'SessionInfo', 'SessionData', 'LapCount', 'TimingData', 'TeamRadio',
-  'PitLaneTimeCollection', 'PitStopSeries', 'ChampionshipPrediction', 'TyreStintSeries',
+  'PitLaneTimeCollection', 'PitStopSeries', 'PitStop', 'ChampionshipPrediction', 'TyreStintSeries',
 ];
 
 // Topics chargés depuis les archives (replay).

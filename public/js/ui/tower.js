@@ -88,7 +88,6 @@ export function renderTower(force = false) {
   // Meilleurs temps de la partie en cours (qualifs) / de la séance, pour classer les tours en cours.
   const bestOf = (l) => kind === 'quali' ? lapSeconds(list(l.BestLapTimes)[part - 1]?.Value) : lapSeconds(l.BestLapTime?.Value);
   const bests = nums.map((n) => ({ n, t: bestOf(lines[n] || {}) })).filter((x) => x.t);
-  const nowMs = performance.now();
 
   const rows = nums.map((num) => {
     const d = dl[num] || {};
@@ -109,18 +108,11 @@ export function renderTower(force = false) {
     const pred = kind !== 'race' ? predictLap(l, stats[num]) : null;
     if (pred) tags.push('<span class="tag push" title="Tour rapide en cours">TOUR</span>');
 
-    // Changement de position : surbrillance verte / rouge qui s'estompe
+    // Changement de position : surbrillance verte / rouge (animation CSS, voir syncRows)
     const p = Number(pos);
     const prev = prevPos.get(num);
-    if (p && prev && p !== prev && !freshReset) flashes.set(num, { up: p < prev, t0: nowMs });
+    if (p && prev && p !== prev && !freshReset) flashes.set(num, p < prev ? 'up' : 'down');
     if (p) prevPos.set(num, p);
-    const fl = flashes.get(num);
-    let flashStyle = '';
-    if (fl) {
-      const k = 1 - (nowMs - fl.t0) / 2500;
-      if (k <= 0) flashes.delete(num);
-      else flashStyle = ` style="--flash:${fl.up ? `rgba(53,208,127,${(0.4 * k).toFixed(2)})` : `rgba(255,59,48,${(0.35 * k).toFixed(2)})`}"`;
-    }
 
     let posDelta = '';
     if (kind === 'race' && a.GridPos && pos) {
@@ -179,8 +171,7 @@ export function renderTower(force = false) {
     if (store.focus === num) cls.push('focus');
     if (store.duel.a === num) cls.push('duel-a');
     if (store.duel.b === num) cls.push('duel-b');
-    if (flashStyle) cls.push('flash');
-    return `<tr class="${cls.join(' ')}" data-num="${num}"${flashStyle}>${cells}</tr>`;
+    return { num, cls: cls.join(' '), cells };
   });
   freshReset = false;
 
@@ -195,9 +186,90 @@ export function renderTower(force = false) {
 
   const table = $('#tower');
   table.className = `tower ${prefs.hiddenCols.map((c) => `hide-${c}`).join(' ')}`;
-  table.innerHTML = `${cutInfo}<thead><tr>${head}</tr></thead><tbody>${rows.join('') || '<tr><td class="note">En attente des données de chronométrage…</td></tr>'}</tbody>`;
-  if (flashes.size) lastKey = '';
+  syncTable(table, cutInfo, head, rows);
   fitTower();
+}
+
+// Mise à jour du tableau ligne par ligne (au lieu de tout reconstruire) : seules les cellules
+// qui changent sont réécrites, et une voiture qui gagne ou perd des places glisse jusqu'à sa
+// nouvelle ligne (technique FLIP) avec une surbrillance qui s'estompe en douceur.
+const rowEls = new Map();      // numéro -> <tr>
+const rowHtml = new Map();     // numéro -> contenu actuel
+let headHtml = '';
+let captionHtml = '';
+
+function syncTable(table, cutInfo, head, rows) {
+  if (!table.tHead || table.dataset.built !== '1') {
+    table.innerHTML = '<thead><tr></tr></thead><tbody></tbody>';
+    table.dataset.built = '1';
+    rowEls.clear(); rowHtml.clear(); headHtml = ''; captionHtml = '';
+  }
+  if (cutInfo !== captionHtml) {
+    table.caption?.remove();
+    if (cutInfo) table.insertAdjacentHTML('afterbegin', cutInfo);
+    captionHtml = cutInfo;
+  }
+  if (head !== headHtml) { table.tHead.rows[0].innerHTML = head; headHtml = head; }
+  const tbody = table.tBodies[0];
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td class="note">En attente des données de chronométrage…</td></tr>';
+    rowEls.clear(); rowHtml.clear();
+    return;
+  }
+  tbody.querySelector('td.note')?.parentElement.remove();
+
+  // Positions avant mise à jour (pour l'animation de glissement)
+  const before = new Map();
+  for (const [num, tr] of rowEls) if (tr.isConnected) before.set(num, tr.getBoundingClientRect().top);
+
+  const keep = new Set();
+  rows.forEach((r, i) => {
+    keep.add(r.num);
+    let tr = rowEls.get(r.num);
+    if (!tr) {
+      tr = document.createElement('tr');
+      tr.dataset.num = r.num;
+      rowEls.set(r.num, tr);
+    }
+    const fl = [...tr.classList].filter((c) => c === 'flash-up' || c === 'flash-down');
+    const cls = [r.cls, ...fl].join(' ');
+    if (tr.className !== cls) tr.className = cls;
+    if (rowHtml.get(r.num) !== r.cells) { tr.innerHTML = r.cells; rowHtml.set(r.num, r.cells); }
+    if (tbody.children[i] !== tr) tbody.insertBefore(tr, tbody.children[i] || null);
+  });
+  for (const [num, tr] of rowEls) {
+    if (!keep.has(num)) { tr.remove(); rowEls.delete(num); rowHtml.delete(num); }
+  }
+
+  // Surbrillance : relancée à chaque changement de position
+  for (const [num, dir] of flashes) {
+    const tr = rowEls.get(num);
+    if (!tr) continue;
+    tr.classList.remove('flash-up', 'flash-down');
+    void tr.offsetWidth;
+    tr.classList.add(`flash-${dir}`);
+    tr.addEventListener('animationend', () => tr.classList.remove(`flash-${dir}`), { once: true });
+  }
+  flashes.clear();
+
+  // Glissement : chaque ligne déplacée part de son ancienne place et rejoint la nouvelle
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const zoom = Number(table.style.zoom) || 1;
+  for (const [num, tr] of rowEls) {
+    const old = before.get(num);
+    if (old === undefined) continue;
+    const dy = (old - tr.getBoundingClientRect().top) / zoom;
+    if (Math.abs(dy) < 1) continue;
+    tr.style.transition = 'none';
+    tr.style.transform = `translateY(${dy}px)`;
+    tr.style.position = 'relative';
+    tr.style.zIndex = '2';
+    requestAnimationFrame(() => {
+      tr.style.transition = 'transform .6s cubic-bezier(.22, .8, .3, 1)';
+      tr.style.transform = '';
+      tr.addEventListener('transitionend', () => { tr.style.zIndex = ''; tr.style.position = ''; tr.style.transition = ''; }, { once: true });
+    });
+  }
 }
 
 // Grand écran / fenêtre détachée : le classement s'agrandit pour occuper toute la hauteur

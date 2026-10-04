@@ -89,3 +89,10 @@ test('horloge : point de référence Heartbeat pour le replay accéléré', () =
   applyEvent({}, d, 'Heartbeat', { Utc: new Date(utc).toISOString() }, 5000);
   assert.deepEqual(d.clockRef, { t: 5000, utc });
 });
+
+test('temps d\'immobilisation du topic PitStop', () => {
+  const state = {}, derived = createDerived();
+  applyEvent(state, derived, 'PitStop', { RacingNumber: '12', PitStopTime: '3.0', PitLaneTime: '31.843', Lap: '14' }, 1000);
+  applyEvent(state, derived, 'PitStop', { RacingNumber: '3', PitStopTime: '2.4', PitLaneTime: '31.067' }, 2000);
+  assert.deepEqual(derived.pitStops.map((p) => [p.num, p.lap, p.time]), [['12', 14, 3], ['3', null, 2.4]]);
+});
