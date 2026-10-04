@@ -60,6 +60,13 @@ function currentStation() {
   return prefs.radioStations.find((st) => st.id === prefs.radioStation) || prefs.radioStations[0] || null;
 }
 
+function showBrowserLink(on) {
+  const a = $('#commBrowser');
+  if (!a) return;
+  a.href = `${location.origin}/`;
+  a.hidden = !on;
+}
+
 function status(text, cls = '') {
   const el = $('#commStatus');
   el.textContent = text;
@@ -145,6 +152,7 @@ async function widevineAvailable() {
 }
 
 async function start() {
+  showBrowserLink(false);
   if (prefs.commSource === 'radio') return startRadio();
   await refreshContent();
   if (!content) { status('Pas de vidéo F1 TV pour cette séance : impossible de lancer les commentaires.', 'err'); return; }
@@ -166,7 +174,8 @@ async function start() {
       throw new Error(`F1 TV a refusé le flux${who ? ` (${who})` : ''}. Vérifiez que votre abonnement est « Pro » et que le jeton est valide.\n${t}`);
     }
     if (stream.drm && !(await widevineAvailable())) {
-      throw new Error(`Ce flux est protégé par DRM (${stream.drm}, ${stream.streamType || stream.format}) et cette version ne contient pas le module Widevine nécessaire pour le lire.\nDans l'application Windows, il faut une version d'Electron avec Widevine (prochaine étape) ; en attendant, essayez dans Chrome ou Edge : http://127.0.0.1:${location.port || 3000}`);
+      showBrowserLink(true);
+      throw new Error(`Ce flux est protégé par DRM (${stream.drm}, ${stream.streamType || stream.format}) et le module Widevine n'est pas disponible ici.\n${window.f1desktop ? 'L\'application télécharge ce module au premier lancement (connexion Internet nécessaire) : redémarrez-la puis réessayez.' : 'Utilisez Chrome ou Edge, ou l\'application Windows à jour.'}\nVous pouvez aussi ouvrir le dashboard dans votre navigateur (lien ci-dessous).`);
     }
     await getPlayer();
     player.configure({
@@ -263,6 +272,10 @@ function describe(err) {
   if (err.code && window.shaka) {
     const name = Object.entries(window.shaka.util.Error.Code).find(([, v]) => v === err.code)?.[0] || err.code;
     const http = err.data?.find?.((d) => typeof d === 'number' && d >= 400);
+    if (/LICENSE|DRM|KEY/.test(String(name))) {
+      showBrowserLink(true);
+      return `Licence DRM refusée (${name}${http ? `, HTTP ${http}` : ''}).\nF1 TV exige probablement une application certifiée (signature VMP castlabs) : en attendant, ouvrez le dashboard dans Chrome ou Edge (lien ci-dessous), qui sont certifiés.`;
+    }
     return `Erreur du lecteur ${name}${http ? ` (HTTP ${http})` : ''}`;
   }
   return err.message || String(err);

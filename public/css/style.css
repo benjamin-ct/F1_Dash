@@ -707,3 +707,5 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .flag-banner.yellow, .track-status.yellow { color: #000 !important; animation: bg-yellow 1.6s ease-in-out infinite; }
 .flag-banner .fb-sub { opacity: 1; }
 .flag-banner.sc .fb-icon, .flag-banner.vsc .fb-icon, .flag-banner.yellow .fb-icon, .track-status.sc .ts-dot, .track-status.vsc .ts-dot, .track-status.yellow .ts-dot { background: #000; }
+.comm-browser { color: var(--blue); text-decoration: none; }
+.comm-browser:hover { text-decoration: underline; }

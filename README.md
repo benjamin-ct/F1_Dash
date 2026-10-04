@@ -37,6 +37,7 @@ Le bouton **🎙** (en haut à droite) lit le son de la vidéo F1 TV de la séan
 - **Caler sur le dashboard** : le son est automatiquement positionné sur l'instant affiché par le dashboard (donc sur le délai Canal+), grâce à l'horodatage du flux ; **« Décalage du son »** pour affiner à l'oreille.
 - Seul le son est téléchargé (pas la vidéo).
 - **Abonnement requis : F1 TV Pro.** Avec F1 TV Access (seule offre proposée dans certains pays, dont la France), F1 TV refuse la vidéo (« technical package not available ») : l'offre détectée est affichée dans ⚙ Réglages.
+- **Flux protégés (DRM Widevine)** : l'application Windows utilise Electron castlabs, qui contient le module Widevine (téléchargé au premier lancement). Si F1 TV refuse la licence, c'est qu'il exige une application **certifiée VMP** : voir « Signature VMP » ci-dessous ; en attendant, le lien « Ouvrir le dashboard dans le navigateur » du panneau 🎙 ouvre le dashboard dans Chrome/Edge (certifiés), l'application restant ouverte.
 - La ligne d'état indique précisément ce qui se passe (format du flux, protection DRM, erreur F1 TV…). Si F1 TV protège le flux par DRM (Widevine), l'application Windows actuelle ne peut pas le lire : ouvrez alors le dashboard dans Chrome ou Edge (http://127.0.0.1:3000, l'application restant ouverte).
 
 ### 📻 Radio / flux audio
@@ -46,6 +47,15 @@ Dans le panneau 🎙, choisissez **« Radio / flux audio »** pour écouter la s
 - **＋ Ajouter** : nom, langue et adresse du flux (MP3/AAC, HLS `.m3u8`, listes `.pls` / `.m3u`) — les stations sont mémorisées ; 🗑 pour en supprimer une.
 - **Retarder du délai du dashboard** : la radio étant en avance sur la TV, le son est automatiquement retardé du délai Canal+ réglé dans le dashboard (jusqu'à 170 s) ; **« Décalage du son »** pour affiner à l'oreille (la radio a elle-même quelques secondes de retard).
 - Même volume, **🔇 / touche C** et **▶ / ⏹** que pour F1 TV.
+
+#### Signature VMP (pour les flux DRM de F1 TV)
+
+Les serveurs de licence Widevine exigent souvent une application signée « VMP ». La signature est faite automatiquement à la compilation (GitHub Actions) avec le service gratuit **castlabs EVS**, une fois ces deux étapes faites (une seule fois) :
+
+1. Créer un compte EVS (Python requis) : `python -m pip install --upgrade castlabs-evs` puis `python -m castlabs_evs.account signup` (nom de compte, e-mail, mot de passe, puis code reçu par e-mail).
+2. Dans GitHub : dépôt → **Settings → Secrets and variables → Actions → New repository secret**, ajouter `EVS_ACCOUNT_NAME` (nom du compte) et `EVS_PASSWD` (mot de passe).
+
+Les versions publiées ensuite seront signées (le journal de compilation affiche « [vmp] signature de … »).
 
 ## 🧩 Disposition et deux écrans
 

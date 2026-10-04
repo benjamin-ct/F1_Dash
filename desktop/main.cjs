@@ -1,6 +1,6 @@
 // Application de bureau F1 Dash : lance le serveur local dans le processus Electron
 // et affiche le dashboard dans une fenêtre, sans installer Node.js.
-const { app, BrowserWindow, shell, Menu, screen, ipcMain, session } = require('electron');
+const { app, BrowserWindow, shell, Menu, screen, ipcMain, session, components } = require('electron');
 const path = require('node:path');
 const net = require('node:net');
 const { pathToFileURL } = require('node:url');
@@ -126,7 +126,20 @@ ipcMain.handle('f1tv-logout', async () => {
   return { ok: true };
 });
 
+// Electron castlabs : module Widevine (DRM) nécessaire aux commentaires F1 TV. Il est téléchargé
+// au premier lancement ; on ne bloque jamais l'ouverture de l'appli plus de 15 s pour lui.
+async function widevineReady() {
+  if (!components?.whenReady) return;
+  try {
+    await Promise.race([components.whenReady(), new Promise((r) => setTimeout(r, 15000))]);
+    console.log('[widevine]', JSON.stringify(components.status()));
+  } catch (err) {
+    console.warn('[widevine]', err.message);
+  }
+}
+
 async function start() {
+  await widevineReady();
   const port = await pickPort();
   process.env.PORT = String(port || 3000);
   process.env.F1DASH_DATA_DIR = path.join(app.getPath('userData'), 'data');
@@ -150,7 +163,9 @@ async function start() {
   const url = `http://127.0.0.1:${process.env.PORT}/`;
   mainWindow.webContents.setWindowOpenHandler(({ url: target }) => {
     // Panneaux détachés (mode deux écrans) : nouvelle fenêtre de l'appli ; liens externes : navigateur.
-    if (target.startsWith(url)) {
+    // (seules les fenêtres de panneaux restent dans l'appli ; le dashboard lui-même, ex. pour les
+    // flux DRM, s'ouvre dans le navigateur)
+    if (target.startsWith(url) && /[?&](win|panel)=/.test(target)) {
       // Panneau détaché : directement sur le second écran s'il existe.
       const other = otherDisplay();
       const area = other ? other.workArea : null;

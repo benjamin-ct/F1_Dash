@@ -17,7 +17,7 @@
     "ws": "^8.21.3"
   },
   "devDependencies": {
-    "electron": "^44.4.5",
+    "electron": "https://github.com/castlabs/electron-releases#v44.5.1+wvcus",
     "electron-builder": "^26.15.3"
   },
   "build": {
@@ -40,7 +40,13 @@
     },
     "portable": {
       "artifactName": "F1-Dash-${version}-portable.exe"
-    }
+    },
+    "electronVersion": "44.5.1",
+    "electronDownload": {
+      "version": "44.5.1+wvcus",
+      "mirror": "https://github.com/castlabs/electron-releases/releases/download/"
+    },
+    "afterPack": "./vmp-sign.cjs"
   },
   "f1dash": {
     "updateRepo": "benjamin-ct/F1_Dash"
