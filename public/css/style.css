@@ -521,7 +521,11 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .spoil-toggle { margin: 4px 0 6px; }
 
 /* ---------- Classement : animations, colonnes, qualifs ---------- */
-.tower tr.flash td { background: var(--flash); transition: background .25s linear; }
+.tower tr.flash-up td { animation: tower-up 2.5s ease-out; }
+.tower tr.flash-down td { animation: tower-down 2.5s ease-out; }
+@keyframes tower-up { from { background-color: rgba(53, 208, 127, .4); } to { background-color: transparent; } }
+@keyframes tower-down { from { background-color: rgba(255, 59, 48, .35); } to { background-color: transparent; } }
+.tower tbody tr { will-change: transform; }
 .tower.hide-int .c-int, .tower.hide-last .c-last, .tower.hide-best .c-best, .tower.hide-sectors .c-sec,
 .tower.hide-tyre .c-tyre, .tower.hide-pits .c-pits, .tower.hide-speed .c-speed, .tower.hide-duel .c-duel,
 .tower.hide-pred .c-pred, .tower.hide-q .c-q { display: none; }
