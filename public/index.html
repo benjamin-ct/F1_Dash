@@ -82,6 +82,8 @@
           <span class="map-mode" id="mapMode"></span>
           <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms</label>
           <label class="toggle"><input type="checkbox" id="mapCorners" checked> Virages</label>
+          <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
+          <label class="toggle" title="Numéros des micro-secteurs (1.1, 1.2…) quand on zoome sur la carte"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs</label>
           <label class="toggle" title="Centrer la carte sur le pilote suivi (clic sur un pilote du classement)"><input type="checkbox" id="mapFollow"> Suivre</label>
           <button class="icon-btn small" id="mapReset" title="Réinitialiser le zoom (ou double-clic sur la carte)">⟲</button>
         </div>
@@ -89,6 +91,7 @@
       <div class="panel-body map-wrap">
         <canvas id="mapCanvas"></canvas>
         <div class="map-legend" id="mapLegend"></div>
+        <div class="map-flags" id="mapFlags"></div>
         <div class="map-empty" id="mapEmpty">Chargement du tracé…</div>
       </div>
     </section>
@@ -331,6 +334,7 @@
       <button class="btn small" data-coff="0.2">+0,2</button><button class="btn small" data-coff="1">+1</button>
     </div>
     <div class="comm-status small" id="commStatus"></div>
+    <a class="comm-browser small" id="commBrowser" target="_blank" rel="noopener" hidden>🌐 Ouvrir le dashboard dans le navigateur (Chrome / Edge)</a>
     <video id="commMedia" hidden playsinline></video>
   </div>
 

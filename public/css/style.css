@@ -682,3 +682,30 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .comm-src { gap: 14px; }
 .comm-radio-form { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--panel-3); border-radius: 8px; }
 .comm-radio-form input, .comm-radio-form select { background: #0b0e14; border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; color: var(--text); }
+
+/* ---------- Carte : drapeaux, SC / VSC ---------- */
+.map-flags { position: absolute; left: 10px; top: 8px; right: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; pointer-events: none; }
+.map-flags:empty { display: none; }
+.mf-banner { font-weight: 900; letter-spacing: 1px; text-transform: uppercase; font-size: 13px; padding: 3px 10px; border-radius: 6px; }
+.mf-banner.red { background: var(--red); color: #fff; animation: pulse 1s infinite; }
+.mf-banner.sc { background: var(--sc, #ffb020); color: #1d1200; animation: pulse 1.2s infinite; }
+.mf-banner.vsc { background: transparent; color: var(--sc, #ffb020); border: 2px dashed var(--sc, #ffb020); }
+.mf-item { font-size: 12px; background: rgba(10, 12, 17, .82); border-left: 3px solid #f5c518; border-radius: 4px; padding: 2px 8px; color: var(--text); }
+.mf-item.dy { border-left-color: #ff9f1a; }
+.mf-item b { color: #f5c518; }
+.mf-item.dy b { color: #ff9f1a; }
+/* Les classes utilitaires .yellow / .green (texte coloré) ne doivent pas s'appliquer aux bandeaux pleins */
+.track-status.yellow, .flag-banner.yellow { color: #1a1500 !important; }
+.flag-banner.green { color: #002012 !important; }
+/* Bandeaux et pastilles de drapeau : texte bien contrasté et fixe (seul le fond pulse) */
+@keyframes bg-sc { 50% { background-color: #ffcc55; } }
+@keyframes bg-red { 50% { background-color: #ff6157; } }
+@keyframes bg-yellow { 50% { background-color: #ffe066; } }
+.flag-banner, .track-status.sc, .track-status.vsc, .track-status.red, .mf-banner.sc, .mf-banner.red { filter: none !important; }
+.flag-banner.sc, .flag-banner.vsc, .track-status.sc, .track-status.vsc, .mf-banner.sc { color: #000 !important; animation: bg-sc 1.4s ease-in-out infinite; }
+.flag-banner.red, .track-status.red, .mf-banner.red { color: #fff !important; animation: bg-red 1.2s ease-in-out infinite; }
+.flag-banner.yellow, .track-status.yellow { color: #000 !important; animation: bg-yellow 1.6s ease-in-out infinite; }
+.flag-banner .fb-sub { opacity: 1; }
+.flag-banner.sc .fb-icon, .flag-banner.vsc .fb-icon, .flag-banner.yellow .fb-icon, .track-status.sc .ts-dot, .track-status.vsc .ts-dot, .track-status.yellow .ts-dot { background: #000; }
+.comm-browser { color: var(--blue); text-decoration: none; }
+.comm-browser:hover { text-decoration: underline; }

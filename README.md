@@ -11,7 +11,7 @@ Dashboard **Formule 1 en direct** à lancer sur votre PC pour suivre chaque Gran
 | **Bandeau** | Bandeau pleine largeur, visible de loin, sous **drapeau rouge, SC, VSC**, drapeau jaune, et à la reprise. |
 | **En-tête** | Grand Prix et session, **drapeau / état de la piste** (vert, jaune, SC, VSC, rouge, damier), tour en cours ou partie de qualif (Q1/Q2/Q3), temps restant, météo, **délai**. |
 | **Classement** | Position (+ places gagnées depuis la grille), écart au leader, intervalle (en vert si le pilote revient), dernier et meilleur tour, secteurs et **mini-secteurs** (violet / vert / jaune), pneus + âge, nombre d'arrêts, speed trap. Étiquettes : STAND, SORTIE, ARRÊT, ABD, drapeau bleu, DRS. En qualif, la ligne rouge pointillée marque la limite d'élimination, avec le **temps à battre** et les pilotes en danger, et la colonne **Tour en cours** donne le temps prévu d'un tour lancé et la position visée. Changements de place surlignés en vert ou rouge, **favoris** : cliquez sur l’étoile ☆ à côté du nom (visible au survol de la ligne). Colonnes au choix. |
-| **Circuit** | Tracé réel du circuit, numéros de virage, ligne de départ, **secteurs sous drapeau jaune ou double jaune**, piste colorée sous SC/VSC ou drapeau rouge, **toutes les voitures en mouvement** (GPS). **Zoom** à la molette, déplacement à la souris, **Suivre** pour centrer la carte sur le pilote sélectionné. |
+| **Circuit** | Tracé réel du circuit, **numéros de virage**, ligne de départ, **secteurs S1/S2/S3 et micro-secteurs** du chronométrage (case « Secteurs » ; numéros des micro-secteurs en zoom avec la case « N° micro-secteurs », désactivée par défaut — les cases de la carte sont mémorisées), **secteurs de commissaires sous drapeau jaune ou double jaune** (fanion sur la carte + légende : virages, secteur et micro-secteurs concernés), **carte entièrement rouge sous drapeau rouge**, **safety car** (piste orange, voiture de sécurité placée devant le leader — position estimée, « rentre à la fin du tour ») et **VSC** (piste en pointillés défilants), **toutes les voitures en mouvement** (GPS). **Zoom** à la molette, déplacement à la souris, **Suivre** pour centrer la carte sur le pilote sélectionné. |
 | **Duel** | Choisissez 2 pilotes (boutons **A** / **B** du classement) : **écart en temps réel** (GPS, mis à jour en continu) et écart officiel, **tendance** (« X revient à −0,32 s/tour, rattrapage estimé dans ~6 tours »), graphique de l'écart en direct et à chaque tour (arrêts aux stands marqués), comparaison tour / secteurs / pneus / speed trap, derniers tours côte à côte, **courbe de rythme** des deux pilotes, télémétrie, photos. Boutons ⬆ / ⬇ : **duel automatique** contre la voiture de devant ou de derrière, qui suit les dépassements. |
 | **Stands (simulateur)** | « Si X s'arrête maintenant, il ressort **P8, 1,2 s derrière Y** ». Utilise le temps perdu au stand du circuit (normal, SC ou VSC selon la situation), modifiable. |
 | **Bagarres** | Toutes les paires à moins de 1,5 s, triées par écart, avec la tendance (« se rapproche de −0,2 s/tour ») et un bouton pour ouvrir le duel. |
@@ -37,6 +37,7 @@ Le bouton **🎙** (en haut à droite) lit le son de la vidéo F1 TV de la séan
 - **Caler sur le dashboard** : le son est automatiquement positionné sur l'instant affiché par le dashboard (donc sur le délai Canal+), grâce à l'horodatage du flux ; **« Décalage du son »** pour affiner à l'oreille.
 - Seul le son est téléchargé (pas la vidéo).
 - **Abonnement requis : F1 TV Pro.** Avec F1 TV Access (seule offre proposée dans certains pays, dont la France), F1 TV refuse la vidéo (« technical package not available ») : l'offre détectée est affichée dans ⚙ Réglages.
+- **Flux protégés (DRM Widevine)** : l'application Windows utilise Electron castlabs, qui contient le module Widevine (téléchargé au premier lancement). Si F1 TV refuse la licence, c'est qu'il exige une application **certifiée VMP** : voir « Signature VMP » ci-dessous ; en attendant, le lien « Ouvrir le dashboard dans le navigateur » du panneau 🎙 ouvre le dashboard dans Chrome/Edge (certifiés), l'application restant ouverte.
 - La ligne d'état indique précisément ce qui se passe (format du flux, protection DRM, erreur F1 TV…). Si F1 TV protège le flux par DRM (Widevine), l'application Windows actuelle ne peut pas le lire : ouvrez alors le dashboard dans Chrome ou Edge (http://127.0.0.1:3000, l'application restant ouverte).
 
 ### 📻 Radio / flux audio
@@ -46,6 +47,15 @@ Dans le panneau 🎙, choisissez **« Radio / flux audio »** pour écouter la s
 - **＋ Ajouter** : nom, langue et adresse du flux (MP3/AAC, HLS `.m3u8`, listes `.pls` / `.m3u`) — les stations sont mémorisées ; 🗑 pour en supprimer une.
 - **Retarder du délai du dashboard** : la radio étant en avance sur la TV, le son est automatiquement retardé du délai Canal+ réglé dans le dashboard (jusqu'à 170 s) ; **« Décalage du son »** pour affiner à l'oreille (la radio a elle-même quelques secondes de retard).
 - Même volume, **🔇 / touche C** et **▶ / ⏹** que pour F1 TV.
+
+#### Signature VMP (pour les flux DRM de F1 TV)
+
+Les serveurs de licence Widevine exigent souvent une application signée « VMP ». La signature est faite automatiquement à la compilation (GitHub Actions) avec le service gratuit **castlabs EVS**, une fois ces deux étapes faites (une seule fois) :
+
+1. Créer un compte EVS (Python requis) : `python -m pip install --upgrade castlabs-evs` puis `python -m castlabs_evs.account signup` (nom de compte, e-mail, mot de passe, puis code reçu par e-mail).
+2. Dans GitHub : dépôt → **Settings → Secrets and variables → Actions → New repository secret**, ajouter `EVS_ACCOUNT_NAME` (nom du compte) et `EVS_PASSWD` (mot de passe).
+
+Les versions publiées ensuite seront signées (le journal de compilation affiche « [vmp] signature de … »).
 
 ## 🧩 Disposition et deux écrans
 

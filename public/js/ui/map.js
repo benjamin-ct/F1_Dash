@@ -1,6 +1,6 @@
 // Carte du circuit : tracé, secteurs sous drapeau, voitures (GPS ou estimées), virages.
 import { store, displayNow, f1Now } from '../store.js';
-import { $, api, drivers, teamColor } from '../util.js';
+import { $, api, drivers, teamColor, storageGet, storageSet } from '../util.js';
 import { loadTrack } from '../track.js';
 import { parseUtc } from '/shared/f1.js';
 
@@ -130,6 +130,182 @@ function strokeRange(from, to) {
   ctx.stroke();
 }
 
+// Tracé entre deux distances de référence (r croissant, modulo L).
+function strokeDist(r0, r1) {
+  const L = track.L;
+  if (r1 < r0) r1 += L;
+  const step = L / 700;
+  ctx.beginPath();
+  for (let r = r0; ; r += step) {
+    const last = r >= r1;
+    const p = track.pointAt(last ? r1 : r);
+    const [x, y] = xf(p.x, p.y);
+    if (r === r0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    if (last) break;
+  }
+  ctx.stroke();
+}
+
+// Point et direction (normale) du tracé à la distance r, en coordonnées écran.
+function screenAt(r) {
+  const a = track.pointAt(r), b = track.pointAt(r + track.L / 400);
+  const [x0, y0] = xf(a.x, a.y), [x1, y1] = xf(b.x, b.y);
+  const ang = Math.atan2(y1 - y0, x1 - x0);
+  return { x: x0, y: y0, nx: -Math.sin(ang), ny: Math.cos(ang) };
+}
+
+// ---------- Secteurs et micro-secteurs du chronométrage ----------
+// Couleurs des secteurs choisies pour ne pas se confondre avec les drapeaux (jaune, rouge)
+const SECTOR_COLORS = ['#ff6b8a', '#2fa8e8', '#b48cff'];
+let layoutCache = null;
+
+const mod = (r, L) => ((r % L) + L) % L;
+
+function timingLayout() {
+  const s = store.state;
+  const pos = store.positions;
+  const counts = [0, 0, 0];
+  for (const l of Object.values(s.TimingData?.Lines || {})) {
+    for (let i = 0; i < 3; i++) {
+      const segs = l?.Sectors?.[i]?.Segments;
+      const c = segs ? (Array.isArray(segs) ? segs.length : Object.keys(segs).length) : 0;
+      if (c > counts[i]) counts[i] = c;
+    }
+  }
+  const fb = pos.sectorFractions(s);
+  const key = `${trackKey}|${counts}|${fb.map((x) => x.toFixed(3))}|${pos.lineFrac()}|${!!pos.loops}`;
+  if (layoutCache?.key === key) return layoutCache;
+  const L = track.L, line = pos.lineFrac();
+  const toR = (q) => mod((line + q) * L, L);
+  const qb = [0, pos.loopQ('S0', fb[1]), pos.loopQ('S1', fb[2]), 1];
+  const sectors = [0, 1, 2].map((i) => ({ i, from: toR(qb[i]), to: toR(qb[i + 1]), len: mod((qb[i + 1] - qb[i]) * L, L) || L / 3 }));
+  const minis = [];
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < counts[i]; j++) {
+      const q = pos.loopQ(`${i}-${j}`, fb[i] + ((j + 1) / counts[i]) * (fb[i + 1] - fb[i]));
+      minis.push({ i, j, r: toR(q), last: j === counts[i] - 1 });
+    }
+  }
+  // Distance de chaque virage sur le tracé (pour décrire les zones sous drapeau)
+  const corners = track.corners.map((c) => ({ number: c.number, r: track.t[track.nearestIndex(c.x, c.y)] }));
+  layoutCache = { key, sectors, minis, counts, corners };
+  return layoutCache;
+}
+
+// Secteur (1-3) et micro-secteur (1-n) contenant la distance r.
+function locate(lay, r) {
+  const L = track.L;
+  for (const sec of lay.sectors) {
+    const d = mod(r - sec.from, L);
+    if (d <= sec.len) {
+      const mins = lay.minis.filter((m) => m.i === sec.i);
+      const k = mins.findIndex((m) => mod(m.r - sec.from, L) >= d);
+      return { sector: sec.i + 1, mini: k >= 0 ? k + 1 : mins.length || null };
+    }
+  }
+  return { sector: null, mini: null };
+}
+
+function describeZone(lay, r0, r1) {
+  const L = track.L;
+  const span = mod(r1 - r0, L);
+  const turns = lay.corners.filter((c) => mod(c.r - r0, L) <= span).map((c) => c.number).sort((a, b) => a - b);
+  const a = locate(lay, r0 + span * 0.02), b = locate(lay, r1 - span * 0.02);
+  const parts = [];
+  if (turns.length) parts.push(turns.length > 1 ? `virages ${turns[0]}–${turns[turns.length - 1]}` : `virage ${turns[0]}`);
+  if (a.sector) {
+    if (a.sector === b.sector) parts.push(`S${a.sector}${a.mini ? ` · micro-secteur${a.mini !== b.mini ? `s ${a.mini}–${b.mini}` : ` ${a.mini}`}` : ''}`);
+    else parts.push(`S${a.sector}${a.mini ? `.${a.mini}` : ''} → S${b.sector}${b.mini ? `.${b.mini}` : ''}`);
+  }
+  return parts.join(' · ');
+}
+
+function drawSectors(lay) {
+  const L = track.L;
+  // Bande centrale colorée par secteur
+  ctx.lineWidth = 3;
+  for (const sec of lay.sectors) {
+    ctx.strokeStyle = SECTOR_COLORS[sec.i];
+    ctx.globalAlpha = 0.85;
+    strokeDist(sec.from, sec.from + sec.len);
+  }
+  ctx.globalAlpha = 1;
+  // Repères des micro-secteurs (petits traits) et des fins de secteur (grands traits)
+  for (const m of lay.minis) {
+    const p = screenAt(m.r);
+    const len = m.last ? 12 : 6;
+    ctx.strokeStyle = m.last ? '#ffffff' : 'rgba(233,237,244,.75)';
+    ctx.lineWidth = m.last ? 2.5 : 1.5;
+    ctx.beginPath();
+    ctx.moveTo(p.x - p.nx * len, p.y - p.ny * len);
+    ctx.lineTo(p.x + p.nx * len, p.y + p.ny * len);
+    ctx.stroke();
+  }
+}
+
+// Étiquettes S1 / S2 / S3 au milieu de chaque secteur, numéros de micro-secteur en zoom
+// (dessinées après les numéros de virage pour rester visibles).
+function drawSectorLabels(lay) {
+  const L = track.L;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const sec of lay.sectors) {
+    const p = screenAt(sec.from + sec.len / 2);
+    const x = p.x - p.nx * 24, y = p.y - p.ny * 24;
+    ctx.fillStyle = SECTOR_COLORS[sec.i];
+    ctx.beginPath();
+    ctx.roundRect(x - 13, y - 9, 26, 18, 4);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 11px "Titillium Web", sans-serif';
+    ctx.fillText(`S${sec.i + 1}`, x, y + 0.5);
+  }
+  if ($('#mapMiniNums').checked && view.z >= 1.5) {
+    ctx.font = '700 9.5px "Titillium Web", sans-serif';
+    for (const sec of lay.sectors) {
+      const mins = lay.minis.filter((m) => m.i === sec.i);
+      let prev = sec.from;
+      mins.forEach((m, k) => {
+        const mid = prev + mod(m.r - prev, L) / 2;
+        const p = screenAt(mid);
+        ctx.fillStyle = 'rgba(233,237,244,.8)';
+        ctx.fillText(`${sec.i + 1}.${k + 1}`, p.x + p.nx * 15, p.y + p.ny * 15);
+        prev = m.r;
+      });
+    }
+  }
+}
+
+// Position estimée de la voiture de sécurité : juste devant le leader.
+function leaderR() {
+  const lines = store.state.TimingData?.Lines || {};
+  const num = Object.keys(lines).find((n) => Number(lines[n]?.Position) === 1);
+  if (!num) return null;
+  const disp = displayNow();
+  const g = store.positions.hasGps(disp) ? store.positions.gpsAt(num, disp) : store.positions.estimatedXY(num, disp, 0);
+  return g ? track.project(g.x, g.y).r : null;
+}
+
+function scEnding() {
+  // « SAFETY CAR IN THIS LAP » publié après le dernier « SAFETY CAR DEPLOYED »
+  let ending = false;
+  const now = f1Now();
+  for (const m of list(store.state.RaceControlMessages?.Messages)) {
+    if (!m?.Message || parseUtc(m.Utc) > now + 1000) continue;
+    if (/SAFETY CAR DEPLOYED/.test(m.Message) && !/VIRTUAL/.test(m.Message)) ending = false;
+    if (/SAFETY CAR IN THIS LAP/.test(m.Message)) ending = true;
+  }
+  return ending;
+}
+
+let flagsHtml = '';
+
+function renderFlagInfo(html) {
+  if (html === flagsHtml) return;
+  flagsHtml = html;
+  $('#mapFlags').innerHTML = html;
+}
+
 function draw() {
   const now = performance.now();
   const dt = Math.min(0.2, (now - lastFrame) / 1000);
@@ -152,8 +328,28 @@ function draw() {
 
   const pts = xf.screen;
   const ts = String(store.state.TrackStatus?.Status || '1');
-  const { flags, red } = sectorFlags();
-  const scMode = ts === '4' || ts === '6' || ts === '7';
+  const sf = sectorFlags();
+  const flags = sf.flags;
+  const red = sf.red || ts === '5';
+  const sc = ts === '4', vsc = ts === '6' || ts === '7';
+  const scMode = sc || vsc;
+  const lay = timingLayout();
+
+  // Drapeau rouge : toute la carte en rouge
+  if (red) {
+    const pulse = 0.16 + 0.06 * Math.sin(now / 260);
+    ctx.fillStyle = `rgba(255, 40, 40, ${pulse})`;
+    ctx.fillRect(0, 0, size.w, size.h);
+    ctx.strokeStyle = '#ff3b30';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, size.w - 6, size.h - 6);
+  } else if (scMode) {
+    ctx.strokeStyle = `rgba(255, 176, 32, ${0.55 + 0.25 * Math.sin(now / 300)})`;
+    ctx.lineWidth = 4;
+    if (vsc) ctx.setLineDash([16, 10]);
+    ctx.strokeRect(2, 2, size.w - 4, size.h - 4);
+    ctx.setLineDash([]);
+  }
 
   // Tracé
   ctx.lineJoin = 'round';
@@ -171,18 +367,49 @@ function draw() {
   ctx.strokeStyle = red ? '#ff3b30' : scMode ? '#ffb020' : '#3a4356';
   ctx.lineWidth = 9;
   ctx.stroke();
-  ctx.strokeStyle = red ? '#ff6b61' : scMode ? '#ffd27a' : '#566079';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  if (vsc && !red) {
+    // VSC : pointillés défilants sur tout le tracé
+    ctx.setLineDash([14, 10]);
+    ctx.lineDashOffset = -now / 40;
+    ctx.strokeStyle = '#1d1200';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
+  } else if (red || scMode || !$('#mapSectors').checked) {
+    ctx.strokeStyle = red ? '#ff6b61' : scMode ? '#ffd27a' : '#566079';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  if (!red && !scMode && $('#mapSectors').checked) drawSectors(lay);
 
-  // Secteurs sous drapeau jaune
+  // Secteurs de commissaires sous drapeau jaune / double jaune
+  const zones = [];
   if (flags.size && track.marshal.length) {
     for (const r of track.marshalRanges()) {
       const f = flags.get(r.number);
       if (!f) continue;
-      ctx.strokeStyle = f === 'DOUBLE YELLOW' ? '#ff9f1a' : '#f5c518';
-      ctx.lineWidth = f === 'DOUBLE YELLOW' ? 12 : 10;
+      const dbl = f === 'DOUBLE YELLOW';
+      const blink = dbl ? 0.65 + 0.35 * Math.sin(now / 180) : 1;
+      ctx.globalAlpha = blink;
+      ctx.strokeStyle = dbl ? '#ff9f1a' : '#f5c518';
+      ctx.lineWidth = dbl ? 13 : 10;
       strokeRange(r.from, r.to);
+      ctx.globalAlpha = 1;
+      const r0 = track.t[r.from], r1 = track.t[r.to];
+      // Fanion au début de la zone avec le numéro du secteur de commissaires
+      const p = screenAt(r0);
+      const x = p.x + p.nx * 20, y = p.y + p.ny * 20;
+      ctx.fillStyle = dbl ? '#ff9f1a' : '#f5c518';
+      ctx.beginPath();
+      ctx.roundRect(x - 14, y - 9, 28, 18, 4);
+      ctx.fill();
+      ctx.fillStyle = '#1a1500';
+      ctx.font = '800 10.5px "Titillium Web", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${dbl ? '⚑⚑' : '⚑'}${r.number}`, x, y + 0.5);
+      zones.push({ number: r.number, dbl, text: describeZone(lay, r0, r1) });
     }
   }
 
@@ -200,20 +427,62 @@ function draw() {
     ctx.stroke();
   }
 
-  // Numéros de virage
+  // Numéros de virage (pastilles)
   if ($('#mapCorners').checked) {
-    ctx.font = '600 10px "Titillium Web", sans-serif';
+    const fs = Math.min(13, 10 + (view.z - 1) * 1.2);
+    ctx.font = `700 ${fs}px "Titillium Web", sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#7d879a';
     for (const c of track.corners) {
       const a = (c.angle * Math.PI) / 180;
-      const [x, y] = xf(c.x + Math.cos(a) * 520, c.y + Math.sin(a) * 520);
-      ctx.fillText(String(c.number), x, y);
+      const [x, y] = xf(c.x + Math.cos(a) * 560, c.y + Math.sin(a) * 560);
+      const rad = fs * 0.75 + (c.number >= 10 ? 2 : 0);
+      ctx.beginPath();
+      ctx.arc(x, y, rad, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(16,20,28,.9)';
+      ctx.fill();
+      ctx.strokeStyle = '#3a4356';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = '#c3cad6';
+      ctx.fillText(String(c.number), x, y + 0.5);
     }
   }
 
+  if (!red && !scMode && $('#mapSectors').checked) drawSectorLabels(lay);
+
   drawCars(dt);
+
+  // Voiture de sécurité : position estimée juste devant le leader
+  if (sc && !red) {
+    const lr = leaderR();
+    if (lr !== null) {
+      const p = screenAt(lr + track.L / 45);
+      ctx.beginPath();
+      ctx.roundRect(p.x - 13, p.y - 9, 26, 18, 4);
+      ctx.fillStyle = '#ffb020';
+      ctx.fill();
+      ctx.strokeStyle = '#1d1200';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#1d1200';
+      ctx.font = '900 11px "Titillium Web", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('SC', p.x, p.y + 0.5);
+    }
+  }
+
+  // Informations : bandeau drapeau rouge / SC / VSC et zones sous drapeau jaune
+  const items = [];
+  if (red) items.push('<div class="mf-banner red">Drapeau rouge — séance arrêtée</div>');
+  else if (sc) items.push(`<div class="mf-banner sc">Safety car${scEnding() ? ' — rentre à la fin du tour' : ' en piste'}${leaderR() !== null ? ' · position estimée' : ''}</div>`);
+  else if (ts === '6') items.push('<div class="mf-banner vsc">Virtual safety car</div>');
+  else if (ts === '7') items.push('<div class="mf-banner vsc">Fin de VSC — reprise imminente</div>');
+  for (const z of zones.sort((a, b) => a.number - b.number)) {
+    items.push(`<div class="mf-item ${z.dbl ? 'dy' : ''}"><b>${z.dbl ? 'Double jaune' : 'Jaune'}</b> · secteur de commissaires ${z.number}${z.text ? ` · ${z.text}` : ''}</div>`);
+  }
+  renderFlagInfo(items.join(''));
 }
 
 function drawCars(dt) {
@@ -303,7 +572,20 @@ function drawCars(dt) {
   if (legend.textContent !== txt) legend.textContent = txt;
 }
 
+// Cases de la carte mémorisées d'une session à l'autre
+const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums'];
+
+function initMapOptions() {
+  const saved = storageGet('f1dash.mapOpts', {});
+  for (const id of MAP_OPTS) {
+    const el = $(`#${id}`);
+    if (typeof saved[id] === 'boolean') el.checked = saved[id];
+    el.addEventListener('change', () => storageSet('f1dash.mapOpts', Object.fromEntries(MAP_OPTS.map((k) => [k, $(`#${k}`).checked]))));
+  }
+}
+
 export function initMap() {
+  initMapOptions();
   ctx = canvas().getContext('2d');
   const c = canvas();
   // Zoom à la molette autour du curseur, déplacement à la souris, double-clic = vue d'ensemble.
