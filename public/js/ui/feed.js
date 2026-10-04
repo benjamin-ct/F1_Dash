@@ -182,8 +182,17 @@ function radioAllowed(num) {
 }
 
 // ---- Lecture automatique des nouvelles radios (au rythme du délai TV) ----
+// Une seule fenêtre joue les radios (sinon chaque fenêtre ouverte — principale, détachées,
+// onglets — les lit aussi et le son est en double) : verrou partagé entre fenêtres, repris
+// automatiquement par une autre fenêtre si celle qui le détient se ferme.
 const queue = [];
+const seen = new Set();        // radios déjà jouées ou en file (les captures peuvent être renvoyées)
 let player = null;
+let isRadioPlayer = !navigator.locks;
+navigator.locks?.request('f1dash-radio-player', () => {
+  isRadioPlayer = true;
+  return new Promise(() => {}); // conservé jusqu'à la fermeture de la fenêtre
+});
 
 function playNext() {
   if (player && !player.paused && !player.ended) return;
@@ -209,12 +218,16 @@ export function initRadio() {
   $('#radioFilter').addEventListener('change', (e) => setPref('radioFilter', e.target.value));
   $('#radioAuto').addEventListener('change', (e) => setPref('radioAuto', e.target.checked));
   on('events', (events) => {
-    if (!prefs.radioAuto) return;
+    if (!prefs.radioAuto || !isRadioPlayer) return;
     const base = store.state.SessionInfo?.Path ? `https://livetiming.formula1.com/static/${store.state.SessionInfo.Path}` : null;
     if (!base) return;
     for (const [topic, data] of events) {
       if (topic !== 'TeamRadio' || !data?.Captures) continue;
-      for (const c of list(data.Captures)) if (c?.Path && radioAllowed(c.RacingNumber)) queue.push(base + c.Path);
+      for (const c of list(data.Captures)) {
+        if (!c?.Path || !radioAllowed(c.RacingNumber) || seen.has(c.Path)) continue;
+        seen.add(c.Path);
+        queue.push(base + c.Path);
+      }
     }
     playNext();
   });
