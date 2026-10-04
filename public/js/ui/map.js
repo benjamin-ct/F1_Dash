@@ -8,6 +8,7 @@ const canvas = () => $('#mapCanvas');
 let ctx = null;
 let track = null;
 let trackKey = null;
+let zones = null;          // zones ligne droite / détection estimées (serveur)
 let xf = null;
 let size = { w: 0, h: 0, dpr: 1 };
 let lastFrame = performance.now();
@@ -26,6 +27,7 @@ function ensureTrack() {
   if (k === trackKey) return;
   trackKey = k;
   track = null;
+  zones = null;
   $('#mapEmpty').textContent = 'Chargement du tracé…';
   $('#mapEmpty').hidden = false;
   loadTrack(key, year).then((t) => {
@@ -34,6 +36,8 @@ function ensureTrack() {
     store.positions.setTrack(t);
     // Emplacement réel des boucles de chrono (calculé une fois par circuit par le serveur).
     api(`/api/loops?key=${key}&year=${year}`).then((l) => { if (trackKey === k) store.positions.setLoops(l); }).catch(() => {});
+    // Zones ligne droite et ligne de détection (estimées une fois par circuit, peut prendre ~1 min)
+    api(`/api/zones?key=${key}&year=${year}`).then((z) => { if (trackKey === k) zones = z; }).catch(() => {});
     xf = null;
     $('#mapEmpty').hidden = true;
   }).catch((err) => {
@@ -114,6 +118,72 @@ function sectorFlags() {
     }
   }
   return { flags, red };
+}
+
+// Trait parallèle au tracé (décalé de off px vers l'extérieur du point de vue de la normale).
+function strokeOffset(from, to, off) {
+  const pts = xf.screen;
+  const n = pts.length;
+  const at = (i) => {
+    const a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return [pts[i][0] - ((b[1] - a[1]) / len) * off, pts[i][1] + ((b[0] - a[0]) / len) * off];
+  };
+  ctx.beginPath();
+  let i = from;
+  ctx.moveTo(...at(i));
+  for (let guard = 0; i !== to && guard < n; guard++) {
+    i = (i + 1) % n;
+    ctx.lineTo(...at(i));
+  }
+  ctx.stroke();
+}
+
+function badge(x, y, text, bg, fg) {
+  ctx.font = '800 9.5px "Titillium Web", sans-serif';
+  const w = ctx.measureText(text).width + 8;
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.roundRect(x - w / 2, y - 8, w, 16, 4);
+  ctx.fill();
+  ctx.fillStyle = fg;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y + 0.5);
+}
+
+// Zones « ligne droite » (straight mode) et ligne de détection du mode dépassement.
+function drawZones() {
+  if (!zones || !$('#mapZones').checked) return;
+  const pts = xf.screen;
+  const n = pts.length;
+  if (!n || zones.zones.some((z) => z.from >= n || z.to >= n)) return;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (const z of zones.zones) {
+    ctx.strokeStyle = 'rgba(60, 224, 138, 0.9)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 5]);
+    strokeOffset(z.from, z.to, 9);
+    ctx.setLineDash([]);
+    const p = pts[z.from], q = pts[(z.from + 1) % n];
+    const len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+    badge(p[0] - ((q[1] - p[1]) / len) * 22, p[1] + ((q[0] - p[0]) / len) * 22, 'LD', '#3ce08a', '#062414');
+  }
+  const d = zones.detection;
+  if (d && d.idx < n) {
+    const p = pts[d.idx], a = pts[(d.idx - 1 + n) % n], b = pts[(d.idx + 1) % n];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    const nx = -(b[1] - a[1]) / len, ny = (b[0] - a[0]) / len;
+    ctx.strokeStyle = '#ff4fd8';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(p[0] - nx * 11, p[1] - ny * 11);
+    ctx.lineTo(p[0] + nx * 11, p[1] + ny * 11);
+    ctx.stroke();
+    badge(p[0] + nx * 26, p[1] + ny * 26, 'DÉTECTION', '#ff4fd8', '#2a0623');
+  }
+  ctx.restore();
 }
 
 function strokeRange(from, to) {
@@ -422,8 +492,10 @@ function draw() {
   }
   if (!red && !scMode && $('#mapSectors').checked) drawSectors(lay);
 
+  if (!red) drawZones();
+
   // Secteurs de commissaires sous drapeau jaune / double jaune
-  const zones = [];
+  const flagZones = [];
   const marshal = flags.size ? marshalLayout() : null;
   if (marshal) {
     for (const r of marshal.ranges) {
@@ -449,7 +521,7 @@ function draw() {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${dbl ? '⚑⚑' : '⚑'}${r.number}`, x, y + 0.5);
-      zones.push({ number: r.number, dbl, approx: marshal.approx, text: describeZone(lay, r0, r1) });
+      flagZones.push({ number: r.number, dbl, approx: marshal.approx, text: describeZone(lay, r0, r1) });
     }
   }
 
@@ -519,7 +591,7 @@ function draw() {
   else if (sc) items.push(`<div class="mf-banner sc">Safety car${scEnding() ? ' — rentre à la fin du tour' : ' en piste'}${leaderR() !== null ? ' · position estimée' : ''}</div>`);
   else if (ts === '6') items.push('<div class="mf-banner vsc">Virtual safety car</div>');
   else if (ts === '7') items.push('<div class="mf-banner vsc">Fin de VSC — reprise imminente</div>');
-  for (const z of zones.sort((a, b) => a.number - b.number)) {
+  for (const z of flagZones.sort((a, b) => a.number - b.number)) {
     items.push(`<div class="mf-item ${z.dbl ? 'dy' : ''}"><b>${z.dbl ? 'Double jaune' : 'Jaune'}</b> · secteur de commissaires ${z.number}${z.text ? ` · ${z.text}` : ''}${z.approx ? ' <span class="muted">(position estimée)</span>' : ''}</div>`);
   }
   renderFlagInfo(items.join(''));
@@ -613,7 +685,7 @@ function drawCars(dt) {
 }
 
 // Cases de la carte mémorisées d'une session à l'autre
-const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums'];
+const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones'];
 
 function initMapOptions() {
   const saved = storageGet('f1dash.mapOpts', {});

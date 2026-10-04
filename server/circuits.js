@@ -7,6 +7,7 @@ import { getJSON, HttpError } from './net.js';
 import { DATA_DIR } from './config.js';
 import { Track } from '../shared/track.js';
 import { calibrateLoops, buildTrackFromArchive } from '../shared/calibrate.js';
+import { estimateZones } from '../shared/zones.js';
 import { loadArchive, seasonIndex } from './replay.js';
 
 export const CACHE_DIR = path.join(DATA_DIR, '.cache');
@@ -120,5 +121,42 @@ export function loops(key, year) {
     return null;
   })().finally(() => running.delete(name));
   running.set(name, job);
+  return job;
+}
+
+// Zones ligne droite et ligne de détection estimées à partir de la télémétrie d'une séance
+// archivée du circuit (calculées une fois par circuit et par saison).
+const zoning = new Map();
+
+const inflate = (s) => JSON.parse(zlib.inflateRawSync(Buffer.from(s.raw, 'base64')).toString('utf8'));
+
+export function zones(key, year) {
+  const name = `zones-${key}-${year}.json`;
+  const cached = readCache(name);
+  if (cached) return Promise.resolve(cached);
+  if (zoning.has(name)) return zoning.get(name);
+  const job = (async () => {
+    const data = await circuit(key, year);
+    if (!data) return null;
+    const track = new Track(data);
+    for (const p of (await candidateSessions(key, year)).slice(0, 3)) {
+      try {
+        const arc = await loadArchive(p, undefined, ['Heartbeat', 'Position.z', 'CarData.z']);
+        const positions = arc.stream.filter((s) => s.topic === 'Position').map((s) => ({ data: inflate(s) }));
+        const carData = arc.stream.filter((s) => s.topic === 'CarData').map((s) => ({ data: inflate(s) }));
+        const res = estimateZones(track, carData, positions);
+        if (res && res.zones.length) {
+          res.source = p;
+          writeCache(name, res);
+          console.log(`[zones] circuit ${key} : ${res.zones.length} zones ligne droite, détection ${res.detection ? 'trouvée' : 'inconnue'} (${p})`);
+          return res;
+        }
+      } catch (err) {
+        console.warn(`[zones] ${p} : ${err.message}`);
+      }
+    }
+    return null;
+  })().finally(() => zoning.delete(name));
+  zoning.set(name, job);
   return job;
 }
