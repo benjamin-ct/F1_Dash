@@ -3,6 +3,7 @@ import { store, versionOf, on, f1Now, displayNow } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
 import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge, orderedNumbers } from '../util.js';
 import { parseUtc, parseLapTime } from '/shared/f1.js';
+import { radioText, requestTranscripts, setTranscribe, transcribeStatus } from './transcribe.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 
 function list(obj) {
@@ -54,8 +55,10 @@ export function renderRcm() {
     : '<li class="note">Aucun message de la direction de course.</li>';
 }
 
+let textVer = 0;
+
 export function renderRadio() {
-  const v = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${prefs.radioFilter}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
+  const v = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${prefs.radioFilter}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}|${prefs.radioText}|${textVer}`;
   if (v === radioVer) return;
   radioVer = v;
   const dl = drivers(store.state);
@@ -64,12 +67,19 @@ export function renderRadio() {
   const el = $('#radioList');
   // Ne pas reconstruire la liste pendant une lecture audio.
   if ([...el.querySelectorAll('audio')].some((a) => !a.paused)) { radioVer = -1; return; }
+  if (prefs.radioText && base) requestTranscripts(caps.slice(0, 40).map((c) => base + c.Path));
+  const st = transcribeStatus();
+  $('#radioTextStatus').textContent = prefs.radioText ? st.msg : '';
   el.innerHTML = caps.length && base
     ? caps.map((c) => {
       const d = dl[c.RacingNumber] || {};
+      const txt = prefs.radioText ? radioText(base + c.Path) : null;
+      const line = !prefs.radioText ? ''
+        : txt ? `<div class="r-text">« ${esc(txt)} »</div>`
+          : txt === '' ? '' : '<div class="r-text pending">transcription…</div>';
       return `<li><div class="r-drv"><span class="drv-bar" style="background:${teamColor(d)}"></span>${esc(d.Tla || c.RacingNumber)}</div>
         <span class="muted small">${fmtClock(parseUtc(c.Utc))}</span>
-        <audio controls preload="none" src="${esc(base + c.Path)}"></audio></li>`;
+        <audio controls preload="none" src="${esc(base + c.Path)}"></audio>${line}</li>`;
     }).join('')
     : '<li class="note">Aucune radio d\'équipe pour l\'instant.</li>';
 }
@@ -263,6 +273,15 @@ export function initRadio() {
   $('#radioAuto').checked = prefs.radioAuto;
   $('#radioFilter').addEventListener('change', (e) => setPref('radioFilter', e.target.value));
   $('#radioAuto').addEventListener('change', (e) => setPref('radioAuto', e.target.checked));
+  $('#radioText').checked = prefs.radioText;
+  setTranscribe(prefs.radioText);
+  $('#radioText').addEventListener('change', (e) => setPref('radioText', e.target.checked));
+  on('prefs', (k) => {
+    if (k !== 'radioText') return;
+    $('#radioText').checked = prefs.radioText;
+    setTranscribe(prefs.radioText);
+  });
+  on('radioText', () => { textVer++; });
   on('events', (events) => {
     if (!prefs.radioAuto || !isRadioPlayer) return;
     const base = store.state.SessionInfo?.Path ? `https://livetiming.formula1.com/static/${store.state.SessionInfo.Path}` : null;

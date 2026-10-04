@@ -723,3 +723,8 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 
 /* Fluidité : les mises à jour d'un panneau ne forcent pas le recalcul des autres */
 .panel-body, .tabpane { contain: layout paint; }
+
+/* Transcription des radios */
+#radioList li { flex-wrap: wrap; }
+.r-text { flex-basis: 100%; font-size: 13px; color: var(--text); font-style: italic; padding: 2px 0 2px 12px; border-left: 2px solid var(--border); margin: 2px 0 0 6px; }
+.r-text.pending { color: var(--muted); font-style: normal; }
