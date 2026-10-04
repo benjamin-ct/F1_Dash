@@ -46,7 +46,7 @@
       "version": "44.5.1+wvcus",
       "mirror": "https://github.com/castlabs/electron-releases/releases/download/"
     },
-    "afterPack": "./vmp-sign.cjs"
+    "afterSign": "./vmp-sign.cjs"
   },
   "f1dash": {
     "updateRepo": "benjamin-ct/F1_Dash"

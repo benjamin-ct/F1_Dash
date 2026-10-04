@@ -1,4 +1,5 @@
-// Signature VMP (Verified Media Path) castlabs EVS de l'application empaquetée : nécessaire pour que
+// Signature VMP (Verified Media Path) castlabs EVS de l'application empaquetée (après la
+// signature Windows éventuelle, comme le demande castlabs) : nécessaire pour que
 // les serveurs de licence Widevine (F1 TV) acceptent l'appli. Faite seulement si les identifiants
 // EVS sont fournis (secrets GitHub EVS_ACCOUNT_NAME et EVS_PASSWD), sinon l'appli reste non signée.
 const { execFileSync } = require('node:child_process');
