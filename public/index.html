@@ -19,8 +19,10 @@
     <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
 
     <div class="hstat"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div></div>
+    <div class="hstat" id="lapsLeftBox" hidden><div class="hstat-label">Tours restants</div><div class="hstat-value" id="lapsLeft">—</div></div>
     <div class="hstat"><div class="hstat-label">Temps restant</div><div class="hstat-value" id="clockValue">—</div></div>
     <div class="hstat weather-mini" id="weatherMini" title="Météo"></div>
+    <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
 
     <div class="spacer"></div>
 
@@ -103,6 +105,7 @@
         <button class="tab" data-tab="stewards" title="Suivi des enquêtes des commissaires">Enquêtes <span class="tab-badge" id="stewardsBadge" hidden></span></button>
         <button class="tab" data-tab="tracklimits" title="Tours et temps supprimés pour limites de piste">Limites de piste <span class="tab-badge" id="tlBadge" hidden></span></button>
         <button class="tab" data-tab="radio">Radios</button>
+        <button class="tab" data-tab="transcripts" title="Radios d'équipe retranscrites en texte et traduites">Transcriptions</button>
         <button class="tab" data-tab="pits">Arrêts</button>
       </div>
       <div class="panel-body">
@@ -129,6 +132,14 @@
             <label class="toggle"><input type="checkbox" id="radioAuto"> Lecture automatique des nouvelles radios</label>
           </div>
           <ul class="radio" id="radioList"></ul>
+        </div>
+        <div class="tabpane" data-pane="transcripts">
+          <div class="subbar">
+            <label class="toggle" title="Retranscrit chaque radio d'équipe en texte, directement sur cet ordinateur. Premier usage : téléchargement des modèles (reconnaissance vocale ~80 Mo, traduction ~50 Mo), puis tout reste en local."><input type="checkbox" id="radioText"> Transcrire les radios</label>
+            <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
+            <span class="muted small" id="radioTextStatus"></span>
+          </div>
+          <ul class="transcripts" id="transcriptList"></ul>
         </div>
         <div class="tabpane" data-pane="pits"><div id="pitList"></div></div>
       </div>

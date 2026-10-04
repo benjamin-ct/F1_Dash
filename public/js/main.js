@@ -7,7 +7,7 @@ import { initDelay } from './ui/delay.js';
 import { initTower, renderTower } from './ui/tower.js';
 import { initMap } from './ui/map.js';
 import { initDuel, renderDuel } from './ui/duel.js';
-import { renderRcm, renderRadio, renderPits } from './ui/feed.js';
+import { renderRcm, renderRadio, renderPits, renderTranscripts } from './ui/feed.js';
 import { renderTelemetry, renderStrategy, renderWeather, renderChampionship } from './ui/extra.js';
 import { initSettings } from './ui/settings.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
@@ -48,6 +48,7 @@ function loop() {
   safe(renderDuel);
   safe(renderRcm);
   safe(renderRadio);
+  safe(renderTranscripts);
   safe(renderPits);
   safe(renderTelemetry);
   safe(renderStrategy);

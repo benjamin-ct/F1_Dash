@@ -29,18 +29,6 @@ function sectorCell(sec) {
     (segs.length ? `<div class="segs">${segs.map((s) => `<i class="seg ${segmentClass(s?.Status)}"></i>`).join('')}</div>` : '') + '</td>';
 }
 
-function blueFlagged(state) {
-  const out = new Set();
-  const now = f1Now();
-  for (const m of list(state.RaceControlMessages?.Messages)) {
-    if (m?.Flag === 'BLUE' && m.RacingNumber) {
-      const t = parseUtc(m.Utc);
-      if (now - t < 20000 && now >= t) out.add(String(m.RacingNumber));
-    }
-  }
-  return out;
-}
-
 function gapText(v) {
   if (v === undefined || v === null || v === '') return '<span class="dim">—</span>';
   if (/^LAP/i.test(v)) return '<span class="dim">Leader</span>';
@@ -63,7 +51,6 @@ export function renderTower(force = false) {
   const app = s.TimingAppData?.Lines || {};
   const stats = s.TimingStats?.Lines || {};
   const nums = orderedNumbers(s);
-  const blue = blueFlagged(s);
   const dispNow = displayNow();
   const showDrs = (Number(s.SessionInfo?.StartDate?.slice(0, 4)) || 2026) < 2026;
 
@@ -100,7 +87,6 @@ export function renderTower(force = false) {
     else if (l.Stopped) tags.push('<span class="tag stop">ARRÊT</span>');
     else if (l.InPit) tags.push('<span class="tag pit">STAND</span>');
     else if (l.PitOut) tags.push('<span class="tag out">SORTIE</span>');
-    if (blue.has(num)) tags.push('<span class="tag flag-blue" title="Drapeau bleu">BLEU</span>');
     if (showDrs) {
       const car = store.positions.carAt(num, dispNow);
       if (car && car.drs >= 10) tags.push('<span class="tag drs">DRS</span>');
@@ -196,13 +182,14 @@ export function renderTower(force = false) {
 const rowEls = new Map();      // numéro -> <tr>
 const rowHtml = new Map();     // numéro -> contenu actuel
 let headHtml = '';
+let lastOrder = '';
 let captionHtml = '';
 
 function syncTable(table, cutInfo, head, rows) {
   if (!table.tHead || table.dataset.built !== '1') {
     table.innerHTML = '<thead><tr></tr></thead><tbody></tbody>';
     table.dataset.built = '1';
-    rowEls.clear(); rowHtml.clear(); headHtml = ''; captionHtml = '';
+    rowEls.clear(); rowHtml.clear(); headHtml = ''; captionHtml = ''; lastOrder = '';
   }
   if (cutInfo !== captionHtml) {
     table.caption?.remove();
@@ -218,9 +205,13 @@ function syncTable(table, cutInfo, head, rows) {
   }
   tbody.querySelector('td.note')?.parentElement.remove();
 
-  // Positions avant mise à jour (pour l'animation de glissement)
+  // Positions avant mise à jour (pour l'animation de glissement) : mesurées seulement si l'ordre
+  // change, pour ne pas forcer un recalcul de mise en page à chaque rafraîchissement.
+  const order = rows.map((r) => r.num).join();
+  const reordered = order !== lastOrder;
+  lastOrder = order;
   const before = new Map();
-  for (const [num, tr] of rowEls) if (tr.isConnected) before.set(num, tr.getBoundingClientRect().top);
+  if (reordered) for (const [num, tr] of rowEls) if (tr.isConnected) before.set(num, tr.getBoundingClientRect().top);
 
   const keep = new Set();
   rows.forEach((r, i) => {
@@ -253,7 +244,7 @@ function syncTable(table, cutInfo, head, rows) {
   flashes.clear();
 
   // Glissement : chaque ligne déplacée part de son ancienne place et rejoint la nouvelle
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!reordered || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const zoom = Number(table.style.zoom) || 1;
   for (const [num, tr] of rowEls) {
     const old = before.get(num);
