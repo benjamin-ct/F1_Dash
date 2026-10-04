@@ -11,6 +11,7 @@ const DEFAULTS = {
   vividTeams: true,       // couleurs d'équipe contrastées plutôt qu'officielles
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
+  radioLang: 'fr',        // langue de traduction des transcriptions ('none' : anglais)
   radioFilter: 'all',
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'
   commLang: 'FRA',        // commentaires F1 TV : langue
