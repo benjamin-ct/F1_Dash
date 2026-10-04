@@ -29,18 +29,6 @@ function sectorCell(sec) {
     (segs.length ? `<div class="segs">${segs.map((s) => `<i class="seg ${segmentClass(s?.Status)}"></i>`).join('')}</div>` : '') + '</td>';
 }
 
-function blueFlagged(state) {
-  const out = new Set();
-  const now = f1Now();
-  for (const m of list(state.RaceControlMessages?.Messages)) {
-    if (m?.Flag === 'BLUE' && m.RacingNumber) {
-      const t = parseUtc(m.Utc);
-      if (now - t < 20000 && now >= t) out.add(String(m.RacingNumber));
-    }
-  }
-  return out;
-}
-
 function gapText(v) {
   if (v === undefined || v === null || v === '') return '<span class="dim">—</span>';
   if (/^LAP/i.test(v)) return '<span class="dim">Leader</span>';
@@ -63,7 +51,6 @@ export function renderTower(force = false) {
   const app = s.TimingAppData?.Lines || {};
   const stats = s.TimingStats?.Lines || {};
   const nums = orderedNumbers(s);
-  const blue = blueFlagged(s);
   const dispNow = displayNow();
   const showDrs = (Number(s.SessionInfo?.StartDate?.slice(0, 4)) || 2026) < 2026;
 
@@ -100,7 +87,6 @@ export function renderTower(force = false) {
     else if (l.Stopped) tags.push('<span class="tag stop">ARRÊT</span>');
     else if (l.InPit) tags.push('<span class="tag pit">STAND</span>');
     else if (l.PitOut) tags.push('<span class="tag out">SORTIE</span>');
-    if (blue.has(num)) tags.push('<span class="tag flag-blue" title="Drapeau bleu">BLEU</span>');
     if (showDrs) {
       const car = store.positions.carAt(num, dispNow);
       if (car && car.drs >= 10) tags.push('<span class="tag drs">DRS</span>');

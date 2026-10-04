@@ -713,3 +713,10 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .flag-banner.sc .fb-icon, .flag-banner.vsc .fb-icon, .flag-banner.yellow .fb-icon, .track-status.sc .ts-dot, .track-status.vsc .ts-dot, .track-status.yellow .ts-dot { background: #000; }
 .comm-browser { color: var(--blue); text-decoration: none; }
 .comm-browser:hover { text-decoration: underline; }
+
+/* État de la piste (haut de page) */
+.hstat.surface .hstat-value { font-size: 14px; padding: 1px 8px; border-radius: 5px; display: inline-block; }
+.hstat.surface.dry .hstat-value { background: rgba(245, 197, 24, .14); color: #ffd866; }
+.hstat.surface.damp .hstat-value { background: rgba(67, 176, 42, .18); color: #7fe06a; }
+.hstat.surface.wet .hstat-value { background: rgba(47, 140, 255, .2); color: #7fb8ff; }
+.pts-gain { color: var(--green); font-weight: 700; }

@@ -127,18 +127,23 @@ export function renderChampionship() {
   }
   const rows = Object.values(cp.Drivers).filter(Boolean).sort((a, b) => (a.PredictedPosition || 99) - (b.PredictedPosition || 99));
   const teams = Object.values(cp.Teams || {}).filter(Boolean).sort((a, b) => (a.PredictedPosition || 99) - (b.PredictedPosition || 99));
+  // Points marqués sur la course en cours (projetés - actuels)
+  const gain = (cur, pred) => {
+    const d = (Number(pred) || 0) - (Number(cur) || 0);
+    return d > 0 ? `<span class="pts-gain">+${d}</span>` : '<span class="dim">—</span>';
+  };
   const mv = (cur, pred) => {
     const d = (cur || 0) - (pred || 0);
     return d ? `<span class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</span>` : '';
   };
-  $('#champ').innerHTML = `<table class="champ"><tr><th>Proj.</th><th>Pilote</th><th>Pts actuels</th><th>Pts projetés</th><th></th></tr>
+  $('#champ').innerHTML = `<table class="champ"><tr><th>Proj.</th><th>Pilote</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
     ${rows.map((r) => {
       const d = dl[r.RacingNumber] || {};
       return `<tr><td>${r.PredictedPosition ?? '—'}</td><td><span class="drv"><span class="drv-bar" style="background:${teamColor(d)}"></span><b>${esc(d.Tla || r.RacingNumber)}</b></span></td>
-        <td>${r.CurrentPoints ?? '—'}</td><td><b>${r.PredictedPoints ?? '—'}</b></td><td>${mv(r.CurrentPosition, r.PredictedPosition)}</td></tr>`;
+        <td>${r.CurrentPoints ?? '—'}</td><td>${gain(r.CurrentPoints, r.PredictedPoints)}</td><td><b>${r.PredictedPoints ?? '—'}</b></td><td>${mv(r.CurrentPosition, r.PredictedPosition)}</td></tr>`;
     }).join('')}</table>
-    ${teams.length ? `<table class="champ" style="margin-top:10px"><tr><th>Proj.</th><th>Écurie</th><th>Pts actuels</th><th>Pts projetés</th><th></th></tr>
-      ${teams.map((t) => `<tr><td>${t.PredictedPosition ?? '—'}</td><td>${esc(t.TeamName || '')}</td><td>${t.CurrentPoints ?? '—'}</td><td><b>${t.PredictedPoints ?? '—'}</b></td><td>${mv(t.CurrentPosition, t.PredictedPosition)}</td></tr>`).join('')}</table>` : ''}`;
+    ${teams.length ? `<table class="champ" style="margin-top:10px"><tr><th>Proj.</th><th>Écurie</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
+      ${teams.map((t) => `<tr><td>${t.PredictedPosition ?? '—'}</td><td>${esc(t.TeamName || '')}</td><td>${t.CurrentPoints ?? '—'}</td><td>${gain(t.CurrentPoints, t.PredictedPoints)}</td><td><b>${t.PredictedPoints ?? '—'}</b></td><td>${mv(t.CurrentPosition, t.PredictedPosition)}</td></tr>`).join('')}</table>` : ''}`;
 }
 
 // Rythme et dégradation sur le relais en cours (tours "propres" uniquement).
