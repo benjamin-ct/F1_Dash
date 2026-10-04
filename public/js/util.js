@@ -45,7 +45,29 @@ export function lapSeconds(v) {
 
 export { parseUtc };
 
+// Couleurs officielles : plusieurs équipes ont des teintes très proches (bleus, rouges, gris).
+// Palette « contrastée » : une teinte bien distincte par équipe, proche de son identité.
+const VIVID_TEAMS = [
+  [/racing bulls|visa|alphatauri|\brb\b/i, '#b3c2ff'], // lavande
+  [/red bull/i, '#2f4fff'],                             // bleu roi
+  [/ferrari/i, '#ff2a2a'],                              // rouge
+  [/mclaren/i, '#ff8a00'],                              // orange
+  [/mercedes/i, '#00e0c6'],                             // turquoise
+  [/aston/i, '#1f9a45'],                                // vert
+  [/williams/i, '#00aaff'],                             // bleu ciel
+  [/alpine/i, '#ff5fc8'],                               // rose
+  [/haas/i, '#ffffff'],                                 // blanc
+  [/audi|sauber|kick/i, '#8f979f'],                     // gris titane
+  [/cadillac/i, '#d4b04a'],                             // or
+];
+let vividTeams = true;
+export function setVividTeams(v) { vividTeams = !!v; }
+
 export function teamColor(driver) {
+  if (vividTeams && driver?.TeamName) {
+    const hit = VIVID_TEAMS.find(([re]) => re.test(driver.TeamName));
+    if (hit) return hit[1];
+  }
   const c = driver?.TeamColour;
   return c ? `#${c.replace('#', '')}` : '#8b95a8';
 }

@@ -1,6 +1,6 @@
 // Préférences de l'utilisateur (conservées dans le navigateur).
-import { storageGet, storageSet } from './util.js';
-import { emit } from './store.js';
+import { storageGet, storageSet, setVividTeams } from './util.js';
+import { emit, touch } from './store.js';
 
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
@@ -8,6 +8,7 @@ const DEFAULTS = {
   hiddenPanels: [],
   hiddenCols: [],
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
+  vividTeams: true,       // couleurs d'équipe contrastées plutôt qu'officielles
   radioAuto: false,
   radioFilter: 'all',
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'
@@ -29,9 +30,17 @@ const DEFAULTS = {
 
 const saved = storageGet('f1dash.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
+setVividTeams(prefs.vividTeams);
+
+// Couleurs d'équipe changées : les panneaux qui affichent les pilotes se redessinent.
+function applyTeamColors(v) {
+  setVividTeams(v);
+  touch('DriverList');
+}
 
 export function setPref(key, value) {
   prefs[key] = value;
+  if (key === 'vividTeams') applyTeamColors(value);
   storageSet('f1dash.prefs', prefs);
   emit('prefs', key);
 }
@@ -53,6 +62,7 @@ window.addEventListener('storage', (e) => {
   for (const key of Object.keys(DEFAULTS)) {
     if (!(key in next) || JSON.stringify(next[key]) === JSON.stringify(prefs[key])) continue;
     prefs[key] = key === 'alerts' ? { ...DEFAULTS.alerts, ...next.alerts } : next[key];
+    if (key === 'vividTeams') applyTeamColors(prefs[key]);
     emit('prefs', key);
   }
 });

@@ -7,7 +7,7 @@ import { Hub } from './hub.js';
 import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError } from './net.js';
-import { circuit, loops } from './circuits.js';
+import { circuit, loops, zones } from './circuits.js';
 import { fiaDocuments } from './fia.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
@@ -95,6 +95,14 @@ async function handleApi(req, res, url) {
       if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
       const data = await circuit(key, year);
       return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Tracé indisponible' });
+    }
+
+    case 'GET /api/zones': {
+      const key = Number(url.searchParams.get('key'));
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
+      const data = await zones(key, year);
+      return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Zones indisponibles' });
     }
 
     case 'GET /api/loops': {
