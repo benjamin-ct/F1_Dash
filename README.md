@@ -68,6 +68,7 @@ La disposition est entièrement libre et conservée d'une session à l'autre :
 - **↗ envoyer vers une autre fenêtre** (second écran) : si une fenêtre secondaire est déjà ouverte, un menu propose d'**ajouter le panneau à cette fenêtre** (plusieurs panneaux réunis dans une seule fenêtre) ou d'en ouvrir une nouvelle. Dans la fenêtre secondaire, les panneaux se disposent et se redimensionnent de la même façon ; **↙** remet un panneau dans la fenêtre principale. Les panneaux détachés disparaissent de la fenêtre principale et y reviennent quand on ferme leur fenêtre. Dans l'application Windows, la fenêtre s'ouvre directement en plein écran sur le second écran.
 - Le délai, le pilote suivi (clic dans le classement → télémétrie, carte…), le duel et les réglages restent synchronisés entre toutes les fenêtres.
 - Le classement s'agrandit pour occuper toute la hauteur disponible (désactivable dans ⚙ → Affichage).
+- **Application Windows** : à la fermeture, les fenêtres détachées (panneaux, position, taille, plein écran) sont mémorisées et rouvertes à leur place au prochain lancement. Option « Rouvrir les fenêtres détachées » dans ⚙ → Affichage. Une fenêtre placée sur un écran qui n'est plus branché rouvre sur l'écran principal.
 
 ## ⏱ Se caler sur le délai de Canal+
 

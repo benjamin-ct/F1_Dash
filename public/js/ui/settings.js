@@ -100,6 +100,12 @@ export function initSettings() {
   setInterval(() => { if (modal.open && !$('#favList .fav')) renderFavs(); }, 1000);
 
   // Application de bureau : connexion F1 TV intégrée (le cookie est lu directement par l'appli).
+  // Application de bureau : fenêtres détachées rouvertes au lancement
+  if (window.f1desktop?.getRestoreWindows) {
+    $('#restoreWinRow').hidden = false;
+    window.f1desktop.getRestoreWindows().then((v) => { $('#restoreWin').checked = v; });
+    $('#restoreWin').addEventListener('change', (e) => window.f1desktop.setRestoreWindows(e.target.checked));
+  }
   if (window.f1desktop?.isDesktop) {
     $('#desktopLogin').hidden = false;
     $('#bookmarkletHelp').hidden = true;

@@ -28,25 +28,67 @@ function stateFile() {
   return path.join(app.getPath('userData'), 'window-state.json');
 }
 
-function loadWindowState() {
+function readState() {
+  try { return JSON.parse(fs.readFileSync(stateFile(), 'utf8')) || {}; } catch { return {}; }
+}
+
+function writeState(patch) {
   try {
-    const st = JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
-    const b = st.bounds;
-    // Fenêtre encore visible sur un des écrans actuels ?
-    const visible = b && screen.getAllDisplays().some((d) => {
-      const a = d.workArea;
-      return b.x + 100 < a.x + a.width && b.x + b.width - 100 > a.x && b.y >= a.y - 20 && b.y + 60 < a.y + a.height;
-    });
-    return { bounds: visible ? b : null, maximized: st.maximized !== false };
-  } catch {
-    return { bounds: null, maximized: true };
-  }
+    fs.writeFileSync(stateFile(), JSON.stringify({ ...readState(), ...patch }));
+  } catch { /* disque en lecture seule : tant pis */ }
+}
+
+// Fenêtre encore visible sur un des écrans actuels ?
+function boundsVisible(b) {
+  return !!b && screen.getAllDisplays().some((d) => {
+    const a = d.workArea;
+    return b.x + 100 < a.x + a.width && b.x + b.width - 100 > a.x && b.y >= a.y - 20 && b.y + 60 < a.y + a.height;
+  });
+}
+
+function loadWindowState() {
+  const st = readState();
+  if (!st.bounds) return { bounds: null, maximized: true };
+  return { bounds: boundsVisible(st.bounds) ? st.bounds : null, maximized: st.maximized !== false };
 }
 
 function saveWindowState(win) {
-  try {
-    fs.writeFileSync(stateFile(), JSON.stringify({ bounds: win.getNormalBounds(), maximized: win.isMaximized() || win.isFullScreen() }));
-  } catch { /* disque en lecture seule : tant pis */ }
+  writeState({ bounds: win.getNormalBounds(), maximized: win.isMaximized() || win.isFullScreen() });
+}
+
+// ---------- Fenêtres détachées (panneaux sur le second écran) ----------
+// Mémorisées à la fermeture de l'appli et rouvertes au lancement (réglable).
+const isPanelUrl = (u) => /[?&](win|panel)=/.test(u || '');
+
+function childWindows() {
+  return BrowserWindow.getAllWindows().filter((w) => w !== mainWindow && w !== loginWindow && !w.isDestroyed() && isPanelUrl(w.webContents.getURL()));
+}
+
+function snapshotChildren() {
+  return childWindows().map((w) => ({
+    search: new URL(w.webContents.getURL()).search,
+    bounds: w.getNormalBounds(),
+    maximized: w.isMaximized() || w.isFullScreen(),
+  }));
+}
+
+const childPrefs = () => ({ contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') });
+
+function restoreChildren(baseUrl) {
+  const st = readState();
+  if (st.restoreWindows === false) return;
+  for (const c of st.children || []) {
+    if (!isPanelUrl(c.search)) continue;
+    const win = new BrowserWindow({
+      autoHideMenuBar: true,
+      backgroundColor: '#0a0c11',
+      ...(boundsVisible(c.bounds) ? c.bounds : { width: 1200, height: 800 }),
+      webPreferences: childPrefs(),
+    });
+    setupContents(win.webContents, baseUrl);
+    if (c.maximized) win.maximize();
+    win.loadURL(`${baseUrl}${c.search}`);
+  }
 }
 
 // Écran différent de celui de la fenêtre principale (second écran), s'il existe.
@@ -138,6 +180,36 @@ async function widevineReady() {
   }
 }
 
+// Ouverture de fenêtres depuis une page de l'appli : panneaux détachés = nouvelle fenêtre de l'appli
+// (directement sur le second écran s'il existe) ; tout le reste (liens, dashboard dans le
+// navigateur pour les flux DRM) s'ouvre dans le navigateur.
+function setupContents(wc, url) {
+  wc.setWindowOpenHandler(({ url: target }) => {
+    if (target.startsWith(url) && isPanelUrl(target)) {
+      const other = otherDisplay();
+      const area = other ? other.workArea : null;
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          autoHideMenuBar: true,
+          backgroundColor: '#0a0c11',
+          ...(area ? { x: area.x + 40, y: area.y + 40, width: Math.min(1400, area.width - 80), height: Math.min(900, area.height - 80) } : {}),
+          webPreferences: childPrefs(),
+        },
+      };
+    }
+    shell.openExternal(target);
+    return { action: 'deny' };
+  });
+  wc.on('did-create-window', (win) => {
+    setupContents(win.webContents, url);
+    if (otherDisplay()) win.maximize();
+  });
+}
+
+ipcMain.handle('restore-windows-get', () => readState().restoreWindows !== false);
+ipcMain.handle('restore-windows-set', (_e, v) => { writeState({ restoreWindows: !!v }); return !!v; });
+
 async function start() {
   await widevineReady();
   const port = await pickPort();
@@ -161,30 +233,9 @@ async function start() {
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
   });
   const url = `http://127.0.0.1:${process.env.PORT}/`;
-  mainWindow.webContents.setWindowOpenHandler(({ url: target }) => {
-    // Panneaux détachés (mode deux écrans) : nouvelle fenêtre de l'appli ; liens externes : navigateur.
-    // (seules les fenêtres de panneaux restent dans l'appli ; le dashboard lui-même, ex. pour les
-    // flux DRM, s'ouvre dans le navigateur)
-    if (target.startsWith(url) && /[?&](win|panel)=/.test(target)) {
-      // Panneau détaché : directement sur le second écran s'il existe.
-      const other = otherDisplay();
-      const area = other ? other.workArea : null;
-      return {
-        action: 'allow',
-        overrideBrowserWindowOptions: {
-          autoHideMenuBar: true,
-          backgroundColor: '#0a0c11',
-          ...(area ? { x: area.x + 40, y: area.y + 40, width: Math.min(1400, area.width - 80), height: Math.min(900, area.height - 80) } : {}),
-          webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
-        },
-      };
-    }
-    shell.openExternal(target);
-    return { action: 'deny' };
-  });
-  mainWindow.webContents.on('did-create-window', (win) => {
-    if (otherDisplay()) win.maximize();
-  });
+  setupContents(mainWindow.webContents, url);
+  // Fenêtres détachées de la dernière session, une fois la page principale prête
+  mainWindow.webContents.once('did-finish-load', () => setTimeout(() => restoreChildren(url), 800));
   // Laisse le serveur démarrer avant de charger la page.
   const load = (tries = 0) => mainWindow.loadURL(url).catch(() => tries < 20 && setTimeout(() => load(tries + 1), 250));
   setTimeout(load, 300);
@@ -194,7 +245,13 @@ async function start() {
   let saveTimer = null;
   const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => mainWindow && saveWindowState(mainWindow), 800); };
   for (const evt of ['resize', 'move', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) mainWindow.on(evt, saveSoon);
-  mainWindow.on('close', () => { clearTimeout(saveTimer); saveWindowState(mainWindow); });
+  mainWindow.on('close', () => {
+    clearTimeout(saveTimer);
+    saveWindowState(mainWindow);
+    // Fenêtres détachées : mémorisées puis fermées avec la fenêtre principale
+    writeState({ children: snapshotChildren() });
+    for (const w of childWindows()) w.destroy();
+  });
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
