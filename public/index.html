@@ -82,6 +82,7 @@
           <span class="map-mode" id="mapMode"></span>
           <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms</label>
           <label class="toggle"><input type="checkbox" id="mapCorners" checked> Virages</label>
+          <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
           <label class="toggle" title="Centrer la carte sur le pilote suivi (clic sur un pilote du classement)"><input type="checkbox" id="mapFollow"> Suivre</label>
           <button class="icon-btn small" id="mapReset" title="Réinitialiser le zoom (ou double-clic sur la carte)">⟲</button>
         </div>
@@ -89,6 +90,7 @@
       <div class="panel-body map-wrap">
         <canvas id="mapCanvas"></canvas>
         <div class="map-legend" id="mapLegend"></div>
+        <div class="map-flags" id="mapFlags"></div>
         <div class="map-empty" id="mapEmpty">Chargement du tracé…</div>
       </div>
     </section>
