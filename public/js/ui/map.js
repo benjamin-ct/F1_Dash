@@ -206,6 +206,45 @@ function locate(lay, r) {
   return { sector: null, mini: null };
 }
 
+// Secteurs de commissaires : positions fournies avec le tracé (MultiViewer) ou, pour un tracé
+// reconstruit à partir du GPS, estimées en découpant le tour en parts égales depuis la ligne
+// (en pratique un secteur tous les ~300 m, numérotés dans le sens de la course).
+let approxMarshal = null;
+
+function marshalLayout() {
+  if (track.marshal.length) return { ranges: track.marshalRanges(), approx: false };
+  let maxSeen = 0;
+  for (const m of list(store.state.RaceControlMessages?.Messages)) {
+    if (m?.Scope === 'Sector' && Number(m.Sector) > maxSeen) maxSeen = Number(m.Sector);
+  }
+  const pts = track.pts;
+  const n = pts.length;
+  const line = store.positions.lineFrac();
+  const key = `${trackKey}|${maxSeen}|${line.toFixed(3)}`;
+  if (approxMarshal?.key === key) return approxMarshal;
+  // Point de départ : ligne de départ/arrivée (temps le plus proche sur le tracé)
+  const tl = line * track.L;
+  let start = 0;
+  for (let i = 1; i < n; i++) if (Math.abs(track.t[i] - tl) < Math.abs(track.t[start] - tl)) start = i;
+  // Distances cumulées depuis la ligne (coordonnées en dixièmes de mètre)
+  const cum = [0];
+  for (let k = 1; k <= n; k++) {
+    const a = pts[(start + k - 1) % n], b = pts[(start + k) % n];
+    cum.push(cum[k - 1] + Math.hypot(b.x - a.x, b.y - a.y));
+  }
+  const total = cum[n];
+  const count = Math.max(maxSeen, Math.round(total / 10 / 300), 1);
+  const idxAt = (d) => {
+    let k = cum.findIndex((c) => c >= d);
+    if (k < 0) k = n;
+    return (start + k) % n;
+  };
+  const bounds = Array.from({ length: count + 1 }, (_, i) => idxAt((i / count) * total));
+  const ranges = Array.from({ length: count }, (_, i) => ({ number: i + 1, from: bounds[i], to: bounds[i + 1] }));
+  approxMarshal = { key, ranges, approx: true };
+  return approxMarshal;
+}
+
 function describeZone(lay, r0, r1) {
   const L = track.L;
   const span = mod(r1 - r0, L);
@@ -385,8 +424,9 @@ function draw() {
 
   // Secteurs de commissaires sous drapeau jaune / double jaune
   const zones = [];
-  if (flags.size && track.marshal.length) {
-    for (const r of track.marshalRanges()) {
+  const marshal = flags.size ? marshalLayout() : null;
+  if (marshal) {
+    for (const r of marshal.ranges) {
       const f = flags.get(r.number);
       if (!f) continue;
       const dbl = f === 'DOUBLE YELLOW';
@@ -409,7 +449,7 @@ function draw() {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${dbl ? '⚑⚑' : '⚑'}${r.number}`, x, y + 0.5);
-      zones.push({ number: r.number, dbl, text: describeZone(lay, r0, r1) });
+      zones.push({ number: r.number, dbl, approx: marshal.approx, text: describeZone(lay, r0, r1) });
     }
   }
 
@@ -480,7 +520,7 @@ function draw() {
   else if (ts === '6') items.push('<div class="mf-banner vsc">Virtual safety car</div>');
   else if (ts === '7') items.push('<div class="mf-banner vsc">Fin de VSC — reprise imminente</div>');
   for (const z of zones.sort((a, b) => a.number - b.number)) {
-    items.push(`<div class="mf-item ${z.dbl ? 'dy' : ''}"><b>${z.dbl ? 'Double jaune' : 'Jaune'}</b> · secteur de commissaires ${z.number}${z.text ? ` · ${z.text}` : ''}</div>`);
+    items.push(`<div class="mf-item ${z.dbl ? 'dy' : ''}"><b>${z.dbl ? 'Double jaune' : 'Jaune'}</b> · secteur de commissaires ${z.number}${z.text ? ` · ${z.text}` : ''}${z.approx ? ' <span class="muted">(position estimée)</span>' : ''}</div>`);
   }
   renderFlagInfo(items.join(''));
 }
