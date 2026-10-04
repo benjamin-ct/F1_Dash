@@ -60,6 +60,11 @@ function bump(topic) {
   store.ver.__any++;
 }
 
+// Force le rafraîchissement des panneaux qui dépendent d'un sujet (ex. couleurs des pilotes).
+export function touch(topic) {
+  bump(topic);
+}
+
 export function versionOf(topics) {
   let v = 0;
   for (const t of topics) v += store.ver[t] || 0;

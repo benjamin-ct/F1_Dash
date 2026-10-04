@@ -228,7 +228,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .pos-delta { font-size: 10.5px; font-weight: 700; margin-left: 1px; }
 .up { color: var(--green); } .down { color: var(--red); }
 .drv { display: flex; align-items: center; gap: 7px; }
-.drv-bar { width: 4px; height: 22px; border-radius: 2px; }
+.drv-bar { width: 6px; height: 22px; border-radius: 2px; flex: none; }
 .drv-tla { font-weight: 900; font-size: 15px; letter-spacing: .3px; min-width: 36px; }
 .drv-num { color: var(--muted); font-size: 11px; min-width: 18px; }
 .drv-tags { display: flex; gap: 3px; }
