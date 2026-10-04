@@ -1,6 +1,6 @@
 // Carte du circuit : tracé, secteurs sous drapeau, voitures (GPS ou estimées), virages.
 import { store, displayNow, f1Now } from '../store.js';
-import { $, api, drivers, teamColor } from '../util.js';
+import { $, api, drivers, teamColor, storageGet, storageSet } from '../util.js';
 import { loadTrack } from '../track.js';
 import { parseUtc } from '/shared/f1.js';
 
@@ -260,7 +260,7 @@ function drawSectorLabels(lay) {
     ctx.font = '800 11px "Titillium Web", sans-serif';
     ctx.fillText(`S${sec.i + 1}`, x, y + 0.5);
   }
-  if (view.z >= 1.8) {
+  if ($('#mapMiniNums').checked && view.z >= 1.5) {
     ctx.font = '700 9.5px "Titillium Web", sans-serif';
     for (const sec of lay.sectors) {
       const mins = lay.minis.filter((m) => m.i === sec.i);
@@ -572,7 +572,20 @@ function drawCars(dt) {
   if (legend.textContent !== txt) legend.textContent = txt;
 }
 
+// Cases de la carte mémorisées d'une session à l'autre
+const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums'];
+
+function initMapOptions() {
+  const saved = storageGet('f1dash.mapOpts', {});
+  for (const id of MAP_OPTS) {
+    const el = $(`#${id}`);
+    if (typeof saved[id] === 'boolean') el.checked = saved[id];
+    el.addEventListener('change', () => storageSet('f1dash.mapOpts', Object.fromEntries(MAP_OPTS.map((k) => [k, $(`#${k}`).checked]))));
+  }
+}
+
 export function initMap() {
+  initMapOptions();
   ctx = canvas().getContext('2d');
   const c = canvas();
   // Zoom à la molette autour du curseur, déplacement à la souris, double-clic = vue d'ensemble.

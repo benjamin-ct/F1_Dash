@@ -697,3 +697,13 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 /* Les classes utilitaires .yellow / .green (texte coloré) ne doivent pas s'appliquer aux bandeaux pleins */
 .track-status.yellow, .flag-banner.yellow { color: #1a1500 !important; }
 .flag-banner.green { color: #002012 !important; }
+/* Bandeaux et pastilles de drapeau : texte bien contrasté et fixe (seul le fond pulse) */
+@keyframes bg-sc { 50% { background-color: #ffcc55; } }
+@keyframes bg-red { 50% { background-color: #ff6157; } }
+@keyframes bg-yellow { 50% { background-color: #ffe066; } }
+.flag-banner, .track-status.sc, .track-status.vsc, .track-status.red, .mf-banner.sc, .mf-banner.red { filter: none !important; }
+.flag-banner.sc, .flag-banner.vsc, .track-status.sc, .track-status.vsc, .mf-banner.sc { color: #000 !important; animation: bg-sc 1.4s ease-in-out infinite; }
+.flag-banner.red, .track-status.red, .mf-banner.red { color: #fff !important; animation: bg-red 1.2s ease-in-out infinite; }
+.flag-banner.yellow, .track-status.yellow { color: #000 !important; animation: bg-yellow 1.6s ease-in-out infinite; }
+.flag-banner .fb-sub { opacity: 1; }
+.flag-banner.sc .fb-icon, .flag-banner.vsc .fb-icon, .flag-banner.yellow .fb-icon, .track-status.sc .ts-dot, .track-status.vsc .ts-dot, .track-status.yellow .ts-dot { background: #000; }
