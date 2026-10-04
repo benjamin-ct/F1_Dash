@@ -42,7 +42,7 @@ export function renderTelemetry() {
   }
   const clamp = (v) => Math.max(0, Math.min(100, v || 0));
   const g = (lbl, val, unit, bar = '') => `<div class="gauge"><div class="gauge-lbl">${lbl}</div><div class="gauge-val">${val}<small> ${unit}</small></div>${bar}</div>`;
-  $('#teleGauges').innerHTML = c ? [
+  const gaugesHtml = c ? [
     g('Vitesse', c.speed ?? '—', 'km/h'),
     g('Rapport', c.gear ?? '—', ''),
     g('Régime', c.rpm ?? '—', 'tr/min', `<div class="bar rpm"><i style="width:${Math.min(100, ((c.rpm || 0) / 13000) * 100)}%"></i></div>`),
@@ -50,6 +50,8 @@ export function renderTelemetry() {
     g('Frein', c.brk === null ? '—' : c.brk > 0 ? 'OUI' : 'non', '', `<div class="bar brk"><i style="width:${c.brk > 0 ? 100 : 0}%"></i></div>`),
     c.drs !== undefined ? g('DRS', c.drs >= 10 ? 'OUVERT' : 'fermé', '') : g('Pilote', esc(d.Tla || num), ''),
   ].join('') : '<div class="muted">Pas de données pour ce pilote à cet instant.</div>';
+  const gEl = $('#teleGauges');
+  if (gEl._html !== gaugesHtml) { gEl.innerHTML = gaugesHtml; gEl._html = gaugesHtml; }
 
   if (now - (renderTelemetry.lastTrace || 0) > 500) {
     renderTelemetry.lastTrace = now;

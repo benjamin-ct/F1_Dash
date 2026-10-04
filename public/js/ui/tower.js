@@ -182,13 +182,14 @@ export function renderTower(force = false) {
 const rowEls = new Map();      // numéro -> <tr>
 const rowHtml = new Map();     // numéro -> contenu actuel
 let headHtml = '';
+let lastOrder = '';
 let captionHtml = '';
 
 function syncTable(table, cutInfo, head, rows) {
   if (!table.tHead || table.dataset.built !== '1') {
     table.innerHTML = '<thead><tr></tr></thead><tbody></tbody>';
     table.dataset.built = '1';
-    rowEls.clear(); rowHtml.clear(); headHtml = ''; captionHtml = '';
+    rowEls.clear(); rowHtml.clear(); headHtml = ''; captionHtml = ''; lastOrder = '';
   }
   if (cutInfo !== captionHtml) {
     table.caption?.remove();
@@ -204,9 +205,13 @@ function syncTable(table, cutInfo, head, rows) {
   }
   tbody.querySelector('td.note')?.parentElement.remove();
 
-  // Positions avant mise à jour (pour l'animation de glissement)
+  // Positions avant mise à jour (pour l'animation de glissement) : mesurées seulement si l'ordre
+  // change, pour ne pas forcer un recalcul de mise en page à chaque rafraîchissement.
+  const order = rows.map((r) => r.num).join();
+  const reordered = order !== lastOrder;
+  lastOrder = order;
   const before = new Map();
-  for (const [num, tr] of rowEls) if (tr.isConnected) before.set(num, tr.getBoundingClientRect().top);
+  if (reordered) for (const [num, tr] of rowEls) if (tr.isConnected) before.set(num, tr.getBoundingClientRect().top);
 
   const keep = new Set();
   rows.forEach((r, i) => {
@@ -239,7 +244,7 @@ function syncTable(table, cutInfo, head, rows) {
   flashes.clear();
 
   // Glissement : chaque ligne déplacée part de son ancienne place et rejoint la nouvelle
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!reordered || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const zoom = Number(table.style.zoom) || 1;
   for (const [num, tr] of rowEls) {
     const old = before.get(num);

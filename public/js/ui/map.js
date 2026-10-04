@@ -444,6 +444,74 @@ function draw() {
   const scMode = sc || vsc;
   const lay = timingLayout();
 
+  const animated = red || scMode || [...flags.values()].includes('DOUBLE YELLOW');
+  const bgKey = [size.w, size.h, size.dpr, view.x.toFixed(1), view.y.toFixed(1), view.z.toFixed(3), ts, [...flags].join(),
+    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status].join('|');
+  let flagZones;
+  if (!animated && bg.key === bgKey && bg.canvas) {
+    ctx.drawImage(bg.canvas, 0, 0, size.w, size.h);
+    flagZones = bg.flagZones;
+  } else if (animated) {
+    bg.key = '';
+    flagZones = drawBackground(now, red, sc, vsc, scMode, flags, lay);
+  } else {
+    // Nouveau fond : dessiné hors écran puis recopié
+    if (!bg.canvas) bg.canvas = document.createElement('canvas');
+    if (bg.canvas.width !== canvas().width || bg.canvas.height !== canvas().height) {
+      bg.canvas.width = canvas().width;
+      bg.canvas.height = canvas().height;
+    }
+    const main = ctx;
+    ctx = bg.canvas.getContext('2d');
+    ctx.setTransform(size.dpr, 0, 0, size.dpr, 0, 0);
+    ctx.clearRect(0, 0, size.w, size.h);
+    try { flagZones = drawBackground(now, red, sc, vsc, scMode, flags, lay); } finally { ctx = main; }
+    bg.key = bgKey;
+    bg.flagZones = flagZones;
+    ctx.drawImage(bg.canvas, 0, 0, size.w, size.h);
+  }
+
+  drawCars(dt);
+
+  // Voiture de sécurité : position estimée juste devant le leader
+  if (sc && !red) {
+    const lr = leaderR();
+    if (lr !== null) {
+      const p = screenAt(lr + track.L / 45);
+      ctx.beginPath();
+      ctx.roundRect(p.x - 13, p.y - 9, 26, 18, 4);
+      ctx.fillStyle = '#ffb020';
+      ctx.fill();
+      ctx.strokeStyle = '#1d1200';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#1d1200';
+      ctx.font = '900 11px "Titillium Web", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('SC', p.x, p.y + 0.5);
+    }
+  }
+
+  // Informations : bandeau drapeau rouge / SC / VSC et zones sous drapeau jaune
+  const items = [];
+  if (red) items.push('<div class="mf-banner red">Drapeau rouge — séance arrêtée</div>');
+  else if (sc) items.push(`<div class="mf-banner sc">Safety car${scEnding() ? ' — rentre à la fin du tour' : ' en piste'}${leaderR() !== null ? ' · position estimée' : ''}</div>`);
+  else if (ts === '6') items.push('<div class="mf-banner vsc">Virtual safety car</div>');
+  else if (ts === '7') items.push('<div class="mf-banner vsc">Fin de VSC — reprise imminente</div>');
+  for (const z of flagZones.sort((a, b) => a.number - b.number)) {
+    items.push(`<div class="mf-item ${z.dbl ? 'dy' : ''}"><b>${z.dbl ? 'Double jaune' : 'Jaune'}</b> · secteur de commissaires ${z.number}${z.text ? ` · ${z.text}` : ''}${z.approx ? ' <span class="muted">(position estimée)</span>' : ''}</div>`);
+  }
+  renderFlagInfo(items.join(''));
+}
+
+// Fond de carte (tracé, secteurs, zones, drapeaux, virages…) : dessiné dans un calque mis en
+// cache et seulement recopié à chaque image tant que rien ne change (la carte ne fait alors
+// plus que déplacer les voitures, beaucoup moins coûteux).
+const bg = { canvas: null, key: '', flagZones: [] };
+
+function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
+  const pts = xf.screen;
   // Drapeau rouge : toute la carte en rouge
   if (red) {
     const pulse = 0.16 + 0.06 * Math.sin(now / 260);
@@ -562,39 +630,7 @@ function draw() {
   }
 
   if (!red && !scMode && $('#mapSectors').checked) drawSectorLabels(lay);
-
-  drawCars(dt);
-
-  // Voiture de sécurité : position estimée juste devant le leader
-  if (sc && !red) {
-    const lr = leaderR();
-    if (lr !== null) {
-      const p = screenAt(lr + track.L / 45);
-      ctx.beginPath();
-      ctx.roundRect(p.x - 13, p.y - 9, 26, 18, 4);
-      ctx.fillStyle = '#ffb020';
-      ctx.fill();
-      ctx.strokeStyle = '#1d1200';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-      ctx.fillStyle = '#1d1200';
-      ctx.font = '900 11px "Titillium Web", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('SC', p.x, p.y + 0.5);
-    }
-  }
-
-  // Informations : bandeau drapeau rouge / SC / VSC et zones sous drapeau jaune
-  const items = [];
-  if (red) items.push('<div class="mf-banner red">Drapeau rouge — séance arrêtée</div>');
-  else if (sc) items.push(`<div class="mf-banner sc">Safety car${scEnding() ? ' — rentre à la fin du tour' : ' en piste'}${leaderR() !== null ? ' · position estimée' : ''}</div>`);
-  else if (ts === '6') items.push('<div class="mf-banner vsc">Virtual safety car</div>');
-  else if (ts === '7') items.push('<div class="mf-banner vsc">Fin de VSC — reprise imminente</div>');
-  for (const z of flagZones.sort((a, b) => a.number - b.number)) {
-    items.push(`<div class="mf-item ${z.dbl ? 'dy' : ''}"><b>${z.dbl ? 'Double jaune' : 'Jaune'}</b> · secteur de commissaires ${z.number}${z.text ? ` · ${z.text}` : ''}${z.approx ? ' <span class="muted">(position estimée)</span>' : ''}</div>`);
-  }
-  renderFlagInfo(items.join(''));
+  return flagZones;
 }
 
 function drawCars(dt) {
