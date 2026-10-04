@@ -190,6 +190,7 @@ async function start() {
     applyVolume();
     selectLanguage();
     await media().play().catch(() => {});
+    showBrowserLink(false);
     status(`Lecture en cours · ${stream.streamType || stream.format}${stream.drm ? ` · DRM ${stream.drm}` : ''}`, 'ok');
     renderLanguages();
     startSync();
