@@ -733,3 +733,43 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .transcripts .t-main { font-size: 14px; line-height: 1.35; }
 .transcripts .t-orig { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 2px; }
 .transcripts .pending { color: var(--muted); font-style: normal; }
+
+/* ---------- Panneau Analyse (race trace, positions, temps, pneus, secteurs) ---------- */
+.tabpane.ana-pane.active { display: flex; flex-direction: column; height: 100%; }
+.ana-chart { position: relative; flex: 1; min-height: 160px; }
+.ana-chart canvas { position: absolute; inset: 0; cursor: crosshair; }
+.ana-tip { position: absolute; z-index: 5; pointer-events: none; background: rgba(13, 16, 23, .95); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 11.5px; min-width: 150px; max-height: calc(100% - 8px); overflow: hidden; }
+.ana-tip b { display: block; margin-bottom: 3px; }
+.ana-tip div { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ana-tip div i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.ana-tip div span { margin-left: auto; padding-left: 10px; font-variant-numeric: tabular-nums; }
+.ana-tip em { color: var(--muted); font-style: normal; font-size: 10px; }
+.tyre-hist-wrap { overflow: auto; height: 100%; }
+.tyre-hist { border-collapse: separate; border-spacing: 2px; font-size: 11px; font-variant-numeric: tabular-nums; }
+.tyre-hist th { color: var(--muted); font-weight: 600; padding: 2px 4px; text-align: center; }
+.tyre-hist th.sticky { position: sticky; left: 0; background: var(--panel); z-index: 1; text-align: left; }
+.tyre-hist td { padding: 2px 5px; text-align: center; border-radius: 3px; white-space: nowrap; background: color-mix(in srgb, var(--tc) 22%, transparent); border-bottom: 2px solid var(--tc); }
+.tyre-hist td:empty { background: none; border: 0; }
+.tyre-hist td.pit { outline: 1px solid #fff; }
+.tyre-hist td.best { color: #d58cff; font-weight: 700; }
+.tyre-legend { padding: 6px 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+.tyre-legend span { border-bottom: 2px solid var(--tc); }
+.sector-board { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.sector-board th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; padding: 5px 6px; text-align: right; cursor: pointer; white-space: nowrap; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--panel); }
+.sector-board th:nth-child(-n+2) { text-align: left; cursor: default; }
+.sector-board th.sorted { color: var(--text); }
+.sector-board th.sorted::after { content: ' ▾'; }
+.sector-board td { padding: 4px 6px; text-align: right; border-bottom: 1px solid #1a1f2b; }
+.sector-board td:nth-child(-n+2) { text-align: left; }
+.sector-board td.purple { color: #d58cff; font-weight: 700; }
+.sector-board tr[data-num] { cursor: pointer; }
+.sector-board tr[data-num]:hover td { background: #171c27; }
+
+/* Réglages en onglets */
+.set-nav { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.set-tab { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.set-tab:hover { color: var(--text); }
+.set-tab.active { color: var(--text); border-bottom-color: var(--red); }
+#settingsModal .set-block.set-hidden { display: none; }
+/* Panneaux à nombreux onglets : onglets plus compacts pour tenir sur une ligne */
+.p-analysis .tab, .p-extra .tab { padding: 4px 7px; letter-spacing: .2px; font-size: 12px; }

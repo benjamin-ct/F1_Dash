@@ -7,11 +7,16 @@ import { on } from '../store.js';
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
   { id: 'map', cls: 'p-map', name: 'Circuit' },
-  { id: 'feed', cls: 'p-feed', name: 'Direction de course / radios / arrêts' },
+  { id: 'feed', cls: 'p-feed', name: 'Direction de course (messages, enquêtes, limites de piste)' },
+  { id: 'radio', cls: 'p-radio', name: 'Radios (transcriptions, audio)' },
   { id: 'duel', cls: 'p-duel', name: 'Duel' },
-  { id: 'extra', cls: 'p-extra', name: 'Télémétrie / stratégie / pneus…' },
+  { id: 'analysis', cls: 'p-analysis', name: 'Analyse (race trace, positions, temps, pneus, secteurs, télémétrie)' },
+  { id: 'extra', cls: 'p-extra', name: 'Stratégie & course (arrêts, stratégie, simulateur, bagarres, météo, championnat)' },
 ];
-const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Direction de course', duel: 'Duel', extra: 'Télémétrie' };
+const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Direction de course', radio: 'Radios', duel: 'Duel', analysis: 'Analyse', extra: 'Stratégie' };
+// Panneaux ajoutés dans une version plus récente : placés à côté d'un panneau existant
+// (dans la même colonne) quand on reprend une disposition enregistrée.
+const ADDED_NEAR = { radio: ['feed', 1], analysis: ['extra', 0] }; // [voisin, 1 = après / 0 = avant]
 
 export const COLUMNS = [
   ['int', 'Intervalle'], ['last', 'Dernier tour'], ['best', 'Meilleur tour'], ['sec', 'Secteurs'], ['pred', 'Tour en cours (qualifs)'],
@@ -39,14 +44,14 @@ function defaultLayout() {
   if (!isMain) return { cols: [] };
   if (window.innerWidth <= 1500) {
     return { cols: [
-      { w: 1.2, items: [{ id: 'tower', h: 1.3 }, { id: 'feed', h: 0.8 }] },
-      { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 1 }, { id: 'extra', h: 0.9 }] },
+      { w: 1.2, items: [{ id: 'tower', h: 1.4 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.7 }] },
+      { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.9 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.8 }] },
     ] };
   }
   return { cols: [
     { w: 1.6, items: [{ id: 'tower', h: 1 }] },
-    { w: 1, items: [{ id: 'map', h: 1.15 }, { id: 'feed', h: 1 }] },
-    { w: 0.95, items: [{ id: 'duel', h: 1.15 }, { id: 'extra', h: 1 }] },
+    { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'feed', h: 0.75 }, { id: 'radio', h: 0.75 }] },
+    { w: 0.95, items: [{ id: 'duel', h: 0.85 }, { id: 'analysis', h: 1.1 }, { id: 'extra', h: 0.85 }] },
   ] };
 }
 
@@ -65,7 +70,12 @@ function normalize(l) {
     for (const p of PANELS) {
       if (seen.has(p.id)) continue;
       if (!cols.length) cols.push({ w: 1, items: [] });
-      cols[cols.length - 1].items.push({ id: p.id, h: 1 });
+      // Nouveau panneau : sous son voisin naturel s'il est dans cette fenêtre, sinon en dernière colonne
+      const [near, after] = ADDED_NEAR[p.id] || [];
+      const col = cols.find((c) => c.items.some((it) => it.id === near));
+      if (col) col.items.splice(col.items.findIndex((it) => it.id === near) + after, 0, { id: p.id, h: 0.8 });
+      else cols[cols.length - 1].items.push({ id: p.id, h: 1 });
+      seen.add(p.id);
     }
   }
   return { cols };

@@ -69,6 +69,13 @@ async function control(body) {
 }
 
 export function initSettings() {
+  // Réglages en onglets (Source, Compte F1 TV, Affichage, Alertes, Application)
+  const showGroup = (g) => {
+    for (const b of document.querySelectorAll('#setNav .set-tab')) b.classList.toggle('active', b.dataset.sgroup === g);
+    for (const sec of document.querySelectorAll('#settingsModal .set-block')) sec.classList.toggle('set-hidden', sec.dataset.sgroup !== g);
+  };
+  $('#setNav').addEventListener('click', (e) => { const b = e.target.closest('.set-tab'); if (b) showGroup(b.dataset.sgroup); });
+  showGroup('source');
   const modal = $('#settingsModal');
   const open = () => { modal.showModal(); refreshAuth(); renderRecordings(); renderFavs(); };
   $('#settingsBtn').addEventListener('click', open);

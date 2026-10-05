@@ -16,6 +16,7 @@ import { initRadio, initStewards, renderStewards, initRcmFilters } from './ui/fe
 import { initLayout } from './ui/layout.js';
 import { initUpdates } from './ui/updates.js';
 import { initCommentary } from './ui/commentary.js';
+import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -57,6 +58,7 @@ function loop() {
   safe(renderPitSim);
   safe(renderBattles);
   safe(renderStewards);
+  safe(renderAnalysis);
   setTimeout(loop, 100);
 }
 
@@ -74,6 +76,7 @@ initStewards();
 initLayout();
 initUpdates();
 initCommentary();
+initAnalysis();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));
