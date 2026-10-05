@@ -60,7 +60,7 @@ let transcriptVer = '';
 
 // Onglet Transcriptions : radios retranscrites en texte (et traduites), plus récentes en haut.
 export function renderTranscripts() {
-  const v = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${prefs.radioFilter}|${prefs.radioText}|${prefs.radioLang}|${textVer}`;
+  const v = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${prefs.radioFilter}|${prefs.radioText}|${prefs.radioLang}|${prefs.radioQuality}|${textVer}`;
   if (v === transcriptVer) return;
   transcriptVer = v;
   const dl = drivers(store.state);
@@ -73,7 +73,10 @@ export function renderTranscripts() {
     return;
   }
   if (!caps.length || !base) { el.innerHTML = '<li class="note">Aucune radio d\'équipe pour l\'instant.</li>'; return; }
-  requestTranscripts(caps.slice(0, 40).map((c) => base + c.Path));
+  requestTranscripts(caps.slice(0, 40).map((c) => {
+    const d = dl[c.RacingNumber] || {};
+    return { url: base + c.Path, who: [d.FullName || d.Tla, d.TeamName].filter(Boolean).join(', ') };
+  }));
   const lang = prefs.radioLang;
   // Ne pas reconstruire la liste pendant une lecture audio.
   if ([...el.querySelectorAll('audio')].some((a) => !a.paused)) { transcriptVer = ''; return; }
@@ -304,14 +307,17 @@ export function initRadio() {
   $('#radioAuto').addEventListener('change', (e) => setPref('radioAuto', e.target.checked));
   $('#radioText').checked = prefs.radioText;
   $('#radioLang').value = prefs.radioLang;
-  setTranscribe(prefs.radioText, prefs.radioLang);
+  $('#radioQuality').value = prefs.radioQuality;
+  setTranscribe(prefs.radioText, prefs.radioLang, prefs.radioQuality);
   $('#radioText').addEventListener('change', (e) => setPref('radioText', e.target.checked));
   $('#radioLang').addEventListener('change', (e) => setPref('radioLang', e.target.value));
+  $('#radioQuality').addEventListener('change', (e) => setPref('radioQuality', e.target.value));
   on('prefs', (k) => {
-    if (k !== 'radioText' && k !== 'radioLang') return;
+    if (!['radioText', 'radioLang', 'radioQuality'].includes(k)) return;
     $('#radioText').checked = prefs.radioText;
     $('#radioLang').value = prefs.radioLang;
-    setTranscribe(prefs.radioText, prefs.radioLang);
+    $('#radioQuality').value = prefs.radioQuality;
+    setTranscribe(prefs.radioText, prefs.radioLang, prefs.radioQuality);
   });
   // Écoute d'une radio depuis l'onglet Transcriptions
   let tPlayer = null;

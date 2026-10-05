@@ -69,6 +69,13 @@ async function control(body) {
 }
 
 export function initSettings() {
+  // Réglages en onglets (Source, Compte F1 TV, Affichage, Alertes, Application)
+  const showGroup = (g) => {
+    for (const b of document.querySelectorAll('#setNav .set-tab')) b.classList.toggle('active', b.dataset.sgroup === g);
+    for (const sec of document.querySelectorAll('#settingsModal .set-block')) sec.classList.toggle('set-hidden', sec.dataset.sgroup !== g);
+  };
+  $('#setNav').addEventListener('click', (e) => { const b = e.target.closest('.set-tab'); if (b) showGroup(b.dataset.sgroup); });
+  showGroup('source');
   const modal = $('#settingsModal');
   const open = () => { modal.showModal(); refreshAuth(); renderRecordings(); renderFavs(); };
   $('#settingsBtn').addEventListener('click', open);
@@ -101,6 +108,9 @@ export function initSettings() {
 
   // Application de bureau : connexion F1 TV intégrée (le cookie est lu directement par l'appli).
   // Application de bureau : fenêtres détachées rouvertes au lancement
+  $('#themeSel').value = prefs.theme;
+  $('#themeSel').addEventListener('change', (e) => setPref('theme', e.target.value));
+  on('prefs', (k) => { if (k === 'theme') $('#themeSel').value = prefs.theme; });
   $('#vividTeams').checked = prefs.vividTeams;
   $('#vividTeams').addEventListener('change', (e) => setPref('vividTeams', e.target.checked));
   on('prefs', (k) => { if (k === 'vividTeams') $('#vividTeams').checked = prefs.vividTeams; });

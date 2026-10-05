@@ -6,6 +6,7 @@
   <title>F1 Dash</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e10600'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='900' font-size='15' fill='white' text-anchor='middle'%3EF1%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/css/style.css">
+  <script>try { document.documentElement.dataset.theme = (JSON.parse(localStorage.getItem('f1dash.prefs') || '{}').theme) || 'noir'; } catch { document.documentElement.dataset.theme = 'noir'; }</script>
 </head>
 <body>
   <header class="topbar">
@@ -49,7 +50,7 @@
     </button>
     <button class="icon-btn comm-btn" id="commBtn" title="Commentaires en direct F1 TV Pro (touche C : couper / remettre le son)">🎙</button>
     <button class="icon-btn" id="resetUiBtn" title="Réinitialiser l'interface (disposition, panneaux et colonnes par défaut)">⟲</button>
-    <button class="icon-btn" id="settingsBtn" title="Réglages (source, replay, F1 TV)">⚙</button>
+    <button class="icon-btn" id="settingsBtn" title="Réglages : source (live / replay), compte F1 TV, affichage, alertes, application">⚙</button>
   </header>
 
   <div class="flag-banner" id="flagBanner" hidden><span class="fb-icon"></span><span class="fb-text"></span><span class="fb-sub"></span></div>
@@ -104,9 +105,6 @@
         <button class="tab active" data-tab="rcm">Direction de course</button>
         <button class="tab" data-tab="stewards" title="Suivi des enquêtes des commissaires">Enquêtes <span class="tab-badge" id="stewardsBadge" hidden></span></button>
         <button class="tab" data-tab="tracklimits" title="Tours et temps supprimés pour limites de piste">Limites de piste <span class="tab-badge" id="tlBadge" hidden></span></button>
-        <button class="tab" data-tab="radio">Radios</button>
-        <button class="tab" data-tab="transcripts" title="Radios d'équipe retranscrites en texte et traduites">Transcriptions</button>
-        <button class="tab" data-tab="pits">Arrêts</button>
       </div>
       <div class="panel-body">
         <div class="tabpane active" data-pane="rcm">
@@ -126,6 +124,24 @@
           <div id="stewardsList"></div>
         </div>
         <div class="tabpane" data-pane="tracklimits"><div id="tlList"></div></div>
+      </div>
+    </section>
+
+    <section class="panel p-radio">
+      <div class="panel-head tabs" data-tabs="radio">
+        <button class="tab active" data-tab="transcripts" title="Radios d'équipe retranscrites en texte et traduites">Transcriptions</button>
+        <button class="tab" data-tab="radio" title="Radios d'équipe (audio)">Audio</button>
+      </div>
+      <div class="panel-body">
+        <div class="tabpane active" data-pane="transcripts">
+          <div class="subbar">
+            <label class="toggle" title="Retranscrit chaque radio d'équipe en texte, directement sur cet ordinateur. Premier usage : téléchargement des modèles (haute qualité ~4,5 Go, légère ~130 Mo), puis tout reste en local."><input type="checkbox" id="radioText"> Transcrire les radios</label>
+            <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
+            <label class="small" title="Haute qualité : Whisper large-v3-turbo + modèle de langage (Qwen3-4B) qui connaît le contexte F1 ; nécessite une carte graphique (environ 4,5 Go téléchargés une fois). Légère : petits modèles sur le processeur, plus approximatifs.">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Auto</option><option value="high">Haute (carte graphique)</option><option value="light">Légère (processeur)</option></select></label>
+            <span class="muted small" id="radioTextStatus"></span>
+          </div>
+          <ul class="transcripts" id="transcriptList"></ul>
+        </div>
         <div class="tabpane" data-pane="radio">
           <div class="subbar">
             <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
@@ -133,15 +149,6 @@
           </div>
           <ul class="radio" id="radioList"></ul>
         </div>
-        <div class="tabpane" data-pane="transcripts">
-          <div class="subbar">
-            <label class="toggle" title="Retranscrit chaque radio d'équipe en texte, directement sur cet ordinateur. Premier usage : téléchargement des modèles (reconnaissance vocale ~80 Mo, traduction ~50 Mo), puis tout reste en local."><input type="checkbox" id="radioText"> Transcrire les radios</label>
-            <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
-            <span class="muted small" id="radioTextStatus"></span>
-          </div>
-          <ul class="transcripts" id="transcriptList"></ul>
-        </div>
-        <div class="tabpane" data-pane="pits"><div id="pitList"></div></div>
       </div>
     </section>
 
@@ -159,20 +166,56 @@
       <div class="panel-body" id="duelBody"></div>
     </section>
 
+    <section class="panel p-analysis">
+      <div class="panel-head tabs" data-tabs="analysis">
+        <button class="tab active" data-tab="trace" title="Écarts de chaque pilote tour par tour (dépassements, undercuts, arrêts)">Race trace</button>
+        <button class="tab" data-tab="positions" title="Positions tour par tour">Positions</button>
+        <button class="tab" data-tab="laptimes" title="Temps au tour de chaque pilote">Temps</button>
+        <button class="tab" data-tab="tyrehist" title="Tous les tours de chaque pilote, colorés selon le pneu">Pneus</button>
+        <button class="tab" data-tab="sectors" title="Meilleurs secteurs, tour idéal et vitesses de pointe">Secteurs</button>
+        <button class="tab" data-tab="telemetry" title="Télémétrie du pilote suivi">Télémétrie</button>
+      </div>
+      <div class="panel-body">
+        <div class="tabpane active ana-pane" data-pane="trace">
+          <div class="subbar">
+            <label class="small">Référence <select id="anaTrace"><option value="leader">Écart au leader</option><option value="average">Écart au rythme moyen</option><option value="driver">Écart à un pilote</option></select></label>
+            <label class="small" id="anaRefWrap" hidden>Pilote <select id="anaRef"></select></label>
+            <label class="small">Pilotes <select class="ana-scope"><option value="top10">10 premiers</option><option value="all">Tous</option><option value="favs">Mes favoris</option><option value="duel">Duel / suivi</option></select></label>
+            <label class="small">Échelle <select id="anaClamp"><option value="20">20 s</option><option value="60">60 s</option><option value="120">2 min</option><option value="0">Tout</option></select></label>
+          </div>
+          <div class="ana-chart"><canvas id="anaTraceCanvas"></canvas><div class="ana-tip" hidden></div></div>
+        </div>
+        <div class="tabpane ana-pane" data-pane="positions">
+          <div class="subbar"><label class="small">Pilotes <select class="ana-scope"><option value="top10">10 premiers</option><option value="all">Tous</option><option value="favs">Mes favoris</option><option value="duel">Duel / suivi</option></select></label><span class="small muted">Point = arrêt aux stands</span></div>
+          <div class="ana-chart"><canvas id="anaPosCanvas"></canvas><div class="ana-tip" hidden></div></div>
+        </div>
+        <div class="tabpane ana-pane" data-pane="laptimes">
+          <div class="subbar">
+            <label class="small">Pilotes <select class="ana-scope"><option value="top10">10 premiers</option><option value="all">Tous</option><option value="favs">Mes favoris</option><option value="duel">Duel / suivi</option></select></label>
+            <label class="toggle small"><input type="checkbox" id="anaSlow"> Masquer les tours lents (stands, safety car)</label>
+          </div>
+          <div class="ana-chart"><canvas id="anaLapCanvas"></canvas><div class="ana-tip" hidden></div></div>
+        </div>
+        <div class="tabpane" data-pane="tyrehist"><div class="tyre-hist-wrap" id="anaTyres"></div></div>
+        <div class="tabpane" data-pane="sectors"><div id="anaSectors"></div></div>
+        <div class="tabpane" data-pane="telemetry" id="telemetry"></div>
+      </div>
+    </section>
+
     <section class="panel p-extra">
       <div class="panel-head tabs" data-tabs="extra">
-        <button class="tab active" data-tab="telemetry">Télémétrie</button>
-        <button class="tab" data-tab="pitsim" title="Simulateur d'arrêt au stand">Stands</button>
+        <button class="tab active" data-tab="pits">Arrêts</button>
+        <button class="tab" data-tab="strategy" title="Relais et pneus de chaque pilote">Stratégie</button>
+        <button class="tab" data-tab="pitsim" title="Simulateur d'arrêt au stand">Simul.</button>
         <button class="tab" data-tab="battles">Bagarres</button>
-        <button class="tab" data-tab="strategy">Pneus</button>
         <button class="tab" data-tab="weather">Météo</button>
         <button class="tab" data-tab="champ" title="Projection du championnat">Champ.</button>
       </div>
       <div class="panel-body">
-        <div class="tabpane active" data-pane="telemetry" id="telemetry"></div>
+        <div class="tabpane active" data-pane="pits"><div id="pitList"></div></div>
+        <div class="tabpane" data-pane="strategy" id="strategy"></div>
         <div class="tabpane" data-pane="pitsim" id="pitsim"></div>
         <div class="tabpane" data-pane="battles" id="battles"></div>
-        <div class="tabpane" data-pane="strategy" id="strategy"></div>
         <div class="tabpane" data-pane="weather" id="weather"></div>
         <div class="tabpane" data-pane="champ" id="champ"></div>
       </div>
@@ -209,17 +252,24 @@
   <!-- Réglages -->
   <dialog class="modal wide" id="settingsModal">
     <form method="dialog" class="modal-head">
-      <h3>⚙ Source des données</h3>
+      <h3>⚙ Réglages</h3>
       <button class="icon-btn" value="close" aria-label="Fermer">✕</button>
     </form>
+    <nav class="set-nav" id="setNav">
+      <button class="set-tab active" data-sgroup="source">📡 Source</button>
+      <button class="set-tab" data-sgroup="f1tv">🔐 Compte F1 TV</button>
+      <button class="set-tab" data-sgroup="display">🧩 Affichage</button>
+      <button class="set-tab" data-sgroup="alerts">🔔 Alertes & favoris</button>
+      <button class="set-tab" data-sgroup="app">⚙ Application</button>
+    </nav>
     <div class="modal-body">
-      <section class="set-block">
+      <section class="set-block" data-sgroup="source">
         <h4>🔴 Live</h4>
         <p class="muted small">Se connecte au flux officiel F1 Live Timing (session en cours ou dernière session).</p>
         <button class="btn btn-accent" id="goLive">Passer en live</button>
       </section>
 
-      <section class="set-block">
+      <section class="set-block" data-sgroup="source">
         <h4>⏪ Replay d'une session passée</h4>
         <div class="row">
           <select id="rpYear"></select>
@@ -234,13 +284,13 @@
         <span class="muted small" id="rpMsg"></span>
       </section>
 
-      <section class="set-block">
+      <section class="set-block" data-sgroup="source">
         <h4>💾 Mes enregistrements</h4>
         <p class="muted small">Chaque session suivie en live est enregistrée sur ce PC (dossier <code>recordings/</code>) et peut être rejouée immédiatement.</p>
         <div id="recList" class="rec-list"></div>
       </section>
 
-      <section class="set-block">
+      <section class="set-block" data-sgroup="f1tv">
         <h4>📡 Positions GPS & télémétrie en live (F1 TV)</h4>
         <p class="small">Depuis 2025, la F1 réserve les positions GPS et la télémétrie du flux live aux abonnés <b>F1 TV</b>.
           Sans jeton, le dashboard <b>estime</b> la position des voitures à partir des chronos (mini-secteurs) : c'est moins précis mais fonctionne.
@@ -269,7 +319,7 @@
         <div class="small" id="tokenStatus"></div>
       </section>
 
-      <section class="set-block" id="updateBlock" hidden>
+      <section class="set-block" data-sgroup="app" id="updateBlock" hidden>
         <h4>🔄 Mises à jour de l'application</h4>
         <div class="small" id="updateStatus">—</div>
         <div class="row">
@@ -279,13 +329,13 @@
         </div>
       </section>
 
-      <section class="set-block">
+      <section class="set-block" data-sgroup="alerts">
         <h4>🔔 Alertes (synchronisées avec votre délai TV)</h4>
         <div class="row" id="alertOpts"></div>
         <div class="row"><span class="small">Pilotes favoris (cliquez pour ajouter/retirer — ou sur l'étoile ☆ à côté du nom dans le classement) :</span><div id="favList" class="fav-list"></div></div>
       </section>
 
-      <section class="set-block">
+      <section class="set-block" data-sgroup="display">
         <h4>🧩 Affichage</h4>
         <div class="small muted">Disposition libre : glissez un panneau par sa poignée <b>⠿</b> à côté, au-dessus ou en dessous d'un autre (ou au centre pour les échanger) ; glissez les espaces entre les panneaux pour changer leur taille (double-clic : partage égal). <b>↗</b> envoie un panneau vers une nouvelle fenêtre ou l'ajoute à une fenêtre déjà ouverte (second écran), où il se dispose de la même façon ; <b>↙</b> le remet ici.</div>
         <div class="row"><button class="btn small" id="layoutReset">Réinitialiser l'interface</button> <span class="small muted">(aussi avec le bouton ⟲ en haut)</span></div>
@@ -294,11 +344,12 @@
         <div class="small muted">Colonnes du classement :</div>
         <div class="row" id="colOpts"></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="towerFit"> Agrandir le classement pour remplir la hauteur disponible (grand écran, fenêtre détachée)</label></div>
+        <div class="row"><label class="small">Thème <select id="themeSel"><option value="noir">Noir (par défaut)</option><option value="bleu">Bleu nuit</option></select></label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées (une teinte bien distincte par équipe ; décoché : couleurs officielles)</label></div>
         <div class="row" id="restoreWinRow" hidden><label class="toggle small"><input type="checkbox" id="restoreWin"> Rouvrir les fenêtres détachées (second écran) à leur place au lancement de l'application</label></div>
       </section>
 
-      <section class="set-block">
+      <section class="set-block" data-sgroup="app">
         <h4>⌨ Raccourcis</h4>
         <p class="small muted">← / → : délai ±1 s · Maj : ±5 s · Alt : ±0,1 s · S : synchro TV · Espace : pause (replay) · M : couper les alertes sonores · Échap : quitter le panneau agrandi</p>
       </section>

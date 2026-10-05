@@ -8,10 +8,12 @@ const DEFAULTS = {
   hiddenPanels: [],
   hiddenCols: [],
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
+  theme: 'noir',          // 'noir' | 'bleu'
   vividTeams: true,       // couleurs d'équipe contrastées plutôt qu'officielles
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
   radioLang: 'fr',        // langue de traduction des transcriptions ('none' : anglais)
+  radioQuality: 'auto',   // modèles de transcription : 'auto' | 'high' (carte graphique) | 'light'
   radioFilter: 'all',
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'
   commLang: 'FRA',        // commentaires F1 TV : langue
@@ -43,6 +45,7 @@ function applyTeamColors(v) {
 export function setPref(key, value) {
   prefs[key] = value;
   if (key === 'vividTeams') applyTeamColors(value);
+  if (key === 'theme') document.documentElement.dataset.theme = value;
   storageSet('f1dash.prefs', prefs);
   emit('prefs', key);
 }
@@ -65,6 +68,7 @@ window.addEventListener('storage', (e) => {
     if (!(key in next) || JSON.stringify(next[key]) === JSON.stringify(prefs[key])) continue;
     prefs[key] = key === 'alerts' ? { ...DEFAULTS.alerts, ...next.alerts } : next[key];
     if (key === 'vividTeams') applyTeamColors(prefs[key]);
+    if (key === 'theme') document.documentElement.dataset.theme = prefs[key];
     emit('prefs', key);
   }
 });

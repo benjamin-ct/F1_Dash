@@ -13,6 +13,9 @@ let worker = null;
 let busy = false;
 let enabled = false;
 let lang = 'fr';
+let qualityPref = 'auto';     // 'auto' | 'high' | 'light'
+let quality = null;           // niveau effectif (résolu au premier usage)
+let highFailed = false;
 let isTranscriber = !navigator.locks;
 let status = { state: 'idle', msg: '' };
 let retryAt = 0;
@@ -51,23 +54,41 @@ function save() {
   storageSet(KEY, texts);
 }
 
-export function setTranscribe(on, language) {
+export function setTranscribe(on, language, q = 'auto') {
   enabled = !!on;
   lang = language || 'none';
+  if (q !== qualityPref) { qualityPref = q; quality = null; }
   if (enabled) pump();
 }
 
-// Radios à transcrire / traduire (les plus récentes d'abord)
-export function requestTranscripts(urls) {
+// Niveau de qualité effectif : « high » si une carte graphique est utilisable (WebGPU).
+async function resolveQuality() {
+  if (quality) return quality;
+  if (qualityPref === 'light' || highFailed) quality = 'light';
+  else {
+    const adapter = await navigator.gpu?.requestAdapter?.().catch(() => null);
+    quality = adapter ? 'high' : 'light';
+  }
+  return quality;
+}
+
+export function currentQuality() {
+  return quality;
+}
+
+// Radios à transcrire / traduire (les plus récentes d'abord) : [{ url, who }]
+export function requestTranscripts(items) {
   if (!enabled) return;
-  for (const url of urls) {
+  for (const { url, who } of items) {
     const t = texts[url];
-    const kind = !t ? 'asr' : (lang !== 'none' && t.en && t.tr?.[lang] === undefined ? 'mt' : null);
+    // En qualité haute, les radios déjà faites en qualité légère sont refaites
+    const redo = t && quality === 'high' && t.q !== 'high';
+    const kind = !t || redo ? 'asr' : (lang !== 'none' && t.en && t.tr?.[lang] === undefined ? 'mt' : null);
     if (!kind) continue;
     const k = `${kind}|${url}|${lang}`;
     if (queued.has(k)) continue;
     queued.add(k);
-    queue.push({ url, kind, lang, k });
+    queue.push({ url, who, kind, lang, k });
   }
   pump();
 }
@@ -85,10 +106,11 @@ function getWorker() {
     const m = e.data;
     if (m.type === 'progress') {
       const what = m.what === 'mt' ? 'traduction' : 'reconnaissance vocale';
-      setStatus('loading', `Téléchargement du modèle de ${what} (première fois) : ${Math.round((m.loaded / m.total) * 100)} %`);
+      const mb = (x) => Math.round(x / 1e6);
+      setStatus('loading', `Téléchargement du modèle de ${what} (première fois) : ${mb(m.loaded)} / ${mb(m.total)} Mo`);
       return;
     }
-    if (m.type === 'ready') { setStatus('ready', m.device === 'webgpu' ? 'Actif (carte graphique)' : 'Actif (processeur)'); return; }
+    if (m.type === 'ready') { setStatus('ready', m.device === 'webgpu' ? 'Actif · haute qualité (carte graphique)' : 'Actif · qualité légère (processeur)'); return; }
     if (!current || m.id !== current.id) return;
     if (m.type === 'result') current.resolve(m.text); else current.reject(new Error(m.error));
   };
@@ -123,19 +145,21 @@ async function pump() {
   const task = queue.shift();
   try {
     if (task.kind === 'asr') {
+      const q = await resolveQuality();
       const audio = await decode(task.url);
       if (status.state !== 'ready') setStatus('loading', 'Préparation de la transcription…');
-      const en = await run({ kind: 'asr', audio }, [audio.buffer]);
-      texts[task.url] = { en, tr: {} };
+      const en = await run({ kind: 'asr', audio, quality: q }, [audio.buffer]);
+      texts[task.url] = { en, tr: {}, q };
       // Traduction juste après, avant les radios plus anciennes
       if (en && task.lang !== 'none') {
         const k = `mt|${task.url}|${task.lang}`;
-        if (!queued.has(k)) { queued.add(k); queue.unshift({ url: task.url, kind: 'mt', lang: task.lang, k }); }
+        if (!queued.has(k)) { queued.add(k); queue.unshift({ url: task.url, who: task.who, kind: 'mt', lang: task.lang, k }); }
       }
     } else {
       const t = texts[task.url];
       if (t?.en) {
-        const tr = await run({ kind: 'translate', text: t.en, lang: task.lang });
+        const q = await resolveQuality();
+        const tr = await run({ kind: 'translate', text: t.en, lang: task.lang, quality: q, who: task.who });
         t.tr = { ...(t.tr || {}), [task.lang]: tr };
       }
     }
@@ -148,6 +172,11 @@ async function pump() {
     if (/^audio/.test(err.message)) {
       texts[task.url] = { en: '', tr: {} };
       queued.delete(task.k);
+    } else if (quality === 'high' && !highFailed) {
+      // Carte graphique inutilisable (pilote, mémoire…) : bascule sur les modèles légers
+      highFailed = true;
+      quality = null;
+      queue.unshift(task);
     } else {
       // Moteur ou modèle indisponible : nouvel essai dans une minute (la tâche reste en file)
       queue.unshift(task);
