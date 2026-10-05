@@ -12,6 +12,7 @@ const DEFAULTS = {
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
   radioLang: 'fr',        // langue de traduction des transcriptions ('none' : anglais)
+  radioQuality: 'auto',   // modèles de transcription : 'auto' | 'high' (carte graphique) | 'light'
   radioFilter: 'all',
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'
   commLang: 'FRA',        // commentaires F1 TV : langue

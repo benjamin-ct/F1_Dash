@@ -135,8 +135,9 @@
         </div>
         <div class="tabpane" data-pane="transcripts">
           <div class="subbar">
-            <label class="toggle" title="Retranscrit chaque radio d'équipe en texte, directement sur cet ordinateur. Premier usage : téléchargement des modèles (reconnaissance vocale ~80 Mo, traduction ~50 Mo), puis tout reste en local."><input type="checkbox" id="radioText"> Transcrire les radios</label>
+            <label class="toggle" title="Retranscrit chaque radio d'équipe en texte, directement sur cet ordinateur. Premier usage : téléchargement des modèles (haute qualité ~4,5 Go, légère ~130 Mo), puis tout reste en local."><input type="checkbox" id="radioText"> Transcrire les radios</label>
             <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
+            <label class="small" title="Haute qualité : Whisper large-v3-turbo + modèle de langage (Qwen3-4B) qui connaît le contexte F1 ; nécessite une carte graphique (environ 4,5 Go téléchargés une fois). Légère : petits modèles sur le processeur, plus approximatifs.">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Auto</option><option value="high">Haute (carte graphique)</option><option value="light">Légère (processeur)</option></select></label>
             <span class="muted small" id="radioTextStatus"></span>
           </div>
           <ul class="transcripts" id="transcriptList"></ul>
