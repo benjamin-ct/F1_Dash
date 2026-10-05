@@ -81,7 +81,7 @@ function restoreChildren(baseUrl) {
     if (!isPanelUrl(c.search)) continue;
     const win = new BrowserWindow({
       autoHideMenuBar: true,
-      backgroundColor: '#0a0c11',
+      backgroundColor: '#000000',
       ...(boundsVisible(c.bounds) ? c.bounds : { width: 1200, height: 800 }),
       webPreferences: childPrefs(),
     });
@@ -192,7 +192,7 @@ function setupContents(wc, url) {
         action: 'allow',
         overrideBrowserWindowOptions: {
           autoHideMenuBar: true,
-          backgroundColor: '#0a0c11',
+          backgroundColor: '#000000',
           ...(area ? { x: area.x + 40, y: area.y + 40, width: Math.min(1400, area.width - 80), height: Math.min(900, area.height - 80) } : {}),
           webPreferences: childPrefs(),
         },
@@ -227,7 +227,7 @@ async function start() {
     show: false,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#0a0c11',
+    backgroundColor: '#000000',
     title: 'F1 Dash',
     autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },

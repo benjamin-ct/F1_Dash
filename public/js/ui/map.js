@@ -13,6 +13,13 @@ let xf = null;
 let size = { w: 0, h: 0, dpr: 1 };
 let lastFrame = performance.now();
 
+// Couleurs de la carte selon le thème (Noir par défaut, Bleu nuit en option)
+const PALETTES = {
+  noir: { outline: '#050506', track: '#3b3b44', trackLine: '#5d5d68', chip: 'rgba(14,14,17,.92)', chipEdge: '#3b3b44', chipText: '#c9c9d2', label: 'rgba(0,0,0,.8)', ring: '#000000' },
+  bleu: { outline: '#0c0f15', track: '#3a4356', trackLine: '#566079', chip: 'rgba(16,20,28,.9)', chipEdge: '#3a4356', chipText: '#c3cad6', label: 'rgba(10,12,17,.78)', ring: '#0a0c11' },
+};
+const pal = () => PALETTES[document.documentElement.dataset.theme] || PALETTES.noir;
+
 function list(obj) {
   if (!obj) return [];
   return Array.isArray(obj) ? obj : Object.keys(obj).sort((a, b) => a - b).map((k) => obj[k]);
@@ -446,7 +453,7 @@ function draw() {
 
   const animated = red || scMode || [...flags.values()].includes('DOUBLE YELLOW');
   const bgKey = [size.w, size.h, size.dpr, view.x.toFixed(1), view.y.toFixed(1), view.z.toFixed(3), ts, [...flags].join(),
-    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status].join('|');
+    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.theme].join('|');
   let flagZones;
   if (!animated && bg.key === bgKey && bg.canvas) {
     ctx.drawImage(bg.canvas, 0, 0, size.w, size.h);
@@ -538,10 +545,10 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
     ctx.closePath();
   };
   path();
-  ctx.strokeStyle = '#0c0f15';
+  ctx.strokeStyle = pal().outline;
   ctx.lineWidth = 16;
   ctx.stroke();
-  ctx.strokeStyle = red ? '#ff3b30' : scMode ? '#ffb020' : '#3a4356';
+  ctx.strokeStyle = red ? '#ff3b30' : scMode ? '#ffb020' : pal().track;
   ctx.lineWidth = 9;
   ctx.stroke();
   if (vsc && !red) {
@@ -554,7 +561,7 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
     ctx.setLineDash([]);
     ctx.lineDashOffset = 0;
   } else if (red || scMode || !$('#mapSectors').checked) {
-    ctx.strokeStyle = red ? '#ff6b61' : scMode ? '#ffd27a' : '#566079';
+    ctx.strokeStyle = red ? '#ff6b61' : scMode ? '#ffd27a' : pal().trackLine;
     ctx.lineWidth = 2;
     ctx.stroke();
   }
@@ -619,12 +626,12 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
       const rad = fs * 0.75 + (c.number >= 10 ? 2 : 0);
       ctx.beginPath();
       ctx.arc(x, y, rad, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(16,20,28,.9)';
+      ctx.fillStyle = pal().chip;
       ctx.fill();
-      ctx.strokeStyle = '#3a4356';
+      ctx.strokeStyle = pal().chipEdge;
       ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.fillStyle = '#c3cad6';
+      ctx.fillStyle = pal().chipText;
       ctx.fillText(String(c.number), x, y + 0.5);
     }
   }
@@ -689,7 +696,7 @@ function drawCars(dt) {
     ctx.fillStyle = col;
     ctx.fill();
     ctx.lineWidth = 2;
-    ctx.strokeStyle = '#0a0c11';
+    ctx.strokeStyle = pal().ring;
     ctx.stroke();
     if (!gps) {
       ctx.setLineDash([2, 2]);
@@ -704,7 +711,7 @@ function drawCars(dt) {
       ctx.font = `700 ${isA || isB || isF ? 12 : 10.5}px "Titillium Web", sans-serif`;
       const w = ctx.measureText(txt).width + 8;
       const lx = p[0] + r + 3, ly = p[1] - 8;
-      ctx.fillStyle = 'rgba(10,12,17,.78)';
+      ctx.fillStyle = pal().label;
       ctx.fillRect(lx, ly, w, 16);
       ctx.fillStyle = col;
       ctx.fillRect(lx, ly, 2, 16);

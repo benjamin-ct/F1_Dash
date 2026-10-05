@@ -50,9 +50,9 @@ export function lineChart(el, points, opts = {}) {
     <path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     ${extra.filter((e) => e.points.length).map((e) => `<path d="${e.points.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join('')}" fill="none" stroke="${e.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}
     ${mk}
-    <circle cx="${X(last.x)}" cy="${Y(last.y)}" r="4" fill="${color}" stroke="#12161f" stroke-width="2"/>
+    <circle cx="${X(last.x)}" cy="${Y(last.y)}" r="4" fill="${color}" style="stroke:var(--panel)" stroke-width="2"/>
     <line class="xhair" y1="${padT}" y2="${height - padB}" stroke="#7d879a" stroke-width="1" stroke-dasharray="3 3" visibility="hidden"/>
-    <circle class="xdot" r="4" fill="${color}" stroke="#12161f" stroke-width="2" visibility="hidden"/>
+    <circle class="xdot" r="4" fill="${color}" style="stroke:var(--panel)" stroke-width="2" visibility="hidden"/>
     <rect x="${padL}" y="0" width="${width - padL - padR}" height="${height}" fill="transparent"/>
   </svg><div class="chart-tip" hidden></div>`;
   el.style.position = 'relative';

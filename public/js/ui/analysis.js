@@ -71,7 +71,7 @@ function multiChart(canvas, series, o) {
   const Y = (y) => (o.invert ? padT + ((y - yMin) / (yMax - yMin)) * (H - padT - padB) : padT + (1 - (y - yMin) / (yMax - yMin)) * (H - padT - padB));
 
   // Grille
-  ctx.strokeStyle = '#1f2533'; ctx.lineWidth = 1; ctx.fillStyle = '#7a8396'; ctx.font = '11px "Titillium Web", sans-serif';
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-2').trim() || '#2a2a31'; ctx.lineWidth = 1; ctx.fillStyle = '#7a8396'; ctx.font = '11px "Titillium Web", sans-serif';
   const yTicks = o.yTicks || ticks(yMin, yMax, 5);
   ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
   for (const v of yTicks) { const y = Y(v); ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.fillText(o.yFmt ? o.yFmt(v) : String(v), padL - 6, y); }

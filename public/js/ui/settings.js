@@ -108,6 +108,9 @@ export function initSettings() {
 
   // Application de bureau : connexion F1 TV intégrée (le cookie est lu directement par l'appli).
   // Application de bureau : fenêtres détachées rouvertes au lancement
+  $('#themeSel').value = prefs.theme;
+  $('#themeSel').addEventListener('change', (e) => setPref('theme', e.target.value));
+  on('prefs', (k) => { if (k === 'theme') $('#themeSel').value = prefs.theme; });
   $('#vividTeams').checked = prefs.vividTeams;
   $('#vividTeams').addEventListener('change', (e) => setPref('vividTeams', e.target.checked));
   on('prefs', (k) => { if (k === 'vividTeams') $('#vividTeams').checked = prefs.vividTeams; });
