@@ -192,7 +192,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .p-duel { grid-area: duel; }
 .p-extra { grid-area: extra; }
 
-@media (max-width: 1500px) {
+@media (max-width: 1600px) {
   body { overflow: auto; }
   .grid {
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
@@ -660,16 +660,19 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 }
 
 /* Barre du haut sur une seule ligne : on compacte progressivement selon la largeur */
-@media (max-width: 1850px) {
+@media (max-width: 2100px) {
+  .topbar .sb-label { display: none; }
+}
+@media (max-width: 1950px) {
   .topbar { gap: 12px; }
   .topbar .delay { gap: 6px; }
   .topbar .preset { max-width: 150px; }
 }
-@media (max-width: 1700px) {
+@media (max-width: 1800px) {
   .topbar .weather-mini { display: none; }
   .topbar .session { max-width: 240px; }
 }
-@media (max-width: 1500px) {
+@media (max-width: 1600px) {
   .topbar { gap: 9px; padding: 8px 10px; }
   .topbar .brand-name { display: none; }
   .topbar .hstat-label { font-size: 10px; }
@@ -683,12 +686,12 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
   .topbar .source-badge { padding: 4px 9px; }
   .topbar .icon-btn { padding: 2px 5px; }
 }
-@media (max-width: 1350px) {
+@media (max-width: 1450px) {
   .topbar .dbtn[data-step="-100"], .topbar .dbtn[data-step="100"] { display: none; }
   .topbar .session { max-width: 170px; }
   .topbar .preset { max-width: 96px; }
 }
-@media (max-width: 1250px) {
+@media (max-width: 1300px) {
   .topbar { flex-wrap: wrap; row-gap: 6px; }
 }
 
@@ -799,3 +802,80 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 #settingsModal .set-block.set-hidden { display: none; }
 /* Panneaux à nombreux onglets : onglets plus compacts pour tenir sur une ligne */
 .p-analysis .tab, .p-extra .tab { padding: 4px 7px; letter-spacing: .2px; font-size: 12px; }
+
+/* ---------- Espace Saison ---------- */
+.season-btn { font-weight: 700; }
+.season-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.season-view { position: fixed; inset: var(--sz-top, 62px) 0 0 0; z-index: 800; display: flex; background: var(--bg); }
+.sz-side { width: 220px; flex: none; border-right: 1px solid var(--border); padding: 14px 10px; display: flex; flex-direction: column; gap: 6px; background: var(--panel); }
+.sz-side-head { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 8px; font-size: 16px; }
+#szNav { display: flex; flex-direction: column; gap: 2px; }
+#szNav button { text-align: left; background: none; border: 0; color: var(--text-2); font: inherit; font-weight: 600; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+#szNav button:hover { background: var(--hover); color: var(--text); }
+#szNav button.active { background: var(--panel-3); color: var(--text); }
+.sz-back { margin-top: auto; }
+.sz-src { padding: 6px; }
+.sz-main { flex: 1; overflow: auto; padding: 18px 22px 30px; }
+.sz-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.sz-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; min-height: 110px; }
+.sz-big { font-size: 24px; font-weight: 900; display: flex; align-items: center; gap: 8px; }
+.sz-big small { font-size: 13px; font-weight: 600; color: var(--muted); }
+.sz-count { background: linear-gradient(135deg, #d4110a, #7d0703); border-color: #e21a12; grid-column: span 2; }
+.sz-kicker { font-weight: 700; }
+.sz-badge { background: rgba(0,0,0,.3); border-radius: 5px; padding: 1px 6px; font-size: 12px; margin-right: 4px; }
+.sz-countdown { display: flex; gap: 18px; margin-top: 6px; }
+.sz-countdown span { display: flex; flex-direction: column; }
+.sz-countdown b { font-size: 34px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+.sz-countdown small { font-size: 11px; text-transform: uppercase; opacity: .8; letter-spacing: .5px; }
+.sz-when { opacity: .85; }
+.sz-progress { height: 6px; background: var(--panel-3); border-radius: 3px; overflow: hidden; margin: 4px 0; }
+.sz-progress i { display: block; height: 100%; background: var(--accent); }
+.sz-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.sz-box { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; overflow-x: auto; }
+.sz-box h3 { margin: 0 0 10px; font-size: 17px; }
+.sz-table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-bottom: 8px; }
+.sz-table th { text-align: left; color: var(--muted); font-size: 11px; text-transform: uppercase; font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.sz-table td { padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.sz-table td .drv-bar { display: inline-block; vertical-align: middle; margin-right: 8px; height: 16px; }
+.sz-big .drv-bar { height: 22px; }
+.sz-table tr.muted td { color: var(--muted); }
+.sz-chip { display: inline-block; border-left: 3px solid var(--tc); background: color-mix(in srgb, var(--tc) 18%, transparent); padding: 1px 7px; border-radius: 4px; font-weight: 700; font-size: 12.5px; }
+.sz-cal { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; align-items: start; }
+.sz-race { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.sz-race.is-next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.sz-race summary { cursor: pointer; list-style: none; display: flex; flex-direction: column; gap: 3px; }
+.sz-race summary::-webkit-details-marker { display: none; }
+.sz-race-name { font-size: 19px; font-weight: 900; }
+.sz-tag { display: inline-block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; padding: 1px 6px; border-radius: 4px; background: var(--panel-3); color: var(--text-2); margin-right: 3px; }
+.sz-tag.done { background: rgba(53, 208, 127, .15); color: var(--green); }
+.sz-tag.next { background: var(--accent); color: #fff; }
+.sz-tag.sprint { background: rgba(199, 125, 255, .18); color: var(--purple); }
+.sz-race-top { display: flex; align-items: center; gap: 6px; }
+.sz-sessions { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
+.sz-sessions li { display: flex; justify-content: space-between; padding: 4px 0; border-top: 1px solid var(--line); }
+.sz-svg { width: 100%; height: auto; }
+.sz-gl { stroke: var(--line-2); stroke-width: 1; }
+.sz-ax { fill: var(--muted); font-size: 11px; }
+.sz-lbl { font-size: 11px; font-weight: 700; }
+.sz-h2h-pick { margin-bottom: 10px; }
+.sz-h2h { max-width: 760px; }
+.sz-h2h-head { display: flex; justify-content: space-between; align-items: center; font-size: 20px; margin-bottom: 10px; }
+.sz-vs { font-weight: 900; font-style: italic; color: var(--muted); }
+.sz-h2h-row { padding: 6px 0; border-top: 1px solid var(--line); }
+.sz-h2h-label { text-align: center; font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+.sz-h2h-bar { display: flex; align-items: center; gap: 10px; }
+.sz-h2h-bar > span { width: 34px; text-align: center; font-weight: 800; font-size: 16px; color: var(--muted); }
+.sz-h2h-bar > span.win { color: var(--text); }
+.sz-h2h-track { flex: 1; height: 14px; background: var(--panel-3); border-radius: 7px; position: relative; overflow: hidden; }
+.sz-h2h-track i { position: absolute; top: 0; bottom: 0; }
+.sz-h2h-track i.a { right: 50%; }
+.sz-h2h-track i.b { left: 50%; background: #e8e8ee; }
+@media (max-width: 900px) { .sz-side { width: 160px; } .sz-count { grid-column: auto; } .sz-grid2 { grid-template-columns: 1fr; } }
+
+.ana-pace { flex: 1; display: flex; min-height: 0; }
+.ana-pace .ana-chart { flex: 1; }
+.ana-fastest { width: 230px; flex: none; overflow: auto; border-left: 1px solid var(--border); }
+.ana-fastest-title { padding: 6px 8px; }
+.ana-png { margin-left: auto; }
+.ana-cutoff { width: 90px; vertical-align: middle; }
+@container (max-width: 560px) { .ana-fastest { display: none; } }

@@ -18,13 +18,23 @@ Dashboard **Formule 1 en direct** à lancer sur votre PC pour suivre chaque Gran
 | **Direction de course** | Tous les messages de la FIA avec drapeaux, pénalités, enquêtes, limites de piste… Les drapeaux bleus et les temps supprimés peuvent être masqués. |
 | **Enquêtes** | Suivi de chaque incident signalé par les commissaires : noté → sous enquête → après la course → décision (pénalité, avertissement, pas d'action), avec les pilotes, le virage, le motif traduit et l'historique. Chaque sanction indique le pilote pénalisé, et un lien ouvre le document officiel de la FIA (convocation, décision) dès qu'il est publié sur fia.com. Pastille orange = enquêtes en cours. |
 | **Limites de piste** | Tours / temps supprimés par pilote (virages concernés, dernier tour), drapeau noir et blanc et pénalités ; infractions matérialisées par des pastilles. |
-| **Analyse** (inspiré de MultiViewer) | **Race trace** (écart de chaque pilote tour par tour : au leader, au rythme moyen ou à un pilote choisi ; arrêts marqués d'un point), **positions** tour par tour, **temps au tour** (tours lents masquables), **historique des pneus** (tous les tours de chaque pilote colorés selon le pneu), **secteurs et vitesses** (meilleurs secteurs, tour idéal, vitesses aux intermédiaires et au speed trap, tri par colonne) et **télémétrie** du pilote suivi. Survol : valeurs de tous les pilotes pour le tour pointé. |
+| **Analyse** (inspiré de MultiViewer) | **Race trace** (écart de chaque pilote tour par tour : au leader, au rythme moyen ou à un pilote choisi ; arrêts marqués d'un point), **positions** tour par tour, **temps au tour** (seuil des tours lents réglable, 101 à 115 % du meilleur tour), **rythme** (boîte à moustaches des tours propres de chaque pilote, triée par médiane, et top 20 des tours les plus rapides), **historique des pneus** (tous les tours de chaque pilote colorés selon le pneu), **secteurs et vitesses** (meilleurs secteurs, tour idéal, vitesses aux intermédiaires et au speed trap, tri par colonne) et **télémétrie** du pilote suivi. Survol : valeurs de tous les pilotes pour le tour pointé. Bouton **⤓ PNG** pour enregistrer un graphique en image. |
 | **Transcriptions** | Onglet dédié : chaque radio d'équipe **retranscrite en texte et traduite** (français, espagnol, allemand, italien ou anglais d'origine), avec le texte original en dessous et un bouton ▶ pour l'écouter. Tout est exécuté sur votre ordinateur. **Qualité haute** (automatique avec une carte graphique) : Whisper large-v3-turbo pour la transcription et un modèle de langage (Qwen3-4B-Instruct) pour la traduction, qui connaît le contexte F1 (« box » → « rentre aux stands », « copy » → « reçu », erreurs d'écoute corrigées) ; ~4,5 Go téléchargés une seule fois. **Qualité légère** (processeur) : Whisper base.en + OPUS-MT, ~130 Mo, plus approximative. Choix dans « Qualité » (Auto / Haute / Légère). |
 | **Radios** | Radios d'équipe officielles, filtrables (favoris, pilotes du duel), avec **lecture automatique** des nouvelles radios au rythme de votre délai (une seule fenêtre joue le son). |
 | **Arrêts** | Résumé (arrêt le plus rapide, médiane), vue chronologique (pneus retirés → montés, voie des stands et immobilisation avec barres de comparaison) ou par pilote (relais et arrêts). Les passages sans changement de pneus (drapeau rouge) sont distingués. |
 | **Télémétrie** | Vitesse, rapport, régime, accélérateur, frein (et DRS avant 2026) du pilote suivi, avec la courbe de vitesse des 30 dernières secondes. |
 | **Pneus** | Stratégie complète de chaque pilote (relais, gommes, nombre de tours), **rythme** du relais en cours et **usure** (évolution du temps au tour, en s/tour). |
 | **Météo / Championnat** | Station météo du circuit ; projection du championnat en direct pendant les courses. |
+
+### 🏆 Espace Saison
+
+Le bouton 🏆 en haut ouvre une vue de toute la saison (inspirée de formula1dashboard.com, données Jolpica/Ergast, consultables hors ligne une fois chargées), avec un sélecteur d'année :
+
+- **Accueil** : compte à rebours jusqu'à la prochaine séance, avancement de la saison, leaders des championnats, dernier vainqueur et top 10.
+- **Calendrier** : toutes les manches (sprint, terminé / prochain / à venir), vainqueur et poleman, horaires de chaque séance à l'heure de votre ordinateur.
+- **Classements** : courbe des points cumulés du top 10 et classements pilotes / constructeurs complets avec écart au leader.
+- **Résultats & records** : plus de victoires, podiums, poles, meilleure moyenne, plus belle remontée, victoires les plus larges et les plus serrées, et le podium de chaque Grand Prix.
+- **Coéquipiers** : duel en qualifications et en course, points, victoires, podiums, poles, arrivées dans les points et abandons.
 
 ## 🔔 Alertes
 
