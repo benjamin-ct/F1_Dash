@@ -80,3 +80,33 @@ test('hub : GPS décompressé et envoyé avec avance, synchro TV non retardée',
   assert.equal(hub.hasPositions, true);
   hub.close();
 });
+
+test('hub : les téléphones du réseau local reçoivent le délai TV de l\'ordinateur', () => {
+  const hub = new Hub({ maxDelayMs: 600000 });
+  hub.reset({ mode: 'test' });
+  const pc = new FakeWs();
+  hub.addClient(pc);
+  pc.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 42000 })));
+  const phone = new FakeWs();
+  hub.addClient(phone, { host: false });
+  assert.deepEqual(phone.sent.find((m) => m.type === 'role'), { type: 'role', host: false, hostDelay: 42000 });
+  // Nouveau réglage sur l'ordinateur : transmis au téléphone ; pas l'inverse
+  pc.sent = [];
+  pc.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 45000 })));
+  assert.deepEqual(phone.sent.at(-1), { type: 'hostDelay', ms: 45000 });
+  assert.equal(pc.sent.some((m) => m.type === 'hostDelay'), false);
+  phone.emit('message', Buffer.from(JSON.stringify({ type: 'delay', ms: 5000 })));
+  assert.equal(hub.hostDelay, 45000);
+  hub.close();
+});
+
+test('replay : périodes de drapeau rouge', async () => {
+  const { redFlagPeriods } = await import('../server/replay.js');
+  const ev = (off, Status) => ({ off, topic: 'TrackStatus', data: { Status } });
+  const events = [ev(0, '1'), ev(1000, '2'), ev(5000, '5'), ev(6000, '5'), { off: 7000, topic: 'LapCount', data: {} }, ev(9000, '4'), ev(20000, '5')];
+  assert.deepEqual(redFlagPeriods(events, 30000), [{ start: 5000, end: 9000 }, { start: 20000, end: 30000 }]);
+  assert.deepEqual(redFlagPeriods([ev(0, '1')], 100), []);
+  // Reprise réelle de la séance plus tard que le retour au vert de la piste
+  const st = (off, Status) => ({ off, topic: 'SessionStatus', data: { Status } });
+  assert.deepEqual(redFlagPeriods([st(0, 'Started'), ev(100, '5'), st(101, 'Aborted'), ev(500, '1'), st(900, 'Started')], 2000), [{ start: 100, end: 900 }]);
+});

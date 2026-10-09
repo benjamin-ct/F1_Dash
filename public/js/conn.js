@@ -1,5 +1,7 @@
 // Connexion WebSocket au serveur local.
-import { store, handleReset, handleBatch, emit, on } from './store.js';
+import { store, handleReset, handleBatch, emit, on, setDelay } from './store.js';
+import { storageGet, fmtDelay } from './util.js';
+import { toast } from './ui/delay.js';
 
 let ws = null;
 let pingTimer = null;
@@ -33,6 +35,13 @@ export function connect() {
         store.status = msg;
         emit('status', msg);
         break;
+      // Téléphone ou tablette : on reprend le délai TV réglé sur l'ordinateur
+      case 'role':
+        store.isHost = msg.host;
+        emit('role', msg.host);
+        if (msg.hostDelay != null) followHost(msg.hostDelay);
+        break;
+      case 'hostDelay': followHost(msg.ms); break;
       case 'pong': {
         const sent = pending.get(msg.id);
         pending.delete(msg.id);
@@ -54,6 +63,12 @@ export function connect() {
     setTimeout(connect, 2000);
   };
   ws.onerror = () => ws.close();
+}
+
+function followHost(ms) {
+  if (store.isHost || !storageGet('f1dash.followHost', true) || ms === store.delay) return;
+  setDelay(ms);
+  toast(`⏱ Délai calé sur l'ordinateur : ${fmtDelay(store.delay)}`, 3500);
 }
 
 function ping() {

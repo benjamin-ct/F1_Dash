@@ -4,7 +4,7 @@ Le [README](../README.md) résume l'essentiel. Vous trouverez ici le détail de 
 
 - [Ce que vous avez à l'écran](#-ce-que-vous-avez-à-lécran) · [Espace Saison](#-espace-saison)
 - [Alertes](#-alertes) · [Commentaires en direct](#-commentaires-en-direct-f1-tv-pro) · [Radio](#-radio--flux-audio)
-- [Disposition et deux écrans](#-disposition-et-deux-écrans) · [Délai TV](#-se-caler-sur-le-délai-de-canal)
+- [Disposition et deux écrans](#-disposition-et-deux-écrans) · [Téléphone ou tablette](#-sur-téléphone-ou-tablette) · [Délai TV](#-se-caler-sur-le-délai-de-canal)
 - [Mise à jour automatique](#-mise-à-jour-automatique-de-lapplication) · [GPS et F1 TV](#-positions-gps-en-live--jeton-f1-tv-optionnel)
 - [Enregistrements et replay](#-enregistrements-et--replay) · [Options](#-options) · [Fonctionnement](#-fonctionnement)
 
@@ -97,10 +97,31 @@ La disposition est entièrement libre et conservée d'une session à l'autre :
 - **↗ envoyer vers une autre fenêtre** (second écran) : si une fenêtre secondaire est déjà ouverte, un menu propose d'**ajouter le panneau à cette fenêtre** (plusieurs panneaux réunis dans une seule fenêtre) ou d'en ouvrir une nouvelle. Dans la fenêtre secondaire, les panneaux se disposent et se redimensionnent de la même façon ; **↙** remet un panneau dans la fenêtre principale. Les panneaux détachés disparaissent de la fenêtre principale et y reviennent quand on ferme leur fenêtre. Dans l'application de bureau, la fenêtre s'ouvre directement en plein écran sur le second écran.
 - Le délai, le pilote suivi (clic dans le classement → télémétrie, carte…), le duel et les réglages restent synchronisés entre toutes les fenêtres.
 - Le classement s'agrandit pour occuper toute la hauteur disponible (désactivable dans ⚙ → Affichage).
-- **Thème** : Noir (par défaut, fonds noirs neutres) ou Bleu nuit, dans ⚙ → Affichage.
+- **Thème** : « F1 sobre » par défaut (noir neutre, fin filet rouge, rouge réservé à ce qui est actif), « Classique » (l'ancien design noir) ou « Bleu nuit », dans ⚙ → Affichage.
+- **Disposition selon la séance** : deux dispositions indépendantes, « Course » (courses et sprints) et « Qualif & essais », choisies automatiquement (ou imposées) dans ⚙ → Affichage ; chacune garde ses panneaux, tailles, colonnes du classement et onglets ouverts.
+- **Légendes** sous chaque panneau (couleurs, colonnes, graphiques), affichées par défaut : « ✕ Masquer » sur la légende, ou option dans ⚙ → Affichage.
 - **Logos des écuries** : dans le classement et le championnat, chaque pilote a le logo officiel de son écurie sur une pastille à ses couleurs (logos chargés depuis formula1.com ; sans connexion, la pastille reste colorée). Option dans ⚙ → Affichage pour revenir aux barres de couleur.
 - **Couleurs d'équipe contrastées** : une teinte bien distincte par équipe (bleu roi Red Bull, lavande Racing Bulls, bleu ciel Williams, rose Alpine, blanc Haas, gris Audi, or Cadillac…) au lieu des couleurs officielles, trop proches entre elles. Décochez l'option dans ⚙ → Affichage pour revenir aux couleurs officielles.
 - **Application de bureau** : à la fermeture, les fenêtres détachées (panneaux, position, taille, plein écran) sont mémorisées et rouvertes à leur place au prochain lancement. Option « Rouvrir les fenêtres détachées » dans ⚙ → Affichage. Une fenêtre placée sur un écran qui n'est plus branché rouvre sur l'écran principal.
+
+## 📱 Sur téléphone ou tablette
+
+Le dashboard s'affiche aussi sur un téléphone ou une tablette, par exemple posé à côté de la TV pendant que l'ordinateur reste dans une autre pièce. **L'ordinateur fait tourner F1 Dash ; le téléphone l'affiche par le Wi-Fi de la maison.**
+
+1. Sur l'ordinateur (application de bureau ou version Node.js) : ⚙ Réglages → Application → **« Autoriser l'accès depuis le réseau local »**.
+2. Un **QR code** apparaît : scannez-le avec l'appareil photo du téléphone (connecté au même Wi-Fi).
+3. C'est tout : le téléphone reste autorisé (cookie valable un an). Pour l'avoir comme une appli, utilisez « Ajouter à l'écran d'accueil » (Safari : bouton Partager ; Chrome : menu ⋮).
+
+**Sur iPhone** : ouvrez le QR code dans Safari, puis bouton Partager → « Sur l'écran d'accueil ». L'appli ainsi ajoutée s'ouvre déjà autorisée. Si vous changez la clé sur l'ordinateur, supprimez l'appli de l'écran d'accueil, rescannez le QR code et ajoutez-la de nouveau. Safari ne permet pas la vibration ; le son des alertes fonctionne après un premier appui sur l'écran.
+
+Sur un petit écran, **un seul panneau à la fois** : classement, carte, course, duel, analyse, stratégie, radios, avec des onglets en bas de l'écran. Sur une tablette (plus de 900 px de large), la disposition est la même que sur ordinateur.
+
+- **Délai TV** : le téléphone **reprend automatiquement le délai réglé sur l'ordinateur**, et le suit quand vous le modifiez. Si le téléphone regarde une autre diffusion, décochez l'option dans ⚙ → Application du téléphone et réglez son délai avec 🎯.
+- **Écran toujours allumé** pendant une séance (option dans ⚙ → Affichage) : sur téléphone, touchez l'écran une fois après l'ouverture pour l'activer.
+- **Alertes** : le son fonctionne après un premier appui sur l'écran ; sur Android, le téléphone **vibre** aussi (option « Vibration », non disponible sur iPhone).
+- **Sécurité** : l'adresse contient une clé secrète ; sans elle, l'accès est refusé. « Changer la clé » déconnecte tous les appareils déjà autorisés (ils devront rescanner le QR code). Les réglages de cet accès ne sont modifiables que depuis l'ordinateur. Windows peut demander d'autoriser F1 Dash dans le pare-feu : acceptez pour les **réseaux privés**.
+- L'accès utilise le **port 3030** (`lanPort` dans `config.json` pour le changer). L'ordinateur doit rester allumé avec F1 Dash ouvert.
+- Autre possibilité avec la version Node.js : `HOST=0.0.0.0` ouvre l'interface principale à tout le réseau local, **sans clé** (voir [Options](#-options)) ; à réserver à un réseau de confiance.
 
 ## ⏱ Se caler sur le délai de Canal+
 

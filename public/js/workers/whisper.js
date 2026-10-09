@@ -7,6 +7,7 @@
 //    traduit correctement (« box » → « rentre aux stands »), erreurs d'écoute corrigées.
 //  - « light » (processeur) : Whisper base.en et OPUS-MT, plus légers mais plus approximatifs.
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
+import { prefetch } from './hf-download.js';
 
 env.allowLocalModels = false;
 
@@ -37,12 +38,28 @@ function load(key, factory) {
   return loaded[key];
 }
 
-const asrHigh = () => load('asrHigh', () => pipeline('automatic-speech-recognition', MODELS.asrHigh,
-  { device: 'webgpu', dtype: { encoder_model: 'fp16', decoder_model_merged: 'fp16' }, progress_callback: progress('asr') }));
+// Gros fichiers (plus de 300 Mo) téléchargés par morceaux, avec reprise (voir hf-download.js)
+const BIG = {
+  asrHigh: ['onnx/encoder_model_fp16.onnx', 'onnx/decoder_model_merged_fp16.onnx'],
+  llm: ['onnx/model_q4f16.onnx_data', 'onnx/model_q4f16.onnx_data_1'],
+};
+const prefetchBig = (key, what) => {
+  const cb = progress(what);
+  return prefetch(MODELS[key], BIG[key], (file, loaded, total) => cb(loaded == null ? { status: 'done', file } : { status: 'progress', file, loaded, total }));
+};
+
+const asrHigh = () => load('asrHigh', async () => {
+  await prefetchBig('asrHigh', 'asr');
+  return pipeline('automatic-speech-recognition', MODELS.asrHigh,
+    { device: 'webgpu', dtype: { encoder_model: 'fp16', decoder_model_merged: 'fp16' }, progress_callback: progress('asr') });
+});
 const asrLight = (gpu) => load(`asrLight${gpu}`, () => pipeline('automatic-speech-recognition', MODELS.asrLight, gpu
   ? { device: 'webgpu', dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' }, progress_callback: progress('asr') }
   : { device: 'wasm', dtype: 'q8', progress_callback: progress('asr') }));
-const llm = () => load('llm', () => pipeline('text-generation', MODELS.llm, { device: 'webgpu', dtype: 'q4f16', progress_callback: progress('mt') }));
+const llm = () => load('llm', async () => {
+  await prefetchBig('llm', 'mt');
+  return pipeline('text-generation', MODELS.llm, { device: 'webgpu', dtype: 'q4f16', progress_callback: progress('mt') });
+});
 const mt = (lang) => load(`mt-${lang}`, () => {
   if (!MODELS.mt[lang]) throw new Error(`langue non prise en charge : ${lang}`);
   return pipeline('translation', MODELS.mt[lang], { device: 'wasm', dtype: 'q8', progress_callback: progress('mt') });
@@ -83,11 +100,37 @@ function systemPrompt(lang, who) {
 - Answer with the ${LANG_NAME[lang]} translation only: no quotes, no prefix, no comment, never the English text.`;
 }
 
-async function translate(text, lang, quality, who) {
+// Textes techniques des écuries (évolutions déclarées à la FIA)
+function techPrompt(lang) {
+  if (lang === 'fr') {
+    return `Tu traduis en français des descriptions techniques d'évolutions de monoplaces de Formule 1, rédigées par les écuries pour la FIA.
+- Style clair et précis, comme un journaliste technique F1 français.
+- Vocabulaire : "floor" = "fond plat", "floor edge" = "bord du fond plat", "floor fences" = "déflecteurs du fond plat", "diffuser" = "diffuseur", "front/rear wing" = "aileron avant/arrière", "beam wing" reste "beam wing", "endplate" = "dérive", "flap" = "volet", "mainplane" = "plan principal", "nose" = "museau", "sidepod" = "ponton", "coke" / "coke panel" = "carrosserie arrière (coke)", "engine cover" = "capot moteur", "louvres" = "ouïes", "inlet" = "entrée d'air", "corner" (front/rear) = "coin de roue (avant/arrière)", "brake duct" = "écope de frein", "suspension fairing" = "carénage de suspension", "local load" = "appui local", "downforce" = "appui", "drag" = "traînée", "flow conditioning" = "conditionnement de l'écoulement", "outwash" reste "outwash", "vortex" = "tourbillon", "wake" = "sillage", "straight mode" = "mode ligne droite", "halo" reste "halo", "tailpipe" = "sortie d'échappement".
+- Traduis tout le sens, sans rien omettre ni ajouter.
+- Réponds uniquement par la traduction, sans guillemets ni commentaire.`;
+  }
+  return `Translate into ${LANG_NAME[lang]} this technical description of a Formula 1 car update, written by the team for the FIA. Use the usual F1 technical vocabulary in ${LANG_NAME[lang]}, keep the full meaning, and answer with the translation only.`;
+}
+
+// Petit modèle : corrections du jargon qu'il traduit mal
+const FIX_FR = [
+  [/\b(aile|aileron)s? (de|du|à) (faisceau|poutre)/gi, 'beam wing'], [/\baile(s?) (avant|arrière)/gi, 'aileron$1 $2'],
+  [/\bcoca(-cola)?\b/gi, 'coke'], [/\bpersiennes?\b/gi, 'ouïes'], [/\bplancher\b/gi, 'fond plat'],
+  [/\bplaque(s?) d'extrémité\b/gi, 'dérive$1'], [/\bcharge locale\b/gi, 'appui local'], [/\bforce d'appui\b/gi, 'appui'],
+  [/\b(la|une) veille\b/gi, (m, a) => (a.toLowerCase() === 'la' ? 'le sillage' : 'un sillage')], [/\bveille\b/gi, 'sillage'], [/\baccords\b/gi, 'cordes'], [/\b(duct|conduite)(s?) de frein/gi, 'écope$2 de frein'], [/\bduct\b/gi, 'conduit'],
+  [/\blavage du sol\b/gi, 'downwash'], [/\b(la|le) appui\b/gi, "l'appui"], [/\breprogramm(é|ée|és|ées)\b/gi, 'reprofil$1'],
+];
+const fixJargon = (t, lang) => {
+  if (lang !== 'fr') return t;
+  const out = FIX_FR.reduce((x, [re, by]) => x.replace(re, by), t);
+  return out.charAt(0).toUpperCase() + out.slice(1);
+};
+
+async function translate(text, lang, quality, who, domain) {
   if (quality === 'high') {
     const gen = await llm();
-    const out = await gen([{ role: 'system', content: systemPrompt(lang, who) }, { role: 'user', content: text }],
-      { max_new_tokens: Math.min(400, 60 + words(text) * 4), do_sample: false });
+    const out = await gen([{ role: 'system', content: domain === 'tech' ? techPrompt(lang) : systemPrompt(lang, who) }, { role: 'user', content: text }],
+      { max_new_tokens: Math.min(600, 60 + words(text) * 4), do_sample: false });
     const reply = out?.[0]?.generated_text?.at?.(-1)?.content ?? '';
     return String(reply).replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^["«»\s]+|["«»\s]+$/g, '').trim();
   }
@@ -99,14 +142,14 @@ async function translate(text, lang, quality, who) {
     const r = await run(part, { max_new_tokens: Math.min(160, 24 + part.split(/\s+/).length * 3) });
     out.push(String(r?.[0]?.translation_text || '').trim());
   }
-  return out.join(' ');
+  return domain === 'tech' ? fixJargon(out.join(' '), lang) : out.join(' ');
 }
 
 self.onmessage = async (e) => {
   const { id, kind, quality } = e.data;
   try {
     const text = kind === 'translate'
-      ? await translate(e.data.text, e.data.lang, quality, e.data.who)
+      ? await translate(e.data.text, e.data.lang, quality, e.data.who, e.data.domain)
       : await transcribe(e.data.audio, quality);
     if (kind !== 'translate') self.postMessage({ type: 'ready', device: quality === 'high' ? 'webgpu' : 'wasm' });
     self.postMessage({ type: 'result', id, text });

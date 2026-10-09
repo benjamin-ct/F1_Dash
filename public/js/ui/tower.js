@@ -264,8 +264,11 @@ function syncTable(table, cutInfo, head, rows) {
 }
 
 // Grand écran / fenêtre détachée : le classement s'agrandit pour occuper toute la hauteur
-// disponible (zoom limité pour que toutes les colonnes restent visibles).
+// disponible. D'abord un zoom (limité pour que toutes les colonnes restent visibles), puis,
+// quand la largeur ne permet pas d'agrandir davantage (qualifications : beaucoup de colonnes),
+// des lignes plus hautes pour remplir le reste.
 let fitKey = '';
+const ROW_H = 34;
 
 export function fitTower(force = false) {
   const table = $('#tower');
@@ -276,16 +279,35 @@ export function fitTower(force = false) {
   if (key === fitKey && !force) return;
   fitKey = key;
   table.style.zoom = '';
-  if (!prefs.towerFit || rows < 5) return;
+  table.style.removeProperty('--tower-row-h');
+  if (!prefs.towerFit || rows < 5 || table.closest('.grid.mobile')) return;
+  const fits = () => wrap.scrollWidth <= wrap.clientWidth + 1 && wrap.scrollHeight <= wrap.clientHeight + 1;
+  let z = 1;
   const room = (wrap.clientHeight - 2) / table.offsetHeight;
-  if (room < 1.04) return;
-  let z = Math.min(1.8, Math.floor(room * 50) / 50);
-  while (z > 1.04) {
-    table.style.zoom = z;
-    if (wrap.scrollWidth <= wrap.clientWidth + 1 && wrap.scrollHeight <= wrap.clientHeight + 1) return;
-    z = Math.round((z - 0.04) * 100) / 100;
+  if (wrap.scrollWidth > wrap.clientWidth + 1) {
+    // Un peu trop large (qualifications, Q1 à Q3) : légère réduction pour voir toutes les colonnes
+    if (wrap.clientWidth / wrap.scrollWidth >= 0.88) {
+      z = Math.floor((wrap.clientWidth / wrap.scrollWidth) * 100) / 100;
+      table.style.zoom = z;
+    }
+  } else if (room >= 1.04) {
+    z = Math.min(1.8, Math.floor(room * 50) / 50);
+    while (z > 1.04) {
+      table.style.zoom = z;
+      if (fits()) break;
+      z = Math.round((z - 0.04) * 100) / 100;
+    }
+    if (z <= 1.04) { z = 1; table.style.zoom = ''; }
   }
-  table.style.zoom = '';
+  // Hauteur restante répartie entre les lignes (au plus 1,8 fois la hauteur normale)
+  const left = wrap.clientHeight - 2 - table.getBoundingClientRect().height;
+  if (left < rows * 2) return;
+  let h = Math.min(ROW_H * 1.8, ROW_H + Math.floor(left / rows / z));
+  for (; h > ROW_H; h--) {
+    table.style.setProperty('--tower-row-h', `${h}px`);
+    if (wrap.scrollHeight <= wrap.clientHeight + 1) return;   // la largeur ne change pas
+  }
+  table.style.removeProperty('--tower-row-h');
 }
 
 // Temps prévu d'un tour lancé : secteurs réalisés + meilleurs secteurs personnels restants.

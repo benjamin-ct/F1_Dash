@@ -37,8 +37,16 @@ function beep(kind) {
   } catch { /* audio indisponible */ }
 }
 
+// Vibration du téléphone (Android ; iPhone : non pris en charge par Safari)
+function buzz(kind) {
+  if (!prefs.alerts.vibrate || prefs.muted || !navigator.vibrate) return;
+  const pattern = { red: [400, 150, 400, 150, 400], sc: [300, 150, 300], green: [150, 100, 150], fav: [120, 80, 120] }[kind] || [150];
+  try { navigator.vibrate(pattern); } catch { /* ignore */ }
+}
+
 function notify(title, body, kind) {
   beep(kind);
+  buzz(kind);
   toast(`${title}${body ? ' — ' + body : ''}`, 5000);
   if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     try { new Notification(title, { body, silent: true }); } catch { /* ignore */ }
@@ -91,24 +99,47 @@ function onEvents(events) {
 export function initAlerts() {
   on('reset', () => { lastTrack = String(store.state.TrackStatus?.Status || ''); });
   on('events', onEvents);
+  // Téléphones et tablettes : le son n'est autorisé qu'après un premier appui sur l'écran
+  window.addEventListener('pointerdown', () => {
+    try {
+      audio ||= new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === 'suspended') audio.resume();
+    } catch { /* audio indisponible */ }
+  }, { passive: true });
+  const toggleMute = () => {
+    setPref('muted', !prefs.muted);
+    toast(prefs.muted ? '🔕 Son des alertes coupé (touche M pour le remettre)' : '🔔 Son des alertes activé');
+  };
   window.addEventListener('keydown', (e) => {
-    if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input, select, textarea')) {
-      setPref('muted', !prefs.muted);
-      toast(prefs.muted ? '🔇 Alertes sonores coupées' : '🔊 Alertes sonores activées');
-    }
+    if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input, select, textarea')) toggleMute();
   });
+  // Bouton de la barre du haut : 🔔 son actif, 🔕 coupé
+  const btn = $('#muteBtn');
+  const showMute = () => {
+    if (!btn) return;
+    const off = prefs.muted || !prefs.alerts.sound;
+    btn.textContent = off ? '🔕' : '🔔';
+    btn.classList.toggle('off', off);
+    btn.title = off ? 'Son des alertes coupé — cliquer pour le remettre (touche M)' : 'Son des alertes actif — cliquer pour le couper (touche M)';
+  };
+  btn?.addEventListener('click', () => {
+    // Son décoché dans les Réglages : le bouton le réactive
+    if (!prefs.alerts.sound) { setPref('alerts', { ...prefs.alerts, sound: true }); setPref('muted', false); toast('🔔 Son des alertes activé'); renderAlertOptions(); } else toggleMute();
+  });
+  on('prefs', (k) => { if (k === 'muted' || k === 'alerts') showMute(); });
+  showMute();
   renderAlertOptions();
 }
 
 const OPTS = [
-  ['sound', 'Son'], ['notify', 'Notification Windows (onglet en arrière-plan)'], ['flags', 'SC / VSC / drapeau rouge'],
+  ['sound', 'Son'], ['vibrate', 'Vibration (téléphone)'], ['notify', 'Notification Windows (onglet en arrière-plan)'], ['flags', 'SC / VSC / drapeau rouge'],
   ['fastest', 'Meilleur tour'], ['favPit', 'Arrêt d\'un favori'], ['favRcm', 'Messages FIA sur un favori'],
   ['retire', 'Abandons'], ['finish', 'Arrivée'],
 ];
 
 export function renderAlertOptions() {
   const el = $('#alertOpts');
-  el.innerHTML = OPTS.map(([k, label]) => `<label class="toggle small"><input type="checkbox" data-alert="${k}" ${prefs.alerts[k] ? 'checked' : ''}> ${esc(label)}</label>`).join('') +
+  el.innerHTML = OPTS.filter(([k]) => k !== 'vibrate' || ('vibrate' in navigator && matchMedia('(pointer: coarse)').matches)).map(([k, label]) => `<label class="toggle small"><input type="checkbox" data-alert="${k}" ${prefs.alerts[k] ? 'checked' : ''}> ${esc(label)}</label>`).join('') +
     '<button class="btn small" id="alertTest">Tester</button>';
   el.onchange = (e) => {
     const k = e.target.dataset.alert;

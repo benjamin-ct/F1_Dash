@@ -1,8 +1,9 @@
 // Disposition libre : colonnes et panneaux redimensionnables, panneaux déplaçables par glisser-déposer,
 // fenêtres secondaires (second écran) pouvant regrouper plusieurs panneaux, colonnes du classement.
-import { $, $$, esc, storageGet, storageSet } from '../util.js';
+import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
-import { on } from '../store.js';
+import { store, on } from '../store.js';
+import { toast } from './delay.js';
 
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
@@ -40,15 +41,40 @@ function panelEl(id) {
 
 // ---------------- Modèle de disposition ----------------
 // {cols: [{w, items: [{id, h}]}]} ; w et h sont des proportions (flex-grow).
-function defaultLayout() {
+// ---------------- Dispositions « Course » et « Qualif & essais » ----------------
+// Chaque type de séance a sa propre disposition (panneaux, tailles, panneaux masqués,
+// colonnes du classement, onglets ouverts), appliquée automatiquement selon la séance.
+const PROFILES = { race: 'Course', quali: 'Qualif & essais' };
+const PROFILE_KEY = 'f1dash.layoutProfiles';   // { race: { hiddenPanels, hiddenCols }, quali: … }
+const TABS_KEY = 'f1dash.profileTabs';         // { race: { analysis: 'trace', … }, quali: … }
+const TAB_DEFAULTS = {
+  race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
+  quali: { feed: 'rcm', analysis: 'sectors', extra: 'weather' },
+};
+const PROFILE_DEFAULTS = { race: { hiddenPanels: [], hiddenCols: [] }, quali: { hiddenPanels: [], hiddenCols: [] } };
+const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
+let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('f1dash.lastProfile', 'race');
+if (!PROFILES[profile]) profile = 'race';
+const lkey = (win = WIN, prof = profile) => (prof === 'race' ? win : `${win}@${prof}`);
+
+function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
+  const quali = prof === 'quali';
   if (window.innerWidth <= 1500) {
-    return { cols: [
+    return quali ? { cols: [
+      { w: 1.3, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.6 }] },
+      { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.9 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.6 }] },
+    ] } : { cols: [
       { w: 1.2, items: [{ id: 'tower', h: 1.4 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.7 }] },
       { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.9 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.8 }] },
     ] };
   }
-  return { cols: [
+  // Qualif : classement plus large (Q1/Q2/Q3, tour en cours), duel et secteurs mis en avant
+  return quali ? { cols: [
+    { w: 1.8, items: [{ id: 'tower', h: 1 }] },
+    { w: 1, items: [{ id: 'map', h: 1.15 }, { id: 'feed', h: 0.85 }, { id: 'radio', h: 0.7 }] },
+    { w: 0.95, items: [{ id: 'duel', h: 1 }, { id: 'analysis', h: 1.2 }, { id: 'extra', h: 0.55 }] },
+  ] } : { cols: [
     { w: 1.6, items: [{ id: 'tower', h: 1 }] },
     { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'feed', h: 0.75 }, { id: 'radio', h: 0.75 }] },
     { w: 0.95, items: [{ id: 'duel', h: 0.85 }, { id: 'analysis', h: 1.1 }, { id: 'extra', h: 0.85 }] },
@@ -78,7 +104,19 @@ function normalize(l) {
       seen.add(p.id);
     }
   }
-  return { cols };
+  return rescale({ cols });
+}
+
+// Proportions ramenées à une moyenne de 1 : en CSS, des flex-grow dont la somme est
+// inférieure à 1 ne remplissent qu'une partie de la place (espace vide sous un panneau).
+function rescale(l) {
+  const fit = (arr, key) => {
+    const sum = arr.reduce((t, x) => t + x[key], 0);
+    if (sum > 0) for (const x of arr) x[key] = Math.round(((x[key] * arr.length) / sum) * 1000) / 1000;
+  };
+  fit(l.cols, 'w');
+  for (const c of l.cols) fit(c.items, 'h');
+  return l;
 }
 
 function allLayouts() {
@@ -92,10 +130,10 @@ function storeLayout(win, l) {
   storageSet(LAYOUTS_KEY, all);
 }
 
-let layout = normalize(allLayouts()[WIN] || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
+let layout = normalize(allLayouts()[lkey()] || (profile !== 'race' && !isMain && allLayouts()[WIN]) || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
 
 function save() {
-  storeLayout(WIN, layout);
+  storeLayout(lkey(), layout);
   announce();
 }
 
@@ -112,12 +150,14 @@ function removeItem(id) {
   if (!loc) return null;
   loc.col.items.splice(loc.ii, 1);
   if (!loc.col.items.length) layout.cols.splice(loc.ci, 1);
+  rescale(layout);
   return loc.item;
 }
 
 function addAsColumn(id) {
   const w = layout.cols.length ? layout.cols.reduce((s, c) => s + c.w, 0) / layout.cols.length : 1;
   layout.cols.push({ w, items: [{ id, h: 1 }] });
+  rescale(layout);
 }
 
 // Déplace `id` par rapport à `target` : left/right = nouvelle colonne, top/bottom = même colonne, center = échange.
@@ -141,6 +181,7 @@ function movePanel(id, target, zone) {
     t.col.w = w;
     layout.cols.splice(t.ci + (zone === 'right' ? 1 : 0), 0, { w, items: [{ id, h: 1 }] });
   }
+  rescale(layout);
 }
 
 // ---------------- Visibilité ----------------
@@ -161,11 +202,51 @@ function narrow() {
   return isMain && window.innerWidth <= 1000;
 }
 
+// Téléphone (et tablette en portrait) : un seul panneau à la fois, choisi dans la barre du bas.
+const MOB_TABS = [
+  ['tower', '🏁', 'Classement'], ['map', '🗺', 'Carte'], ['feed', '📢', 'Course'], ['duel', '⚔', 'Duel'],
+  ['analysis', '📈', 'Analyse'], ['extra', '🔧', 'Stratégie'], ['radio', '📻', 'Radios'],
+];
+const MOB_KEY = 'f1dash.mobileTab';
+let mobTab = storageGet(MOB_KEY, 'tower');
+
+function mobile() {
+  return isMain && window.innerWidth <= 900;
+}
+
+export function showMobilePanel(id) {
+  mobTab = id;
+  storageSet(MOB_KEY, id);
+  render(true);
+}
+
+function renderMobile(grid) {
+  grid.classList.remove('custom', 'has-max');
+  grid.classList.add('mobile');
+  const tabs = MOB_TABS.filter(([id]) => isVisible(id));
+  if (!tabs.some(([id]) => id === mobTab)) mobTab = tabs[0]?.[0] || 'tower';
+  for (const p of PANELS) {
+    const el = panelEl(p.id);
+    el.style.flex = '';
+    el.classList.remove('maximized');
+    el.classList.toggle('hidden-panel', p.id !== mobTab || !isVisible(p.id));
+    grid.appendChild(el);
+  }
+  for (const el of grid.querySelectorAll('.lcol, .lsplit-v, .lstash')) el.remove();
+  const nav = $('#mobNav');
+  nav.hidden = false;
+  nav.innerHTML = tabs.map(([id, ic, label]) => `<button data-mob="${id}" class="${id === mobTab ? 'active' : ''}"><span class="mn-ic">${ic}</span><span class="mn-l">${label}</span></button>`).join('');
+  nav.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
 function render(force = false) {
   const grid = $('.grid');
-  const key = `${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
   renderKey = key;
+  if (mobile()) { renderMobile(grid); return; }
+  grid.classList.remove('mobile');
+  if ($('#mobNav')) $('#mobNav').hidden = true;
   const stash = grid.querySelector('.lstash') || Object.assign(document.createElement('div'), { className: 'lstash', hidden: true });
   if (narrow()) {
     // Petit écran : empilement vertical classique
@@ -184,6 +265,7 @@ function render(force = false) {
   for (const p of PANELS) { const el = panelEl(p.id); el.classList.remove('hidden-panel'); stash.appendChild(el); }
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v')) el.remove();
   const cols = layout.cols.map((c) => ({ c, items: c.items.filter((it) => isVisible(it.id)) })).filter((x) => x.items.length);
+  const sumW = cols.reduce((t, x) => t + x.c.w, 0) || 1;
   cols.forEach(({ c, items }, i) => {
     if (i) {
       const sv = document.createElement('div');
@@ -194,7 +276,8 @@ function render(force = false) {
     }
     const col = document.createElement('div');
     col.className = 'lcol';
-    col.style.flex = `${c.w} 1 0`;
+    col.style.flex = `${(c.w * cols.length) / sumW} 1 0`;
+    const sumH = items.reduce((t, it) => t + it.h, 0) || 1;
     col._model = c;
     items.forEach((it, j) => {
       if (j) {
@@ -205,7 +288,7 @@ function render(force = false) {
         col.appendChild(sh);
       }
       const el = panelEl(it.id);
-      el.style.flex = `${it.h} 1 0`;
+      el.style.flex = `${(it.h * items.length) / sumH} 1 0`;
       el._model = it;
       col.appendChild(el);
     });
@@ -230,6 +313,8 @@ function splitter(el, axis, a, b) {
     const total = a[key] + b[key];
     const min = axis === 'x' ? MIN_W : MIN_H;
     const start = axis === 'x' ? e.clientX : e.clientY;
+    // Valeurs affichées = proportions × facteur commun (panneaux masqués exclus, voir render)
+    const k = (parseFloat(prev.style.flexGrow) || a[key]) / a[key];
     el.setPointerCapture(e.pointerId);
     el.classList.add('active');
     document.body.classList.add(axis === 'x' ? 'resizing-x' : 'resizing-y');
@@ -238,8 +323,8 @@ function splitter(el, axis, a, b) {
       const na = Math.max(min, Math.min(pa + pb - min, pa + d));
       a[key] = (total * na) / (pa + pb);
       b[key] = total - a[key];
-      prev.style.flex = `${a[key]} 1 0`;
-      next.style.flex = `${b[key]} 1 0`;
+      prev.style.flex = `${a[key] * k} 1 0`;
+      next.style.flex = `${b[key] * k} 1 0`;
     };
     const up = () => {
       el.removeEventListener('pointermove', move);
@@ -273,11 +358,65 @@ function startDrag(id, e) {
   document.body.append(ghost, hint);
   document.body.classList.add('dragging-panel');
   let drop = null;
+  const show = (z, text) => {
+    hint.hidden = false;
+    Object.assign(hint.style, { left: `${z[0]}px`, top: `${z[1]}px`, width: `${z[2]}px`, height: `${z[3]}px` });
+    hint.textContent = text;
+  };
+  const panelId = (el) => el && PANELS.find((p) => el.classList.contains(p.cls))?.id;
   const move = (ev) => {
     ghost.style.transform = `translate(${ev.clientX + 12}px, ${ev.clientY + 12}px)`;
-    const under = document.elementsFromPoint(ev.clientX, ev.clientY).find((n) => n.classList?.contains('panel') && n.closest('.lcol'));
-    const tid = under && PANELS.find((p) => under.classList.contains(p.cls))?.id;
-    if (!tid || tid === id) { drop = null; hint.hidden = true; return; }
+    const grid = $('.grid');
+    const g = grid.getBoundingClientRect();
+    const els = document.elementsFromPoint(ev.clientX, ev.clientY);
+    const colsEl = [...grid.querySelectorAll(':scope > .lcol')].filter((c) => c.querySelector('.panel'));
+    drop = null;
+    hint.hidden = true;
+    // Bords de la fenêtre : nouvelle colonne sur toute la hauteur
+    const edge = 28;
+    if (colsEl.length && ev.clientX >= g.left && ev.clientX <= g.right && ev.clientY >= g.top && ev.clientY <= g.bottom
+      && (ev.clientX < g.left + edge || ev.clientX > g.right - edge)) {
+      const left = ev.clientX < g.left + edge;
+      const col = left ? colsEl[0] : colsEl.at(-1);
+      // Cible : un autre panneau de cette colonne (seul dans sa colonne : il y est déjà)
+      const tid = [...col.querySelectorAll('.panel')].map(panelId).find((x) => x && x !== id);
+      if (tid) {
+        drop = { tid, zone: left ? 'left' : 'right' };
+        show([left ? g.left : g.right - 90, g.top, 90, g.height], left ? 'Nouvelle colonne tout à gauche' : 'Nouvelle colonne tout à droite');
+      }
+      return;
+    }
+    // Séparateur entre deux colonnes : nouvelle colonne à cet endroit
+    const sv = els.find((n) => n.classList?.contains('lsplit-v'));
+    if (sv) {
+      const tid = [...(sv.nextElementSibling?.querySelectorAll('.panel') || [])].map(panelId).find((x) => x && x !== id);
+      if (tid) {
+        const r = sv.getBoundingClientRect();
+        drop = { tid, zone: 'left' };
+        show([r.left - 40, g.top, r.width + 80, g.height], 'Nouvelle colonne ici');
+      }
+      return;
+    }
+    // Séparateur entre deux panneaux d'une colonne : insertion entre les deux
+    const sh = els.find((n) => n.classList?.contains('lsplit-h'));
+    if (sh) {
+      const tid = panelId(sh.nextElementSibling);
+      if (tid && tid !== id) {
+        const r = sh.getBoundingClientRect();
+        drop = { tid, zone: 'top' };
+        show([r.left, r.top - 30, r.width, r.height + 60], 'Ici, entre les deux');
+      }
+      return;
+    }
+    // Fenêtre vide
+    if (!colsEl.length && grid.classList.contains('custom') && els.includes(grid)) {
+      drop = { zone: 'append' };
+      show([g.left + 10, g.top + 10, g.width - 20, g.height - 20], 'Placer ici');
+      return;
+    }
+    const under = els.find((n) => n.classList?.contains('panel') && n.closest('.lcol'));
+    const tid = panelId(under);
+    if (!tid || tid === id) return;
     const r = under.getBoundingClientRect();
     const fx = (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
     const zone = fx < 0.25 ? 'left' : fx > 0.75 ? 'right' : fy < 0.3 ? 'top' : fy > 0.7 ? 'bottom' : 'center';
@@ -287,9 +426,7 @@ function startDrag(id, e) {
       top: [r.left, r.top, r.width, r.height / 2], bottom: [r.left, r.top + r.height / 2, r.width, r.height / 2],
       center: [r.left + r.width * 0.1, r.top + r.height * 0.1, r.width * 0.8, r.height * 0.8],
     }[zone];
-    hint.hidden = false;
-    Object.assign(hint.style, { left: `${z[0]}px`, top: `${z[1]}px`, width: `${z[2]}px`, height: `${z[3]}px` });
-    hint.textContent = zone === 'center' ? `Échanger avec ${SHORT[tid]}` : { left: 'Nouvelle colonne à gauche', right: 'Nouvelle colonne à droite', top: 'Au-dessus', bottom: 'En dessous' }[zone];
+    show(z, zone === 'center' ? `Échanger avec ${SHORT[tid]}` : { left: 'Nouvelle colonne à gauche', right: 'Nouvelle colonne à droite', top: 'Au-dessus', bottom: 'En dessous' }[zone]);
   };
   const end = () => {
     window.removeEventListener('pointermove', move);
@@ -298,7 +435,12 @@ function startDrag(id, e) {
     ghost.remove();
     hint.remove();
     document.body.classList.remove('dragging-panel');
-    if (drop) {
+    if (drop?.zone === 'append') {
+      removeItem(id);
+      addAsColumn(id);
+      render();
+      save();
+    } else if (drop) {
       movePanel(id, drop.tid, drop.zone);
       render();
       save();
@@ -339,9 +481,9 @@ function sendTo(id, target) {
   if (target === 'new') {
     // Nettoie les dispositions de fenêtres fermées
     const all = allLayouts();
-    for (const k of Object.keys(all)) if (k !== 'main' && k !== WIN && !others.has(k)) delete all[k];
+    for (const k of Object.keys(all)) { const w = k.split('@')[0]; if (w !== 'main' && w !== WIN && !others.has(w)) delete all[k]; }
     target = `w${Date.now().toString(36)}`;
-    all[target] = { cols: [{ w: 1, items: [{ id, h: 1 }] }] };
+    all[lkey(target)] = { cols: [{ w: 1, items: [{ id, h: 1 }] }] };
     storageSet(LAYOUTS_KEY, all);
     const w = openWindow(target);
     if (!w) return;
@@ -436,11 +578,54 @@ function maximize(id) {
   }
 }
 
+// ---------------- Changement de disposition (Course / Qualif & essais) ----------------
+const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[data-tabs]')]).filter(([, h]) => h);
+
+function applyTabs() {
+  const saved = storageGet(TABS_KEY, {})[profile] || {};
+  for (const [id, head] of tabHeads()) {
+    const want = saved[id] || TAB_DEFAULTS[profile]?.[id];
+    const b = want && head.querySelector(`[data-tab="${want}"]`);
+    if (b && !b.classList.contains('active')) b.click();
+  }
+}
+
+function switchProfile(next, quiet = false) {
+  if (!PROFILES[next] || next === profile) return;
+  if (isMain) {
+    // Panneaux masqués et colonnes du classement : propres à chaque disposition
+    const st = storageGet(PROFILE_KEY, {});
+    st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenCols: prefs.hiddenCols };
+    storageSet(PROFILE_KEY, st);
+    const n = st[next] || PROFILE_DEFAULTS[next];
+    profile = next;
+    storageSet('f1dash.lastProfile', next);
+    setPref('hiddenPanels', n.hiddenPanels || []);
+    setPref('hiddenCols', n.hiddenCols || []);
+  } else profile = next;
+  // Fenêtre secondaire sans disposition pour ce type de séance : elle garde ses panneaux
+  layout = normalize(allLayouts()[lkey()] || (isMain ? defaultLayout() : layout));
+  unmaximize();
+  render(true);
+  save();
+  applyTabs();
+  renderLayoutOptions();
+  if (isMain && !quiet) toast(`Disposition « ${PROFILES[next]} » (⚙ Réglages → Affichage)`, 3500);
+}
+
+function checkProfile() {
+  const kind = store.state.SessionInfo ? sessionKind(store.state) : null;
+  if (!kind && prefs.layoutMode !== 'race' && prefs.layoutMode !== 'quali') return;
+  switchProfile(profileFor(prefs.layoutMode, kind));
+}
+
+export const currentProfile = () => profile;
+
 // ---------------- Initialisation ----------------
 export function initLayout() {
   if (!isMain) {
     document.body.classList.add('solo');
-    if (legacyPanel && !allLayouts()[WIN]) storeLayout(WIN, layout);
+    if (legacyPanel && !allLayouts()[lkey()]) storeLayout(lkey(), layout);
   }
   initChannel();
   for (const p of PANELS) {
@@ -467,6 +652,7 @@ export function initLayout() {
     if (e.key === 'Escape' && $('.grid').classList.contains('has-max') && !document.querySelector('dialog[open]')) unmaximize();
   });
   window.addEventListener('resize', () => render());
+  $('#mobNav')?.addEventListener('click', (e) => { const b = e.target.closest('[data-mob]'); if (b) showMobilePanel(b.dataset.mob); });
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
@@ -475,6 +661,21 @@ export function initLayout() {
   });
   render(true);
   renderLayoutOptions();
+  // Onglets ouverts : mémorisés pour chaque disposition
+  for (const [id, head] of tabHeads()) {
+    head.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-tab]');
+      if (!b) return;
+      const all = storageGet(TABS_KEY, {});
+      all[profile] = { ...(all[profile] || {}), [id]: b.dataset.tab };
+      storageSet(TABS_KEY, all);
+    });
+  }
+  applyTabs();
+  on('reset', checkProfile);
+  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo')) checkProfile(); });
+  on('prefs', (k) => { if (k === 'layoutMode') checkProfile(); });
+  checkProfile();
 }
 
 // Retour à l'interface par défaut : disposition, panneaux masqués, colonnes du classement ;
@@ -485,16 +686,26 @@ export function resetLayout(ask = true) {
   channel?.postMessage({ type: 'reset', win: WIN });
   others.clear();
   storageSet(LAYOUTS_KEY, {});
+  storageSet(PROFILE_KEY, {});
+  storageSet(TABS_KEY, {});
   unmaximize();
-  if (prefs.hiddenPanels.length) setPref('hiddenPanels', []);
-  if (prefs.hiddenCols.length) setPref('hiddenCols', []);
+  const def = PROFILE_DEFAULTS[profile];
+  setPref('hiddenPanels', [...def.hiddenPanels]);
+  setPref('hiddenCols', [...def.hiddenCols]);
   if (!prefs.towerFit) setPref('towerFit', true);
   layout = normalize(defaultLayout());
+  applyTabs();
   render(true);
   save();
 }
 
 export function renderLayoutOptions() {
+  const sel = $('#layoutModeSel');
+  if (sel) {
+    sel.value = prefs.layoutMode;
+    sel.onchange = () => setPref('layoutMode', sel.value);
+    $('#layoutProfileNow').textContent = `Disposition affichée : « ${PROFILES[profile]} ». Panneaux, tailles, colonnes et onglets ci-dessous s'appliquent à celle-ci.`;
+  }
   $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
   $('#panelOpts').onchange = (e) => {
     const id = e.target.dataset.panel;

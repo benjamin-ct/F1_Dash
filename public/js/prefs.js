@@ -4,13 +4,16 @@ import { emit, touch } from './store.js';
 
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
-  alerts: { sound: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true },
+  alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true },
   hiddenPanels: [],
   hiddenCols: [],
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
-  theme: 'noir',          // 'noir' | 'bleu'
+  theme: 'f1',            // 'f1' (F1 sobre) | 'noir' (classique) | 'bleu' (bleu nuit)
   vividTeams: true,       // couleurs d'équipe contrastées plutôt qu'officielles
-  teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
+  teamLogos: true,
+  keepAwake: true,        // écran toujours allumé pendant une séance
+  legends: true,          // légendes sous les panneaux (couleurs, colonnes, graphiques)
+  layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'        // logos des écuries (classement, championnat) plutôt que barres de couleur
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
   radioLang: 'fr',        // langue de traduction des transcriptions ('none' : anglais)
@@ -35,6 +38,13 @@ const DEFAULTS = {
 
 const saved = storageGet('f1dash.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
+// Passage au thème « F1 sobre » : ceux qui gardaient le thème noir par défaut en profitent ;
+// un autre thème choisi (bleu nuit) est conservé. Une seule fois.
+if (!saved.themeV) {
+  if (!saved.theme || saved.theme === 'noir') prefs.theme = 'f1';
+  storageSet('f1dash.prefs', { ...saved, theme: prefs.theme, themeV: 2 });
+}
+prefs.themeV = 2;   // gardé dans chaque enregistrement des préférences
 setVividTeams(prefs.vividTeams);
 setTeamLogos(prefs.teamLogos);
 

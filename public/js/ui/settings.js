@@ -1,6 +1,6 @@
 // Réglages : choix live / replay, jeton F1 TV, barre de contrôle du replay.
 import { store, serverNow, on } from '../store.js';
-import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers } from '../util.js';
+import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, storageSet } from '../util.js';
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav } from '../prefs.js';
 
@@ -58,6 +58,17 @@ function renderReplayBar() {
   const range = $('#rpRange');
   range.max = String(src.duration);
   if (!dragging) range.value = String(Math.max(0, pos));
+  // Drapeaux rouges : repères sur la barre et bouton pour passer l'interruption
+  const reds = src.redFlags || [];
+  const marks = $('#rpMarks');
+  const mk = `${src.duration}|${reds.map((r) => `${r.start}-${r.end}`).join()}`;
+  if (marks.dataset.k !== mk) {
+    marks.dataset.k = mk;
+    marks.innerHTML = reds.map((r) => `<i title="Drapeau rouge" style="left:${(100 * r.start) / src.duration}%;width:${Math.max(0.3, (100 * (r.end - r.start)) / src.duration)}%"></i>`).join('');
+  }
+  const red = reds.find((r) => pos >= r.start - 1000 && pos < r.end - 35000);
+  $('#rpRed').hidden = !red;
+  $('#rpRed').dataset.end = red ? red.end : '';
   const rel = pos - (src.sessionStart || 0);
   $('#rpTime').textContent = `${rel >= 0 ? 'Départ +' : 'Départ −'}${fmtDuration(Math.abs(rel))} · ${fmtDuration(pos)} / ${fmtDuration(src.duration)}`;
   $('#rpPlay').textContent = store.status.paused ? '▶' : '❚❚';
@@ -66,6 +77,27 @@ function renderReplayBar() {
 
 async function control(body) {
   try { await api('/api/replay/control', { method: 'POST', body }); } catch (err) { toast(err.message); }
+}
+
+// Accès depuis un téléphone / une tablette du réseau local (réglage disponible sur l'ordinateur uniquement)
+async function renderLan(change) {
+  let info;
+  try {
+    info = await api('/api/lan', change ? { method: 'POST', body: change } : undefined);
+  } catch {
+    $('#lanBlock').hidden = true;   // ouvert depuis un téléphone : réglage réservé à l'ordinateur
+    return;
+  }
+  $('#lanBlock').hidden = false;
+  $('#lanEnabled').checked = info.enabled;
+  const ok = info.enabled && info.running && info.urls.length;
+  $('#lanInfo').hidden = !ok;
+  $('#lanError').hidden = !(info.enabled && !ok);
+  $('#lanError').textContent = info.error ? `⚠ Accès réseau impossible : ${info.error}.` : !info.urls.length ? '⚠ Aucun réseau local détecté sur cet ordinateur.' : 'Démarrage…';
+  if (!ok) return;
+  $('#lanQr').innerHTML = info.qr;
+  $('#lanUrl').textContent = info.urls[0].url;
+  $('#lanOther').textContent = info.urls.length > 1 ? `Autres adresses possibles : ${info.urls.slice(1).map((u) => u.url).join(' · ')}` : '';
 }
 
 export function initSettings() {
@@ -107,6 +139,9 @@ export function initSettings() {
   setInterval(() => { if (modal.open && !$('#favList .fav')) renderFavs(); }, 1000);
 
   // Application de bureau : connexion F1 TV intégrée (le cookie est lu directement par l'appli).
+  renderLan();
+  $('#lanEnabled').addEventListener('change', (e) => renderLan({ enabled: e.target.checked }));
+  $('#lanRegen').addEventListener('click', () => { if (confirm('Changer la clé ? Les téléphones et tablettes déjà autorisés devront rescanner le QR code.')) renderLan({ regenerate: true }); });
   // Application de bureau : fenêtres détachées rouvertes au lancement
   $('#themeSel').value = prefs.theme;
   $('#themeSel').addEventListener('change', (e) => setPref('theme', e.target.value));
@@ -117,6 +152,13 @@ export function initSettings() {
   $('#teamLogos').checked = prefs.teamLogos;
   $('#teamLogos').addEventListener('change', (e) => setPref('teamLogos', e.target.checked));
   on('prefs', (k) => { if (k === 'teamLogos') $('#teamLogos').checked = prefs.teamLogos; });
+  // Téléphone ou tablette connecté à l'ordinateur : suivre son délai TV
+  on('role', (host) => { $('#followHostBlock').hidden = host; });
+  $('#followHost').checked = storageGet('f1dash.followHost', true);
+  $('#followHost').addEventListener('change', (e) => storageSet('f1dash.followHost', e.target.checked));
+  $('#keepAwake').checked = prefs.keepAwake;
+  $('#keepAwake').addEventListener('change', (e) => setPref('keepAwake', e.target.checked));
+  on('prefs', (k) => { if (k === 'keepAwake') $('#keepAwake').checked = prefs.keepAwake; });
   if (window.f1desktop?.getRestoreWindows) {
     $('#restoreWinRow').hidden = false;
     window.f1desktop.getRestoreWindows().then((v) => { $('#restoreWin').checked = v; });
@@ -201,6 +243,12 @@ export function initSettings() {
   $('#replayBar').addEventListener('click', (e) => {
     const b = e.target.closest('[data-skip]');
     if (b) control({ action: 'skip', deltaMs: Number(b.dataset.skip) });
+  });
+  $('#rpRed').addEventListener('click', (e) => {
+    const end = Number(e.currentTarget.dataset.end);
+    if (!end) return;
+    control({ action: 'seek', toMs: end - 30000 + store.delay * (store.status?.source?.speed || 1) });
+    toast('⏭ Reprise 30 s avant la relance de la séance');
   });
   $('#rpStart').addEventListener('click', () => {
     const src = store.status?.source;

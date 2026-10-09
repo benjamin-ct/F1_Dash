@@ -15,6 +15,10 @@ import { fiaDocuments } from './fia.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
+import { createLan, isLoopback } from './lan.js';
+import { getTranslations, addTranslations } from './translations.js';
+
+let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
 const hub = new Hub({ maxDelayMs: settings.maxDelayMs });
 const recorder = process.env.NO_RECORDING ? null : new Recorder();
@@ -36,6 +40,7 @@ const MIME = {
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
   '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
 };
 
 function sendJSON(res, status, obj) {
@@ -89,6 +94,23 @@ async function handleApi(req, res, url) {
   if (req.method !== 'GET' && !sameOrigin(req)) return sendJSON(res, 403, { error: 'Origine refusée' });
 
   switch (route) {
+    case 'GET /api/lan':
+    case 'POST /api/lan': {
+      // Réglage de l'accès réseau : uniquement depuis cet ordinateur
+      if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
+      if (req.method === 'GET') return sendJSON(res, 200, lan.info());
+      const body = await readBody(req);
+      return sendJSON(res, 200, await lan.set({ enabled: body.enabled, regenerate: !!body.regenerate, port: body.port }));
+    }
+
+    // Traductions des textes FIA (évolutions techniques), partagées entre appareils
+    case 'GET /api/translations':
+      return sendJSON(res, 200, getTranslations(url.searchParams.get('lang') || 'fr'));
+    case 'POST /api/translations': {
+      const body = await readBody(req);
+      return sendJSON(res, 200, { added: addTranslations(body.lang, body.items) });
+    }
+
     case 'GET /api/status':
       return sendJSON(res, 200, { ...hub.statusPayload(), auth: tokenInfo(getConfig().f1tvToken) });
 
@@ -244,7 +266,7 @@ async function handleApi(req, res, url) {
   }
 }
 
-const server = http.createServer(async (req, res) => {
+async function handler(req, res) {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname.startsWith('/api/')) {
     try {
@@ -256,10 +278,12 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
   serveStatic(req, res, decodeURIComponent(url.pathname));
-});
+}
 
+const server = http.createServer(handler);
 const wss = new WebSocketServer({ server, path: '/ws', perMessageDeflate: { threshold: 4096 } });
-wss.on('connection', (ws) => hub.addClient(ws));
+wss.on('connection', (ws, req) => hub.addClient(ws, { host: isLoopback(req.socket.remoteAddress) }));
+lan = createLan({ handler, onSocket: (ws) => hub.addClient(ws, { host: false }) });
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
@@ -282,6 +306,7 @@ live.start();
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {
     recorder?.close();
+    lan?.stop();
     process.exit(0);
   });
 }

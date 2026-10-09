@@ -2,11 +2,18 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="F1 Dash">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-512.png">
   <title>F1 Dash</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e10600'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='900' font-size='15' fill='white' text-anchor='middle'%3EF1%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/css/style.css">
-  <script>try { document.documentElement.dataset.theme = (JSON.parse(localStorage.getItem('f1dash.prefs') || '{}').theme) || 'noir'; } catch { document.documentElement.dataset.theme = 'noir'; }</script>
+  <script>try { const p = JSON.parse(localStorage.getItem('f1dash.prefs') || '{}'); document.documentElement.dataset.theme = p.themeV ? p.theme || 'f1' : (p.theme && p.theme !== 'noir' ? p.theme : 'f1'); } catch { document.documentElement.dataset.theme = 'f1'; }</script>
 </head>
 <body>
   <header class="topbar">
@@ -18,6 +25,7 @@
     </div>
 
     <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
+    <div class="tb-break b1"></div>
 
     <div class="hstat"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div></div>
     <div class="hstat" id="lapsLeftBox" hidden><div class="hstat-label">Tours restants</div><div class="hstat-value" id="lapsLeft">—</div></div>
@@ -26,6 +34,7 @@
     <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
 
     <div class="spacer"></div>
+    <div class="tb-break b2"></div>
 
     <div class="delay" id="delayBox">
       <div class="delay-head">
@@ -42,13 +51,14 @@
         <button class="dbtn" data-step="5000" title="+5 s (Maj + →)">+5</button>
       </div>
       <select id="presetSelect" class="preset" aria-label="Préréglages de délai"></select>
-      <button class="btn btn-accent" id="syncBtn" title="Caler le délai sur votre diffusion TV (touche S)">🎯 Synchro TV</button>
+      <button class="btn btn-accent" id="syncBtn" title="Caler le délai sur votre diffusion TV (touche S)">🎯<span class="sync-label"> Synchro TV</span></button>
     </div>
 
     <button class="source-badge" id="sourceBadge" title="Source des données (live / replay)">
       <span class="src-dot"></span><span id="sourceLabel">—</span>
     </button>
     <button class="btn season-btn" id="seasonBtn" title="Saison : prochaine séance, calendrier, classements, résultats, duels entre coéquipiers">🏆<span class="sb-label"> Saison</span></button>
+    <button class="icon-btn" id="muteBtn" title="Son des alertes (touche M)">🔔</button>
     <button class="icon-btn comm-btn" id="commBtn" title="Commentaires en direct F1 TV Pro (touche C : couper / remettre le son)">🎙</button>
     <button class="icon-btn" id="resetUiBtn" title="Réinitialiser l'interface (disposition, panneaux et colonnes par défaut)">⟲</button>
     <button class="icon-btn" id="settingsBtn" title="Réglages : source (live / replay), compte F1 TV, affichage, alertes, application">⚙</button>
@@ -60,13 +70,14 @@
     <button class="btn" id="rpPlay" title="Pause">❚❚</button>
     <button class="btn" data-skip="-60000">−60 s</button>
     <button class="btn" data-skip="-10000">−10 s</button>
-    <input type="range" id="rpRange" min="0" max="1000" value="0" step="1">
+    <div class="rp-track"><input type="range" id="rpRange" min="0" max="1000" value="0" step="1"><div class="rp-marks" id="rpMarks"></div></div>
     <button class="btn" data-skip="10000">+10 s</button>
     <button class="btn" data-skip="60000">+60 s</button>
     <span class="rp-time" id="rpTime">—</span>
     <select id="rpSpeed" class="preset" title="Vitesse de lecture">
       <option value="0.5">×0,5</option><option value="1" selected>×1</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option>
     </select>
+    <button class="btn rp-red" id="rpRed" hidden title="Passer l'interruption : reprendre 30 s avant la relance de la séance">⏭ Fin du drapeau rouge</button>
     <button class="btn" id="rpStart" title="Aller au départ de la session">⏮ Départ</button>
   </div>
 
@@ -270,6 +281,9 @@
     </section>
   </main>
 
+  <!-- Petit écran (téléphone) : un panneau à la fois, choisi dans cette barre -->
+  <nav class="mob-nav" id="mobNav" hidden></nav>
+
   <!-- Synchro TV -->
   <dialog class="modal" id="syncModal">
     <form method="dialog" class="modal-head">
@@ -367,6 +381,32 @@
         <div class="small" id="tokenStatus"></div>
       </section>
 
+      <section class="set-block" data-sgroup="app" id="followHostBlock" hidden>
+        <h4>⏱ Délai TV</h4>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="followHost"> Reprendre automatiquement le délai TV réglé sur l'ordinateur</label></div>
+        <p class="small muted">Décochez si cet appareil regarde une autre diffusion que l'ordinateur ; réglez alors son délai avec 🎯 en haut de l'écran.</p>
+      </section>
+
+      <section class="set-block" data-sgroup="app" id="lanBlock" hidden>
+        <h4>📱 Sur votre téléphone ou tablette</h4>
+        <p class="muted small">Ouvrez F1 Dash sur un téléphone ou une tablette connecté au <b>même Wi-Fi</b> que cet ordinateur : l'interface s'adapte au petit écran (un panneau à la fois). Le délai TV, le pilote suivi et le replay sont ceux de cet ordinateur ; l'ordinateur doit rester allumé avec F1 Dash ouvert.</p>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="lanEnabled"> Autoriser l'accès depuis le réseau local</label></div>
+        <div id="lanInfo" hidden>
+          <div class="lan-wrap">
+            <div class="lan-qr" id="lanQr"></div>
+            <div class="small">
+              <p>Scannez ce QR code avec l'appareil photo du téléphone, ou tapez l'adresse :</p>
+              <p><code id="lanUrl">—</code></p>
+              <p class="muted" id="lanOther"></p>
+              <p class="muted">Pour l'avoir comme une appli : dans le navigateur du téléphone, « Ajouter à l'écran d'accueil ».</p>
+              <p class="muted">L'adresse contient une clé secrète : seuls les appareils qui l'ont scannée y ont accès. Au premier lancement, Windows peut demander d'autoriser F1 Dash sur le réseau : acceptez pour les réseaux privés.</p>
+              <button class="btn small" id="lanRegen" title="Les appareils déjà autorisés devront rescanner le QR code">Changer la clé</button>
+            </div>
+          </div>
+        </div>
+        <div class="small" id="lanError" hidden></div>
+      </section>
+
       <section class="set-block" data-sgroup="app" id="updateBlock" hidden>
         <h4>🔄 Mises à jour de l'application</h4>
         <div class="small" id="updateStatus">—</div>
@@ -385,20 +425,24 @@
 
       <section class="set-block" data-sgroup="display">
         <h4>🧩 Affichage</h4>
-        <div class="small muted">Disposition libre : glissez un panneau par sa poignée <b>⠿</b> à côté, au-dessus ou en dessous d'un autre (ou au centre pour les échanger) ; glissez les espaces entre les panneaux pour changer leur taille (double-clic : partage égal). <b>↗</b> envoie un panneau vers une nouvelle fenêtre ou l'ajoute à une fenêtre déjà ouverte (second écran), où il se dispose de la même façon ; <b>↙</b> le remet ici.</div>
+        <div class="small muted">Disposition libre : glissez un panneau par sa poignée <b>⠿</b> à côté, au-dessus ou en dessous d'un autre (ou au centre pour les échanger), entre deux panneaux ou deux colonnes, ou contre le bord gauche ou droit de la fenêtre pour en faire une nouvelle colonne ; glissez les espaces entre les panneaux pour changer leur taille (double-clic : partage égal). <b>↗</b> envoie un panneau vers une nouvelle fenêtre ou l'ajoute à une fenêtre déjà ouverte (second écran), où il se dispose de la même façon ; <b>↙</b> le remet ici.</div>
+        <div class="row"><label class="small">Disposition <select id="layoutModeSel"><option value="auto">Automatique selon la séance</option><option value="race">Toujours « Course »</option><option value="quali">Toujours « Qualif &amp; essais »</option></select></label></div>
+        <div class="small muted">Deux dispositions indépendantes, l'une pour les courses (et sprints), l'autre pour les qualifications et les essais : chacune garde ses panneaux, leurs tailles, les colonnes du classement et les onglets ouverts. <b id="layoutProfileNow"></b></div>
         <div class="row"><button class="btn small" id="layoutReset">Réinitialiser l'interface</button> <span class="small muted">(aussi avec le bouton ⟲ en haut)</span></div>
         <div class="small muted">Panneaux visibles :</div>
         <div class="row" id="panelOpts"></div>
         <div class="small muted">Colonnes du classement :</div>
         <div class="row" id="colOpts"></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="towerFit"> Agrandir le classement pour remplir la hauteur disponible (grand écran, fenêtre détachée)</label></div>
-        <div class="row"><label class="small">Thème <select id="themeSel"><option value="noir">Noir (par défaut)</option><option value="bleu">Bleu nuit</option></select></label></div>
+        <div class="row"><label class="small">Thème <select id="themeSel"><option value="f1">F1 sobre (par défaut)</option><option value="noir">Classique (noir)</option><option value="bleu">Bleu nuit</option></select></label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement et le championnat (décoché : simples barres de couleur)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées (une teinte bien distincte par équipe ; décoché : couleurs officielles)</label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="legendsOn"> Légendes sous les panneaux (couleurs, colonnes, graphiques)</label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance (sur téléphone : touchez l'écran une fois)</label></div>
         <div class="row" id="restoreWinRow" hidden><label class="toggle small"><input type="checkbox" id="restoreWin"> Rouvrir les fenêtres détachées (second écran) à leur place au lancement de l'application</label></div>
       </section>
 
-      <section class="set-block" data-sgroup="app">
+      <section class="set-block" data-sgroup="app" id="shortcutsBlock">
         <h4>⌨ Raccourcis</h4>
         <p class="small muted">← / → : délai ±1 s · Maj : ±5 s · Alt : ±0,1 s · S : synchro TV · Espace : pause (replay) · M : couper les alertes sonores · Échap : quitter le panneau agrandi</p>
       </section>

@@ -147,8 +147,10 @@ export class Hub {
   }
 
   // ---- Clients ----
-  addClient(ws) {
-    const c = { ws, delay: 0, gen: -1, ei: 0, si: 0, cutoff: -Infinity };
+  // host : fenêtre ouverte sur l'ordinateur lui-même. Les téléphones et tablettes du réseau
+  // local reçoivent son délai TV pour pouvoir s'y caler (« hostDelay »).
+  addClient(ws, { host = true } = {}) {
+    const c = { ws, host, delay: 0, gen: -1, ei: 0, si: 0, cutoff: -Infinity };
     this.clients.add(c);
     ws.on('message', (buf) => {
       let msg;
@@ -156,6 +158,11 @@ export class Hub {
       if (msg.type === 'delay') {
         const ms = Number(msg.ms);
         if (Number.isFinite(ms)) c.delay = Math.max(0, Math.min(this.maxDelayMs, ms));
+        if (host && Number.isFinite(ms) && c.delay !== this.hostDelay) {
+          this.hostDelay = c.delay;
+          const str = JSON.stringify({ type: 'hostDelay', ms: c.delay });
+          for (const o of this.clients) if (!o.host) this.send(o, str);
+        }
       } else if (msg.type === 'ping') {
         this.send(c, JSON.stringify({ type: 'pong', id: msg.id, serverNow: Date.now() }));
       }
@@ -163,6 +170,7 @@ export class Hub {
     ws.on('close', () => this.clients.delete(c));
     ws.on('error', () => this.clients.delete(c));
     this.send(c, JSON.stringify(this.statusPayload()));
+    this.send(c, JSON.stringify({ type: 'role', host, hostDelay: this.hostDelay ?? null }));
     return c;
   }
 

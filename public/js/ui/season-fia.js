@@ -1,6 +1,7 @@
 // Vues « Évolutions techniques » et « Éléments moteur » de l'espace Saison, à partir des
 // documents officiels de la FIA lus par le serveur (/api/season/fia).
-import { esc, teamColor, teamMark } from '../util.js';
+import { $, esc, teamColor, teamMark, storageGet, storageSet } from '../util.js';
+import { translated, requestTranslations, onTranslation, translationState } from './fia-translate.js';
 
 const TYPES_FR = { Performance: 'Performance', 'Circuit specific': 'Spécifique au circuit', Reliability: 'Fiabilité', 'Structural Improvement': 'Structure' };
 const REASONS_FR = {
@@ -21,6 +22,63 @@ const ZONES = [
   [/mirror|halo|camera|roll hoop|ris|impact|chassis|cockpit/i, 'Rétroviseurs, halo et divers'],
 ];
 const zoneOf = (c) => ZONES.find(([re]) => re.test(c))?.[1] || 'Autre';
+
+// Composants (libellés FIA les plus courants) ; les autres passent par le moteur de traduction
+const COMP_FR = {
+  'rear wing': 'Aileron arrière', 'front wing': 'Aileron avant', 'rear corner': 'Coin de roue arrière', 'front corner': 'Coin de roue avant',
+  'floor body': 'Fond plat', floor: 'Fond plat', 'coke/engine cover': 'Capot moteur / coke', 'engine cover': 'Capot moteur',
+  'beam wing': 'Beam wing', 'front suspension': 'Suspension avant', 'rear suspension': 'Suspension arrière', diffuser: 'Diffuseur',
+  'front wing endplate': 'Dérive d\'aileron avant', 'rear wing endplate': 'Dérive d\'aileron arrière', 'floor edge': 'Bord du fond plat',
+  'cooling louvres': 'Ouïes de refroidissement', 'cooling louvers': 'Ouïes de refroidissement', 'sidepod inlet': 'Entrée d\'air de ponton',
+  'floor fences': 'Déflecteurs du fond plat', nose: 'Museau', 'exhaust tailpipe': 'Sortie d\'échappement', tailpipe: 'Sortie d\'échappement',
+  halo: 'Halo', 'floor board': 'Floorboard (fond plat)', 'forward floorboard': 'Floorboard avant', 'rear impact structure': 'Structure d\'impact arrière',
+  'mirror stay': 'Support de rétroviseur', mirror: 'Rétroviseur', mirrors: 'Rétroviseurs', 'mirror assembly': 'Rétroviseur', cover: 'Carénage',
+  'exhaust tailpipe bracket': 'Support de sortie d\'échappement', 'tailpipe bracket': 'Support de sortie d\'échappement', 'floor corner': 'Coin du fond plat',
+  'floor furniture': 'Appendices du fond plat', 'floor bib': 'Bib (avant du fond plat)', 'diffuser vane': 'Ailette du diffuseur', 'roll hoop': 'Arceau de sécurité',
+  tail: 'Partie arrière', 'rear tail': 'Partie arrière', 'rv tail': 'Partie arrière', bodywork: 'Carrosserie', 'sidepod/coke': 'Ponton / coke', sidepod: 'Ponton',
+  'floor leading edge': 'Bord d\'attaque du fond plat', 'front wing flap': 'Volet d\'aileron avant', 'nose camera': 'Caméra du museau',
+  'ris fairings': 'Carénages de la structure d\'impact arrière', 'rear brace wing': 'Aileron de renfort arrière', 'floor edge and diffuser': 'Bord du fond plat et diffuseur',
+  'floor edge & diffuser': 'Bord du fond plat et diffuseur', 'brake duct': 'Écope de frein', 'front brake duct': 'Écope de frein avant', 'rear brake duct': 'Écope de frein arrière',
+  chassis: 'Châssis', 'side impact structure': 'Structure d\'impact latérale', 'front wing mainplane': 'Plan principal d\'aileron avant',
+};
+const compKey = (c) => String(c || '').toLowerCase().replace(/\s+/g, ' ').trim();
+const compFr = (c) => COMP_FR[compKey(c)] || null;
+
+// Texte traduit (ou original en attendant), mis à jour sur place quand la traduction arrive
+const showOriginal = () => storageGet('f1dash.techOriginal', false);
+const trSpan = (en) => {
+  if (!en) return '';
+  const fr = showOriginal() ? null : translated(en);
+  return `<span data-tr="${esc(en)}" class="${fr || showOriginal() ? '' : 'sz-tr-wait'}" ${fr ? `title="${esc(en)}"` : 'lang="en"'}>${esc(fr || en)}</span>`;
+};
+
+function trStatusHtml() {
+  if (showOriginal()) return '';
+  const s = translationState();
+  if (s.left) return `⏳ Traduction en cours (${s.left} texte${s.left > 1 ? 's' : ''})${s.loading ? ` · ${esc(s.loading)}` : ''} — faite sur cet ordinateur, une seule fois.`;
+  if (s.error) return `⚠ Traduction impossible pour l'instant : ${esc(s.error)}.`;
+  return '';
+}
+
+onTranslation((en) => {
+  const root = $('#szContent');
+  if (!root) return;
+  for (const el of root.querySelectorAll('[data-tr]')) {
+    if (en && el.dataset.tr !== en) continue;
+    const fr = translated(el.dataset.tr);
+    if (!fr || showOriginal()) continue;
+    el.textContent = fr;
+    el.title = el.dataset.tr;
+    el.removeAttribute('lang');
+    el.classList.remove('sz-tr-wait');
+  }
+  const st = $('#szTrStatus');
+  if (st) st.innerHTML = trStatusHtml();
+});
+
+export function toggleTechOriginal(v) {
+  storageSet('f1dash.techOriginal', v);
+}
 
 // Limites d'éléments moteur par saison (règlement sportif FIA)
 const LIMITS = {
@@ -79,7 +137,8 @@ export function renderTech(ctx, fia) {
   const types = count(all, (u) => u.type);
   const reasons = count(all, (u) => u.reason);
   const zones = count(all, (u) => zoneOf(u.component));
-  const comps = count(all.filter((u) => u.component), (u) => u.component.replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())).slice(0, 15);
+  // Regroupés par nom français (« Floor » et « Floor Body » = « Fond plat »)
+  const comps = count(all.filter((u) => u.component), (u) => compFr(u.component) || u.component.replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())).slice(0, 15);
   const tot = all.length;
   const pct = (n) => `${Math.round((n / tot) * 1000) / 10} %`.replace('.', ',');
 
@@ -131,12 +190,23 @@ export function renderTech(ctx, fia) {
         <label class="small">Écurie <select id="szTechTeam"><option value="all">Toutes</option>${teamsGp.map((t) => `<option ${t === techTeam ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
         ${gp.docs?.tech ? `<a class="small" href="${esc(gp.docs.tech)}" target="_blank" rel="noopener">Document FIA (PDF) ↗</a>` : ''}</div>
       ${gp.noUpdates.length ? `<p class="muted small">Sans nouveauté : ${gp.noUpdates.map(esc).join(', ')}.</p>` : ''}
+      <div class="sz-tr-bar small"><label class="toggle small"><input type="checkbox" id="szTechOrig" ${showOriginal() ? 'checked' : ''}> Texte d'origine (anglais)</label><span class="muted" id="szTrStatus">${trStatusHtml()}</span></div>
       <div class="sz-upd">${list.map((u) => `<article class="sz-upd-item" style="--tc:${tcol(u.team, ctx, u.teamId)}">
-        <div class="sz-upd-head">${mark(u.team, ctx, u.teamId)}<b>${esc(u.component || '—')}</b><span class="sz-tag">${esc(TYPES_FR[u.type] || u.type)}</span>${(REASONS_FR[u.reason] || u.reason) !== (TYPES_FR[u.type] || u.type) ? `<span class="sz-tag sprint">${esc(REASONS_FR[u.reason] || u.reason)}</span>` : ''}<span class="muted small">${esc(u.team)} · n° ${u.n}</span></div>
-        ${u.geometry ? `<div class="small"><span class="muted">Modification :</span> ${esc(u.geometry)}</div>` : ''}
-        ${u.description ? `<div class="small muted" lang="en">${esc(u.description)}</div>` : ''}
+        <div class="sz-upd-head">${mark(u.team, ctx, u.teamId)}<b>${showOriginal() ? esc(u.component || '—') : compFr(u.component) ? `<span title="${esc(u.component)}">${esc(compFr(u.component))}</span>` : trSpan(u.component) || '—'}</b><span class="sz-tag" title="Type d'évolution déclaré par l'écurie">${esc(TYPES_FR[u.type] || u.type)}</span>${(REASONS_FR[u.reason] || u.reason) !== (TYPES_FR[u.type] || u.type) ? `<span class="sz-tag sprint" title="Raison principale déclarée">${esc(REASONS_FR[u.reason] || u.reason)}</span>` : ''}<span class="muted small">${esc(u.team)} · n° ${u.n}</span></div>
+        ${u.geometry ? `<div class="small"><span class="muted">Ce qui change :</span> ${trSpan(u.geometry)}</div>` : ''}
+        ${u.description ? `<div class="small sz-upd-desc"><span class="muted">Pourquoi :</span> ${trSpan(u.description)}</div>` : ''}
       </article>`).join('') || '<div class="note">Aucune évolution.</div>'}</div>
-      <p class="muted small">Textes d'origine (anglais) fournis par les écuries à la FIA : « Car Presentation Submissions ».</p></section>`;
+      <p class="muted small">Descriptions fournies par les écuries à la FIA (« Car Presentation Submissions »)${showOriginal() ? '' : ', traduites automatiquement sur cet ordinateur : survolez un texte pour voir l\'original'}.</p></section>`;
+}
+
+// Textes du détail affiché à traduire (appelé après l'affichage)
+export function translateTechDetail(ctx, fia) {
+  if (showOriginal()) return;
+  const evs = events(ctx, fia).filter((e) => e.tech);
+  const gp = evs.find((e) => e.page === techGp) || evs.at(-1);
+  if (!gp) return;
+  const list = gp.tech.filter((u) => techTeam === 'all' || u.team === techTeam);
+  requestTranslations(list.flatMap((u) => [compFr(u.component) ? null : u.component, u.geometry, u.description]));
 }
 
 // ---------------- Éléments moteur ----------------
