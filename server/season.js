@@ -1,6 +1,7 @@
 // Données de la saison (calendrier, classements, résultats, qualifications, sprints) depuis
 // l'API publique Jolpica (successeur d'Ergast), regroupées en un seul objet compact pour
-// l'espace « Saison ». Cache mémoire 15 min + copie disque (affichage hors ligne).
+// l'espace « Saison ». Saison en cours : rafraîchie toutes les 15 min ; saisons terminées :
+// gardées sur disque une fois pour toutes ; copie disque aussi utilisée hors ligne.
 import fs from 'node:fs';
 import path from 'node:path';
 import { getJSON, withRetry } from './net.js';
@@ -108,19 +109,41 @@ async function fetchSeason(year) {
   };
 }
 
+// Saison terminée (année passée, toutes les courses ont un résultat) : elle ne change plus,
+// la copie sur disque sert indéfiniment (l'API publique limite à 500 requêtes par heure).
+const finished = (d) => d && d.year < new Date().getFullYear() && d.races?.length && d.races.every((r) => r.results?.length);
+
+function readDisk(file) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
+}
+
 export async function season(year) {
   const hit = mem.get(year);
-  if (hit && Date.now() - hit.updated < TTL) return hit;
-  if (pending.has(year)) return pending.get(year);
+  if (hit && (finished(hit) || Date.now() - hit.updated < TTL)) return hit;
   const file = path.join(CACHE_DIR, `season-${year}.json`);
+  if (!hit) {
+    const disk = readDisk(file);
+    if (finished(disk) || (disk && Date.now() - disk.updated < TTL)) { mem.set(year, disk); return disk; }
+  }
+  if (pending.has(year)) return pending.get(year);
   const job = fetchSeason(year).then((data) => {
     mem.set(year, data);
     try { fs.writeFileSync(file, JSON.stringify(data)); } catch { /* cache facultatif */ }
     return data;
   }).catch((err) => {
-    // Hors ligne : dernière copie connue
-    try { return { ...JSON.parse(fs.readFileSync(file, 'utf8')), stale: true }; } catch { throw err; }
+    // API indisponible : dernière copie connue
+    const disk = readDisk(file);
+    if (disk) return { ...disk, stale: true };
+    throw new Error(apiError(err));
   }).finally(() => pending.delete(year));
   pending.set(year, job);
   return job;
+}
+
+// Message lisible pour une erreur de l'API des résultats
+function apiError(err) {
+  const st = err?.status;
+  if (st === 429 || st === 422) return `le serveur des résultats (Jolpica) refuse temporairement les demandes (erreur ${st} : trop de demandes en peu de temps) ; réessayez dans quelques minutes`;
+  if (st >= 500) return `le serveur des résultats (Jolpica) rencontre un problème (erreur ${st}) ; réessayez plus tard`;
+  return `serveur des résultats (Jolpica) injoignable : ${err?.message || err}`;
 }
