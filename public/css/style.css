@@ -948,3 +948,21 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .sz-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #ff8a4d); border-radius: 4px; }
 .sz-meter b { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 900px) { .sz-hbar { grid-template-columns: 110px 1fr 70px; } }
+
+/* ---------- Saison : évolutions techniques et éléments moteur ---------- */
+.sz-upd { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 8px; margin-top: 8px; }
+.sz-upd-item { background: var(--panel-2); border: 1px solid var(--border); border-left: 3px solid var(--tc); border-radius: 8px; padding: 9px 11px; display: flex; flex-direction: column; gap: 5px; }
+.sz-upd-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.sz-upd-head .team-logo { width: 20px; height: 20px; }
+.sz-upd-head b { font-size: 14px; }
+.sz-pu { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sz-pu small { color: var(--muted); margin-left: 1px; }
+.sz-pu.at { background: color-mix(in srgb, var(--orange) 22%, transparent); }
+.sz-pu.over { background: color-mix(in srgb, var(--red) 30%, transparent); }
+.sz-pu.over b { color: #fff; }
+.sz-pu-key { display: inline-block; padding: 0 6px; border-radius: 4px; margin-left: 6px; }
+.sz-pu-key.at { background: color-mix(in srgb, var(--orange) 22%, transparent); }
+.sz-pu-key.over { background: color-mix(in srgb, var(--red) 30%, transparent); }
+.sz-h2h-pick { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.sz-wrap td { white-space: normal; }
+.sz-wrap td:first-child { white-space: nowrap; }

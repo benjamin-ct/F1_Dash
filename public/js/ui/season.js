@@ -4,6 +4,7 @@
 // analyse des archives F1 Live Timing (/api/season/stats).
 import { $, esc, api, teamColor } from '../util.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits } from './season-stats.js';
+import { renderTech, renderElements, setTechFilter } from './season-fia.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -25,6 +26,23 @@ let drvCode = null;
 let speedPt = 'ST';
 let circSort = 'round';
 const STATS_SECTIONS = new Set(['drivers', 'consistency', 'pits', 'speeds', 'circuits']);
+const FIA_SECTIONS = new Set(['tech', 'elements']);
+let fia = null;            // documents FIA (évolutions techniques, éléments moteur)
+let fiaTimer = null;
+
+async function loadFia() {
+  clearTimeout(fiaTimer);
+  const y = year;
+  try {
+    const f = await api(`/api/season/fia?year=${y}`);
+    if (y !== year) return;
+    fia = f;
+    if (f.pending) fiaTimer = setTimeout(loadFia, 3000);
+  } catch (err) {
+    if (y === year) fia = { year: y, error: err.message, events: [] };
+  }
+  if (FIA_SECTIONS.has(section) && !$('#seasonView').hidden) render();
+}
 
 // Statistiques détaillées : analysées par le serveur en arrière-plan, on suit l'avancement.
 async function loadStats() {
@@ -59,6 +77,7 @@ async function load(force = false) {
   loading = false;
   render();
   if (!stats || stats.year !== year || stats.pending) loadStats();
+  if (!fia || fia.year !== year || fia.pending) loadFia();
 }
 
 // ---------------- Calculs ----------------
@@ -268,11 +287,13 @@ function renderH2H() {
 function render() {
   if (!data) return;
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
-  const ctx = { data, stats: stats?.year === data.year || stats?.error ? stats : null, color, bar };
+  const ctx = { data, stats: stats?.year === data.year || stats?.error ? stats : null, color, bar, official: (id) => OFFICIAL[id] || '8b95a8' };
+  const fiaData = fia?.year === data.year ? fia : null;
   const html = {
     home: renderHome, calendar: renderCalendar, standings: renderStandings, results: renderResults, h2h: renderH2H,
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort),
+    tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData),
   }[section]();
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
   tick();
@@ -308,7 +329,7 @@ export function initSeason() {
   const sel = $('#szYear');
   const now = new Date().getFullYear();
   sel.innerHTML = Array.from({ length: 8 }, (_, i) => now - i).map((y) => `<option value="${y}">${y}</option>`).join('');
-  sel.addEventListener('change', () => { year = Number(sel.value); data = null; stats = null; clearTimeout(statsTimer); load(); });
+  sel.addEventListener('change', () => { year = Number(sel.value); data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
   $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; render(); } });
@@ -319,6 +340,8 @@ export function initSeason() {
     else if (id === 'szDriver') drvCode = e.target.value;
     else if (id === 'szSpeedPt') speedPt = e.target.value;
     else if (id === 'szCircSort') circSort = e.target.value;
+    else if (id === 'szTechGp') setTechFilter(e.target.value, 'all');
+    else if (id === 'szTechTeam') setTechFilter(undefined, e.target.value);
     else return;
     render();
   });

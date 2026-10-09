@@ -44,6 +44,11 @@ Le bouton 🏆 en haut ouvre une vue de toute la saison (inspirée de formula1da
 - **Vitesses de pointe** : speed trap, ligne d'arrivée ou intermédiaires ; classement des écuries et des pilotes, carte thermique écurie × Grand Prix.
 - **Profil des circuits** : tracé, longueur, virages, tours et distance, meilleur tour et vitesse moyenne, vitesse de pointe, arrêts, voie des stands, dépassements en piste estimés et part des tours neutralisés, avec jauges comparant les circuits (tri au choix).
 
+**Technique** (lu dans les documents officiels de la FIA publiés à chaque Grand Prix, conservés sur le PC après la première lecture) :
+
+- **Évolutions techniques** : toutes les pièces nouvelles déclarées par les écuries (« Car Presentation Submissions ») — total et classement par écurie, zones de la voiture, type (performance, spécifique au circuit, fiabilité) et raison (appui local, flux, refroidissement, traînée…), composants les plus modifiés, courbe cumulée, tableau écurie × Grand Prix et détail de chaque évolution (modification et description d'origine, lien vers le PDF FIA).
+- **Éléments moteur** : éléments du groupe propulseur utilisés par chaque pilote (ICE, turbo, échappement, MGU-K, batterie, électronique, auxiliaires ; MGU-H avant 2026) face aux limites de la saison, limites atteintes ou dépassées, totaux par pilote et par écurie, pénalités sur la grille (éléments, sanction, document FIA) et éléments neufs montés à chaque Grand Prix.
+
 ## 🔔 Alertes
 
 Son, message et notification Windows en option pour : SC, VSC, drapeau rouge, reprise, meilleur tour, arrêt ou message de la direction de course concernant **vos pilotes favoris**, abandons, arrivée. Elles sont déclenchées **au rythme de votre délai**, donc au moment où l'image passe à la TV et jamais avant. Réglages dans ⚙ ; touche `M` pour couper le son.
