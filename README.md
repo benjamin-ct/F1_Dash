@@ -4,6 +4,19 @@ Dashboard **Formule 1 en direct** à lancer sur votre PC pour suivre chaque Gran
 
 ![Sessions](https://img.shields.io/badge/course%20%C2%B7%20qualifs%20%C2%B7%20essais-e10600) ![Node](https://img.shields.io/badge/Node.js-%E2%89%A518-339933)
 
+![F1 Dash pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
+
+## 📸 Captures d'écran
+
+| | |
+|---|---|
+| ![Classement en direct](docs/screenshots/classement.png) **Classement** : écarts, secteurs et mini-secteurs, pneus, arrêts, vitesse de pointe, logos des écuries | ![Carte du circuit](docs/screenshots/carte.png) **Carte** : positions GPS, traînées, secteurs, zones ligne droite et détection, virages |
+| ![Race trace](docs/screenshots/analyse-race-trace.png) **Analyse · race trace** : écart de chaque pilote tour par tour | ![Rythme](docs/screenshots/analyse-rythme.png) **Analyse · rythme** : dispersion des tours propres et tours les plus rapides |
+| ![Saison : accueil](docs/screenshots/saison-accueil.png) **Saison** : prochaine séance, leaders, classements | ![Saison : classements](docs/screenshots/saison-classements.png) **Classements** : évolution des points du top 10 |
+| ![Saison : fiche pilote](docs/screenshots/saison-pilote.png) **Fiche pilote** : statistiques et courses de la saison | ![Saison : régularité](docs/screenshots/saison-regularite.png) **Régularité** et rythme de course |
+| ![Saison : profil des circuits](docs/screenshots/saison-circuits.png) **Profil des circuits** | ![Saison : évolutions techniques](docs/screenshots/saison-evolutions-techniques.png) **Évolutions techniques** (documents FIA) |
+| ![Saison : éléments moteur](docs/screenshots/saison-elements-moteur.png) **Éléments moteur** et pénalités (documents FIA) | |
+
 ## Ce que vous avez à l'écran
 
 | Zone | Contenu |
