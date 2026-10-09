@@ -879,3 +879,25 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .ana-png { margin-left: auto; }
 .ana-cutoff { width: 90px; vertical-align: middle; }
 @container (max-width: 560px) { .ana-fastest { display: none; } }
+
+/* ---------- Carte : menu des calques et zoom ---------- */
+.p-map .panel-head { position: relative; z-index: 6; }
+.map-layers { position: relative; }
+.map-layers > summary { list-style: none; user-select: none; }
+.map-layers > summary::-webkit-details-marker { display: none; }
+.map-layers[open] > summary { border-color: var(--accent); color: var(--text); }
+.map-layers-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 230px;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .55);
+}
+.map-layers-menu .toggle { padding: 6px 8px; border-radius: 6px; color: var(--text-2); white-space: nowrap; }
+.map-layers-menu .toggle:hover { background: var(--hover); color: var(--text); }
+.map-zoom {
+  position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 2px; padding: 3px;
+  background: color-mix(in srgb, var(--panel-2) 88%, transparent); border: 1px solid var(--border); border-radius: 9px;
+  backdrop-filter: blur(6px); opacity: .55; transition: opacity .15s;
+}
+.map-wrap:hover .map-zoom { opacity: 1; }
+.map-zoom .icon-btn { width: 28px; height: 26px; padding: 0; font-size: 16px; line-height: 1; display: grid; place-items: center; }

@@ -15,10 +15,32 @@ let lastFrame = performance.now();
 
 // Couleurs de la carte selon le thème (Noir par défaut, Bleu nuit en option)
 const PALETTES = {
-  noir: { outline: '#050506', track: '#3b3b44', trackLine: '#5d5d68', chip: 'rgba(14,14,17,.92)', chipEdge: '#3b3b44', chipText: '#c9c9d2', label: 'rgba(0,0,0,.8)', ring: '#000000' },
-  bleu: { outline: '#0c0f15', track: '#3a4356', trackLine: '#566079', chip: 'rgba(16,20,28,.9)', chipEdge: '#3a4356', chipText: '#c3cad6', label: 'rgba(10,12,17,.78)', ring: '#0a0c11' },
+  noir: {
+    outline: '#020203', edge: 'rgba(255,255,255,.17)', track: '#2a2a31', trackLine: '#55555f',
+    glow: 'rgba(255,255,255,.035)', dots: 'rgba(255,255,255,.07)',
+    chip: 'rgba(14,14,17,.94)', chipEdge: '#44444e', chipText: '#d4d4dc', label: 'rgba(8,8,10,.9)', ring: '#000000',
+  },
+  bleu: {
+    outline: '#06080c', edge: 'rgba(190,210,255,.18)', track: '#2c3446', trackLine: '#566079',
+    glow: 'rgba(90,130,220,.06)', dots: 'rgba(170,195,255,.08)',
+    chip: 'rgba(16,20,28,.92)', chipEdge: '#3a4356', chipText: '#c9d0dc', label: 'rgba(10,12,17,.88)', ring: '#0a0c11',
+  },
 };
 const pal = () => PALETTES[document.documentElement.dataset.theme] || PALETTES.noir;
+
+// Largeur de la piste à l'écran : proportionnelle à la taille de la carte, élargie au zoom.
+function trackWidth() {
+  return Math.max(7, Math.min(17, Math.min(size.w, size.h) / 44)) * Math.min(2.4, Math.sqrt(view.z));
+}
+
+// Texte lisible sur une couleur d'écurie
+function inkOn(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '#fff';
+  const v = parseInt(m[1], 16);
+  const lum = (0.299 * (v >> 16) + 0.587 * ((v >> 8) & 255) + 0.114 * (v & 255)) / 255;
+  return lum > 0.6 ? '#0b0b0d' : '#ffffff';
+}
 
 function list(obj) {
   if (!obj) return [];
@@ -165,17 +187,18 @@ function drawZones() {
   const pts = xf.screen;
   const n = pts.length;
   if (!n || zones.zones.some((z) => z.from >= n || z.to >= n)) return;
+  const W = trackWidth();
   ctx.save();
   ctx.lineCap = 'round';
   for (const z of zones.zones) {
     ctx.strokeStyle = 'rgba(60, 224, 138, 0.9)';
     ctx.lineWidth = 3;
     ctx.setLineDash([10, 5]);
-    strokeOffset(z.from, z.to, 9);
+    strokeOffset(z.from, z.to, W / 2 + 5);
     ctx.setLineDash([]);
     const p = pts[z.from], q = pts[(z.from + 1) % n];
     const len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
-    badge(p[0] - ((q[1] - p[1]) / len) * 22, p[1] + ((q[0] - p[0]) / len) * 22, 'LD', '#3ce08a', '#062414');
+    badge(p[0] - ((q[1] - p[1]) / len) * (W / 2 + 17), p[1] + ((q[0] - p[0]) / len) * (W / 2 + 17), 'LD', '#3ce08a', '#062414');
   }
   const d = zones.detection;
   if (d && d.idx < n) {
@@ -185,10 +208,10 @@ function drawZones() {
     ctx.strokeStyle = '#ff4fd8';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(p[0] - nx * 11, p[1] - ny * 11);
-    ctx.lineTo(p[0] + nx * 11, p[1] + ny * 11);
+    ctx.moveTo(p[0] - nx * (W / 2 + 4), p[1] - ny * (W / 2 + 4));
+    ctx.lineTo(p[0] + nx * (W / 2 + 4), p[1] + ny * (W / 2 + 4));
     ctx.stroke();
-    badge(p[0] + nx * 26, p[1] + ny * 26, 'DÉTECTION', '#ff4fd8', '#2a0623');
+    badge(p[0] + nx * (W / 2 + 20), p[1] + ny * (W / 2 + 20), 'DÉTECTION', '#ff4fd8', '#2a0623');
   }
   ctx.restore();
 }
@@ -337,19 +360,22 @@ function describeZone(lay, r0, r1) {
 }
 
 function drawSectors(lay) {
-  const L = track.L;
-  // Bande centrale colorée par secteur
-  ctx.lineWidth = 3;
+  const W = trackWidth();
+  // Bande centrale lumineuse colorée par secteur
+  ctx.save();
+  ctx.lineWidth = Math.max(2.5, W * 0.26);
+  ctx.shadowBlur = W * 0.9;
   for (const sec of lay.sectors) {
     ctx.strokeStyle = SECTOR_COLORS[sec.i];
-    ctx.globalAlpha = 0.85;
+    ctx.shadowColor = SECTOR_COLORS[sec.i];
+    ctx.globalAlpha = 0.9;
     strokeDist(sec.from, sec.from + sec.len);
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
   // Repères des micro-secteurs (petits traits) et des fins de secteur (grands traits)
   for (const m of lay.minis) {
     const p = screenAt(m.r);
-    const len = m.last ? 12 : 6;
+    const len = m.last ? W / 2 + 5 : W / 2 - 1;
     ctx.strokeStyle = m.last ? '#ffffff' : 'rgba(233,237,244,.75)';
     ctx.lineWidth = m.last ? 2.5 : 1.5;
     ctx.beginPath();
@@ -365,9 +391,10 @@ function drawSectorLabels(lay) {
   const L = track.L;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  const W = trackWidth();
   for (const sec of lay.sectors) {
     const p = screenAt(sec.from + sec.len / 2);
-    const x = p.x - p.nx * 24, y = p.y - p.ny * 24;
+    const x = p.x - p.nx * (W / 2 + 16), y = p.y - p.ny * (W / 2 + 16);
     ctx.fillStyle = SECTOR_COLORS[sec.i];
     ctx.beginPath();
     ctx.roundRect(x - 13, y - 9, 26, 18, 4);
@@ -385,7 +412,7 @@ function drawSectorLabels(lay) {
         const mid = prev + mod(m.r - prev, L) / 2;
         const p = screenAt(mid);
         ctx.fillStyle = 'rgba(233,237,244,.8)';
-        ctx.fillText(`${sec.i + 1}.${k + 1}`, p.x + p.nx * 15, p.y + p.ny * 15);
+        ctx.fillText(`${sec.i + 1}.${k + 1}`, p.x + p.nx * (W / 2 + 9), p.y + p.ny * (W / 2 + 9));
         prev = m.r;
       });
     }
@@ -512,6 +539,71 @@ function draw() {
   renderFlagInfo(items.join(''));
 }
 
+// Fond : halo central et trame de points qui suit les déplacements de la vue
+let dotPattern = null;
+
+function drawBackdrop() {
+  const g = ctx.createRadialGradient(size.w / 2, size.h / 2, 0, size.w / 2, size.h / 2, Math.hypot(size.w, size.h) / 2);
+  g.addColorStop(0, pal().glow);
+  g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size.w, size.h);
+  const step = 22;
+  if (dotPattern?.color !== pal().dots) {
+    const c = document.createElement('canvas');
+    c.width = c.height = step * 2;
+    const g2 = c.getContext('2d');
+    g2.fillStyle = pal().dots;
+    g2.beginPath();
+    g2.arc(step, step, 2.2, 0, Math.PI * 2);
+    g2.fill();
+    dotPattern = { color: pal().dots, pattern: ctx.createPattern(c, 'repeat') };
+  }
+  const pat = dotPattern.pattern;
+  pat.setTransform(new DOMMatrix().translateSelf(size.w / 2 + view.x - step / 2, size.h / 2 + view.y - step / 2).scaleSelf(0.5));
+  ctx.fillStyle = pat;
+  ctx.fillRect(0, 0, size.w, size.h);
+}
+
+// Ligne de départ/arrivée en damier (position calibrée si connue) et flèche du sens de course
+function drawStartLine(W) {
+  const r0 = store.positions.lineFrac() * track.L;
+  const p = screenAt(r0);
+  const ang = Math.atan2(-p.nx, p.ny);   // direction de la piste
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(ang);
+  const half = W / 2 + 1.5;
+  const rows = Math.max(2, Math.round(W / 4.5));
+  const sq = (half * 2) / rows;
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < 2; j++) {
+      ctx.fillStyle = (i + j) % 2 ? '#0d0d0f' : '#f6f6f6';
+      ctx.fillRect(-sq + j * sq, -half + i * sq, sq, sq);
+    }
+  }
+  ctx.restore();
+  // Chevrons du sens de course, un peu après la ligne, à côté de la piste
+  const q = screenAt(r0 + track.L / 70);
+  const qa = Math.atan2(-q.nx, q.ny);
+  ctx.save();
+  ctx.translate(q.x - q.nx * (W / 2 + 10), q.y - q.ny * (W / 2 + 10));
+  ctx.rotate(qa);
+  ctx.strokeStyle = pal().chipText;
+  ctx.globalAlpha = 0.75;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const dx of [-4, 3]) {
+    ctx.beginPath();
+    ctx.moveTo(dx - 3, -4);
+    ctx.lineTo(dx + 1, 0);
+    ctx.lineTo(dx - 3, 4);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 // Fond de carte (tracé, secteurs, zones, drapeaux, virages…) : dessiné dans un calque mis en
 // cache et seulement recopié à chaque image tant que rien ne change (la carte ne fait alors
 // plus que déplacer les voitures, beaucoup moins coûteux).
@@ -519,6 +611,7 @@ const bg = { canvas: null, key: '', flagZones: [] };
 
 function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
   const pts = xf.screen;
+  if ($('#mapGrid').checked) drawBackdrop();
   // Drapeau rouge : toute la carte en rouge
   if (red) {
     const pulse = 0.16 + 0.06 * Math.sin(now / 260);
@@ -535,7 +628,8 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
     ctx.setLineDash([]);
   }
 
-  // Tracé
+  // Tracé : ombre portée, bordure (limites de piste), asphalte
+  const W = trackWidth();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   const path = () => {
@@ -545,24 +639,32 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
     ctx.closePath();
   };
   path();
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, .75)';
+  ctx.shadowBlur = W * 1.4;
+  ctx.shadowOffsetY = W * 0.25;
   ctx.strokeStyle = pal().outline;
-  ctx.lineWidth = 16;
+  ctx.lineWidth = W + 7;
   ctx.stroke();
-  ctx.strokeStyle = red ? '#ff3b30' : scMode ? '#ffb020' : pal().track;
-  ctx.lineWidth = 9;
+  ctx.restore();
+  ctx.strokeStyle = red ? 'rgba(255, 110, 100, .55)' : scMode ? 'rgba(255, 205, 110, .55)' : pal().edge;
+  ctx.lineWidth = W + 3;
+  ctx.stroke();
+  ctx.strokeStyle = red ? '#c8302a' : scMode ? '#d39516' : pal().track;
+  ctx.lineWidth = W;
   ctx.stroke();
   if (vsc && !red) {
     // VSC : pointillés défilants sur tout le tracé
     ctx.setLineDash([14, 10]);
     ctx.lineDashOffset = -now / 40;
     ctx.strokeStyle = '#1d1200';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = Math.max(3, W * 0.35);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.lineDashOffset = 0;
   } else if (red || scMode || !$('#mapSectors').checked) {
-    ctx.strokeStyle = red ? '#ff6b61' : scMode ? '#ffd27a' : pal().trackLine;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = red ? '#ff8a80' : scMode ? '#ffe2a0' : pal().trackLine;
+    ctx.lineWidth = Math.max(1.5, W * 0.14);
     ctx.stroke();
   }
   if (!red && !scMode && $('#mapSectors').checked) drawSectors(lay);
@@ -578,15 +680,19 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
       if (!f) continue;
       const dbl = f === 'DOUBLE YELLOW';
       const blink = dbl ? 0.65 + 0.35 * Math.sin(now / 180) : 1;
+      // Contour sombre : la zone reste visible même sur la piste orange de la safety car
+      ctx.strokeStyle = 'rgba(0, 0, 0, .85)';
+      ctx.lineWidth = W + (dbl ? 11 : 8);
+      strokeRange(r.from, r.to);
       ctx.globalAlpha = blink;
       ctx.strokeStyle = dbl ? '#ff9f1a' : '#f5c518';
-      ctx.lineWidth = dbl ? 13 : 10;
+      ctx.lineWidth = W + (dbl ? 6 : 3);
       strokeRange(r.from, r.to);
       ctx.globalAlpha = 1;
       const r0 = track.t[r.from], r1 = track.t[r.to];
       // Fanion au début de la zone avec le numéro du secteur de commissaires
       const p = screenAt(r0);
-      const x = p.x + p.nx * 20, y = p.y + p.ny * 20;
+      const x = p.x + p.nx * (W / 2 + 15), y = p.y + p.ny * (W / 2 + 15);
       ctx.fillStyle = dbl ? '#ff9f1a' : '#f5c518';
       ctx.beginPath();
       ctx.roundRect(x - 14, y - 9, 28, 18, 4);
@@ -600,21 +706,9 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
     }
   }
 
-  // Ligne de départ/arrivée (position calibrée si connue)
-  {
-    const lp = track.pointAt(store.positions.lineFrac() * track.L);
-    const lp2 = track.pointAt(store.positions.lineFrac() * track.L + track.L / 200);
-    const [x0, y0] = xf(lp.x, lp.y), [x1, y1] = xf(lp2.x, lp2.y);
-    const ang = Math.atan2(y1 - y0, x1 - x0) + Math.PI / 2;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(x0 - Math.cos(ang) * 11, y0 - Math.sin(ang) * 11);
-    ctx.lineTo(x0 + Math.cos(ang) * 11, y0 + Math.sin(ang) * 11);
-    ctx.stroke();
-  }
+  drawStartLine(W);
 
-  // Numéros de virage (pastilles)
+  // Numéros de virage (pastilles à l'extérieur de la piste)
   if ($('#mapCorners').checked) {
     const fs = Math.min(13, 10 + (view.z - 1) * 1.2);
     ctx.font = `700 ${fs}px "Titillium Web", sans-serif`;
@@ -622,8 +716,11 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
     ctx.textBaseline = 'middle';
     for (const c of track.corners) {
       const a = (c.angle * Math.PI) / 180;
-      const [x, y] = xf(c.x + Math.cos(a) * 560, c.y + Math.sin(a) * 560);
+      const [x0, y0] = xf(c.x, c.y), [x1, y1] = xf(c.x + Math.cos(a) * 560, c.y + Math.sin(a) * 560);
+      const len = Math.hypot(x1 - x0, y1 - y0) || 1;
       const rad = fs * 0.75 + (c.number >= 10 ? 2 : 0);
+      const off = W / 2 + rad + 5;
+      const x = x0 + ((x1 - x0) / len) * off, y = y0 + ((y1 - y0) / len) * off;
       ctx.beginPath();
       ctx.arc(x, y, rad, 0, Math.PI * 2);
       ctx.fillStyle = pal().chip;
@@ -639,6 +736,10 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
   if (!red && !scMode && $('#mapSectors').checked) drawSectorLabels(lay);
   return flagZones;
 }
+
+// Traînées : dernières positions de chaque voiture (~1 s)
+const TRAIL_LEN = 24;
+const trail = new Map();
 
 function drawCars(dt) {
   const s = store.state;
@@ -662,64 +763,147 @@ function drawCars(dt) {
   let inPit = 0;
   const followNum = store.focus || store.duel.a;
   if (!followNum) followTarget = null;
+  const W = trackWidth();
+  const trails = $('#mapTrails').checked;
+  const nowMs = performance.now();
+  const cars = [];
   for (const num of drawOrder) {
     const l = lines[num] || {};
-    if (l.Retired) continue;
-    let p = null;
-    if (gps) {
-      const g = store.positions.gpsAt(num, disp);
-      if (g) p = xf(g.x, g.y);
-    } else {
-      if (l.InPit || l.Stopped) { if (l.InPit) inPit++; continue; }
-      const e = store.positions.estimatedXY(num, disp, dt);
-      if (e) p = xf(e.x, e.y);
+    if (l.Retired) { trail.delete(num); continue; }
+    let g = null;
+    if (gps) g = store.positions.gpsAt(num, disp);
+    else {
+      if (l.InPit || l.Stopped) { if (l.InPit) inPit++; trail.delete(num); continue; }
+      g = store.positions.estimatedXY(num, disp, dt);
     }
-    if (!p) continue;
+    if (!g) continue;
+    const p = xf(g.x, g.y);
     if (num === followNum) {
       // Coordonnées "de base" (sans vue) pour centrer la vue à l'image suivante.
       followTarget = [(p[0] - size.w / 2 - view.x) / view.z + size.w / 2, (p[1] - size.h / 2 - view.y) / view.z + size.h / 2];
     }
+    // Historique des positions (coordonnées circuit) pour la traînée
+    let h = trail.get(num);
+    if (!h) trail.set(num, h = []);
+    const last = h.at(-1);
+    if (last && Math.hypot(g.x - last.x, g.y - last.y) > 2500) h.length = 0;   // saut (replay, stands)
+    if (!last || nowMs - last.t > 45) {
+      h.push({ x: g.x, y: g.y, t: nowMs });
+      if (h.length > TRAIL_LEN) h.shift();
+    }
     const d = dl[num];
-    const col = teamColor(d);
     const isA = store.duel.a === num, isB = store.duel.b === num, isF = store.focus === num;
-    const r = isA || isB || isF ? 8 : 6.5;
+    const sp = isA || isB || isF;
+    cars.push({ num, p, h, d, col: teamColor(d), isA, isB, isF, sp, pos: Number(l.Position) || null, r: Math.max(5.5, Math.min(10, W * 0.55)) + (sp ? 1.5 : 0) });
+  }
 
-    if (isA || isB || isF) {
+  // Traînées (dégradé vers la couleur de l'écurie)
+  if (trails) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const c of cars) {
+      const n = c.h.length;
+      if (n < 3) continue;
+      let prev = xf(c.h[0].x, c.h[0].y);
+      for (let i = 1; i < n; i++) {
+        const cur = i === n - 1 ? c.p : xf(c.h[i].x, c.h[i].y);
+        const k = i / n;
+        ctx.globalAlpha = 0.7 * k * k;
+        ctx.strokeStyle = c.col;
+        ctx.lineWidth = c.r * 1.3 * (0.35 + 0.65 * k);
+        ctx.beginPath();
+        ctx.moveTo(prev[0], prev[1]);
+        ctx.lineTo(cur[0], cur[1]);
+        ctx.stroke();
+        prev = cur;
+      }
+    }
+    ctx.restore();
+  }
+
+  // Voitures
+  for (const c of cars) {
+    const [x, y] = c.p;
+    if (c.sp) {
       ctx.beginPath();
-      ctx.arc(p[0], p[1], r + 4, 0, Math.PI * 2);
-      ctx.strokeStyle = isA ? '#3ea6ff' : isB ? '#ff9f1a' : '#ffffff';
+      ctx.arc(x, y, c.r + 4, 0, Math.PI * 2);
+      ctx.strokeStyle = c.isA ? '#3ea6ff' : c.isB ? '#ff9f1a' : '#ffffff';
       ctx.lineWidth = 2.5;
       ctx.stroke();
     }
+    // Ombre (disque sombre décalé, moins coûteux qu'un flou à chaque image)
     ctx.beginPath();
-    ctx.arc(p[0], p[1], r, 0, Math.PI * 2);
-    ctx.fillStyle = col;
+    ctx.arc(x + 0.8, y + 1.6, c.r + 2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0, 0, 0, .45)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y, c.r, 0, Math.PI * 2);
+    ctx.fillStyle = c.col;
     ctx.fill();
     ctx.lineWidth = 2;
     ctx.strokeStyle = pal().ring;
     ctx.stroke();
+    // Reflet
+    ctx.beginPath();
+    ctx.arc(x - c.r * 0.3, y - c.r * 0.35, c.r * 0.38, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, .28)';
+    ctx.fill();
     if (!gps) {
+      ctx.beginPath();
+      ctx.arc(x, y, c.r, 0, Math.PI * 2);
       ctx.setLineDash([2, 2]);
       ctx.strokeStyle = 'rgba(255,255,255,.35)';
       ctx.lineWidth = 1;
       ctx.stroke();
       ctx.setLineDash([]);
     }
+  }
 
-    if (labels || isA || isB || isF) {
-      const txt = d?.Tla || num;
-      ctx.font = `700 ${isA || isB || isF ? 12 : 10.5}px "Titillium Web", sans-serif`;
-      const w = ctx.measureText(txt).width + 8;
-      const lx = p[0] + r + 3, ly = p[1] - 8;
-      ctx.fillStyle = pal().label;
-      ctx.fillRect(lx, ly, w, 16);
-      ctx.fillStyle = col;
-      ctx.fillRect(lx, ly, 2, 16);
-      ctx.fillStyle = '#e9edf4';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(txt, lx + 5, ly + 8.5);
+  // Étiquettes : position + trigramme, placées sans se chevaucher (pilotes suivis puis ordre de course)
+  const placed = cars.map((c) => ({ x: c.p[0] - c.r, y: c.p[1] - c.r, w: c.r * 2, h: c.r * 2, num: c.num }));
+  const hit = (b, num) => b.x < 2 || b.y < 2 || b.x + b.w > size.w - 2 || b.y + b.h > size.h - 2 || placed.some((o) => o.num !== num && b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y);
+  const prio = cars.filter((c) => labels || c.sp).sort((a, b) => (b.sp - a.sp) || ((a.pos || 99) - (b.pos || 99)));
+  ctx.textBaseline = 'middle';
+  for (const c of prio) {
+    const txt = c.d?.Tla || c.num;
+    const fs = c.sp ? 12 : 10.5;
+    const h = c.sp ? 18 : 16;
+    ctx.font = `800 ${fs}px "Titillium Web", sans-serif`;
+    const posTxt = c.pos ? String(c.pos) : '';
+    const pw = posTxt ? ctx.measureText(posTxt).width + 8 : 0;
+    ctx.font = `700 ${fs}px "Titillium Web", sans-serif`;
+    const w = pw + ctx.measureText(txt).width + 9;
+    const [x, y] = c.p;
+    const g = c.r + 4;
+    const spots = [[x + g, y - h / 2], [x - g - w, y - h / 2], [x + c.r - 2, y - c.r - h - 1], [x + c.r - 2, y + c.r + 1], [x - c.r - w + 2, y - c.r - h - 1], [x - c.r - w + 2, y + c.r + 1]];
+    let spot = spots.find(([sx, sy]) => !hit({ x: sx, y: sy, w, h }, c.num));
+    const crowded = !spot;
+    if (!spot) spot = spots[0];
+    const [lx, ly] = spot;
+    placed.push({ x: lx, y: ly, w, h, num: c.num });
+    ctx.globalAlpha = crowded && !c.sp ? 0.55 : 1;
+    ctx.fillStyle = pal().label;
+    ctx.beginPath();
+    ctx.roundRect(lx, ly, w, h, 4);
+    ctx.fill();
+    if (pw) {
+      ctx.fillStyle = c.col;
+      ctx.beginPath();
+      ctx.roundRect(lx, ly, pw, h, [4, 0, 0, 4]);
+      ctx.fill();
+      ctx.fillStyle = inkOn(c.col);
+      ctx.font = `800 ${fs}px "Titillium Web", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(posTxt, lx + pw / 2, ly + h / 2 + 0.5);
+    } else {
+      ctx.fillStyle = c.col;
+      ctx.fillRect(lx, ly, 2.5, h);
     }
+    ctx.fillStyle = '#eef0f5';
+    ctx.font = `700 ${fs}px "Titillium Web", sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(txt, lx + (pw || 3) + 4, ly + h / 2 + 0.5);
+    ctx.globalAlpha = 1;
   }
 
   const legend = $('#mapLegend');
@@ -728,7 +912,7 @@ function drawCars(dt) {
 }
 
 // Cases de la carte mémorisées d'une session à l'autre
-const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones'];
+const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapTrails', 'mapGrid'];
 
 function initMapOptions() {
   const saved = storageGet('f1dash.mapOpts', {});
@@ -766,6 +950,20 @@ export function initMap() {
   const reset = () => { resetView(); $('#mapFollow').checked = false; };
   c.addEventListener('dblclick', reset);
   $('#mapReset').addEventListener('click', reset);
+  // Boutons + / − : zoom autour du centre de la carte
+  for (const b of document.querySelectorAll('.map-zoom [data-mz="in"], .map-zoom [data-mz="out"]')) {
+    b.addEventListener('click', () => {
+      const z0 = view.z;
+      view.z = Math.max(1, Math.min(8, view.z * (b.dataset.mz === 'in' ? 1.4 : 1 / 1.4)));
+      view.x *= view.z / z0;
+      view.y *= view.z / z0;
+      if (view.z === 1) resetView();
+    });
+  }
+  // Menu des calques : se ferme au clic ailleurs ou avec Échap
+  const layers = $('#mapLayers');
+  document.addEventListener('pointerdown', (e) => { if (layers.open && !layers.contains(e.target)) layers.open = false; });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') layers.open = false; });
   $('#mapFollow').addEventListener('change', (e) => { if (!e.target.checked) resetView(); });
   const loop = () => {
     try { draw(); } catch (err) { console.error(err); }

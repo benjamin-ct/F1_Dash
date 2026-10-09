@@ -100,13 +100,19 @@
         <h2>Circuit</h2>
         <div class="panel-tools">
           <span class="map-mode" id="mapMode"></span>
-          <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms</label>
-          <label class="toggle"><input type="checkbox" id="mapCorners" checked> Virages</label>
-          <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
-          <label class="toggle" title="Numéros des micro-secteurs (1.1, 1.2…) quand on zoome sur la carte"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs</label>
-          <label class="toggle" title="Zones « ligne droite » (straight mode, trait vert pointillé LD) et ligne de détection du mode dépassement (rose). Estimées à partir de la télémétrie d'une séance du circuit : la FIA ne les publie pas sous forme de données."><input type="checkbox" id="mapZones" checked> Zones LD / détection</label>
           <label class="toggle" title="Centrer la carte sur le pilote suivi (clic sur un pilote du classement)"><input type="checkbox" id="mapFollow"> Suivre</label>
-          <button class="icon-btn small" id="mapReset" title="Réinitialiser le zoom (ou double-clic sur la carte)">⟲</button>
+          <details class="map-layers" id="mapLayers">
+            <summary class="btn small" title="Éléments affichés sur la carte">Calques ▾</summary>
+            <div class="map-layers-menu">
+              <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms des pilotes</label>
+              <label class="toggle" title="Courte traînée derrière chaque voiture (direction et vitesse)"><input type="checkbox" id="mapTrails" checked> Traînées</label>
+              <label class="toggle"><input type="checkbox" id="mapCorners" checked> Numéros de virage</label>
+              <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
+              <label class="toggle" title="Numéros des micro-secteurs (1.1, 1.2…) quand on zoome sur la carte"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs (zoom)</label>
+              <label class="toggle" title="Zones « ligne droite » (straight mode, trait vert pointillé LD) et ligne de détection du mode dépassement (rose). Estimées à partir de la télémétrie d'une séance du circuit : la FIA ne les publie pas sous forme de données."><input type="checkbox" id="mapZones" checked> Zones LD / détection</label>
+              <label class="toggle" title="Trame de points et halo en fond de carte"><input type="checkbox" id="mapGrid" checked> Fond texturé</label>
+            </div>
+          </details>
         </div>
       </div>
       <div class="panel-body map-wrap">
@@ -114,6 +120,11 @@
         <div class="map-legend" id="mapLegend"></div>
         <div class="map-flags" id="mapFlags"></div>
         <div class="map-empty" id="mapEmpty">Chargement du tracé…</div>
+        <div class="map-zoom">
+          <button class="icon-btn" data-mz="in" title="Zoomer (ou molette)">+</button>
+          <button class="icon-btn" data-mz="out" title="Dézoomer">−</button>
+          <button class="icon-btn" data-mz="fit" id="mapReset" title="Vue d'ensemble (ou double-clic sur la carte)">⤢</button>
+        </div>
       </div>
     </section>
 
