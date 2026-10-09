@@ -392,7 +392,7 @@
             <li>Ouvrez les outils de développement (F12) → onglet <b>Application</b> (Chrome/Edge) ou <b>Stockage</b> (Firefox) → <b>Cookies</b> → <code>https://www.formula1.com</code>.</li>
             <li>Copiez la <b>valeur</b> du cookie <code>login-session</code> et collez-la ci-dessous (le jeton est extrait automatiquement).</li>
           </ol>
-          <p>Le jeton est enregistré uniquement sur votre PC (fichier <code>config.json</code>) et n'est envoyé qu'à livetiming.formula1.com. Il expire au bout de quelques jours : il faudra le recoller.</p>
+          <p>Le jeton est enregistré uniquement sur votre PC (fichier <code>config.json</code>). Il n'est envoyé qu'aux serveurs de la F1 (dont api.formula1.com pour le renouvellement). Il vaut environ 4 jours et l'application le <b>renouvelle automatiquement</b> tant que votre session formula1.com est valide (environ 30 jours après la connexion) ; un rappel s'affiche quelques jours avant la fin.</p>
         </details>
         <div class="row" id="desktopLogin" hidden>
           <button class="btn btn-accent" id="desktopLoginBtn">🔐 Se connecter à F1 TV</button>
@@ -525,6 +525,7 @@
     <video id="commMedia" hidden playsinline></video>
   </div>
 
+  <div class="update-pill auth-pill" id="authPill" hidden><span id="authPillText"></span><button class="btn small btn-accent" id="authPillBtn">Se reconnecter</button><button class="icon-btn small" id="authPillClose" title="Masquer jusqu'à demain">✕</button></div>
   <div class="update-pill" id="updatePill" hidden><span id="updatePillText"></span><button class="btn small btn-accent" id="updatePillBtn">Redémarrer</button><button class="icon-btn small" id="updatePillClose" title="Plus tard (installée à la fermeture)">✕</button></div>
 
   <div class="toast" id="toast" hidden></div>

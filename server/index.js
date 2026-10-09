@@ -19,8 +19,26 @@ import { createLan, isLoopback } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
 import { weekendTyres } from './tyres.js';
+import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
+
+// État de la connexion F1 TV : jeton (~4 jours) et session formula1.com (~30 jours), qui permet
+// de renouveler le jeton automatiquement
+function authInfo() {
+  const token = getConfig().f1tvToken;
+  const info = tokenInfo(token);
+  if (!info.hasToken) return info;
+  const ses = sessionOf(token);
+  return {
+    ...info,
+    autoRenew: !!ses,
+    sessionExpiresAt: ses?.expiresAt || null,
+    lastRenewal: renewState.lastRenewal || null,
+    renewError: renewState.lastError,
+    renewRejected: renewState.rejected,
+  };
+}
 
 const hub = new Hub({ maxDelayMs: settings.maxDelayMs });
 const recorder = process.env.NO_RECORDING ? null : new Recorder();
@@ -114,7 +132,7 @@ async function handleApi(req, res, url) {
     }
 
     case 'GET /api/status':
-      return sendJSON(res, 200, { ...hub.statusPayload(), auth: tokenInfo(getConfig().f1tvToken) });
+      return sendJSON(res, 200, { ...hub.statusPayload(), auth: authInfo() });
 
     // Meilleurs tours de deux pilotes : secteurs et mini-secteurs (à la date du délai TV)
     case 'GET /api/compare': {
@@ -266,21 +284,43 @@ async function handleApi(req, res, url) {
     }
 
     case 'GET /api/auth':
-      return sendJSON(res, 200, tokenInfo(getConfig().f1tvToken));
+      return sendJSON(res, 200, authInfo());
+
+    // Renouveler le jeton tout de suite (sinon fait automatiquement dans ses dernières 24 h)
+    case 'POST /api/auth/renew':
+      try {
+        await renewF1tv({ force: true });
+        return sendJSON(res, 200, authInfo());
+      } catch (err) {
+        renewState.lastError = err.message;
+        return sendJSON(res, 502, { error: err.message });
+      }
 
     case 'POST /api/auth': {
       const body = await readBody(req);
       const token = parseF1tvToken(body.token);
       if (!token) return sendJSON(res, 400, { error: 'Jeton non reconnu. Collez la valeur du cookie "login-session" ou le jeton "subscriptionToken".' });
       const info = tokenInfo(token);
-      if (info.expired) return sendJSON(res, 400, { error: 'Ce jeton est expiré : reconnectez-vous sur F1 TV et recopiez-le.' });
-      saveConfig({ f1tvToken: token });
+      const expiredMsg = 'Ce jeton est expiré : reconnectez-vous sur F1 TV et recopiez-le.';
+      if (info.expired) {
+        // Jeton périmé mais session formula1.com encore valide : on le renouvelle aussitôt
+        const ses = sessionOf(token);
+        if (!ses || (ses.expiresAt && ses.expiresAt < Date.now())) return sendJSON(res, 400, { error: expiredMsg });
+        const previous = getConfig().f1tvToken;
+        saveConfig({ f1tvToken: token });
+        try { await renewF1tv({ force: true }); } catch {
+          saveConfig({ f1tvToken: previous });
+          return sendJSON(res, 400, { error: expiredMsg });
+        }
+      } else saveConfig({ f1tvToken: token });
+      resetRenewState();
       if (hub.source.mode === 'live') live.restart();
-      return sendJSON(res, 200, info);
+      return sendJSON(res, 200, authInfo());
     }
 
     case 'DELETE /api/auth':
       saveConfig({ f1tvToken: null });
+      resetRenewState();
       if (hub.source.mode === 'live') live.restart();
       return sendJSON(res, 200, { hasToken: false });
 
@@ -321,10 +361,11 @@ server.listen(settings.port, settings.host, () => {
   console.log(`\n  🏁 F1 Dash prêt : http://${shown}:${settings.port}\n`);
   const auth = tokenInfo(getConfig().f1tvToken);
   if (!auth.hasToken) console.log('  (Sans jeton F1 TV : positions GPS estimées à partir des chronos. Voir README.)\n');
-  else if (auth.expired) console.log('  ⚠ Le jeton F1 TV enregistré est expiré.\n');
+  else if (auth.expired) console.log('  ⚠ Le jeton F1 TV enregistré est expiré (renouvellement automatique tenté si la session formula1.com est encore valide).\n');
 });
 
 live.start();
+startAutoRenew();
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {

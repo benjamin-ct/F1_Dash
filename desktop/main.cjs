@@ -145,13 +145,17 @@ function loginF1TV() {
       loginWindow = null;
       resolve(result);
     };
+    // Cookie d'une ancienne connexion dont la session est finie : refusé par le serveur, on
+    // attend que l'utilisateur se reconnecte (le cookie change) au lieu de fermer la fenêtre
+    let refused = null;
     const check = async () => {
       try {
         const value = await readLoginCookie(ses);
-        if (!value) return;
+        if (!value || value === refused) return;
         const info = await sendToken(value);
         finish({ ok: true, info });
       } catch (err) {
+        if (/expir/i.test(err.message)) { refused = (await readLoginCookie(ses).catch(() => null)); return; }
         finish({ ok: false, error: err.message });
       }
     };

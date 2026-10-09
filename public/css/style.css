@@ -1448,3 +1448,4 @@ body.solo #muteBtn { display: none; }
 .ty-used.on { box-shadow: inset 0 0 0 1.5px var(--text); color: var(--text); }
 @container (max-width: 520px) { .ty-comps { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .ty-comp { padding: 6px 8px; gap: 7px; } .ty-comp .tyre { width: 22px; height: 22px; } .ty-comp b { font-size: 16px; } }
+.auth-pill { border-color: var(--orange); bottom: 72px; max-width: min(620px, calc(100vw - 36px)); }
