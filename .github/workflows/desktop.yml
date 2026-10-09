@@ -1,6 +1,7 @@
 name: Application de bureau
 
-# Génère l'installateur Windows (et une version portable) :
+# Génère l'application pour Windows (installateur + portable), macOS (Apple Silicon et Intel :
+# .dmg + .zip pour les mises à jour) et Linux (AppImage x86_64 / ARM + paquet .deb) :
 # - à la demande (onglet Actions → « Application de bureau » → Run workflow) ;
 #   en renseignant « Version à publier » (ex. v1.1.0), le tag et la Release GitHub sont créés ;
 # - ou en poussant un tag v* (ex. v1.1.0), qui crée aussi une Release GitHub.
@@ -17,11 +18,33 @@ on:
 permissions:
   contents: write
 
+env:
+  RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
+
 jobs:
-  windows:
-    runs-on: windows-latest
-    env:
-      RELEASE_TAG: ${{ inputs.release_tag || (startsWith(github.ref, 'refs/tags/v') && github.ref_name) || '' }}
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+            script: dist
+            files: |
+              desktop/dist/*.exe
+          - os: macos-latest
+            name: macOS
+            script: dist:mac
+            files: |
+              desktop/dist/*.dmg
+              desktop/dist/*.zip
+          - os: ubuntu-latest
+            name: Linux
+            script: dist:linux
+            files: |
+              desktop/dist/*.AppImage
+              desktop/dist/*.deb
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: desktop
@@ -31,39 +54,66 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      # Signature VMP castlabs (Widevine) : faite si les secrets EVS_ACCOUNT_NAME / EVS_PASSWD existent
+      # Signature VMP castlabs (Widevine) sous Windows et macOS : faite si les secrets
+      # EVS_ACCOUNT_NAME / EVS_PASSWD existent (Linux : pas de VMP).
       - uses: actions/setup-python@v5
+        if: runner.os != 'Linux'
         with:
           python-version: '3.12'
-      - run: python -m pip install --upgrade castlabs-evs
+      - if: runner.os != 'Linux'
+        run: python -m pip install --upgrade castlabs-evs
       - name: Numéro de version de l'appli = tag publié
         if: startsWith(env.RELEASE_TAG, 'v')
         shell: bash
         run: npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
-      - run: npm run dist
+      - run: npm run ${{ matrix.script }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
           EVS_ACCOUNT_NAME: ${{ secrets.EVS_ACCOUNT_NAME }}
           EVS_PASSWD: ${{ secrets.EVS_PASSWD }}
       - uses: actions/upload-artifact@v4
         with:
-          name: F1-Dash-Windows
-          path: |
-            desktop/dist/*.exe
+          name: F1-Dash-${{ matrix.name }}
+          path: ${{ matrix.files }}
           if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(inputs.release_tag || github.ref_name, 'v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - run: ls -la dist
       - name: Release
-        if: startsWith(env.RELEASE_TAG, 'v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: F1 Dash ${{ env.RELEASE_TAG }}
           target_commitish: ${{ github.sha }}
-          files: desktop/dist/*.exe
+          files: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
           body: |
-            Application Windows de F1 Dash.
-            - **F1-Dash-…-portable.exe** : se lance directement, sans installation.
+            Application de bureau F1 Dash.
+
+            **Windows**
             - **F1-Dash-…-x64-win.exe** : installateur (raccourci « F1 Dash »).
+            - **F1-Dash-…-portable.exe** : se lance directement, sans installation.
+            - Windows peut afficher un avertissement SmartScreen (application non signée) : « Informations complémentaires » → « Exécuter quand même ».
 
-            Windows peut afficher un avertissement SmartScreen (application non signée) : « Informations complémentaires » → « Exécuter quand même ».
+            **macOS** (13 Ventura ou plus récent)
+            - **F1-Dash-…-mac-arm64.dmg** : Mac Apple Silicon (M1, M2, M3, M4…) ; **…-mac-x64.dmg** : Mac Intel.
+            - Ouvrir le .dmg et glisser F1 Dash dans Applications. L'appli n'étant pas certifiée par Apple, au premier lancement : clic droit → « Ouvrir », ou si macOS indique qu'elle est endommagée, dans le Terminal : `xattr -cr "/Applications/F1 Dash.app"`.
+            - Les fichiers .zip servent aux mises à jour automatiques.
 
-            Les applications déjà installées (v1.2.1 ou plus) se mettent à jour toutes seules à partir de cette page.
+            **Linux** (x64 ou ARM)
+            - **F1-Dash-…-linux-x86_64.AppImage** (ou **…-linux-arm64.AppImage**) : rendre le fichier exécutable (`chmod +x`) puis le lancer ; se met à jour tout seul.
+            - **F1-Dash-…-linux-amd64.deb** : paquet Ubuntu / Debian (`sudo apt install ./F1-Dash-…deb`), à réinstaller pour chaque nouvelle version.
+
+            Les applications déjà installées (Windows v1.2.1 ou plus, macOS et AppImage à partir de v1.12.0) se mettent à jour toutes seules à partir de cette page.

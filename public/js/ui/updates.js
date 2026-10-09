@@ -1,4 +1,4 @@
-// Mises à jour automatiques de l'application Windows (visible uniquement dans l'appli de bureau).
+// Mises à jour automatiques de l'application de bureau (Windows, Linux, macOS).
 import { $ } from '../util.js';
 import { toast } from './delay.js';
 
@@ -13,13 +13,13 @@ function fmt(s) {
     case 'downloading': return `Téléchargement de la version ${s.latest?.version}… ${Math.round((s.progress || 0) * 100)} %`;
     case 'ready': return `✅ Version ${s.latest?.version} prête : elle sera installée à la fermeture de l'appli, ou tout de suite avec « Redémarrer ».`;
     case 'error': return `⚠ ${s.error}`;
-    case 'unsupported': return 'Mise à jour automatique disponible uniquement sous Windows.';
+    case 'unsupported': return 'Mise à jour automatique indisponible pour cette installation (paquet .deb, ou appli lancée depuis l\'image disque) : installez la nouvelle version depuis la page des versions du projet sur GitHub.';
     default: return `Version ${s.current}`;
   }
 }
 
 function render(s) {
-  $('#updateStatus').textContent = `${fmt(s)} ${s.kind === 'portable' ? '· version portable' : s.kind === 'installer' ? '· version installée' : ''}`;
+  $('#updateStatus').textContent = `${fmt(s)} ${{ portable: '· version portable', installer: '· version installée', appimage: '· AppImage', mac: '· macOS' }[s.kind] || ''}`;
   $('#updateAuto').checked = s.auto;
   $('#updateInstall').hidden = s.status !== 'ready';
   $('#updateCheck').hidden = s.status === 'unsupported';

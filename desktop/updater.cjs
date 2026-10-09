@@ -1,8 +1,11 @@
-// Mise à jour automatique de l'application Windows (installateur et version portable).
+// Mise à jour automatique de l'application (Windows, Linux AppImage, macOS).
 // Les versions sont lues sur les Releases du dépôt public (package.json → f1dash.updateRepo),
 // téléchargées en arrière-plan, vérifiées (empreinte SHA-256 fournie par GitHub), puis installées :
-// - installateur : exécution silencieuse du nouvel installateur, puis relance de l'appli ;
-// - portable : remplacement du fichier .exe (l'ancien est renommé puis supprimé au démarrage suivant).
+// - Windows, installateur : exécution silencieuse du nouvel installateur, puis relance de l'appli ;
+// - Windows portable / Linux AppImage : remplacement du fichier (l'ancien est renommé puis
+//   supprimé au démarrage suivant) ;
+// - macOS : l'archive .zip est décompressée à la place de « F1 Dash.app » une fois l'appli fermée.
+// Paquet .deb (Linux) : pas de mise à jour automatique (installer le nouveau paquet).
 const { app, BrowserWindow } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -13,9 +16,25 @@ const pkg = require('./package.json');
 const REPO = process.env.F1DASH_UPDATE_REPO || pkg.f1dash?.updateRepo || 'benjamin-ct/F1_Dash';
 const CHECK_EVERY_MS = 6 * 3600 * 1000;
 
+// Bundle « F1 Dash.app » de l'appli macOS, s'il peut être remplacé (pas lancé depuis l'image disque)
+function macBundle() {
+  if (process.platform !== 'darwin') return null;
+  const bundle = path.resolve(path.dirname(process.execPath), '..', '..');
+  if (!bundle.endsWith('.app') || bundle.startsWith('/Volumes/')) return null;
+  try { fs.accessSync(path.dirname(bundle), fs.constants.W_OK); return bundle; } catch { return null; }
+}
+
+function detectKind() {
+  if (process.env.PORTABLE_EXECUTABLE_FILE) return 'portable';
+  if (process.platform === 'win32') return 'installer';
+  if (process.platform === 'linux' && process.env.APPIMAGE) return 'appimage';
+  if (macBundle()) return 'mac';
+  return 'unsupported';
+}
+
 const state = {
   current: app.getVersion(),
-  kind: process.env.PORTABLE_EXECUTABLE_FILE ? 'portable' : (process.platform === 'win32' ? 'installer' : 'unsupported'),
+  kind: detectKind(),
   status: 'idle', // idle | checking | up-to-date | downloading | ready | error | unsupported
   latest: null,
   progress: 0,
@@ -63,9 +82,18 @@ function newer(a, b) {
 }
 
 function pickAsset(release) {
-  const re = state.kind === 'portable' ? /-portable\.exe$/i : /-x64-win\.exe$/i;
-  return (release.assets || []).find((a) => re.test(a.name));
+  const arch = process.arch === 'arm64' ? 'arm64' : 'x64';
+  const re = {
+    portable: /-portable\.exe$/i,
+    installer: /-x64-win\.exe$/i,
+    appimage: new RegExp(`-linux-${arch === 'x64' ? 'x86_64' : arch}\\.AppImage$`, 'i'),
+    mac: new RegExp(`-mac-${arch}\\.zip$`, 'i'),
+  }[state.kind];
+  return re && (release.assets || []).find((a) => re.test(a.name));
 }
+
+// Fichier exécutable remplacé sur place : .exe portable (Windows) ou AppImage (Linux)
+const selfFile = () => process.env.PORTABLE_EXECUTABLE_FILE || process.env.APPIMAGE;
 
 async function download(asset, dest) {
   // Lien public direct, sinon l'API GitHub (qui redirige vers le même fichier).
@@ -140,14 +168,32 @@ function install(relaunch = true) {
     if (state.kind === 'installer') {
       // Installateur NSIS : /S = silencieux (même dossier d'installation), --force-run = relance ensuite.
       spawn(state.file, ['/S', '--updated', ...(relaunch ? ['--force-run'] : [])], { detached: true, stdio: 'ignore' }).on('error', () => {}).unref();
+    } else if (state.kind === 'mac') {
+      // Script lancé à part : attend la fermeture de l'appli, remplace le bundle, puis la relance.
+      const bundle = macBundle();
+      const script = path.join(path.dirname(state.file), 'install.sh');
+      fs.writeFileSync(script, [
+        '#!/bin/sh',
+        `while kill -0 ${process.pid} 2>/dev/null; do sleep 0.3; done`,
+        'TMP=$(mktemp -d) || exit 1',
+        `ditto -x -k "$1" "$TMP" || exit 1`,
+        'NEW=$(find "$TMP" -maxdepth 1 -name "*.app" | head -n 1)',
+        '[ -n "$NEW" ] || exit 1',
+        'rm -rf "$2" && mv "$NEW" "$2" && xattr -cr "$2"',
+        'rm -rf "$TMP"',
+        '[ "$3" = "1" ] && open "$2"',
+        'exit 0',
+      ].join('\n'), { mode: 0o755 });
+      spawn('/bin/sh', [script, state.file, bundle, relaunch ? '1' : '0'], { detached: true, stdio: 'ignore' }).on('error', () => {}).unref();
     } else {
-      const exe = process.env.PORTABLE_EXECUTABLE_FILE;
+      const exe = selfFile();
       const old = `${exe}.old`;
       fs.rmSync(old, { force: true });
-      // Un .exe en cours d'exécution ne peut pas être supprimé, mais il peut être renommé.
+      // Un exécutable en cours d'utilisation ne peut pas être supprimé, mais il peut être renommé.
       fs.renameSync(exe, old);
       try {
         fs.copyFileSync(state.file, exe);
+        if (state.kind === 'appimage') fs.chmodSync(exe, 0o755);
       } catch (err) {
         fs.renameSync(old, exe);
         throw err;
@@ -172,9 +218,9 @@ function setAuto(value) {
 function init(ipcMain) {
   settingsFile = path.join(app.getPath('userData'), 'updater.json');
   loadSettings();
-  // Nettoyage après une mise à jour de la version portable.
-  if (state.kind === 'portable') {
-    try { fs.rmSync(`${process.env.PORTABLE_EXECUTABLE_FILE}.old`, { force: true }); } catch { /* encore verrouillé */ }
+  // Nettoyage après une mise à jour de la version portable / de l'AppImage.
+  if (state.kind === 'portable' || state.kind === 'appimage') {
+    try { fs.rmSync(`${selfFile()}.old`, { force: true }); } catch { /* encore verrouillé */ }
   }
   // Anciens téléchargements
   try {

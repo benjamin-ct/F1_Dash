@@ -3,14 +3,18 @@
   "version": "1.1.1",
   "description": "F1 Dash — application de bureau",
   "main": "main.cjs",
+  "desktopName": "f1-dash-desktop.desktop",
   "private": true,
-  "author": "F1 Dash",
+  "author": {
+    "name": "F1 Dash",
+    "email": "f1dash@users.noreply.github.com"
+  },
   "scripts": {
     "prepare-app": "node prepare.mjs",
     "start": "node prepare.mjs && electron .",
-    "dist": "node prepare.mjs && electron-builder --win nsis portable",
-    "dist:linux": "node prepare.mjs && electron-builder --linux AppImage",
-    "dist:mac": "node prepare.mjs && electron-builder --mac dmg"
+    "dist": "node prepare.mjs && electron-builder --win nsis portable --publish never",
+    "dist:linux": "node prepare.mjs && electron-builder --linux --publish never",
+    "dist:mac": "node prepare.mjs && electron-builder --mac --publish never"
   },
   "dependencies": {
     "https-proxy-agent": "^7.0.6",
@@ -44,14 +48,70 @@
     "portable": {
       "artifactName": "F1-Dash-${version}-portable.exe"
     },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.sports",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "F1-Dash-${version}-mac-${arch}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "F1-Dash-${version}-mac-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "AudioVideo",
+      "synopsis": "Dashboard Formule 1 en direct",
+      "maintainer": "F1 Dash <f1dash@users.noreply.github.com>",
+      "artifactName": "F1-Dash-${version}-linux-${arch}.${ext}",
+      "syncDesktopName": true
+    },
     "electronVersion": "44.5.1",
     "electronDownload": {
       "version": "44.5.1+wvcus",
       "mirror": "https://github.com/castlabs/electron-releases/releases/download/"
     },
-    "afterSign": "./vmp-sign.cjs"
+    "afterSign": "./vmp-sign.cjs",
+    "afterPack": "./vmp-after-pack.cjs",
+    "publish": {
+      "provider": "github",
+      "owner": "benjamin-ct",
+      "repo": "F1_Dash",
+      "releaseType": "release"
+    }
   },
   "f1dash": {
     "updateRepo": "benjamin-ct/F1_Dash"
-  }
+  },
+  "homepage": "https://github.com/benjamin-ct/F1_Dash"
 }

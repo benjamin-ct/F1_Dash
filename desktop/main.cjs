@@ -221,7 +221,11 @@ async function start() {
   process.env.F1DASH_DATA_DIR = path.join(app.getPath('userData'), 'data');
   await import(pathToFileURL(path.join(__dirname, 'bundle', 'server', 'index.js')).href);
 
-  Menu.setApplicationMenu(null);
+  // Pas de barre de menus sous Windows / Linux. Sous macOS, le menu système reste nécessaire pour
+  // les raccourcis (Cmd+C / Cmd+V dans les champs, Cmd+Q, Cmd+M, plein écran).
+  Menu.setApplicationMenu(process.platform === 'darwin'
+    ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' }])
+    : null);
   const ws = loadWindowState();
   mainWindow = new BrowserWindow({
     width: 1600,
