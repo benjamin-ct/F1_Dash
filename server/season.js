@@ -3,7 +3,7 @@
 // l'espace « Saison ». Cache mémoire 15 min + copie disque (affichage hors ligne).
 import fs from 'node:fs';
 import path from 'node:path';
-import { getJSON } from './net.js';
+import { getJSON, HttpError } from './net.js';
 import { CACHE_DIR } from './circuits.js';
 
 const BASE = 'https://api.jolpi.ca/ergast/f1';
@@ -11,11 +11,39 @@ const TTL = 15 * 60 * 1000;
 const mem = new Map();
 const pending = new Map();
 
+// L'API Jolpica limite le nombre de requêtes (4 par seconde) : elles sont espacées, et
+// relancées en cas de refus temporaire (429), d'erreur serveur ou de délai dépassé.
+const GAP_MS = 300;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let queue = Promise.resolve();
+let lastAt = 0;
+function throttled(fn) {
+  const turn = queue.then(async () => {
+    const wait = lastAt + GAP_MS - Date.now();
+    if (wait > 0) await sleep(wait);
+    lastAt = Date.now();
+  });
+  queue = turn.catch(() => {});
+  return turn.then(fn);
+}
+
+async function jget(url) {
+  for (let i = 0; ; i++) {
+    try {
+      return await throttled(() => getJSON(url, { timeout: 30000 }));
+    } catch (err) {
+      const temporary = !(err instanceof HttpError) || err.status === 429 || err.status >= 500;
+      if (!temporary || i >= 3) throw err;
+      await sleep(1500 * 2 ** i);
+    }
+  }
+}
+
 // Toutes les pages d'une ressource (limite 100 par page)
 async function all(pathname, pick) {
   const out = [];
   for (let offset = 0, total = 1; offset < total; offset += 100) {
-    const d = await getJSON(`${BASE}/${pathname}.json?limit=100&offset=${offset}`, { timeout: 30000 });
+    const d = await jget(`${BASE}/${pathname}.json?limit=100&offset=${offset}`);
     total = Number(d?.MRData?.total) || 0;
     out.push(...pick(d?.MRData));
     if (!total) break;
@@ -70,8 +98,8 @@ export function summarize({ schedule, driverStandings, constructorStandings, res
 async function fetchSeason(year) {
   const [schedule, ds, cs, results, quali, sprint] = await Promise.all([
     all(`${year}`, (m) => m?.RaceTable?.Races || []),
-    getJSON(`${BASE}/${year}/driverstandings.json?limit=100`, { timeout: 30000 }),
-    getJSON(`${BASE}/${year}/constructorstandings.json?limit=100`, { timeout: 30000 }),
+    jget(`${BASE}/${year}/driverstandings.json?limit=100`),
+    jget(`${BASE}/${year}/constructorstandings.json?limit=100`),
     all(`${year}/results`, (m) => m?.RaceTable?.Races || []),
     all(`${year}/qualifying`, (m) => m?.RaceTable?.Races || []),
     all(`${year}/sprint`, (m) => m?.RaceTable?.Races || []),

@@ -9,7 +9,7 @@ import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
 import { season } from './season.js';
-import { seasonStats } from './race-stats.js';
+import { seasonStats, archiveError } from './race-stats.js';
 import { seasonTech } from './fia-tech.js';
 import { fiaDocuments } from './fia.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
@@ -221,7 +221,11 @@ async function handleApi(req, res, url) {
 
     case 'GET /api/archive': {
       const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
-      return sendJSON(res, 200, await seasonIndex(year));
+      try {
+        return sendJSON(res, 200, await seasonIndex(year));
+      } catch (err) {
+        return sendJSON(res, 502, { error: `Replays ${year} indisponibles : ${archiveError(year, err)}` });
+      }
     }
 
     case 'POST /api/live':
