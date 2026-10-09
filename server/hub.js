@@ -56,6 +56,7 @@ export class Hub {
     this.gen++;
     this.events = [];
     this.stream = [];
+    this.posArchive = [];   // GPS sorti de l'historique d'envoi (comparaison des meilleurs tours)
     this.streamOffset = 0;
     this.sync = [];
     this.syncCtx = createSyncContext();
@@ -89,7 +90,8 @@ export class Hub {
     const limit = this.clock() - this.maxDelayMs - STREAM_HISTORY_MS - 60000;
     if (this.stream.length > 2000 && this.stream[1000].t < limit) {
       const n = lowerBound(this.stream, limit);
-      this.stream.splice(0, n);
+      // Le GPS reste disponible toute la séance pour comparer les meilleurs tours
+      for (const it of this.stream.splice(0, n)) if (it.topic === 'Position') this.posArchive.push(it);
       this.streamOffset += n;
     }
   }

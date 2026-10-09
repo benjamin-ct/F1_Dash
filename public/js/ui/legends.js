@@ -49,6 +49,7 @@ const L = {
     pace: [txt('Rythme sur les tours « propres » : boîte = la moitié des tours du pilote, trait = médiane, moustaches = tour le plus rapide / le plus lent. À droite : les 20 meilleurs tours de la séance.')],
     tyrehist: [txt('Chaque case est un tour, colorée selon le pneu utilisé ; cadre blanc = arrêt au stand ; violet = meilleur tour du pilote.')],
     sectors: [txt('Meilleur temps de chaque pilote dans chaque secteur, tour idéal (somme des 3 meilleurs secteurs) et vitesses de pointe. Violet = meilleur de la séance.')],
+    compare: [sw('var(--blue)', 'pilote A plus rapide'), sw('var(--orange)', 'pilote B plus rapide'), txt('· meilleur tour de chacun : secteurs officiels, mini-secteurs mesurés au GPS ; courbe = écart cumulé le long du tour ; pointillés = emplacement de boucle estimé')],
     telemetry: [txt('Télémétrie du pilote suivi (clic sur un pilote du classement) : vitesse, rapport engagé, régime moteur, accélérateur et frein, en direct. Nécessite un compte F1 TV.')],
   },
   extra: {

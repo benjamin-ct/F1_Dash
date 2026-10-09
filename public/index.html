@@ -222,6 +222,7 @@
         <button class="tab" data-tab="pace" title="Rythme de course : répartition des tours propres de chaque pilote et tours les plus rapides">Rythme</button>
         <button class="tab" data-tab="tyrehist" title="Tous les tours de chaque pilote, colorés selon le pneu">Pneus</button>
         <button class="tab" data-tab="sectors" title="Meilleurs secteurs, tour idéal et vitesses de pointe">Secteurs</button>
+        <button class="tab" data-tab="compare" title="Meilleurs tours de deux pilotes : secteurs et mini-secteurs (P1 contre P2 par défaut)">Comparaison</button>
         <button class="tab" data-tab="telemetry" title="Télémétrie du pilote suivi">Télémétrie</button>
       </div>
       <div class="panel-body">
@@ -257,6 +258,15 @@
         </div>
         <div class="tabpane" data-pane="tyrehist"><div class="tyre-hist-wrap" id="anaTyres"></div></div>
         <div class="tabpane" data-pane="sectors"><div id="anaSectors"></div></div>
+        <div class="tabpane" data-pane="compare">
+          <div class="subbar">
+            <label class="small" title="Pilote A (bleu)">A <select id="cmpA"></select></label>
+            <button class="btn small" id="cmpSwap" title="Inverser A et B">⇄</button>
+            <label class="small" title="Pilote B (orange)">B <select id="cmpB"></select></label>
+            <button class="btn small" id="cmpTop" title="Revenir à P1 contre P2">P1 / P2</button>
+          </div>
+          <div id="anaCompare" class="cmp"></div>
+        </div>
         <div class="tabpane" data-pane="telemetry" id="telemetry"></div>
       </div>
     </section>
