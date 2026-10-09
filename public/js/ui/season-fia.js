@@ -137,7 +137,8 @@ export function renderTech(ctx, fia) {
   const types = count(all, (u) => u.type);
   const reasons = count(all, (u) => u.reason);
   const zones = count(all, (u) => zoneOf(u.component));
-  const comps = count(all.filter((u) => u.component), (u) => u.component.replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())).slice(0, 15);
+  // Regroupés par nom français (« Floor » et « Floor Body » = « Fond plat »)
+  const comps = count(all.filter((u) => u.component), (u) => compFr(u.component) || u.component.replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())).slice(0, 15);
   const tot = all.length;
   const pct = (n) => `${Math.round((n / tot) * 1000) / 10} %`.replace('.', ',');
 

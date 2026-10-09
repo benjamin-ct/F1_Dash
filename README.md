@@ -4,6 +4,8 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 
 ![F1 Dash pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
 
+<sub>Sur chaque capture : à gauche le thème « F1 sobre » (par défaut), à droite le thème « Classique », au choix dans ⚙ Réglages → Affichage.</sub>
+
 ## ✨ En bref
 
 - **Classement en direct** : écarts, secteurs et mini-secteurs, pneus, arrêts, vitesse de pointe, logos des écuries ; en qualif, limite d'élimination et temps à battre.
