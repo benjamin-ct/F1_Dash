@@ -1,5 +1,5 @@
 // Préférences de l'utilisateur (conservées dans le navigateur).
-import { storageGet, storageSet, setVividTeams, setTeamLogos } from './util.js';
+import { storageGet, storageSet, setVividTeams, setTeamLogos, setLogoColor } from './util.js';
 import { emit, touch } from './store.js';
 
 const DEFAULTS = {
@@ -8,12 +8,13 @@ const DEFAULTS = {
   hiddenPanels: [],
   hiddenCols: [],
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
-  theme: 'f1',            // 'f1' (F1 sobre) | 'noir' (classique) | 'bleu' (bleu nuit)
-  vividTeams: true,       // couleurs d'équipe contrastées plutôt qu'officielles
-  teamLogos: true,
+  theme: 'pro',           // 'pro' (F1 Pro) | 'f1' (F1 sobre) | 'noir' (classique) | 'bleu' (bleu nuit)
+  vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
+  teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
+  logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
   keepAwake: true,        // écran toujours allumé pendant une séance
   legends: true,          // légendes sous les panneaux (couleurs, colonnes, graphiques)
-  layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'        // logos des écuries (classement, championnat) plutôt que barres de couleur
+  layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
   radioLang: 'fr',        // langue de traduction des transcriptions ('none' : anglais)
@@ -38,26 +39,31 @@ const DEFAULTS = {
 
 const saved = storageGet('f1dash.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
-// Passage au thème « F1 sobre » : ceux qui gardaient le thème noir par défaut en profitent ;
-// un autre thème choisi (bleu nuit) est conservé. Une seule fois.
-if (!saved.themeV) {
-  if (!saved.theme || saved.theme === 'noir') prefs.theme = 'f1';
-  storageSet('f1dash.prefs', { ...saved, theme: prefs.theme, themeV: 2 });
+// Passage au design « F1 Pro » (une seule fois) : le thème par défaut précédent (F1 sobre, ou
+// noir avant lui) devient F1 Pro ; un thème choisi exprès est conservé. Les écuries reprennent
+// leurs couleurs officielles.
+if ((saved.themeV || 0) < 3) {
+  const v = saved.themeV || 0;
+  if (v === 2 ? !saved.theme || saved.theme === 'f1' : saved.theme !== 'bleu') prefs.theme = 'pro';
+  prefs.vividTeams = false;
+  storageSet('f1dash.prefs', { ...saved, theme: prefs.theme, vividTeams: false, themeV: 3 });
 }
-prefs.themeV = 2;   // gardé dans chaque enregistrement des préférences
+prefs.themeV = 3;   // gardé dans chaque enregistrement des préférences
 setVividTeams(prefs.vividTeams);
 setTeamLogos(prefs.teamLogos);
+setLogoColor(prefs.logoColor);
 
 // Couleurs d'équipe changées : les panneaux qui affichent les pilotes se redessinent.
 function applyTeamColors() {
   setVividTeams(prefs.vividTeams);
   setTeamLogos(prefs.teamLogos);
+  setLogoColor(prefs.logoColor);
   touch('DriverList');
 }
 
 export function setPref(key, value) {
   prefs[key] = value;
-  if (key === 'vividTeams' || key === 'teamLogos') applyTeamColors();
+  if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
   if (key === 'theme') document.documentElement.dataset.theme = value;
   storageSet('f1dash.prefs', prefs);
   emit('prefs', key);
@@ -80,7 +86,7 @@ window.addEventListener('storage', (e) => {
   for (const key of Object.keys(DEFAULTS)) {
     if (!(key in next) || JSON.stringify(next[key]) === JSON.stringify(prefs[key])) continue;
     prefs[key] = key === 'alerts' ? { ...DEFAULTS.alerts, ...next.alerts } : next[key];
-    if (key === 'vividTeams' || key === 'teamLogos') applyTeamColors();
+    if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
     if (key === 'theme') document.documentElement.dataset.theme = prefs[key];
     emit('prefs', key);
   }

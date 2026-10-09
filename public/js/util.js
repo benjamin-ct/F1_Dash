@@ -60,7 +60,7 @@ const VIVID_TEAMS = [
   [/audi|sauber|kick/i, '#8f979f'],                     // gris titane
   [/cadillac/i, '#d4b04a'],                             // or
 ];
-let vividTeams = true;
+let vividTeams = false;
 export function setVividTeams(v) { vividTeams = !!v; }
 
 export function teamColor(driver) {
@@ -89,18 +89,22 @@ const TEAM_LOGOS = [
 ];
 let teamLogos = true;
 export function setTeamLogos(v) { teamLogos = !!v; }
+let logoColor = true;
+export function setLogoColor(v) { logoColor = !!v; }
 
-export function teamLogo(teamName) {
+// Logo en couleurs officielles (sur pastille claire : certains sont noirs) ou version blanche
+export function teamLogo(teamName, color = logoColor) {
   const hit = teamName && TEAM_LOGOS.find(([re]) => re.test(teamName));
-  return hit ? `https://media.formula1.com/image/upload/c_fit,h_64/q_auto/v1740000000/common/f1/${hit[1]}logowhite.webp` : null;
+  return hit ? `https://media.formula1.com/image/upload/c_fit,h_64/q_auto/v1740000000/common/f1/${hit[1]}logo${color ? '' : 'white'}.webp` : null;
 }
 
-// Repère d'écurie d'un pilote : logo sur fond aux couleurs de l'écurie (réglage « logos »), sinon barre de couleur
+// Repère d'écurie d'un pilote : logo officiel (réglage « logos »), sinon barre de couleur.
+// Logo en couleurs : pastille claire liserée de la couleur d'équipe ; logo blanc : sur la couleur d'équipe.
 export function teamMark(driver) {
   const col = teamColor(driver);
   const logo = teamLogos ? teamLogo(driver?.TeamName) : null;
   if (!logo) return `<span class="drv-bar" style="background:${col}"></span>`;
-  return `<span class="team-logo" style="--tc:${col};background-image:url('${logo}')" title="${esc(driver?.TeamName || '')}"></span>`;
+  return `<span class="team-logo${logoColor ? ' color' : ''}" style="--tc:${col};background-image:url('${logo}')" title="${esc(driver?.TeamName || '')}"></span>`;
 }
 
 export const COMPOUNDS = {

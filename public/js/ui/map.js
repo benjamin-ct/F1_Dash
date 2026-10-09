@@ -458,7 +458,8 @@ function draw() {
   const dpr = size.dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, size.w, size.h);
-  if (!track) return;
+  // Carte masquée (autre panneau agrandi, Saison ouverte) : rien à dessiner
+  if (!track || !canvas().width || !canvas().height) return;
   if (!xf) xf = { base: makeTransform() };
   // Suivi du pilote : on centre la vue sur sa voiture (repérée à l'image précédente).
   if ($('#mapFollow').checked && followTarget) {

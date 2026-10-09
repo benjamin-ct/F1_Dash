@@ -920,6 +920,11 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc) 75%, transparent), inset 3px 0 0 var(--tc);
 }
 .champ .team-logo { width: 19px; height: 19px; margin-right: 6px; }
+/* Logo en couleurs officielles : pastille claire, filet à la couleur de l'écurie */
+.team-logo.color {
+  background-color: #f2f2f5; background-size: 66%; background-position: 60% center;
+  box-shadow: inset 3px 0 0 var(--tc);
+}
 
 /* ---------- Saison : statistiques détaillées ---------- */
 .sz-nav-sep { margin: 12px 10px 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
@@ -1160,7 +1165,7 @@ body.solo #muteBtn { display: none; }
 .panel-legend .lg-tyre { width: 15px; height: 15px; border-width: 2px; font-size: 8px; }
 .grid.mobile .panel-legend { font-size: 11px; padding: 5px 10px; }
 .sz-help { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 0 6px 6px 0; color: var(--text-2); font-size: 13px; }
-.panel-legend { position: relative; padding-right: 78px; }
+.panel-legend, .grid.mobile .panel-legend { position: relative; padding-right: 78px; }
 .panel-legend .lg-hide { position: absolute; right: 8px; top: 4px; background: none; border: 1px solid transparent; border-radius: 5px; color: var(--muted); font-size: 11px; padding: 1px 6px; cursor: pointer; }
 .panel-legend .lg-hide:hover { border-color: var(--border); color: var(--text); }
 
@@ -1232,3 +1237,179 @@ body.solo #muteBtn { display: none; }
 .cmp-speeds th:first-child, .cmp-speeds td:first-child { text-align: left; }
 .cmp-speeds td.best { color: var(--purple); font-weight: 700; }
 @container (max-width: 560px) { .cmp-vis { grid-template-columns: 1fr; } .cmp-sectors { grid-template-columns: 1fr; } }
+
+/* ---------- Éléments du design « F1 Pro » (masqués dans les autres thèmes) ---------- */
+.rail { display: none; }
+.lap-bar { display: none; }
+.drv-last { display: none; }
+.mob-nav .mn-svg { display: none; }
+.dmore { display: none; }
+.delay-controls { position: relative; }
+/* Thèmes classiques : boutons −5 −1 −.1 [délai] +.1 +1 +5 sur une ligne */
+.delay-steps { display: contents; }
+.delay-steps .m { order: -1; }
+
+/* ================= Thème « F1 Pro » (par défaut) =================
+   Barre de navigation à gauche, barre d'état de la séance, cartes arrondies, onglets segmentés,
+   replay en bas façon lecteur vidéo, logos et couleurs officiels des écuries. */
+:root[data-theme="pro"] {
+  --bg: #07070a; --panel: #0f0f13; --panel-2: #15151b; --panel-3: #1c1c23;
+  --border: #202028; --line: #1a1a21; --line-2: #2b2b34; --hover: #15151b; --deep: #0b0b0e;
+  --top-1: #07070a; --top-2: #07070a; --focus: rgba(62, 166, 255, .08);
+  --text: #f1f1f5; --text-2: #b4b4bf; --muted: #7c7c88; --radius: 10px;
+  --purple: #b65cff; --green: #2fd17a; --rail-w: 60px;
+}
+[data-theme="pro"] body { font-size: 13.5px; }
+
+/* Barre latérale (fenêtre principale, grand écran) */
+@media (min-width: 901px) {
+  [data-theme="pro"] body:not(.solo) { padding-left: var(--rail-w); }
+  [data-theme="pro"] body:not(.solo) .rail {
+    position: fixed; left: 0; top: 0; bottom: 0; width: var(--rail-w); z-index: 850;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0;
+    background: var(--panel); border-right: 1px solid var(--border);
+  }
+  [data-theme="pro"] body:not(.solo) .topbar :is(.brand, #seasonBtn, #commBtn, #resetUiBtn, #settingsBtn) { display: none; }
+  [data-theme="pro"] body:not(.solo) .season-view { left: var(--rail-w); }
+  [data-theme="pro"] body:not(.solo) .comm-panel { right: auto; left: calc(var(--rail-w) + 10px); }
+}
+.rail-logo { width: 38px; height: 26px; background: var(--accent); color: #fff; border-radius: 4px; display: grid; place-items: center;
+  font-weight: 900; font-style: italic; font-size: 14px; margin-bottom: 14px; flex: none; }
+.rail-btn { width: 46px; height: 46px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); position: relative;
+  background: none; border: 0; padding: 0; cursor: pointer; flex: none; transition: color .15s, background-color .15s; }
+.rail-btn:hover { color: var(--text-2); background: var(--panel-2); }
+.rail-btn.on { color: var(--text); background: var(--panel-3); }
+.rail-btn.on::before { content: ''; position: absolute; left: -7px; top: 12px; bottom: 12px; width: 3px; border-radius: 2px; background: var(--accent); }
+.rail-btn.playing::after { content: ''; position: absolute; top: 7px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.rail-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; margin-top: -9px; }
+.rail-btn small { position: absolute; bottom: 3px; left: 0; right: 0; text-align: center; font-size: 8.5px; letter-spacing: .4px; text-transform: uppercase; font-weight: 600; }
+.rail-sp { flex: 1; }
+
+/* Barre d'état de la séance */
+[data-theme="pro"] .topbar { background: var(--bg); border-bottom: 1px solid var(--border); }
+@media (min-width: 901px) {
+  [data-theme="pro"] .topbar { min-height: 56px; gap: 22px; padding: 6px 18px; }
+  [data-theme="pro"] .lap-box { min-width: 96px; }
+}
+/* Titre « Délai » masqué faute de place : pas de case vide */
+@media (max-width: 1600px) {
+  [data-theme="pro"] .topbar .delay-head:not(:has(.delay-warn:not([hidden]))) { display: none; }
+  [data-theme="pro"] .topbar .delay-controls { border-left: 0; }
+}
+@media (max-width: 900px) {
+  [data-theme="pro"] .topbar .lap-box .hstat-value { font-size: 16px; }
+  [data-theme="pro"] .topbar #lapsLeftBox { display: none !important; }
+  [data-theme="pro"] .topbar .delay-input { width: 52px; padding-left: 4px; }
+}
+[data-theme="pro"] .session-name { font-size: 15px; font-weight: 700; }
+[data-theme="pro"] .session-sub { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+[data-theme="pro"] .track-status { border-radius: 999px; font-weight: 600; letter-spacing: .2px; text-transform: none; min-width: 0; padding: 5px 12px; border: 1px solid transparent; font-size: 13px; }
+[data-theme="pro"] .track-status:not(.yellow):not(.sc):not(.vsc):not(.red):not(.chequered) { background: transparent; border-color: var(--line-2); color: var(--text); }
+[data-theme="pro"] .ts-dot { width: 8px; height: 8px; }
+[data-theme="pro"] .track-status.green .ts-dot { background: var(--green); box-shadow: 0 0 0 3px rgba(47, 209, 122, .18); }
+[data-theme="pro"] .hstat-label { font-size: 10px; letter-spacing: 1.3px; color: var(--muted); }
+[data-theme="pro"] .hstat-value { font-size: 15px; font-weight: 600; }
+[data-theme="pro"] .lap-box .hstat-value { font-size: 19px; font-weight: 700; }
+[data-theme="pro"] .lap-bar:not([hidden]) { display: block; align-self: stretch; height: 3px; margin-top: 3px; background: var(--panel-3); border-radius: 2px; overflow: hidden; }
+[data-theme="pro"] .lap-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+[data-theme="pro"] .weather-mini { gap: 16px; }
+[data-theme="pro"] .weather-mini .wm span { font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; }
+[data-theme="pro"] .weather-mini .wm b { font-size: 15px; font-weight: 600; }
+
+/* Délai : bloc compact, réglages fins dans un petit menu */
+[data-theme="pro"] .delay { background: transparent; border: 1px solid var(--line-2); border-radius: 8px; padding: 0; gap: 0; }
+[data-theme="pro"] .delay > * { align-self: stretch; display: flex; align-items: center; }
+[data-theme="pro"] .delay-head { flex-direction: row; gap: 4px; padding: 0 10px; }
+[data-theme="pro"] .delay-title { font-size: 12px; text-transform: none; letter-spacing: 0; }
+[data-theme="pro"] .delay-title::after { content: ' TV'; }
+[data-theme="pro"] .delay-controls { border-left: 1px solid var(--line-2); gap: 0; }
+[data-theme="pro"] .delay-input { width: 62px; font-size: 16px; font-weight: 700; background: transparent; border: 0; border-radius: 0; padding: 4px 2px 4px 8px; text-align: right; }
+[data-theme="pro"] .delay-input:focus { outline: none; background: var(--panel-2); }
+[data-theme="pro"] .delay-controls::after { content: 's'; color: var(--muted); font-size: 13px; padding: 0 4px 0 2px; order: 1; }
+[data-theme="pro"] .dmore { display: grid; place-items: center; order: 2; align-self: stretch; min-width: 28px; padding: 0 6px; background: none; border: 0; border-left: 1px solid var(--line-2);
+  color: var(--text-2); font-weight: 700; font-size: 14px; cursor: pointer; }
+[data-theme="pro"] .dmore:hover, [data-theme="pro"] .delay.open .dmore { background: var(--panel-2); color: var(--text); }
+[data-theme="pro"] .delay-steps { display: none; }
+[data-theme="pro"] .delay.open .delay-steps {
+  display: grid; grid-template-columns: repeat(6, auto); gap: 4px; position: absolute; top: calc(100% + 8px); left: 0; z-index: 960;
+  background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 6px; box-shadow: 0 12px 30px rgba(0, 0, 0, .55);
+}
+[data-theme="pro"] .delay-steps .m { order: 0; }
+[data-theme="pro"] .dbtn { background: var(--panel-3); border-color: var(--line-2); border-radius: 6px; min-width: 40px; padding: 5px 8px; }
+[data-theme="pro"] .delay .preset { border: 0 !important; border-left: 1px solid var(--line-2) !important; border-radius: 0; background-color: transparent; max-width: 170px; color: var(--text-2); }
+[data-theme="pro"] .delay #syncBtn { border-radius: 0 7px 7px 0; margin: -1px -1px -1px 0; padding: 0 13px; }
+[data-theme="pro"] .btn { background: transparent; border-color: var(--line-2); border-radius: 7px; }
+[data-theme="pro"] .btn-accent { background: var(--accent); border-color: var(--accent); }
+[data-theme="pro"] .source-badge { background: transparent; border-color: transparent; letter-spacing: 1px; font-size: 12px; color: var(--text-2); }
+[data-theme="pro"] .icon-btn { border-radius: 8px; }
+
+/* Cartes et onglets segmentés */
+[data-theme="pro"] .grid { padding: 12px; }
+[data-theme="pro"] .lsplit-v, [data-theme="pro"] .lsplit-h { flex-basis: 12px; }
+[data-theme="pro"] .lsplit-v::after { left: 5px; }
+[data-theme="pro"] .lsplit-h::after { top: 5px; }
+[data-theme="pro"] .panel { border-radius: 10px; border-color: var(--border); background: var(--panel); }
+[data-theme="pro"] .panel-head { background: var(--panel); border-bottom: 1px solid var(--line); padding: 9px 14px 8px; }
+[data-theme="pro"] .panel-head h2 { font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: var(--text-2); }
+[data-theme="pro"] .panel-head.tabs { padding: 7px 10px; gap: 2px; }
+[data-theme="pro"] .tab { font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); padding: 5px 10px; border-radius: 6px; }
+[data-theme="pro"] .tab:hover { color: var(--text-2); background: var(--panel-2); }
+[data-theme="pro"] .tab.active { background: var(--panel-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+[data-theme="pro"] .tabs .panel-ctrl { background: var(--panel); }
+[data-theme="pro"] .panel-legend { background: var(--panel); border-top-color: var(--line); }
+
+/* Classement */
+[data-theme="pro"] .tower th { background: var(--panel); font-size: 10px; letter-spacing: 1.1px; font-weight: 600; border-bottom-color: var(--line); }
+[data-theme="pro"] .tower td { border-bottom-color: var(--line); }
+[data-theme="pro"] .tower .pos { font-size: 14px; line-height: 1.05; }
+[data-theme="pro"] .tower .pos-delta { display: block; font-size: 9px; margin: 0; line-height: 1; }
+[data-theme="pro"] .tower .drv { gap: 8px; }
+[data-theme="pro"] .tower .drv-num { display: none; }
+[data-theme="pro"] .tower .drv-tla { font-size: 14.5px; letter-spacing: .6px; min-width: 38px; }
+[data-theme="pro"] .tower .drv-last { display: inline-block; color: var(--muted); font-size: 11.5px; font-weight: 400; max-width: 96px; overflow: hidden; text-overflow: ellipsis; margin-left: -2px; }
+[data-theme="pro"] .grid.mobile .tower .drv-last { display: none; }
+[data-theme="pro"] .tower .drv-bar { width: 3px; height: 18px; }
+[data-theme="pro"] .tower .team-logo { width: 22px; height: 22px; border-radius: 6px; }
+[data-theme="pro"] .tyre { width: 19px; height: 19px; border-width: 2px; background: transparent; font-size: 9.5px; }
+[data-theme="pro"] .tyre-age { color: var(--muted); }
+
+/* Autres panneaux */
+[data-theme="pro"] :is(.duel-name, .duel-gap-val, .gauge-val, .battle-gap, .pit-big, .sz-big, .sz-race-name, .sz-drv-name, .mf-banner) { font-weight: 700; }
+[data-theme="pro"] :is(.gauge, .pit-card, .cmp-sector) { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+[data-theme="pro"] .chart-title { letter-spacing: 1.1px; font-size: 10px; }
+[data-theme="pro"] .rcm li { border-bottom-color: var(--line); }
+
+/* Replay en bas, façon lecteur vidéo */
+[data-theme="pro"] .replaybar { order: 5; background: var(--panel); border-top: 1px solid var(--border); border-bottom: 0; padding: 8px 16px; gap: 10px; }
+[data-theme="pro"] .mob-nav { order: 6; }
+[data-theme="pro"] .replaybar input[type=range] { accent-color: #ececf2; }
+[data-theme="pro"] .replaybar #rpPlay { width: 36px; height: 32px; border-radius: 50%; padding: 0; background: var(--text); color: var(--bg); border-color: var(--text); }
+[data-theme="pro"] .replaybar .rp-time { color: var(--text-2); font-size: 12px; }
+
+/* Espace Saison */
+[data-theme="pro"] .sz-side { background: var(--panel); }
+[data-theme="pro"] #szNav button { position: relative; font-size: 13px; }
+[data-theme="pro"] #szNav button.active::before { content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 2px; background: var(--accent); }
+[data-theme="pro"] :is(.sz-card, .sz-box) { border-radius: 10px; background: var(--panel); border-color: var(--border); }
+
+/* Téléphone : icônes dessinées dans la barre du bas */
+[data-theme="pro"] .mob-nav .mn-ic { display: none; }
+[data-theme="pro"] .mob-nav .mn-svg { display: block; width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; margin: 1px 0 2px; }
+[data-theme="pro"] .mob-nav button.active { background: none; color: var(--text); }
+[data-theme="pro"] .mob-nav button.active .mn-svg { stroke: var(--accent); }
+@media (min-width: 901px) {
+  [data-theme="pro"] .delay #syncBtn { font-size: 0; }
+  [data-theme="pro"] .delay #syncBtn .sync-label { font-size: 12.5px; }
+}
+/* Téléphone : le menu du délai propose tous les pas */
+[data-theme="pro"] .topbar .delay-steps .dbtn { display: block !important; }
+/* Barre du haut : place pour l'heure du circuit (tours restants masqués d'abord ; le design F1 Pro
+   montre déjà la progression sous le numéro du tour) */
+@media (max-width: 1950px) {
+  :root:not([data-theme="pro"]) .topbar #lapsLeftBox { display: none !important; }
+}
+@media (min-width: 901px) and (max-width: 1500px) {
+  [data-theme="pro"] .topbar { gap: 14px; padding: 6px 12px; }
+  [data-theme="pro"] .topbar #lapsLeftBox { display: none !important; }
+  [data-theme="pro"] .delay .preset { max-width: 120px; }
+}

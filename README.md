@@ -4,11 +4,12 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 
 ![F1 Dash pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
 
-<sub>Sur chaque capture : à gauche le thème « F1 sobre » (par défaut), à droite le thème « Classique », au choix dans ⚙ Réglages → Affichage.</sub>
+<sub>Design « F1 Pro » (par défaut). Les designs précédents restent disponibles dans Réglages → Affichage (voir plus bas).</sub>
 
 ## ✨ En bref
 
-- **Classement en direct** : écarts, secteurs et mini-secteurs, pneus, arrêts, vitesse de pointe, logos des écuries ; en qualif, limite d'élimination et temps à battre.
+- **Classement en direct** : écarts, secteurs et mini-secteurs, pneus, arrêts, vitesse de pointe, logos officiels des écuries dans leurs vraies couleurs ; en qualif, limite d'élimination et temps à battre.
+- **Barre d'état de la séance** : drapeau, tour et progression de la course, temps restant, **heure locale du circuit**, météo, état de la piste.
 - **Carte du circuit** : toutes les voitures en mouvement (GPS), drapeaux par secteur, safety car, zones ligne droite et détection.
 - **Synchro TV** : tout (chronos, carte, drapeaux, radios, alertes) est retardé pour coller à votre image, **sans spoiler**.
 - **Duels, bagarres et simulateur d'arrêt** : écart en temps réel, tendance, « s'il s'arrête maintenant, il ressort P8 ».
@@ -25,6 +26,10 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 | ![Classement](docs/screenshots/classement.png) | ![Carte](docs/screenshots/carte.png) |
 | ![Analyse : rythme](docs/screenshots/analyse-rythme.png) | ![Saison : accueil](docs/screenshots/saison-accueil.png) |
 | ![Saison : fiche pilote](docs/screenshots/saison-pilote.png) | ![Saison : évolutions techniques](docs/screenshots/saison-evolutions-techniques.png) |
+
+**Quatre designs au choix** (Réglages → Affichage → Thème) : F1 Pro (par défaut), F1 sobre, Classique et Bleu nuit.
+
+![Les quatre designs : F1 Pro, F1 sobre, Classique, Bleu nuit](docs/screenshots/themes.png)
 
 ## 🚀 Installation
 

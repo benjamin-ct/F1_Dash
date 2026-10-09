@@ -207,6 +207,16 @@ const MOB_TABS = [
   ['tower', '🏁', 'Classement'], ['map', '🗺', 'Carte'], ['feed', '📢', 'Course'], ['duel', '⚔', 'Duel'],
   ['analysis', '📈', 'Analyse'], ['extra', '🔧', 'Stratégie'], ['radio', '📻', 'Radios'],
 ];
+// Icônes dessinées (design « F1 Pro ») ; les autres thèmes gardent les émojis
+const MOB_SVG = {
+  tower: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  map: '<path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"/><path d="M9 4v13M15 7v13"/>',
+  feed: '<path d="M4 5h16v11H8l-4 4z"/>',
+  duel: '<path d="M14.5 17.5L3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M9.5 17.5L21 6V3h-3L6.5 14.5M11 19l-6-6M8 16l-4 4"/>',
+  analysis: '<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7"/>',
+  extra: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v5M12 15v5M4 12h5M15 12h5"/>',
+  radio: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+};
 const MOB_KEY = 'f1dash.mobileTab';
 let mobTab = storageGet(MOB_KEY, 'tower');
 
@@ -235,7 +245,7 @@ function renderMobile(grid) {
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v, .lstash')) el.remove();
   const nav = $('#mobNav');
   nav.hidden = false;
-  nav.innerHTML = tabs.map(([id, ic, label]) => `<button data-mob="${id}" class="${id === mobTab ? 'active' : ''}"><span class="mn-ic">${ic}</span><span class="mn-l">${label}</span></button>`).join('');
+  nav.innerHTML = tabs.map(([id, ic, label]) => `<button data-mob="${id}" class="${id === mobTab ? 'active' : ''}"><span class="mn-ic">${ic}</span><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${MOB_SVG[id] || ''}</svg><span class="mn-l">${label}</span></button>`).join('');
   nav.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
@@ -563,7 +573,7 @@ function initChannel() {
 }
 
 // ---------------- Agrandir ----------------
-function unmaximize() {
+export function unmaximize() {
   for (const p of $$('.panel.maximized')) p.classList.remove('maximized');
   $('.grid').classList.remove('has-max');
 }
@@ -576,6 +586,16 @@ function maximize(id) {
     el.classList.add('maximized');
     $('.grid').classList.add('has-max');
   }
+}
+
+// Ouvre un panneau en grand (barre latérale) : réaffiché s'il était masqué. Renvoie false s'il
+// est dans une autre fenêtre.
+export function showPanelLarge(id) {
+  if (!isMain || detachedElsewhere(id)) return false;
+  if (prefs.hiddenPanels.includes(id)) setPref('hiddenPanels', prefs.hiddenPanels.filter((p) => p !== id));
+  if (mobile()) { showMobilePanel(id); return true; }
+  if (!panelEl(id).classList.contains('maximized')) maximize(id);
+  return true;
 }
 
 // ---------------- Changement de disposition (Course / Qualif & essais) ----------------

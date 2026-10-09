@@ -13,9 +13,21 @@
   <title>F1 Dash</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e10600'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='900' font-size='15' fill='white' text-anchor='middle'%3EF1%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/css/style.css">
-  <script>try { const p = JSON.parse(localStorage.getItem('f1dash.prefs') || '{}'); document.documentElement.dataset.theme = p.themeV ? p.theme || 'f1' : (p.theme && p.theme !== 'noir' ? p.theme : 'f1'); } catch { document.documentElement.dataset.theme = 'f1'; }</script>
+  <script>try { const p = JSON.parse(localStorage.getItem('f1dash.prefs') || '{}'); const v = p.themeV || 0; document.documentElement.dataset.theme = v >= 3 ? p.theme || 'pro' : (v === 2 ? (!p.theme || p.theme === 'f1' ? 'pro' : p.theme) : (p.theme === 'bleu' ? 'bleu' : 'pro')); } catch { document.documentElement.dataset.theme = 'pro'; }</script>
 </head>
 <body>
+  <!-- Nouveau design : barre de navigation latérale (fenêtre principale, grand écran) -->
+  <nav class="rail" id="rail" aria-label="Navigation">
+    <div class="rail-logo">F1</div>
+    <button class="rail-btn" data-rail="live" title="Direct : tableau de bord de la séance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><small>Direct</small></button>
+    <button class="rail-btn" data-rail="ana" title="Analyse : graphiques, comparaison des tours (plein écran ; Échap pour revenir)"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7"/></svg><small>Analyse</small></button>
+    <button class="rail-btn" data-rail="season" title="Saison : calendrier, classements, résultats, statistiques"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><small>Saison</small></button>
+    <button class="rail-btn" data-rail="replay" title="Replays : rejouer une séance passée"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M10 9l5 3-5 3z"/></svg><small>Replays</small></button>
+    <button class="rail-btn" data-rail="radio" title="Commentaires en direct F1 TV / radio"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><small>Radios</small></button>
+    <div class="rail-sp"></div>
+    <button class="rail-btn" data-rail="reset" title="Réinitialiser l'interface (disposition, panneaux et colonnes par défaut)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
+    <button class="rail-btn" data-rail="settings" title="Réglages : source, compte F1 TV, affichage, alertes, application"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><small>Réglages</small></button>
+  </nav>
   <header class="topbar">
     <div class="brand"><span class="logo">F1</span><span class="brand-name">DASH</span></div>
 
@@ -27,9 +39,10 @@
     <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
     <div class="tb-break b1"></div>
 
-    <div class="hstat"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div></div>
+    <div class="hstat lap-box"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div><div class="lap-bar" id="lapBar" hidden><i></i></div></div>
     <div class="hstat" id="lapsLeftBox" hidden><div class="hstat-label">Tours restants</div><div class="hstat-value" id="lapsLeft">—</div></div>
     <div class="hstat"><div class="hstat-label">Temps restant</div><div class="hstat-value" id="clockValue">—</div></div>
+    <div class="hstat" id="circuitTimeBox" hidden title="Heure locale sur le circuit (au moment affiché, délai TV compris)"><div class="hstat-label">Heure circuit</div><div class="hstat-value" id="circuitTime">—</div></div>
     <div class="hstat weather-mini" id="weatherMini" title="Météo"></div>
     <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
 
@@ -42,13 +55,16 @@
         <span class="delay-warn" id="delayWarn" hidden title="">⚠</span>
       </div>
       <div class="delay-controls">
-        <button class="dbtn" data-step="-5000" title="−5 s (Maj + ←)">−5</button>
-        <button class="dbtn" data-step="-1000" title="−1 s (←)">−1</button>
-        <button class="dbtn" data-step="-100" title="−0,1 s (Alt + ←)">−.1</button>
         <input id="delayInput" class="delay-input" type="text" inputmode="decimal" aria-label="Délai en secondes">
-        <button class="dbtn" data-step="100" title="+0,1 s (Alt + →)">+.1</button>
-        <button class="dbtn" data-step="1000" title="+1 s (→)">+1</button>
-        <button class="dbtn" data-step="5000" title="+5 s (Maj + →)">+5</button>
+        <button class="dmore" id="delayMore" type="button" title="Ajuster le délai : ±0,1 / ±1 / ±5 s (flèches du clavier)" aria-expanded="false">±</button>
+        <div class="delay-steps" id="delaySteps">
+          <button class="dbtn m" data-step="-5000" title="−5 s (Maj + ←)">−5</button>
+          <button class="dbtn m" data-step="-1000" title="−1 s (←)">−1</button>
+          <button class="dbtn m" data-step="-100" title="−0,1 s (Alt + ←)">−.1</button>
+          <button class="dbtn" data-step="100" title="+0,1 s (Alt + →)">+.1</button>
+          <button class="dbtn" data-step="1000" title="+1 s (→)">+1</button>
+          <button class="dbtn" data-step="5000" title="+5 s (Maj + →)">+5</button>
+        </div>
       </div>
       <select id="presetSelect" class="preset" aria-label="Préréglages de délai"></select>
       <button class="btn btn-accent" id="syncBtn" title="Caler le délai sur votre diffusion TV (touche S)">🎯<span class="sync-label"> Synchro TV</span></button>
@@ -444,8 +460,9 @@
         <div class="small muted">Colonnes du classement :</div>
         <div class="row" id="colOpts"></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="towerFit"> Agrandir le classement pour remplir la hauteur disponible (grand écran, fenêtre détachée)</label></div>
-        <div class="row"><label class="small">Thème <select id="themeSel"><option value="f1">F1 sobre (par défaut)</option><option value="noir">Classique (noir)</option><option value="bleu">Bleu nuit</option></select></label></div>
+        <div class="row"><label class="small">Thème <select id="themeSel"><option value="pro">F1 Pro (par défaut)</option><option value="f1">F1 sobre</option><option value="noir">Classique (noir)</option><option value="bleu">Bleu nuit</option></select></label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement et le championnat (décoché : simples barres de couleur)</label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="logoColor"> Logos dans leurs couleurs officielles (décoché : logo blanc sur la couleur de l'écurie)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées (une teinte bien distincte par équipe ; décoché : couleurs officielles)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="legendsOn"> Légendes sous les panneaux (couleurs, colonnes, graphiques)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance (sur téléphone : touchez l'écran une fois)</label></div>

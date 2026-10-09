@@ -21,6 +21,7 @@ import { initUpdates } from './ui/updates.js';
 import { initCommentary } from './ui/commentary.js';
 import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 import { initSeason } from './ui/season.js';
+import { initRail } from './ui/rail.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -86,6 +87,7 @@ initUpdates();
 initCommentary();
 initAnalysis();
 initSeason();
+initRail();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));

@@ -336,7 +336,7 @@ export function openSeason(sec) {
   timer = setInterval(tick, 1000);
 }
 
-function closeSeason() {
+export function closeSeason() {
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
   clearInterval(timer);

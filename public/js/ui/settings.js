@@ -152,6 +152,9 @@ export function initSettings() {
   $('#teamLogos').checked = prefs.teamLogos;
   $('#teamLogos').addEventListener('change', (e) => setPref('teamLogos', e.target.checked));
   on('prefs', (k) => { if (k === 'teamLogos') $('#teamLogos').checked = prefs.teamLogos; });
+  $('#logoColor').checked = prefs.logoColor;
+  $('#logoColor').addEventListener('change', (e) => setPref('logoColor', e.target.checked));
+  on('prefs', (k) => { if (k === 'logoColor') $('#logoColor').checked = prefs.logoColor; });
   // Téléphone ou tablette connecté à l'ordinateur : suivre son délai TV
   on('role', (host) => { $('#followHostBlock').hidden = host; });
   $('#followHost').checked = storageGet('f1dash.followHost', true);

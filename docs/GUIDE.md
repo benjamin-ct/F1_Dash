@@ -32,7 +32,7 @@ Le [README](../README.md) résume l'essentiel. Vous trouverez ici le détail de 
 
 ## 🏆 Espace Saison
 
-Le bouton 🏆 en haut ouvre une vue de toute la saison (inspirée de formula1dashboard.com, données Jolpica/Ergast, consultables hors ligne une fois chargées), avec un sélecteur d'année :
+Le bouton **Saison** de la barre de gauche (🏆 en haut dans les autres designs et sur téléphone) ouvre une vue de toute la saison (inspirée de formula1dashboard.com, données Jolpica/Ergast, consultables hors ligne une fois chargées), avec un sélecteur d'année :
 
 - **Accueil** : compte à rebours jusqu'à la prochaine séance, avancement de la saison, leaders des championnats, dernier vainqueur et top 10.
 - **Calendrier** : toutes les manches (sprint, terminé / prochain / à venir), vainqueur et poleman, horaires de chaque séance à l'heure de votre ordinateur.
@@ -59,7 +59,7 @@ Son, message et notification du système en option pour : SC, VSC, drapeau rouge
 
 ## 🎙 Commentaires en direct (F1 TV Pro)
 
-Le bouton **🎙** (en haut à droite) lit le son de la vidéo F1 TV de la séance affichée — en direct ou en rediffusion — avec votre abonnement **F1 TV Pro** (connexion dans ⚙ Réglages, la même que pour le GPS) :
+Le bouton **Radios** de la barre de gauche (🎙 en haut à droite dans les autres designs et sur téléphone) lit le son de la vidéo F1 TV de la séance affichée — en direct ou en rediffusion — avec votre abonnement **F1 TV Pro** (connexion dans ⚙ Réglages, la même que pour le GPS) :
 
 - **Canal** : « International » (commentaires TV, plusieurs langues) ou « F1 Live » (émission F1 TV) ; **langue** au choix parmi celles du flux (français, anglais, allemand, espagnol, néerlandais, portugais…).
 - **Volume**, **🔇 couper le son** (ou touche **C**), **▶ / ⏹**.
@@ -97,11 +97,13 @@ La disposition est entièrement libre et conservée d'une session à l'autre :
 - **↗ envoyer vers une autre fenêtre** (second écran) : si une fenêtre secondaire est déjà ouverte, un menu propose d'**ajouter le panneau à cette fenêtre** (plusieurs panneaux réunis dans une seule fenêtre) ou d'en ouvrir une nouvelle. Dans la fenêtre secondaire, les panneaux se disposent et se redimensionnent de la même façon ; **↙** remet un panneau dans la fenêtre principale. Les panneaux détachés disparaissent de la fenêtre principale et y reviennent quand on ferme leur fenêtre. Dans l'application de bureau, la fenêtre s'ouvre directement en plein écran sur le second écran.
 - Le délai, le pilote suivi (clic dans le classement → télémétrie, carte…), le duel et les réglages restent synchronisés entre toutes les fenêtres.
 - Le classement s'agrandit pour occuper toute la hauteur disponible (désactivable dans ⚙ → Affichage).
-- **Thème** : « F1 sobre » par défaut (noir neutre, fin filet rouge, rouge réservé à ce qui est actif), « Classique » (l'ancien design noir) ou « Bleu nuit », dans ⚙ → Affichage.
+- **Thème** : « F1 Pro » par défaut, « F1 sobre » (le design précédent), « Classique » (le design noir d'origine) ou « Bleu nuit », dans ⚙ → Affichage.
+- **Design F1 Pro** : barre de navigation à gauche (Direct, Analyse en grand, Saison, Replays, Radios, disposition par défaut, Réglages), barre d'état de la séance en haut (drapeau, tour avec barre de progression, temps restant, **heure locale du circuit**, météo, état de la piste, délai TV), cartes arrondies avec onglets segmentés, nom du pilote dans le classement, barre de replay en bas comme un lecteur vidéo. Les boutons −5 / −1 / −0,1 / +0,1 / +1 / +5 du délai sont dans le petit menu **±** à côté de la valeur. Sur téléphone, barre du bas avec icônes.
+- **Heure circuit** : l'heure locale sur le circuit au moment affiché (délai TV et replays compris), d'après le fuseau horaire fourni par la F1.
 - **Disposition selon la séance** : deux dispositions indépendantes, « Course » (courses et sprints) et « Qualif & essais », choisies automatiquement (ou imposées) dans ⚙ → Affichage ; chacune garde ses panneaux, tailles, colonnes du classement et onglets ouverts.
 - **Légendes** sous chaque panneau (couleurs, colonnes, graphiques), affichées par défaut : « ✕ Masquer » sur la légende, ou option dans ⚙ → Affichage.
-- **Logos des écuries** : dans le classement et le championnat, chaque pilote a le logo officiel de son écurie sur une pastille à ses couleurs (logos chargés depuis formula1.com ; sans connexion, la pastille reste colorée). Option dans ⚙ → Affichage pour revenir aux barres de couleur.
-- **Couleurs d'équipe contrastées** : une teinte bien distincte par équipe (bleu roi Red Bull, lavande Racing Bulls, bleu ciel Williams, rose Alpine, blanc Haas, gris Audi, or Cadillac…) au lieu des couleurs officielles, trop proches entre elles. Décochez l'option dans ⚙ → Affichage pour revenir aux couleurs officielles.
+- **Logos des écuries** : dans le classement et le championnat, chaque pilote a le logo officiel de son écurie **dans ses vraies couleurs**, sur une pastille claire bordée de la couleur de l'équipe (logos chargés depuis formula1.com ; sans connexion, la pastille reste visible). Options dans ⚙ → Affichage : logo blanc sur la couleur de l'écurie, ou simples barres de couleur.
+- **Couleurs des écuries** : couleurs officielles par défaut. Option « couleurs contrastées » dans ⚙ → Affichage : une teinte bien distincte par équipe (bleu roi Red Bull, lavande Racing Bulls, bleu ciel Williams, rose Alpine, blanc Haas, gris Audi, or Cadillac…), pratique quand deux couleurs officielles se ressemblent.
 - **Application de bureau** : à la fermeture, les fenêtres détachées (panneaux, position, taille, plein écran) sont mémorisées et rouvertes à leur place au prochain lancement. Option « Rouvrir les fenêtres détachées » dans ⚙ → Affichage. Une fenêtre placée sur un écran qui n'est plus branché rouvre sur l'écran principal.
 
 ## 📱 Sur téléphone ou tablette
@@ -130,7 +132,7 @@ Le flux de chronométrage F1 arrive **avant** l'image TV. Le dashboard garde tou
 - **Synchro TV (recommandé)** : cliquez sur **🎯 Synchro TV** (ou touche `S`). La fenêtre liste en temps réel les repères qui viennent de se produire : changement de tour du leader, drapeaux, SC, entrées aux stands, messages de la direction de course. Au moment **exact** où vous voyez l'un d'eux sur votre TV, cliquez **« Je le vois ! »** : le délai est calculé automatiquement.
   - Le plus précis : le **compteur de tours** qui change à l'écran (le leader franchit la ligne), ou l'extinction des feux.
   - **Anti-spoiler** : les événements pas encore visibles à la TV (pénalités, abandons, entrées aux stands…) sont masqués dans cette liste. Seuls les changements de tour restent affichés. Une case permet d'afficher le détail.
-- **Réglage manuel** : boutons −5 / −1 / −0,1 / +0,1 / +1 / +5, saisie directe (ex. `42,5`), molette de la souris sur la valeur, ou clavier : `←` `→` ±1 s, `Maj` ±5 s, `Alt` ±0,1 s.
+- **Réglage manuel** : boutons −5 / −1 / −0,1 / +0,1 / +1 / +5 (menu **±** dans le design F1 Pro), saisie directe (ex. `42,5`), molette de la souris sur la valeur, ou clavier : `←` `→` ±1 s, `Maj` ±5 s, `Alt` ±0,1 s.
 - **Préréglages** : enregistrez votre délai calibré (« Canal+ salon », « myCANAL PC »…) pour le retrouver en un clic la prochaine fois. Les deux préréglages Canal+ fournis ne sont que des **points de départ indicatifs** : le retard réel dépend de votre équipement (box, satellite, TNT, appli, navigateur) ; calibrez-le une fois avec la synchro TV.
 
 Le délai peut aller jusqu'à 10 minutes (modifiable avec `MAX_DELAY_SECONDS`). Si vous augmentez le délai juste après avoir lancé le dashboard, un ⚠ vous signale qu'il n'y a pas encore assez d'historique : l'affichage devient exact dès que ce délai est écoulé. **Astuce : lancez le dashboard quelques minutes avant la session.**
