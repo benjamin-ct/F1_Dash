@@ -106,12 +106,28 @@ export function initAlerts() {
       if (audio.state === 'suspended') audio.resume();
     } catch { /* audio indisponible */ }
   }, { passive: true });
+  const toggleMute = () => {
+    setPref('muted', !prefs.muted);
+    toast(prefs.muted ? '🔕 Son des alertes coupé (touche M pour le remettre)' : '🔔 Son des alertes activé');
+  };
   window.addEventListener('keydown', (e) => {
-    if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input, select, textarea')) {
-      setPref('muted', !prefs.muted);
-      toast(prefs.muted ? '🔇 Alertes sonores coupées' : '🔊 Alertes sonores activées');
-    }
+    if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input, select, textarea')) toggleMute();
   });
+  // Bouton de la barre du haut : 🔔 son actif, 🔕 coupé
+  const btn = $('#muteBtn');
+  const showMute = () => {
+    if (!btn) return;
+    const off = prefs.muted || !prefs.alerts.sound;
+    btn.textContent = off ? '🔕' : '🔔';
+    btn.classList.toggle('off', off);
+    btn.title = off ? 'Son des alertes coupé — cliquer pour le remettre (touche M)' : 'Son des alertes actif — cliquer pour le couper (touche M)';
+  };
+  btn?.addEventListener('click', () => {
+    // Son décoché dans les Réglages : le bouton le réactive
+    if (!prefs.alerts.sound) { setPref('alerts', { ...prefs.alerts, sound: true }); setPref('muted', false); toast('🔔 Son des alertes activé'); renderAlertOptions(); } else toggleMute();
+  });
+  on('prefs', (k) => { if (k === 'muted' || k === 'alerts') showMute(); });
+  showMute();
   renderAlertOptions();
 }
 

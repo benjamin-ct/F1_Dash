@@ -284,6 +284,13 @@ function renderH2H() {
     <p class="muted small">Duel en course : meilleure place à l'arrivée quand les deux pilotes ont couru (un abandon compte comme une défaite).</p>`;
 }
 
+// Explication en tête des vues qui n'en ont pas déjà une
+const HELP = {
+  standings: 'Classements officiels des pilotes et des constructeurs, mis à jour après chaque course (sprints compris).',
+  drivers: 'Fiche d\'un pilote : ses chiffres clés de la saison, sa position au départ et à l\'arrivée de chaque course, puis le détail course par course (qualification, grille, arrivée, points, meilleur tour, vitesse, arrêts).',
+  tech: 'Évolutions déclarées par chaque écurie avant chaque Grand Prix (document officiel FIA « Car Presentation Submissions ») : pièce modifiée, raison (performance, spécifique au circuit, fiabilité) et explication de l\'écurie.',
+};
+
 function render() {
   if (!data) return;
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
@@ -295,7 +302,8 @@ function render() {
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData),
   }[section]();
-  $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
+  const help = HELP[section] ? `<p class="sz-help">${HELP[section]}</p>` : '';
+  $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${help}${html}`;
   tick();
   if (section === 'tech' && fiaData) translateTechDetail(ctx, fiaData);
 }

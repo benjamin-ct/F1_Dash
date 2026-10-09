@@ -11,7 +11,8 @@ const DEFAULTS = {
   theme: 'noir',          // 'noir' | 'bleu'
   vividTeams: true,       // couleurs d'équipe contrastées plutôt qu'officielles
   teamLogos: true,
-  keepAwake: true,        // écran toujours allumé pendant une séance        // logos des écuries (classement, championnat) plutôt que barres de couleur
+  keepAwake: true,        // écran toujours allumé pendant une séance
+  legends: true,          // légendes sous les panneaux (couleurs, colonnes, graphiques)        // logos des écuries (classement, championnat) plutôt que barres de couleur
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
   radioLang: 'fr',        // langue de traduction des transcriptions ('none' : anglais)
