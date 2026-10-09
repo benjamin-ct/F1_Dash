@@ -236,7 +236,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
   font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px;
   padding: 5px 4px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap;
 }
-.tower td { padding: 3px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; height: 34px; }
+.tower td { padding: 3px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; height: var(--tower-row-h, 34px); }
 .tower tr.trow { cursor: pointer; }
 /* Les boutons duel restent visibles quand le classement déborde en largeur. */
 .tower td.c-duel { position: sticky; right: 0; z-index: 1; background: var(--panel); }
@@ -1016,7 +1016,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
   /* Classement : colonnes essentielles */
   .grid.mobile .tower .c-last, .grid.mobile .tower .c-best, .grid.mobile .tower .c-sec, .grid.mobile .tower .c-pred,
   .grid.mobile .tower .c-q, .grid.mobile .tower .c-speed, .grid.mobile .tower .c-duel { display: none; }
-  .grid.mobile .tower { zoom: 1 !important; }
+  .grid.mobile .tower { zoom: 1 !important; --tower-row-h: 34px !important; }
   .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 4px; padding-right: 4px; }
   /* ☆ visible seulement au survol : inutile au doigt (favoris dans ⚙ → Alertes & favoris) */
   .grid.mobile .tower .fav-btn { display: none; }
@@ -1091,3 +1091,8 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 @media (max-width: 340px) {
   .grid.mobile .tower .c-pits { display: none; }
 }
+
+/* Évolutions techniques : traduction */
+.sz-tr-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0 10px; }
+.sz-tr-wait { color: var(--muted); font-style: italic; }
+.sz-upd-desc { color: var(--text-2); }

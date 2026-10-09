@@ -78,7 +78,19 @@ function normalize(l) {
       seen.add(p.id);
     }
   }
-  return { cols };
+  return rescale({ cols });
+}
+
+// Proportions ramenées à une moyenne de 1 : en CSS, des flex-grow dont la somme est
+// inférieure à 1 ne remplissent qu'une partie de la place (espace vide sous un panneau).
+function rescale(l) {
+  const fit = (arr, key) => {
+    const sum = arr.reduce((t, x) => t + x[key], 0);
+    if (sum > 0) for (const x of arr) x[key] = Math.round(((x[key] * arr.length) / sum) * 1000) / 1000;
+  };
+  fit(l.cols, 'w');
+  for (const c of l.cols) fit(c.items, 'h');
+  return l;
 }
 
 function allLayouts() {
@@ -112,12 +124,14 @@ function removeItem(id) {
   if (!loc) return null;
   loc.col.items.splice(loc.ii, 1);
   if (!loc.col.items.length) layout.cols.splice(loc.ci, 1);
+  rescale(layout);
   return loc.item;
 }
 
 function addAsColumn(id) {
   const w = layout.cols.length ? layout.cols.reduce((s, c) => s + c.w, 0) / layout.cols.length : 1;
   layout.cols.push({ w, items: [{ id, h: 1 }] });
+  rescale(layout);
 }
 
 // Déplace `id` par rapport à `target` : left/right = nouvelle colonne, top/bottom = même colonne, center = échange.
@@ -141,6 +155,7 @@ function movePanel(id, target, zone) {
     t.col.w = w;
     layout.cols.splice(t.ci + (zone === 'right' ? 1 : 0), 0, { w, items: [{ id, h: 1 }] });
   }
+  rescale(layout);
 }
 
 // ---------------- Visibilité ----------------
@@ -224,6 +239,7 @@ function render(force = false) {
   for (const p of PANELS) { const el = panelEl(p.id); el.classList.remove('hidden-panel'); stash.appendChild(el); }
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v')) el.remove();
   const cols = layout.cols.map((c) => ({ c, items: c.items.filter((it) => isVisible(it.id)) })).filter((x) => x.items.length);
+  const sumW = cols.reduce((t, x) => t + x.c.w, 0) || 1;
   cols.forEach(({ c, items }, i) => {
     if (i) {
       const sv = document.createElement('div');
@@ -234,7 +250,8 @@ function render(force = false) {
     }
     const col = document.createElement('div');
     col.className = 'lcol';
-    col.style.flex = `${c.w} 1 0`;
+    col.style.flex = `${(c.w * cols.length) / sumW} 1 0`;
+    const sumH = items.reduce((t, it) => t + it.h, 0) || 1;
     col._model = c;
     items.forEach((it, j) => {
       if (j) {
@@ -245,7 +262,7 @@ function render(force = false) {
         col.appendChild(sh);
       }
       const el = panelEl(it.id);
-      el.style.flex = `${it.h} 1 0`;
+      el.style.flex = `${(it.h * items.length) / sumH} 1 0`;
       el._model = it;
       col.appendChild(el);
     });
@@ -270,6 +287,8 @@ function splitter(el, axis, a, b) {
     const total = a[key] + b[key];
     const min = axis === 'x' ? MIN_W : MIN_H;
     const start = axis === 'x' ? e.clientX : e.clientY;
+    // Valeurs affichées = proportions × facteur commun (panneaux masqués exclus, voir render)
+    const k = (parseFloat(prev.style.flexGrow) || a[key]) / a[key];
     el.setPointerCapture(e.pointerId);
     el.classList.add('active');
     document.body.classList.add(axis === 'x' ? 'resizing-x' : 'resizing-y');
@@ -278,8 +297,8 @@ function splitter(el, axis, a, b) {
       const na = Math.max(min, Math.min(pa + pb - min, pa + d));
       a[key] = (total * na) / (pa + pb);
       b[key] = total - a[key];
-      prev.style.flex = `${a[key]} 1 0`;
-      next.style.flex = `${b[key]} 1 0`;
+      prev.style.flex = `${a[key] * k} 1 0`;
+      next.style.flex = `${b[key] * k} 1 0`;
     };
     const up = () => {
       el.removeEventListener('pointermove', move);
@@ -313,11 +332,65 @@ function startDrag(id, e) {
   document.body.append(ghost, hint);
   document.body.classList.add('dragging-panel');
   let drop = null;
+  const show = (z, text) => {
+    hint.hidden = false;
+    Object.assign(hint.style, { left: `${z[0]}px`, top: `${z[1]}px`, width: `${z[2]}px`, height: `${z[3]}px` });
+    hint.textContent = text;
+  };
+  const panelId = (el) => el && PANELS.find((p) => el.classList.contains(p.cls))?.id;
   const move = (ev) => {
     ghost.style.transform = `translate(${ev.clientX + 12}px, ${ev.clientY + 12}px)`;
-    const under = document.elementsFromPoint(ev.clientX, ev.clientY).find((n) => n.classList?.contains('panel') && n.closest('.lcol'));
-    const tid = under && PANELS.find((p) => under.classList.contains(p.cls))?.id;
-    if (!tid || tid === id) { drop = null; hint.hidden = true; return; }
+    const grid = $('.grid');
+    const g = grid.getBoundingClientRect();
+    const els = document.elementsFromPoint(ev.clientX, ev.clientY);
+    const colsEl = [...grid.querySelectorAll(':scope > .lcol')].filter((c) => c.querySelector('.panel'));
+    drop = null;
+    hint.hidden = true;
+    // Bords de la fenêtre : nouvelle colonne sur toute la hauteur
+    const edge = 28;
+    if (colsEl.length && ev.clientX >= g.left && ev.clientX <= g.right && ev.clientY >= g.top && ev.clientY <= g.bottom
+      && (ev.clientX < g.left + edge || ev.clientX > g.right - edge)) {
+      const left = ev.clientX < g.left + edge;
+      const col = left ? colsEl[0] : colsEl.at(-1);
+      // Cible : un autre panneau de cette colonne (seul dans sa colonne : il y est déjà)
+      const tid = [...col.querySelectorAll('.panel')].map(panelId).find((x) => x && x !== id);
+      if (tid) {
+        drop = { tid, zone: left ? 'left' : 'right' };
+        show([left ? g.left : g.right - 90, g.top, 90, g.height], left ? 'Nouvelle colonne tout à gauche' : 'Nouvelle colonne tout à droite');
+      }
+      return;
+    }
+    // Séparateur entre deux colonnes : nouvelle colonne à cet endroit
+    const sv = els.find((n) => n.classList?.contains('lsplit-v'));
+    if (sv) {
+      const tid = [...(sv.nextElementSibling?.querySelectorAll('.panel') || [])].map(panelId).find((x) => x && x !== id);
+      if (tid) {
+        const r = sv.getBoundingClientRect();
+        drop = { tid, zone: 'left' };
+        show([r.left - 40, g.top, r.width + 80, g.height], 'Nouvelle colonne ici');
+      }
+      return;
+    }
+    // Séparateur entre deux panneaux d'une colonne : insertion entre les deux
+    const sh = els.find((n) => n.classList?.contains('lsplit-h'));
+    if (sh) {
+      const tid = panelId(sh.nextElementSibling);
+      if (tid && tid !== id) {
+        const r = sh.getBoundingClientRect();
+        drop = { tid, zone: 'top' };
+        show([r.left, r.top - 30, r.width, r.height + 60], 'Ici, entre les deux');
+      }
+      return;
+    }
+    // Fenêtre vide
+    if (!colsEl.length && grid.classList.contains('custom') && els.includes(grid)) {
+      drop = { zone: 'append' };
+      show([g.left + 10, g.top + 10, g.width - 20, g.height - 20], 'Placer ici');
+      return;
+    }
+    const under = els.find((n) => n.classList?.contains('panel') && n.closest('.lcol'));
+    const tid = panelId(under);
+    if (!tid || tid === id) return;
     const r = under.getBoundingClientRect();
     const fx = (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
     const zone = fx < 0.25 ? 'left' : fx > 0.75 ? 'right' : fy < 0.3 ? 'top' : fy > 0.7 ? 'bottom' : 'center';
@@ -327,9 +400,7 @@ function startDrag(id, e) {
       top: [r.left, r.top, r.width, r.height / 2], bottom: [r.left, r.top + r.height / 2, r.width, r.height / 2],
       center: [r.left + r.width * 0.1, r.top + r.height * 0.1, r.width * 0.8, r.height * 0.8],
     }[zone];
-    hint.hidden = false;
-    Object.assign(hint.style, { left: `${z[0]}px`, top: `${z[1]}px`, width: `${z[2]}px`, height: `${z[3]}px` });
-    hint.textContent = zone === 'center' ? `Échanger avec ${SHORT[tid]}` : { left: 'Nouvelle colonne à gauche', right: 'Nouvelle colonne à droite', top: 'Au-dessus', bottom: 'En dessous' }[zone];
+    show(z, zone === 'center' ? `Échanger avec ${SHORT[tid]}` : { left: 'Nouvelle colonne à gauche', right: 'Nouvelle colonne à droite', top: 'Au-dessus', bottom: 'En dessous' }[zone]);
   };
   const end = () => {
     window.removeEventListener('pointermove', move);
@@ -338,7 +409,12 @@ function startDrag(id, e) {
     ghost.remove();
     hint.remove();
     document.body.classList.remove('dragging-panel');
-    if (drop) {
+    if (drop?.zone === 'append') {
+      removeItem(id);
+      addAsColumn(id);
+      render();
+      save();
+    } else if (drop) {
       movePanel(id, drop.tid, drop.zone);
       render();
       save();

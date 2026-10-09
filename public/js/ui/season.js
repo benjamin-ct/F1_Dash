@@ -4,7 +4,7 @@
 // analyse des archives F1 Live Timing (/api/season/stats).
 import { $, esc, api, teamColor } from '../util.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits } from './season-stats.js';
-import { renderTech, renderElements, setTechFilter } from './season-fia.js';
+import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -297,6 +297,7 @@ function render() {
   }[section]();
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
   tick();
+  if (section === 'tech' && fiaData) translateTechDetail(ctx, fiaData);
 }
 
 function tick() {
@@ -342,6 +343,7 @@ export function initSeason() {
     else if (id === 'szCircSort') circSort = e.target.value;
     else if (id === 'szTechGp') setTechFilter(e.target.value, 'all');
     else if (id === 'szTechTeam') setTechFilter(undefined, e.target.value);
+    else if (id === 'szTechOrig') toggleTechOriginal(e.target.checked);
     else return;
     render();
   });

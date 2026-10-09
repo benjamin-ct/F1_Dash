@@ -139,10 +139,53 @@ async function decode(url) {
   return (await off.startRendering()).getChannelData(0);
 }
 
+// Traduction d'un texte quelconque (évolutions techniques de la FIA…) avec le même moteur que
+// les radios : un seul modèle en mémoire, une tâche à la fois. Le modèle de langage (carte
+// graphique) n'est utilisé que s'il est déjà téléchargé, pour ne pas imposer 2,5 Go.
+export function translateText(text, language, domain) {
+  return new Promise((resolve, reject) => {
+    queue.push({ kind: 'text', text, lang: language, domain, resolve, reject, k: `text|${text}` });
+    pump();
+  });
+}
+
+async function textQuality() {
+  if (qualityPref === 'light' || highFailed) return 'light';
+  if (!navigator.gpu) return 'light';
+  try {
+    const keys = await (await caches.open('transformers-cache')).keys();
+    if (!keys.some((r) => r.url.includes('Qwen3-4B'))) return 'light';
+  } catch { return 'light'; }
+  const adapter = await navigator.gpu.requestAdapter().catch(() => null);
+  return adapter ? 'high' : 'light';
+}
+
+async function runText(task) {
+  const q = await textQuality();
+  try {
+    task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: q, domain: task.domain }), q });
+  } catch (err) {
+    if (q === 'high') {
+      highFailed = true;
+      task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: 'light', domain: task.domain }), q: 'light' });
+    } else throw err;
+  }
+}
+
 async function pump() {
-  if (!enabled || !isTranscriber || busy || !queue.length || Date.now() < retryAt) return;
+  if (busy || !queue.length || Date.now() < retryAt) return;
+  // Radios : seulement si la transcription est activée, dans la fenêtre qui en est chargée
+  const radios = enabled && isTranscriber;
+  const i = queue.findIndex((t) => t.kind === 'text' || radios);
+  if (i < 0) return;
   busy = true;
-  const task = queue.shift();
+  const task = queue.splice(i, 1)[0];
+  if (task.kind === 'text') {
+    try { await runText(task); } catch (err) { task.reject(err); }
+    busy = false;
+    setTimeout(pump, 50);
+    return;
+  }
   try {
     if (task.kind === 'asr') {
       const q = await resolveQuality();

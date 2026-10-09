@@ -16,6 +16,7 @@ import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePla
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 import { createLan, isLoopback } from './lan.js';
+import { getTranslations, addTranslations } from './translations.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -100,6 +101,14 @@ async function handleApi(req, res, url) {
       if (req.method === 'GET') return sendJSON(res, 200, lan.info());
       const body = await readBody(req);
       return sendJSON(res, 200, await lan.set({ enabled: body.enabled, regenerate: !!body.regenerate, port: body.port }));
+    }
+
+    // Traductions des textes FIA (évolutions techniques), partagées entre appareils
+    case 'GET /api/translations':
+      return sendJSON(res, 200, getTranslations(url.searchParams.get('lang') || 'fr'));
+    case 'POST /api/translations': {
+      const body = await readBody(req);
+      return sendJSON(res, 200, { added: addTranslations(body.lang, body.items) });
     }
 
     case 'GET /api/status':
