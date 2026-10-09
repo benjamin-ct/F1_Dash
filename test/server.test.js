@@ -110,3 +110,16 @@ test('replay : périodes de drapeau rouge', async () => {
   const st = (off, Status) => ({ off, topic: 'SessionStatus', data: { Status } });
   assert.deepEqual(redFlagPeriods([st(0, 'Started'), ev(100, '5'), st(101, 'Aborted'), ev(500, '1'), st(900, 'Started')], 2000), [{ start: 100, end: 900 }]);
 });
+
+test('réseau : relance des refus temporaires (422, 429, 5xx), pas des ressources absentes', async () => {
+  const { withRetry, HttpError } = await import('../server/net.js');
+  let n = 0;
+  assert.equal(await withRetry(async () => { if (++n < 3) throw new HttpError(422, 'u'); return 'ok'; }, { delay: 1 }), 'ok');
+  assert.equal(n, 3);
+  n = 0;
+  await assert.rejects(withRetry(async () => { n++; throw new HttpError(404, 'u'); }, { delay: 1 }));
+  assert.equal(n, 1);
+  n = 0;
+  await assert.rejects(withRetry(async () => { n++; throw new HttpError(503, 'u'); }, { tries: 2, delay: 1 }));
+  assert.equal(n, 2);
+});

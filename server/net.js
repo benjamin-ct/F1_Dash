@@ -48,3 +48,22 @@ export async function getText(url, opts) {
 export async function getJSON(url, opts) {
   return JSON.parse(await getText(url, opts));
 }
+
+// Erreurs qu'il vaut la peine de réessayer : réseau, délai dépassé, refus temporaires
+// (408, 409, 422, 425, 429 : serveur surchargé ou protection anti-rafales) et erreurs serveur.
+// Une ressource absente ou interdite (400, 401, 403, 404) ne se réessaie pas.
+export function isTemporary(err) {
+  if (!(err instanceof HttpError)) return true;
+  return [408, 409, 422, 425, 429].includes(err.status) || err.status >= 500;
+}
+
+export async function withRetry(fn, { tries = 4, delay = 1500 } = {}) {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (!isTemporary(err) || i >= tries - 1) throw err;
+      await new Promise((r) => setTimeout(r, delay * 2 ** i));
+    }
+  }
+}

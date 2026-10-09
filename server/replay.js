@@ -1,7 +1,7 @@
 // Replay d'une session passée à partir des archives publiques F1 Live Timing
 // (livetiming.formula1.com/static/...). Les messages sont réinjectés dans le hub
 // exactement comme en live : le délai, les duels, la carte... fonctionnent pareil.
-import { getText, getJSON, HttpError } from './net.js';
+import { getText, getJSON, HttpError, withRetry } from './net.js';
 import { ARCHIVE_TOPICS, topicName } from '../shared/f1.js';
 import { sessionLabel } from './live.js';
 import { readRecording, recordingPath } from './recorder.js';
@@ -211,7 +211,7 @@ const indexCache = new Map();
 export async function seasonIndex(year) {
   const cached = indexCache.get(year);
   if (cached && Date.now() - cached.at < 10 * 60 * 1000) return cached.data;
-  const raw = await getJSON(`${STATIC}${year}/Index.json`);
+  const raw = await withRetry(() => getJSON(`${STATIC}${year}/Index.json`), { tries: 3 });
   const data = (raw.Meetings || []).map((m) => ({
     key: m.Key,
     name: m.Name,

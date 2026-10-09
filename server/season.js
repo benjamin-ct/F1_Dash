@@ -3,7 +3,7 @@
 // l'espace « Saison ». Cache mémoire 15 min + copie disque (affichage hors ligne).
 import fs from 'node:fs';
 import path from 'node:path';
-import { getJSON, HttpError } from './net.js';
+import { getJSON, withRetry } from './net.js';
 import { CACHE_DIR } from './circuits.js';
 
 const BASE = 'https://api.jolpi.ca/ergast/f1';
@@ -12,7 +12,7 @@ const mem = new Map();
 const pending = new Map();
 
 // L'API Jolpica limite le nombre de requêtes (4 par seconde) : elles sont espacées, et
-// relancées en cas de refus temporaire (429), d'erreur serveur ou de délai dépassé.
+// relancées en cas de refus temporaire (422, 429…), d'erreur serveur ou de délai dépassé.
 const GAP_MS = 300;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let queue = Promise.resolve();
@@ -27,16 +27,8 @@ function throttled(fn) {
   return turn.then(fn);
 }
 
-async function jget(url) {
-  for (let i = 0; ; i++) {
-    try {
-      return await throttled(() => getJSON(url, { timeout: 30000 }));
-    } catch (err) {
-      const temporary = !(err instanceof HttpError) || err.status === 429 || err.status >= 500;
-      if (!temporary || i >= 3) throw err;
-      await sleep(1500 * 2 ** i);
-    }
-  }
+function jget(url) {
+  return withRetry(() => throttled(() => getJSON(url, { timeout: 30000 })));
 }
 
 // Toutes les pages d'une ressource (limite 100 par page)
