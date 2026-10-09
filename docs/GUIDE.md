@@ -110,6 +110,8 @@ Le dashboard s'affiche aussi sur un téléphone ou une tablette, par exemple pos
 2. Un **QR code** apparaît : scannez-le avec l'appareil photo du téléphone (connecté au même Wi-Fi).
 3. C'est tout : le téléphone reste autorisé (cookie valable un an). Pour l'avoir comme une appli, utilisez « Ajouter à l'écran d'accueil » (Safari : bouton Partager ; Chrome : menu ⋮).
 
+**Sur iPhone** : ouvrez le QR code dans Safari, puis bouton Partager → « Sur l'écran d'accueil ». L'appli ainsi ajoutée s'ouvre déjà autorisée. Si vous changez la clé sur l'ordinateur, supprimez l'appli de l'écran d'accueil, rescannez le QR code et ajoutez-la de nouveau. Safari ne permet pas la vibration ; le son des alertes fonctionne après un premier appui sur l'écran.
+
 Sur un petit écran, **un seul panneau à la fois** : classement, carte, course, duel, analyse, stratégie, radios, avec des onglets en bas de l'écran. Sur une tablette (plus de 900 px de large), la disposition est la même que sur ordinateur.
 
 - **Délai TV** : le téléphone **reprend automatiquement le délai réglé sur l'ordinateur**, et le suit quand vous le modifiez. Si le téléphone regarde une autre diffusion, décochez l'option dans ⚙ → Application du téléphone et réglez son délai avec 🎯.

@@ -8,7 +8,9 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { WebSocketServer } from 'ws';
 import qrcode from 'qrcode-generator';
-import { getConfig, saveConfig } from './config.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { getConfig, saveConfig, ROOT } from './config.js';
 
 const COOKIE = 'f1dash_key';
 const DEFAULT_PORT = 3030;
@@ -64,7 +66,7 @@ export function qrSvg(text) {
 
 const DENIED = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>F1 Dash</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#000;color:#ddd;font:16px system-ui,sans-serif;text-align:center;padding:24px}b{color:#fff}</style></head>
-<body><div><p style="font-size:42px;margin:0">🔒</p><p><b>Accès protégé</b></p><p>Scannez le QR code affiché sur l'ordinateur dans F1 Dash :<br>⚙ Réglages → Application → « Sur votre téléphone ou tablette ».</p></div></body></html>`;
+<body><div><p style="font-size:42px;margin:0">🔒</p><p><b>Accès protégé</b></p><p>Scannez le QR code affiché sur l'ordinateur dans F1 Dash :<br>⚙ Réglages → Application → « Sur votre téléphone ou tablette ».</p><p style="color:#999;font-size:14px">Appli déjà ajoutée à l'écran d'accueil (la clé a peut-être été changée) : supprimez-la, rescannez le QR code, puis ajoutez-la de nouveau.</p></div></body></html>`;
 
 // handler(req, res) : le même que le serveur principal ; onSocket(ws) : client WebSocket
 export function createLan({ handler, onSocket }) {
@@ -96,6 +98,17 @@ export function createLan({ handler, onSocket }) {
       });
       res.end();
       return;
+    }
+    // iPhone : l'appli ajoutée à l'écran d'accueil n'a pas les cookies de Safari ; elle démarre
+    // donc avec la clé dans l'adresse (qui dépose le cookie dans son propre stockage)
+    if (url.pathname === '/manifest.webmanifest') {
+      try {
+        const m = JSON.parse(fs.readFileSync(path.join(ROOT, 'public', 'manifest.webmanifest'), 'utf8'));
+        m.start_url = `/?k=${encodeURIComponent(key)}`;
+        res.writeHead(200, { 'Content-Type': 'application/manifest+json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify(m));
+        return;
+      } catch { /* manifeste d'origine */ }
     }
     // Les réglages de l'accès réseau ne se font que depuis l'ordinateur lui-même
     if (url.pathname.startsWith('/api/lan')) {
