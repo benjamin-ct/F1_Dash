@@ -289,6 +289,8 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .tyre {
   display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%;
   border: 3px solid var(--tc); font-size: 10px; font-weight: 900; color: var(--tc); background: var(--deep);
+  /* Titillium : plus de place sous la ligne de base qu'au-dessus des capitales -> lettre recentrée */
+  line-height: 1;
 }
 .tyre-age { font-size: 11px; color: var(--text-2); margin-left: 4px; }
 .duel-btns { display: flex; gap: 3px; }
@@ -1156,3 +1158,5 @@ body.solo #muteBtn { display: none; }
 .panel-legend .lg-tyre { width: 15px; height: 15px; border-width: 2px; font-size: 8px; }
 .grid.mobile .panel-legend { font-size: 11px; padding: 5px 10px; }
 .sz-help { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 0 6px 6px 0; color: var(--text-2); font-size: 13px; }
+.panel-legend .lg-hide { margin-left: auto; background: none; border: 1px solid transparent; border-radius: 5px; color: var(--muted); font-size: 11px; padding: 1px 6px; cursor: pointer; }
+.panel-legend .lg-hide:hover { border-color: var(--border); color: var(--text); }

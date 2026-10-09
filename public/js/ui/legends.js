@@ -2,6 +2,7 @@
 // les graphiques. Elles changent avec l'onglet actif et se masquent dans ⚙ → Affichage.
 import { prefs, setPref } from '../prefs.js';
 import { on } from '../store.js';
+import { toast } from './delay.js';
 
 const sw = (color, label, shape = 'bar') => `<span class="lg-i"><i class="lg-${shape}" style="--c:${color}"></i>${label}</span>`;
 const tag = (cls, text, label) => `<span class="lg-i"><span class="tag ${cls}">${text}</span>${label}</span>`;
@@ -73,7 +74,7 @@ function update(panel, id) {
     el.className = 'panel-legend';
     panel.appendChild(el);
   }
-  const html = items.join('');
+  const html = `${items.join('')}<button class="lg-hide" title="Masquer les légendes (réaffichables dans ⚙ Réglages → Affichage)">✕ Masquer</button>`;
   if (el.dataset.k !== `${id}|${tab}`) { el.innerHTML = html; el.dataset.k = `${id}|${tab}`; }
 }
 
@@ -90,6 +91,11 @@ export function initLegends() {
     panel?.querySelector('.panel-head')?.addEventListener('click', (e) => { if (e.target.closest('[data-tab]')) setTimeout(() => update(panel, id), 0); });
   }
   on('prefs', (k) => { if (k === 'legends') updateAll(); });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.lg-hide')) return;
+    setPref('legends', false);
+    toast('Légendes masquées — pour les réafficher : ⚙ Réglages → Affichage → « Légendes sous les panneaux »', 6000);
+  });
   updateAll();
 }
 

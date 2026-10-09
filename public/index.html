@@ -426,6 +426,8 @@
       <section class="set-block" data-sgroup="display">
         <h4>🧩 Affichage</h4>
         <div class="small muted">Disposition libre : glissez un panneau par sa poignée <b>⠿</b> à côté, au-dessus ou en dessous d'un autre (ou au centre pour les échanger), entre deux panneaux ou deux colonnes, ou contre le bord gauche ou droit de la fenêtre pour en faire une nouvelle colonne ; glissez les espaces entre les panneaux pour changer leur taille (double-clic : partage égal). <b>↗</b> envoie un panneau vers une nouvelle fenêtre ou l'ajoute à une fenêtre déjà ouverte (second écran), où il se dispose de la même façon ; <b>↙</b> le remet ici.</div>
+        <div class="row"><label class="small">Disposition <select id="layoutModeSel"><option value="auto">Automatique selon la séance</option><option value="race">Toujours « Course »</option><option value="quali">Toujours « Qualif &amp; essais »</option></select></label></div>
+        <div class="small muted">Deux dispositions indépendantes, l'une pour les courses (et sprints), l'autre pour les qualifications et les essais : chacune garde ses panneaux, leurs tailles, les colonnes du classement et les onglets ouverts. <b id="layoutProfileNow"></b></div>
         <div class="row"><button class="btn small" id="layoutReset">Réinitialiser l'interface</button> <span class="small muted">(aussi avec le bouton ⟲ en haut)</span></div>
         <div class="small muted">Panneaux visibles :</div>
         <div class="row" id="panelOpts"></div>

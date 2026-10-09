@@ -1,8 +1,9 @@
 // Disposition libre : colonnes et panneaux redimensionnables, panneaux déplaçables par glisser-déposer,
 // fenêtres secondaires (second écran) pouvant regrouper plusieurs panneaux, colonnes du classement.
-import { $, $$, esc, storageGet, storageSet } from '../util.js';
+import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
-import { on } from '../store.js';
+import { store, on } from '../store.js';
+import { toast } from './delay.js';
 
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
@@ -40,15 +41,40 @@ function panelEl(id) {
 
 // ---------------- Modèle de disposition ----------------
 // {cols: [{w, items: [{id, h}]}]} ; w et h sont des proportions (flex-grow).
-function defaultLayout() {
+// ---------------- Dispositions « Course » et « Qualif & essais » ----------------
+// Chaque type de séance a sa propre disposition (panneaux, tailles, panneaux masqués,
+// colonnes du classement, onglets ouverts), appliquée automatiquement selon la séance.
+const PROFILES = { race: 'Course', quali: 'Qualif & essais' };
+const PROFILE_KEY = 'f1dash.layoutProfiles';   // { race: { hiddenPanels, hiddenCols }, quali: … }
+const TABS_KEY = 'f1dash.profileTabs';         // { race: { analysis: 'trace', … }, quali: … }
+const TAB_DEFAULTS = {
+  race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
+  quali: { feed: 'rcm', analysis: 'sectors', extra: 'weather' },
+};
+const PROFILE_DEFAULTS = { race: { hiddenPanels: [], hiddenCols: [] }, quali: { hiddenPanels: [], hiddenCols: [] } };
+const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
+let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('f1dash.lastProfile', 'race');
+if (!PROFILES[profile]) profile = 'race';
+const lkey = (win = WIN, prof = profile) => (prof === 'race' ? win : `${win}@${prof}`);
+
+function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
+  const quali = prof === 'quali';
   if (window.innerWidth <= 1500) {
-    return { cols: [
+    return quali ? { cols: [
+      { w: 1.3, items: [{ id: 'tower', h: 1.5 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.6 }] },
+      { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.9 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.6 }] },
+    ] } : { cols: [
       { w: 1.2, items: [{ id: 'tower', h: 1.4 }, { id: 'feed', h: 0.7 }, { id: 'radio', h: 0.7 }] },
       { w: 1, items: [{ id: 'map', h: 1.1 }, { id: 'duel', h: 0.9 }, { id: 'analysis', h: 1 }, { id: 'extra', h: 0.8 }] },
     ] };
   }
-  return { cols: [
+  // Qualif : classement plus large (Q1/Q2/Q3, tour en cours), duel et secteurs mis en avant
+  return quali ? { cols: [
+    { w: 1.8, items: [{ id: 'tower', h: 1 }] },
+    { w: 1, items: [{ id: 'map', h: 1.15 }, { id: 'feed', h: 0.85 }, { id: 'radio', h: 0.7 }] },
+    { w: 0.95, items: [{ id: 'duel', h: 1 }, { id: 'analysis', h: 1.2 }, { id: 'extra', h: 0.55 }] },
+  ] } : { cols: [
     { w: 1.6, items: [{ id: 'tower', h: 1 }] },
     { w: 1, items: [{ id: 'map', h: 1.2 }, { id: 'feed', h: 0.75 }, { id: 'radio', h: 0.75 }] },
     { w: 0.95, items: [{ id: 'duel', h: 0.85 }, { id: 'analysis', h: 1.1 }, { id: 'extra', h: 0.85 }] },
@@ -104,10 +130,10 @@ function storeLayout(win, l) {
   storageSet(LAYOUTS_KEY, all);
 }
 
-let layout = normalize(allLayouts()[WIN] || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
+let layout = normalize(allLayouts()[lkey()] || (profile !== 'race' && !isMain && allLayouts()[WIN]) || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
 
 function save() {
-  storeLayout(WIN, layout);
+  storeLayout(lkey(), layout);
   announce();
 }
 
@@ -455,9 +481,9 @@ function sendTo(id, target) {
   if (target === 'new') {
     // Nettoie les dispositions de fenêtres fermées
     const all = allLayouts();
-    for (const k of Object.keys(all)) if (k !== 'main' && k !== WIN && !others.has(k)) delete all[k];
+    for (const k of Object.keys(all)) { const w = k.split('@')[0]; if (w !== 'main' && w !== WIN && !others.has(w)) delete all[k]; }
     target = `w${Date.now().toString(36)}`;
-    all[target] = { cols: [{ w: 1, items: [{ id, h: 1 }] }] };
+    all[lkey(target)] = { cols: [{ w: 1, items: [{ id, h: 1 }] }] };
     storageSet(LAYOUTS_KEY, all);
     const w = openWindow(target);
     if (!w) return;
@@ -552,11 +578,54 @@ function maximize(id) {
   }
 }
 
+// ---------------- Changement de disposition (Course / Qualif & essais) ----------------
+const tabHeads = () => PANELS.map((p) => [p.id, panelEl(p.id)?.querySelector('[data-tabs]')]).filter(([, h]) => h);
+
+function applyTabs() {
+  const saved = storageGet(TABS_KEY, {})[profile] || {};
+  for (const [id, head] of tabHeads()) {
+    const want = saved[id] || TAB_DEFAULTS[profile]?.[id];
+    const b = want && head.querySelector(`[data-tab="${want}"]`);
+    if (b && !b.classList.contains('active')) b.click();
+  }
+}
+
+function switchProfile(next, quiet = false) {
+  if (!PROFILES[next] || next === profile) return;
+  if (isMain) {
+    // Panneaux masqués et colonnes du classement : propres à chaque disposition
+    const st = storageGet(PROFILE_KEY, {});
+    st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenCols: prefs.hiddenCols };
+    storageSet(PROFILE_KEY, st);
+    const n = st[next] || PROFILE_DEFAULTS[next];
+    profile = next;
+    storageSet('f1dash.lastProfile', next);
+    setPref('hiddenPanels', n.hiddenPanels || []);
+    setPref('hiddenCols', n.hiddenCols || []);
+  } else profile = next;
+  // Fenêtre secondaire sans disposition pour ce type de séance : elle garde ses panneaux
+  layout = normalize(allLayouts()[lkey()] || (isMain ? defaultLayout() : layout));
+  unmaximize();
+  render(true);
+  save();
+  applyTabs();
+  renderLayoutOptions();
+  if (isMain && !quiet) toast(`Disposition « ${PROFILES[next]} » (⚙ Réglages → Affichage)`, 3500);
+}
+
+function checkProfile() {
+  const kind = store.state.SessionInfo ? sessionKind(store.state) : null;
+  if (!kind && prefs.layoutMode !== 'race' && prefs.layoutMode !== 'quali') return;
+  switchProfile(profileFor(prefs.layoutMode, kind));
+}
+
+export const currentProfile = () => profile;
+
 // ---------------- Initialisation ----------------
 export function initLayout() {
   if (!isMain) {
     document.body.classList.add('solo');
-    if (legacyPanel && !allLayouts()[WIN]) storeLayout(WIN, layout);
+    if (legacyPanel && !allLayouts()[lkey()]) storeLayout(lkey(), layout);
   }
   initChannel();
   for (const p of PANELS) {
@@ -592,6 +661,21 @@ export function initLayout() {
   });
   render(true);
   renderLayoutOptions();
+  // Onglets ouverts : mémorisés pour chaque disposition
+  for (const [id, head] of tabHeads()) {
+    head.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-tab]');
+      if (!b) return;
+      const all = storageGet(TABS_KEY, {});
+      all[profile] = { ...(all[profile] || {}), [id]: b.dataset.tab };
+      storageSet(TABS_KEY, all);
+    });
+  }
+  applyTabs();
+  on('reset', checkProfile);
+  on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo')) checkProfile(); });
+  on('prefs', (k) => { if (k === 'layoutMode') checkProfile(); });
+  checkProfile();
 }
 
 // Retour à l'interface par défaut : disposition, panneaux masqués, colonnes du classement ;
@@ -602,16 +686,26 @@ export function resetLayout(ask = true) {
   channel?.postMessage({ type: 'reset', win: WIN });
   others.clear();
   storageSet(LAYOUTS_KEY, {});
+  storageSet(PROFILE_KEY, {});
+  storageSet(TABS_KEY, {});
   unmaximize();
-  if (prefs.hiddenPanels.length) setPref('hiddenPanels', []);
-  if (prefs.hiddenCols.length) setPref('hiddenCols', []);
+  const def = PROFILE_DEFAULTS[profile];
+  setPref('hiddenPanels', [...def.hiddenPanels]);
+  setPref('hiddenCols', [...def.hiddenCols]);
   if (!prefs.towerFit) setPref('towerFit', true);
   layout = normalize(defaultLayout());
+  applyTabs();
   render(true);
   save();
 }
 
 export function renderLayoutOptions() {
+  const sel = $('#layoutModeSel');
+  if (sel) {
+    sel.value = prefs.layoutMode;
+    sel.onchange = () => setPref('layoutMode', sel.value);
+    $('#layoutProfileNow').textContent = `Disposition affichée : « ${PROFILES[profile]} ». Panneaux, tailles, colonnes et onglets ci-dessous s'appliquent à celle-ci.`;
+  }
   $('#panelOpts').innerHTML = PANELS.map((p) => `<label class="toggle small"><input type="checkbox" data-panel="${p.id}" ${prefs.hiddenPanels.includes(p.id) ? '' : 'checked'}> ${esc(p.name)}</label>`).join('');
   $('#panelOpts').onchange = (e) => {
     const id = e.target.dataset.panel;
