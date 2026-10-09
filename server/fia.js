@@ -32,10 +32,17 @@ export function parsePublished(s) {
 }
 
 export function parseDocumentList(html) {
+  // Une ligne par document ; le lien peut être directement dans la ligne ou dans un bloc
+  // intermédiaire (mise en page fia.com de 2026), le titre dans des blocs imbriqués.
   const docs = [];
-  const re = /<li class="document-row[^"]*">\s*<a href="([^"]+)"[\s\S]*?<div class="title">([\s\S]*?)<\/div>[\s\S]*?date-display-single">([^<]*)</g;
-  for (const m of html.matchAll(re)) {
-    docs.push({ title: decode(m[2].replace(/<[^>]+>/g, ' ')), url: new URL(decode(m[1]), BASE).toString(), published: parsePublished(m[3]) });
+  for (const chunk of html.split(/<li class="document-row/).slice(1)) {
+    const href = /<a href="([^"]+)"/.exec(chunk);
+    const t0 = chunk.indexOf('<div class="title">');
+    const date = /date-display-single">([^<]*)</.exec(chunk);
+    if (!href || t0 < 0) continue;
+    const t1 = chunk.indexOf('class="published"', t0);
+    const title = decode(chunk.slice(t0 + 19, t1 > 0 ? t1 : undefined).replace(/<[^>]*>?/g, ' '));
+    docs.push({ title, url: new URL(decode(href[1]), BASE).toString(), published: parsePublished(date?.[1]) });
   }
   return docs;
 }
@@ -54,6 +61,22 @@ async function seasons() {
   const events = options(html, /<option value="([^"]*\/event\/[^"]+)">([^<]+)</g).map((o) => o.label);
   seasonCache = { at: Date.now(), bySeason, events };
   return seasonCache;
+}
+
+// Épreuves d'une saison (pages de documents) : [{ name, page }]
+export async function seasonEvents(year) {
+  const s = await seasons();
+  const season = s.bySeason[year];
+  if (!season) return [];
+  const html = await getText(BASE + season, { timeout: TIMEOUT });
+  const seen = new Set();
+  return options(html, /<option value="([^"]*\/season\/season-\d{4}-\d+\/event\/[^"]+)">([^<]+)</g)
+    .filter((o) => !seen.has(o.path) && seen.add(o.path))
+    .map((o) => ({ name: o.label, page: BASE + o.path }));
+}
+
+export async function eventDocuments(page) {
+  return parseDocumentList(await getText(page, { timeout: TIMEOUT }));
 }
 
 const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();

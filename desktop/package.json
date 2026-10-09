@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "https-proxy-agent": "^7.0.6",
+    "unpdf": "^1.8.1",
     "ws": "^8.21.3"
   },
   "devDependencies": {
@@ -23,10 +24,12 @@
   "build": {
     "appId": "local.f1dash.desktop",
     "productName": "F1 Dash",
+    "icon": "icon.png",
     "files": [
       "main.cjs",
       "preload.cjs",
       "updater.cjs",
+      "icon.png",
       "bundle/**/*",
       "package.json"
     ],

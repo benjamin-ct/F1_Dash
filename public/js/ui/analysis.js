@@ -6,7 +6,7 @@ import { $, esc, drivers, orderedNumbers, teamColor, compoundInfo, fmtLap, lapSe
 import { prefs, isFav } from '../prefs.js';
 
 const OPTS_KEY = 'f1dash.analysis';
-const opts = { trace: 'leader', ref: null, scope: 'top10', clamp: 60, lapsSlow: true, sort: 'ideal', ...storageGet(OPTS_KEY, {}) };
+const opts = { trace: 'leader', ref: null, scope: 'top10', clamp: 60, lapsSlow: true, cutoff: 107, sort: 'ideal', ...storageGet(OPTS_KEY, {}) };
 const saveOpts = () => storageSet(OPTS_KEY, opts);
 let lastKey = '';
 let hoverX = null;
@@ -206,7 +206,7 @@ function lapTimeSeries() {
   if (opts.lapsSlow && all.length) {
     // Tours lents écartés (stands, safety car, drapeaux) : au-delà de 107 % du meilleur
     const best = Math.min(...all);
-    for (const s of series) s.points = s.points.filter((p) => !p.pit && p.y <= best * 1.07);
+    for (const s of series) s.points = s.points.filter((p) => !p.pit && p.y <= best * (opts.cutoff / 100));
   }
   return series;
 }
@@ -225,6 +225,71 @@ function renderPositions() {
   const series = positionSeries();
   const n = orderedNumbers(store.state).length || 20;
   multiChart($('#anaPosCanvas'), series, { invert: true, yMin: 1, yMax: n, yTicks: [1, 5, 10, 15, 20].filter((v) => v <= n), yFmt: (v) => `P${v}`, tipFmt: (v) => `P${v}` });
+}
+
+// Rythme de course (inspiré de formula1dashboard.com) : répartition des tours « propres » de
+// chaque pilote (boîte = 50 % des tours, trait = médiane, moustaches = min / max), classés par
+// médiane, et les 20 tours les plus rapides de la séance.
+function cleanLaps() {
+  const dl = drivers(store.state);
+  const all = [];
+  const per = orderedNumbers(store.state).map((n) => {
+    const laps = (store.derived.laps?.[n] || []).filter((l) => Number(l.lap) > 1 && !l.pit).map((l) => ({ n, lap: Number(l.lap), t: lapSeconds(l.time) })).filter((l) => l.t > 0);
+    all.push(...laps);
+    return { n, d: dl[n], laps };
+  });
+  const best = all.length ? Math.min(...all.map((l) => l.t)) : 0;
+  const lim = best * (opts.cutoff / 100);
+  for (const p of per) p.laps = p.laps.filter((l) => l.t <= lim);
+  return { per, all: all.filter((l) => l.t <= lim), best };
+}
+
+const quant = (a, q) => { const i = (a.length - 1) * q, lo = Math.floor(i); return a[lo] + (a[Math.ceil(i)] - a[lo]) * (i - lo); };
+
+function renderPace() {
+  const { per, all } = cleanLaps();
+  const rows = per.filter((p) => p.laps.length >= 3).map((p) => {
+    const v = p.laps.map((l) => l.t).sort((a, b) => a - b);
+    return { ...p, min: v[0], q1: quant(v, 0.25), med: quant(v, 0.5), q3: quant(v, 0.75), max: v.at(-1), count: v.length };
+  }).sort((a, b) => a.med - b.med);
+  const canvas = $('#anaPaceCanvas');
+  const wrap = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const W = Math.max(240, wrap.clientWidth), H = Math.max(160, wrap.clientHeight);
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  canvas.style.width = `${W}px`; canvas.style.height = `${H}px`;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = '11px "Titillium Web", sans-serif';
+  if (!rows.length) {
+    ctx.fillStyle = '#8b95a8'; ctx.textAlign = 'center'; ctx.fillText('Pas encore assez de tours propres (3 par pilote minimum).', W / 2, H / 2);
+  } else {
+    const padL = 54, padR = 8, padT = 10, padB = 34;
+    const yMin = Math.min(...rows.map((r) => r.min)), yMax = Math.max(...rows.map((r) => r.max));
+    const Y = (v) => padT + ((v - yMin) / Math.max(0.1, yMax - yMin)) * (H - padT - padB);
+    const step = (W - padL - padR) / rows.length;
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-2').trim() || '#2a2a31';
+    ctx.fillStyle = '#7a8396'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (const v of ticks(yMin, yMax, 5)) { ctx.beginPath(); ctx.moveTo(padL, Y(v)); ctx.lineTo(W - padR, Y(v)); ctx.stroke(); ctx.fillText(fmtLap(v), padL - 6, Y(v)); }
+    rows.forEach((r, i) => {
+      const cx = padL + step * (i + 0.5), bw = Math.min(26, step * 0.6);
+      const c = teamColor(r.d);
+      ctx.strokeStyle = c; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(cx, Y(r.min)); ctx.lineTo(cx, Y(r.q1)); ctx.moveTo(cx, Y(r.q3)); ctx.lineTo(cx, Y(r.max)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - bw / 4, Y(r.min)); ctx.lineTo(cx + bw / 4, Y(r.min)); ctx.moveTo(cx - bw / 4, Y(r.max)); ctx.lineTo(cx + bw / 4, Y(r.max)); ctx.stroke();
+      ctx.globalAlpha = r.n === store.focus || !store.focus ? 0.9 : 0.55;
+      ctx.fillStyle = c; ctx.fillRect(cx - bw / 2, Y(r.q1), bw, Math.max(2, Y(r.q3) - Y(r.q1)));
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - bw / 2, Y(r.med)); ctx.lineTo(cx + bw / 2, Y(r.med)); ctx.stroke();
+      ctx.save(); ctx.translate(cx, H - padB + 6); ctx.rotate(-Math.PI / 4); ctx.fillStyle = c; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.font = '700 10.5px "Titillium Web", sans-serif'; ctx.fillText(r.d?.Tla || r.n, 0, 0); ctx.restore();
+    });
+    canvas._pace = { rows, padL, step };
+  }
+  const dl = drivers(store.state);
+  const top = all.sort((a, b) => a.t - b.t).slice(0, 20);
+  $('#anaFastest').innerHTML = `<table class="sector-board"><tr><th>#</th><th>Pilote</th><th>Tour</th><th>Temps</th></tr>${top.map((l, i) => `<tr data-num="${l.n}"><td>${i + 1}</td><td><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[l.n])}"></span><b>${esc(dl[l.n]?.Tla || l.n)}</b></span></td><td>${l.lap}</td><td class="${i === 0 ? 'purple' : ''}">${fmtLap(l.t)}</td></tr>`).join('')}</table>`;
 }
 
 function renderLapTimes() {
@@ -299,6 +364,7 @@ export function renderAnalysis(force = false) {
   else if (tab === 'laptimes') renderLapTimes();
   else if (tab === 'tyrehist') renderTyres();
   else if (tab === 'sectors') renderSectors();
+  else if (tab === 'pace') renderPace();
 }
 
 function fillRefSelect() {
@@ -318,6 +384,8 @@ export function initAnalysis() {
     $('#anaRefWrap').hidden = opts.trace !== 'driver';
     for (const s of document.querySelectorAll('.ana-scope')) s.value = opts.scope;
     $('#anaSlow').checked = opts.lapsSlow;
+    for (const r of document.querySelectorAll('.ana-cutoff')) r.value = opts.cutoff;
+    for (const o of document.querySelectorAll('.ana-cutoff-val')) o.textContent = `${opts.cutoff} %`;
   };
   sync();
   const set = (k, v) => { opts[k] = v; saveOpts(); sync(); renderAnalysis(true); };
@@ -326,6 +394,25 @@ export function initAnalysis() {
   $('#anaRef').addEventListener('change', (e) => set('ref', e.target.value));
   for (const s of document.querySelectorAll('.ana-scope')) s.addEventListener('change', (e) => set('scope', e.target.value));
   $('#anaSlow').addEventListener('change', (e) => set('lapsSlow', e.target.checked));
+  for (const r of document.querySelectorAll('.ana-cutoff')) r.addEventListener('input', (e) => set('cutoff', Number(e.target.value)));
+  $('#anaFastest').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-num]'); if (tr) setFocus(tr.dataset.num); });
+  // Export d'un graphique en image PNG (fond du thème)
+  document.querySelector('.p-analysis').addEventListener('click', (e) => {
+    const b = e.target.closest('.ana-png');
+    if (!b) return;
+    const src = b.closest('.tabpane').querySelector('canvas');
+    if (!src) return;
+    const out = document.createElement('canvas');
+    out.width = src.width; out.height = src.height;
+    const c = out.getContext('2d');
+    c.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--panel').trim() || '#0b0b0d';
+    c.fillRect(0, 0, out.width, out.height);
+    c.drawImage(src, 0, 0);
+    const a = document.createElement('a');
+    a.download = `f1dash-${b.closest('.tabpane').dataset.pane}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.png`;
+    a.href = out.toDataURL('image/png');
+    a.click();
+  });
   $('#anaSectors').addEventListener('click', (e) => {
     const th = e.target.closest('[data-sort]');
     if (th) { set('sort', th.dataset.sort); return; }

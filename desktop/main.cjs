@@ -2,6 +2,7 @@
 // et affiche le dashboard dans une fenêtre, sans installer Node.js.
 const { app, BrowserWindow, shell, Menu, screen, ipcMain, session, components } = require('electron');
 const path = require('node:path');
+const APP_ICON = path.join(__dirname, 'icon.png');
 const net = require('node:net');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
@@ -81,6 +82,7 @@ function restoreChildren(baseUrl) {
     if (!isPanelUrl(c.search)) continue;
     const win = new BrowserWindow({
       autoHideMenuBar: true,
+      icon: APP_ICON,
       backgroundColor: '#000000',
       ...(boundsVisible(c.bounds) ? c.bounds : { width: 1200, height: 800 }),
       webPreferences: childPrefs(),
@@ -131,6 +133,7 @@ function loginF1TV() {
       parent: mainWindow || undefined,
       title: 'Connexion F1 TV',
       autoHideMenuBar: true,
+      icon: APP_ICON,
       webPreferences: { partition: 'persist:f1tv', contextIsolation: true, sandbox: true },
     });
     let done = false;
@@ -192,6 +195,7 @@ function setupContents(wc, url) {
         action: 'allow',
         overrideBrowserWindowOptions: {
           autoHideMenuBar: true,
+          icon: APP_ICON,
           backgroundColor: '#000000',
           ...(area ? { x: area.x + 40, y: area.y + 40, width: Math.min(1400, area.width - 80), height: Math.min(900, area.height - 80) } : {}),
           webPreferences: childPrefs(),
@@ -230,6 +234,7 @@ async function start() {
     backgroundColor: '#000000',
     title: 'F1 Dash',
     autoHideMenuBar: true,
+    icon: APP_ICON,
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },
   });
   const url = `http://127.0.0.1:${process.env.PORT}/`;

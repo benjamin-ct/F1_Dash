@@ -32,6 +32,32 @@ test('documents FIA : lecture de la liste et heure de Paris', () => {
   assert.deepEqual(parseFiaDoc(docs[1]), { num: 66, type: 'infringement', cars: ['43', '10'], subject: 'Car 43 - Collision with Car 10 in Turn 1' });
 });
 
+test('documents FIA : mise en page 2026 (lien et titre dans des blocs imbriqués)', () => {
+  const html = `<li class="document-row key-72">
+<div class="panelizer-view-mode node node-teaser node-decision-document node-64521">
+          <a href="/system/files/decision-document/2026_x_-_championship_points.pdf" download target="_blank">
+  <div class="file-type"><div class="field"><div class="field-items"><div class="field-item even"><div class="pdf"></div>
+</div></div></div>
+  </div>
+<div class="panel-separator"></div>  <div class="title">
+  <div class="field field-name-title-field"><div class="field-items"><div class="field-item even">Doc 72 - Championship Points</div></div></div>
+  </div>
+<div class="panel-separator"></div>
+  <div class="published">
+  <div class="field"><div class="field-items"><div class="field-item even">Published on <span  class="date-display-single">26.09.26 18:20</span> CET</div></div></div>  </div>
+</a></div></li>
+<li class="document-row key-71">
+<div class="panelizer-view-mode"><a href="/system/files/decision-document/2026_x_-_final_race_classification.pdf" download>
+<div class="title"><div class="field-item even">Doc 71 - Final Race Classification</div></div>
+<div class="published"><span  class="date-display-single">26.09.26 18:11</span></div></a></div></li>`;
+  const docs = parseDocumentList(html);
+  assert.equal(docs.length, 2);
+  assert.equal(docs[0].title, 'Doc 72 - Championship Points');
+  assert.match(docs[0].url, /championship_points\.pdf$/);
+  assert.equal(new Date(docs[0].published).toISOString(), '2026-09-26T16:20:00.000Z');
+  assert.equal(docs[1].title, 'Doc 71 - Final Race Classification');
+});
+
 test('documents FIA : choix de l\'épreuve', () => {
   const events = ['Italian Grand Prix', 'Grand Prix of Japan', 'Mexico City Grand Prix', 'Barcelona-Catalunya Grand Prix', 'Spanish Grand Prix'];
   assert.equal(pickEvent(events, { name: 'Italian Grand Prix' }), 'Italian Grand Prix');

@@ -8,6 +8,9 @@ import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
+import { season } from './season.js';
+import { seasonStats } from './race-stats.js';
+import { seasonTech } from './fia-tech.js';
 import { fiaDocuments } from './fia.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
@@ -111,6 +114,21 @@ async function handleApi(req, res, url) {
       if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
       const data = await loops(key, year);
       return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Calibration indisponible' });
+    }
+
+    case 'GET /api/season': {
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      return sendJSON(res, 200, await season(year));
+    }
+
+    case 'GET /api/season/stats': {
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      return sendJSON(res, 200, await seasonStats(year));
+    }
+
+    case 'GET /api/season/fia': {
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      return sendJSON(res, 200, await seasonTech(year));
     }
 
     case 'GET /api/fia-docs': {

@@ -48,6 +48,7 @@
     <button class="source-badge" id="sourceBadge" title="Source des données (live / replay)">
       <span class="src-dot"></span><span id="sourceLabel">—</span>
     </button>
+    <button class="btn season-btn" id="seasonBtn" title="Saison : prochaine séance, calendrier, classements, résultats, duels entre coéquipiers">🏆<span class="sb-label"> Saison</span></button>
     <button class="icon-btn comm-btn" id="commBtn" title="Commentaires en direct F1 TV Pro (touche C : couper / remettre le son)">🎙</button>
     <button class="icon-btn" id="resetUiBtn" title="Réinitialiser l'interface (disposition, panneaux et colonnes par défaut)">⟲</button>
     <button class="icon-btn" id="settingsBtn" title="Réglages : source (live / replay), compte F1 TV, affichage, alertes, application">⚙</button>
@@ -69,6 +70,31 @@
     <button class="btn" id="rpStart" title="Aller au départ de la session">⏮ Départ</button>
   </div>
 
+  <div class="season-view" id="seasonView" hidden>
+    <aside class="sz-side">
+      <div class="sz-side-head"><b>Saison</b> <select id="szYear" aria-label="Saison"></select></div>
+      <nav id="szNav">
+        <button data-sz="home" class="active">🏠 Accueil</button>
+        <button data-sz="calendar">📅 Calendrier</button>
+        <button data-sz="standings">🏆 Classements</button>
+        <button data-sz="results">🏁 Résultats & records</button>
+        <button data-sz="h2h">⚔ Coéquipiers</button>
+        <div class="sz-nav-sep">Statistiques détaillées</div>
+        <button data-sz="drivers">👤 Pilotes</button>
+        <button data-sz="consistency">📏 Régularité</button>
+        <button data-sz="pits">🔧 Arrêts aux stands</button>
+        <button data-sz="speeds">⚡ Vitesses de pointe</button>
+        <button data-sz="circuits">🗺 Profil des circuits</button>
+        <div class="sz-nav-sep">Technique (documents FIA)</div>
+        <button data-sz="tech">🛠 Évolutions techniques</button>
+        <button data-sz="elements">🔩 Éléments moteur</button>
+      </nav>
+      <button class="btn small sz-back" id="szClose" title="Retour au direct (Échap)">← Retour au direct</button>
+      <div class="muted small sz-src">Données : Jolpica (Ergast) et archives officielles F1 Live Timing, documents FIA</div>
+    </aside>
+    <div class="sz-main" id="szContent"></div>
+  </div>
+
   <main class="grid">
     <section class="panel p-tower">
       <div class="panel-head">
@@ -83,13 +109,19 @@
         <h2>Circuit</h2>
         <div class="panel-tools">
           <span class="map-mode" id="mapMode"></span>
-          <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms</label>
-          <label class="toggle"><input type="checkbox" id="mapCorners" checked> Virages</label>
-          <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
-          <label class="toggle" title="Numéros des micro-secteurs (1.1, 1.2…) quand on zoome sur la carte"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs</label>
-          <label class="toggle" title="Zones « ligne droite » (straight mode, trait vert pointillé LD) et ligne de détection du mode dépassement (rose). Estimées à partir de la télémétrie d'une séance du circuit : la FIA ne les publie pas sous forme de données."><input type="checkbox" id="mapZones" checked> Zones LD / détection</label>
           <label class="toggle" title="Centrer la carte sur le pilote suivi (clic sur un pilote du classement)"><input type="checkbox" id="mapFollow"> Suivre</label>
-          <button class="icon-btn small" id="mapReset" title="Réinitialiser le zoom (ou double-clic sur la carte)">⟲</button>
+          <details class="map-layers" id="mapLayers">
+            <summary class="btn small" title="Éléments affichés sur la carte">Calques ▾</summary>
+            <div class="map-layers-menu">
+              <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms des pilotes</label>
+              <label class="toggle" title="Courte traînée derrière chaque voiture (direction et vitesse)"><input type="checkbox" id="mapTrails" checked> Traînées</label>
+              <label class="toggle"><input type="checkbox" id="mapCorners" checked> Numéros de virage</label>
+              <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
+              <label class="toggle" title="Numéros des micro-secteurs (1.1, 1.2…) quand on zoome sur la carte"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs (zoom)</label>
+              <label class="toggle" title="Zones « ligne droite » (straight mode, trait vert pointillé LD) et ligne de détection du mode dépassement (rose). Estimées à partir de la télémétrie d'une séance du circuit : la FIA ne les publie pas sous forme de données."><input type="checkbox" id="mapZones" checked> Zones LD / détection</label>
+              <label class="toggle" title="Trame de points et halo en fond de carte"><input type="checkbox" id="mapGrid" checked> Fond texturé</label>
+            </div>
+          </details>
         </div>
       </div>
       <div class="panel-body map-wrap">
@@ -97,6 +129,11 @@
         <div class="map-legend" id="mapLegend"></div>
         <div class="map-flags" id="mapFlags"></div>
         <div class="map-empty" id="mapEmpty">Chargement du tracé…</div>
+        <div class="map-zoom">
+          <button class="icon-btn" data-mz="in" title="Zoomer (ou molette)">+</button>
+          <button class="icon-btn" data-mz="out" title="Dézoomer">−</button>
+          <button class="icon-btn" data-mz="fit" id="mapReset" title="Vue d'ensemble (ou double-clic sur la carte)">⤢</button>
+        </div>
       </div>
     </section>
 
@@ -171,6 +208,7 @@
         <button class="tab active" data-tab="trace" title="Écarts de chaque pilote tour par tour (dépassements, undercuts, arrêts)">Race trace</button>
         <button class="tab" data-tab="positions" title="Positions tour par tour">Positions</button>
         <button class="tab" data-tab="laptimes" title="Temps au tour de chaque pilote">Temps</button>
+        <button class="tab" data-tab="pace" title="Rythme de course : répartition des tours propres de chaque pilote et tours les plus rapides">Rythme</button>
         <button class="tab" data-tab="tyrehist" title="Tous les tours de chaque pilote, colorés selon le pneu">Pneus</button>
         <button class="tab" data-tab="sectors" title="Meilleurs secteurs, tour idéal et vitesses de pointe">Secteurs</button>
         <button class="tab" data-tab="telemetry" title="Télémétrie du pilote suivi">Télémétrie</button>
@@ -182,19 +220,29 @@
             <label class="small" id="anaRefWrap" hidden>Pilote <select id="anaRef"></select></label>
             <label class="small">Pilotes <select class="ana-scope"><option value="top10">10 premiers</option><option value="all">Tous</option><option value="favs">Mes favoris</option><option value="duel">Duel / suivi</option></select></label>
             <label class="small">Échelle <select id="anaClamp"><option value="20">20 s</option><option value="60">60 s</option><option value="120">2 min</option><option value="0">Tout</option></select></label>
+            <button class="btn small ana-png" title="Télécharger le graphique (image PNG)">⤓ PNG</button>
           </div>
           <div class="ana-chart"><canvas id="anaTraceCanvas"></canvas><div class="ana-tip" hidden></div></div>
         </div>
         <div class="tabpane ana-pane" data-pane="positions">
-          <div class="subbar"><label class="small">Pilotes <select class="ana-scope"><option value="top10">10 premiers</option><option value="all">Tous</option><option value="favs">Mes favoris</option><option value="duel">Duel / suivi</option></select></label><span class="small muted">Point = arrêt aux stands</span></div>
+          <div class="subbar"><label class="small">Pilotes <select class="ana-scope"><option value="top10">10 premiers</option><option value="all">Tous</option><option value="favs">Mes favoris</option><option value="duel">Duel / suivi</option></select></label><span class="small muted">Point = arrêt aux stands</span><button class="btn small ana-png" title="Télécharger le graphique (image PNG)">⤓ PNG</button></div>
           <div class="ana-chart"><canvas id="anaPosCanvas"></canvas><div class="ana-tip" hidden></div></div>
         </div>
         <div class="tabpane ana-pane" data-pane="laptimes">
           <div class="subbar">
             <label class="small">Pilotes <select class="ana-scope"><option value="top10">10 premiers</option><option value="all">Tous</option><option value="favs">Mes favoris</option><option value="duel">Duel / suivi</option></select></label>
-            <label class="toggle small"><input type="checkbox" id="anaSlow"> Masquer les tours lents (stands, safety car)</label>
+            <label class="toggle small"><input type="checkbox" id="anaSlow"> Masquer les tours lents</label>
+            <label class="small" title="Tours plus lents que ce pourcentage du meilleur tour ignorés (stands, safety car, drapeaux)">Seuil <input type="range" class="ana-cutoff" min="101" max="115" step="1"> <output class="ana-cutoff-val"></output></label>
+            <button class="btn small ana-png" title="Télécharger le graphique (image PNG)">⤓ PNG</button>
           </div>
           <div class="ana-chart"><canvas id="anaLapCanvas"></canvas><div class="ana-tip" hidden></div></div>
+        </div>
+        <div class="tabpane ana-pane" data-pane="pace">
+          <div class="subbar"><label class="small" title="Tours plus lents que ce pourcentage du meilleur tour ignorés (stands, safety car, drapeaux)">Seuil <input type="range" class="ana-cutoff" min="101" max="115" step="1"> <output class="ana-cutoff-val"></output></label><span class="small muted">Boîte = 50 % des tours propres · trait = médiane · moustaches = min / max</span><button class="btn small ana-png" title="Télécharger le graphique (image PNG)">⤓ PNG</button></div>
+          <div class="ana-pace">
+            <div class="ana-chart"><canvas id="anaPaceCanvas"></canvas></div>
+            <div class="ana-fastest"><div class="small muted ana-fastest-title">20 tours les plus rapides</div><div id="anaFastest"></div></div>
+          </div>
         </div>
         <div class="tabpane" data-pane="tyrehist"><div class="tyre-hist-wrap" id="anaTyres"></div></div>
         <div class="tabpane" data-pane="sectors"><div id="anaSectors"></div></div>
@@ -345,6 +393,7 @@
         <div class="row" id="colOpts"></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="towerFit"> Agrandir le classement pour remplir la hauteur disponible (grand écran, fenêtre détachée)</label></div>
         <div class="row"><label class="small">Thème <select id="themeSel"><option value="noir">Noir (par défaut)</option><option value="bleu">Bleu nuit</option></select></label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement et le championnat (décoché : simples barres de couleur)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées (une teinte bien distincte par équipe ; décoché : couleurs officielles)</label></div>
         <div class="row" id="restoreWinRow" hidden><label class="toggle small"><input type="checkbox" id="restoreWin"> Rouvrir les fenêtres détachées (second écran) à leur place au lancement de l'application</label></div>
       </section>
