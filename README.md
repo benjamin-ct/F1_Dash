@@ -36,6 +36,14 @@ Le bouton 🏆 en haut ouvre une vue de toute la saison (inspirée de formula1da
 - **Résultats & records** : plus de victoires, podiums, poles, meilleure moyenne, plus belle remontée, victoires les plus larges et les plus serrées, et le podium de chaque Grand Prix.
 - **Coéquipiers** : duel en qualifications et en course, points, victoires, podiums, poles, arrivées dans les points et abandons.
 
+**Statistiques détaillées** (analyse des archives officielles F1 Live Timing de chaque Grand Prix : la première fois environ 2 s par course, puis conservées sur le PC) :
+
+- **Pilotes** : fiche complète par pilote (victoires, podiums, poles, meilleurs tours, points par course, moyennes au départ et à l'arrivée, places gagnées, duel qualif face au coéquipier, vitesse de pointe, temps d'arrêt moyen, régularité), graphique départ / arrivée course par course et tableau de toutes ses courses.
+- **Régularité** : écart-type des tours « propres » (hors 1er tour, arrêts, safety car / VSC et tours anormalement lents), classement des plus réguliers, rythme de course (écart au plus rapide), carte thermique par Grand Prix et régularité des résultats.
+- **Arrêts aux stands** : temps d'immobilisation officiels, médiane par écurie, 15 arrêts les plus rapides, arrêts sous 2,5 s, temps dans la voie des stands par Grand Prix.
+- **Vitesses de pointe** : speed trap, ligne d'arrivée ou intermédiaires ; classement des écuries et des pilotes, carte thermique écurie × Grand Prix.
+- **Profil des circuits** : tracé, longueur, virages, tours et distance, meilleur tour et vitesse moyenne, vitesse de pointe, arrêts, voie des stands, dépassements en piste estimés et part des tours neutralisés, avec jauges comparant les circuits (tri au choix).
+
 ## 🔔 Alertes
 
 Son, message et notification Windows en option pour : SC, VSC, drapeau rouge, reprise, meilleur tour, arrêt ou message de la direction de course concernant **vos pilotes favoris**, abandons, arrivée. Elles sont déclenchées **au rythme de votre délai**, donc au moment où l'image passe à la TV et jamais avant. Réglages dans ⚙ ; touche `M` pour couper le son.

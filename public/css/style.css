@@ -910,3 +910,41 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc) 75%, transparent), inset 3px 0 0 var(--tc);
 }
 .champ .team-logo { width: 19px; height: 19px; margin-right: 6px; }
+
+/* ---------- Saison : statistiques détaillées ---------- */
+.sz-nav-sep { margin: 12px 10px 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+.sz-kpis { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.sz-kpi { min-height: 0; }
+.sz-kpi .sz-big { font-size: 24px; }
+.sz-drv-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 22%, var(--panel)), var(--panel) 60%); }
+.sz-drv-head .drv-bar { height: 44px; width: 7px; }
+.sz-drv-name { font-size: 24px; font-weight: 900; }
+.sz-dnf { fill: var(--red); font-weight: 900; }
+.sz-hbars { display: flex; flex-direction: column; gap: 5px; }
+.sz-hbar { display: grid; grid-template-columns: 150px 1fr 82px; align-items: center; gap: 10px; font-size: 13px; }
+.sz-hb-l { display: flex; align-items: center; gap: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sz-hb-l .team-logo { width: 20px; height: 20px; }
+.sz-hb-t { height: 12px; background: var(--panel-3); border-radius: 6px; overflow: hidden; }
+.sz-hb-t i { display: block; height: 100%; border-radius: 6px; opacity: .9; }
+.sz-hb-v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.sz-scroll { overflow-x: auto; }
+.sz-heat th, .sz-heat td { text-align: center; white-space: nowrap; }
+.sz-heat td:first-child, .sz-heat th:first-child { text-align: left; }
+.sz-heat td:first-child .team-logo, .sz-table td .team-logo { width: 20px; height: 20px; margin-right: 7px; }
+.sz-hm { font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.sz-circs { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; align-items: start; }
+.sz-circ { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; }
+.sz-circ-head b { font-size: 17px; font-weight: 900; }
+.sz-circ-body { display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: center; }
+.sz-outline { width: 120px; height: 120px; display: grid; place-items: center; text-align: center; }
+.sz-outline polygon { fill: none; stroke: var(--text); stroke-width: 2.6; stroke-linejoin: round; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 60%, transparent)); }
+.sz-facts { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; font-size: 12.5px; }
+.sz-facts dt { color: var(--muted); }
+.sz-facts dd { margin: 0; font-weight: 700; text-align: right; }
+.sz-meter { display: grid; grid-template-columns: 112px 1fr 104px; align-items: center; gap: 8px; font-size: 12px; }
+.sz-meter span { color: var(--muted); }
+.sz-meter div { height: 7px; background: var(--panel-3); border-radius: 4px; overflow: hidden; }
+.sz-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #ff8a4d); border-radius: 4px; }
+.sz-meter b { text-align: right; font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) { .sz-hbar { grid-template-columns: 110px 1fr 70px; } }

@@ -9,6 +9,7 @@ import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
 import { season } from './season.js';
+import { seasonStats } from './race-stats.js';
 import { fiaDocuments } from './fia.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
@@ -117,6 +118,11 @@ async function handleApi(req, res, url) {
     case 'GET /api/season': {
       const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
       return sendJSON(res, 200, await season(year));
+    }
+
+    case 'GET /api/season/stats': {
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      return sendJSON(res, 200, await seasonStats(year));
     }
 
     case 'GET /api/fia-docs': {

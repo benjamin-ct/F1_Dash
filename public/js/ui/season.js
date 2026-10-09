@@ -1,7 +1,9 @@
 // Espace « Saison » (inspiré de formula1dashboard.com) : compte à rebours de la prochaine
 // séance, calendrier, classements avec évolution des points, résultats et records, duels entre
-// coéquipiers. Données : API Jolpica (via le serveur, /api/season).
+// coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
+// analyse des archives F1 Live Timing (/api/season/stats).
 import { $, esc, api, teamColor } from '../util.js';
+import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits } from './season-stats.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -17,6 +19,27 @@ let year = new Date().getFullYear();
 let section = 'home';
 let loading = false;
 let timer = null;
+let stats = null;          // analyse des courses (archives) de l'année affichée
+let statsTimer = null;
+let drvCode = null;
+let speedPt = 'ST';
+let circSort = 'round';
+const STATS_SECTIONS = new Set(['drivers', 'consistency', 'pits', 'speeds', 'circuits']);
+
+// Statistiques détaillées : analysées par le serveur en arrière-plan, on suit l'avancement.
+async function loadStats() {
+  clearTimeout(statsTimer);
+  const y = year;
+  try {
+    const s = await api(`/api/season/stats?year=${y}`);
+    if (y !== year) return;
+    stats = s;
+    if (s.pending) statsTimer = setTimeout(loadStats, 3000);
+  } catch (err) {
+    if (y === year) stats = { error: err.message, races: [] };
+  }
+  if (STATS_SECTIONS.has(section) && !$('#seasonView').hidden) render();
+}
 
 const fmtDate = (t, o) => new Date(t).toLocaleDateString('fr-FR', o || { day: '2-digit', month: 'short' });
 const fmtTime = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -35,6 +58,7 @@ async function load(force = false) {
   }
   loading = false;
   render();
+  if (!stats || stats.year !== year || stats.pending) loadStats();
 }
 
 // ---------------- Calculs ----------------
@@ -244,7 +268,12 @@ function renderH2H() {
 function render() {
   if (!data) return;
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
-  const html = { home: renderHome, calendar: renderCalendar, standings: renderStandings, results: renderResults, h2h: renderH2H }[section]();
+  const ctx = { data, stats: stats?.year === data.year || stats?.error ? stats : null, color, bar };
+  const html = {
+    home: renderHome, calendar: renderCalendar, standings: renderStandings, results: renderResults, h2h: renderH2H,
+    drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
+    speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort),
+  }[section]();
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${html}`;
   tick();
 }
@@ -279,11 +308,19 @@ export function initSeason() {
   const sel = $('#szYear');
   const now = new Date().getFullYear();
   sel.innerHTML = Array.from({ length: 8 }, (_, i) => now - i).map((y) => `<option value="${y}">${y}</option>`).join('');
-  sel.addEventListener('change', () => { year = Number(sel.value); data = null; load(); });
+  sel.addEventListener('change', () => { year = Number(sel.value); data = null; stats = null; clearTimeout(statsTimer); load(); });
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
   $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; render(); } });
   $('#szContent').addEventListener('click', (e) => { const b = e.target.closest('[data-szgo]'); if (b) { section = b.dataset.szgo; render(); } });
-  $('#szContent').addEventListener('change', (e) => { if (e.target.id === 'szTeam') { h2hTeam = e.target.value; render(); } });
+  $('#szContent').addEventListener('change', (e) => {
+    const id = e.target.id;
+    if (id === 'szTeam') h2hTeam = e.target.value;
+    else if (id === 'szDriver') drvCode = e.target.value;
+    else if (id === 'szSpeedPt') speedPt = e.target.value;
+    else if (id === 'szCircSort') circSort = e.target.value;
+    else return;
+    render();
+  });
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#seasonView').hidden && !document.querySelector('dialog[open]')) closeSeason(); });
 }
