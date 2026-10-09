@@ -4,7 +4,7 @@ Dashboard **Formule 1 en direct** à lancer sur votre PC pour suivre chaque Gran
 
 ![Sessions](https://img.shields.io/badge/course%20%C2%B7%20qualifs%20%C2%B7%20essais-e10600) ![Node](https://img.shields.io/badge/Node.js-%E2%89%A518-339933)
 
-![F1 Dash pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
+![F1 Dash sur PC (application Windows) pendant une course — replay du Grand Prix d'Azerbaïdjan 2026](docs/screenshots/tableau-de-bord.png)
 
 ## 📸 Captures d'écran
 

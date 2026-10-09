@@ -24,10 +24,12 @@
   "build": {
     "appId": "local.f1dash.desktop",
     "productName": "F1 Dash",
+    "icon": "icon.png",
     "files": [
       "main.cjs",
       "preload.cjs",
       "updater.cjs",
+      "icon.png",
       "bundle/**/*",
       "package.json"
     ],
