@@ -1,5 +1,5 @@
 // Préférences de l'utilisateur (conservées dans le navigateur).
-import { storageGet, storageSet, setVividTeams } from './util.js';
+import { storageGet, storageSet, setVividTeams, setTeamLogos } from './util.js';
 import { emit, touch } from './store.js';
 
 const DEFAULTS = {
@@ -10,6 +10,7 @@ const DEFAULTS = {
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'noir',          // 'noir' | 'bleu'
   vividTeams: true,       // couleurs d'équipe contrastées plutôt qu'officielles
+  teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
   radioLang: 'fr',        // langue de traduction des transcriptions ('none' : anglais)
@@ -35,16 +36,18 @@ const DEFAULTS = {
 const saved = storageGet('f1dash.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
 setVividTeams(prefs.vividTeams);
+setTeamLogos(prefs.teamLogos);
 
 // Couleurs d'équipe changées : les panneaux qui affichent les pilotes se redessinent.
-function applyTeamColors(v) {
-  setVividTeams(v);
+function applyTeamColors() {
+  setVividTeams(prefs.vividTeams);
+  setTeamLogos(prefs.teamLogos);
   touch('DriverList');
 }
 
 export function setPref(key, value) {
   prefs[key] = value;
-  if (key === 'vividTeams') applyTeamColors(value);
+  if (key === 'vividTeams' || key === 'teamLogos') applyTeamColors();
   if (key === 'theme') document.documentElement.dataset.theme = value;
   storageSet('f1dash.prefs', prefs);
   emit('prefs', key);
@@ -67,7 +70,7 @@ window.addEventListener('storage', (e) => {
   for (const key of Object.keys(DEFAULTS)) {
     if (!(key in next) || JSON.stringify(next[key]) === JSON.stringify(prefs[key])) continue;
     prefs[key] = key === 'alerts' ? { ...DEFAULTS.alerts, ...next.alerts } : next[key];
-    if (key === 'vividTeams') applyTeamColors(prefs[key]);
+    if (key === 'vividTeams' || key === 'teamLogos') applyTeamColors();
     if (key === 'theme') document.documentElement.dataset.theme = prefs[key];
     emit('prefs', key);
   }

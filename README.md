@@ -81,6 +81,7 @@ La disposition est entièrement libre et conservée d'une session à l'autre :
 - Le délai, le pilote suivi (clic dans le classement → télémétrie, carte…), le duel et les réglages restent synchronisés entre toutes les fenêtres.
 - Le classement s'agrandit pour occuper toute la hauteur disponible (désactivable dans ⚙ → Affichage).
 - **Thème** : Noir (par défaut, fonds noirs neutres) ou Bleu nuit, dans ⚙ → Affichage.
+- **Logos des écuries** : dans le classement et le championnat, chaque pilote a le logo officiel de son écurie sur une pastille à ses couleurs (logos chargés depuis formula1.com ; sans connexion, la pastille reste colorée). Option dans ⚙ → Affichage pour revenir aux barres de couleur.
 - **Couleurs d'équipe contrastées** : une teinte bien distincte par équipe (bleu roi Red Bull, lavande Racing Bulls, bleu ciel Williams, rose Alpine, blanc Haas, gris Audi, or Cadillac…) au lieu des couleurs officielles, trop proches entre elles. Décochez l'option dans ⚙ → Affichage pour revenir aux couleurs officielles.
 - **Application Windows** : à la fermeture, les fenêtres détachées (panneaux, position, taille, plein écran) sont mémorisées et rouvertes à leur place au prochain lancement. Option « Rouvrir les fenêtres détachées » dans ⚙ → Affichage. Une fenêtre placée sur un écran qui n'est plus branché rouvre sur l'écran principal.
 

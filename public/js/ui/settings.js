@@ -114,6 +114,9 @@ export function initSettings() {
   $('#vividTeams').checked = prefs.vividTeams;
   $('#vividTeams').addEventListener('change', (e) => setPref('vividTeams', e.target.checked));
   on('prefs', (k) => { if (k === 'vividTeams') $('#vividTeams').checked = prefs.vividTeams; });
+  $('#teamLogos').checked = prefs.teamLogos;
+  $('#teamLogos').addEventListener('change', (e) => setPref('teamLogos', e.target.checked));
+  on('prefs', (k) => { if (k === 'teamLogos') $('#teamLogos').checked = prefs.teamLogos; });
   if (window.f1desktop?.getRestoreWindows) {
     $('#restoreWinRow').hidden = false;
     window.f1desktop.getRestoreWindows().then((v) => { $('#restoreWin').checked = v; });

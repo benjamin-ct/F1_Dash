@@ -72,6 +72,37 @@ export function teamColor(driver) {
   return c ? `#${c.replace('#', '')}` : '#8b95a8';
 }
 
+// Logos officiels (version blanche) des écuries, servis par formula1.com
+const TEAM_LOGOS = [
+  [/racing bulls|visa|alphatauri|\brb\b/i, '2026/racingbulls/2026racingbulls'],
+  [/red bull/i, '2026/redbullracing/2026redbullracing'],
+  [/ferrari/i, '2026/ferrari/2026ferrari'],
+  [/mclaren/i, '2026/mclaren/2026mclaren'],
+  [/mercedes/i, '2026/mercedes/2026mercedes'],
+  [/aston/i, '2026/astonmartin/2026astonmartin'],
+  [/williams/i, '2026/williams/2026williams'],
+  [/alpine/i, '2026/alpine/2026alpine'],
+  [/haas/i, '2026/haasf1team/2026haasf1team'],
+  [/sauber|kick/i, '2025/kicksauber/2025kicksauber'],
+  [/audi/i, '2026/audi/2026audi'],
+  [/cadillac/i, '2026/cadillac/2026cadillac'],
+];
+let teamLogos = true;
+export function setTeamLogos(v) { teamLogos = !!v; }
+
+export function teamLogo(teamName) {
+  const hit = teamName && TEAM_LOGOS.find(([re]) => re.test(teamName));
+  return hit ? `https://media.formula1.com/image/upload/c_fit,h_64/q_auto/v1740000000/common/f1/${hit[1]}logowhite.webp` : null;
+}
+
+// Repère d'écurie d'un pilote : logo sur fond aux couleurs de l'écurie (réglage « logos »), sinon barre de couleur
+export function teamMark(driver) {
+  const col = teamColor(driver);
+  const logo = teamLogos ? teamLogo(driver?.TeamName) : null;
+  if (!logo) return `<span class="drv-bar" style="background:${col}"></span>`;
+  return `<span class="team-logo" style="--tc:${col};background-image:url('${logo}')" title="${esc(driver?.TeamName || '')}"></span>`;
+}
+
 export const COMPOUNDS = {
   SOFT: { letter: 'S', color: '#ff3b3b', name: 'Tendre' },
   MEDIUM: { letter: 'M', color: '#ffd12e', name: 'Medium' },

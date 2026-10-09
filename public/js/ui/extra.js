@@ -1,6 +1,6 @@
 // Onglets : télémétrie du pilote suivi, stratégie pneus, météo, championnat (prévision).
 import { store, displayNow, versionOf, setFocus } from '../store.js';
-import { $, esc, drivers, orderedNumbers, teamColor, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds } from '../util.js';
+import { $, esc, drivers, orderedNumbers, teamColor, teamMark, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds } from '../util.js';
 import { lineChart } from './charts.js';
 
 let lastTele = 0;
@@ -141,11 +141,11 @@ export function renderChampionship() {
   $('#champ').innerHTML = `<table class="champ"><tr><th>Proj.</th><th>Pilote</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
     ${rows.map((r) => {
       const d = dl[r.RacingNumber] || {};
-      return `<tr><td>${r.PredictedPosition ?? '—'}</td><td><span class="drv"><span class="drv-bar" style="background:${teamColor(d)}"></span><b>${esc(d.Tla || r.RacingNumber)}</b></span></td>
+      return `<tr><td>${r.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(d)}<b>${esc(d.Tla || r.RacingNumber)}</b></span></td>
         <td>${r.CurrentPoints ?? '—'}</td><td>${gain(r.CurrentPoints, r.PredictedPoints)}</td><td><b>${r.PredictedPoints ?? '—'}</b></td><td>${mv(r.CurrentPosition, r.PredictedPosition)}</td></tr>`;
     }).join('')}</table>
     ${teams.length ? `<table class="champ" style="margin-top:10px"><tr><th>Proj.</th><th>Écurie</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
-      ${teams.map((t) => `<tr><td>${t.PredictedPosition ?? '—'}</td><td>${esc(t.TeamName || '')}</td><td>${t.CurrentPoints ?? '—'}</td><td>${gain(t.CurrentPoints, t.PredictedPoints)}</td><td><b>${t.PredictedPoints ?? '—'}</b></td><td>${mv(t.CurrentPosition, t.PredictedPosition)}</td></tr>`).join('')}</table>` : ''}`;
+      ${teams.map((t) => `<tr><td>${t.PredictedPosition ?? '—'}</td><td><span class="drv">${teamMark(Object.values(dl).find((d) => d.TeamName === t.TeamName) || { TeamName: t.TeamName })}${esc(t.TeamName || '')}</span></td><td>${t.CurrentPoints ?? '—'}</td><td>${gain(t.CurrentPoints, t.PredictedPoints)}</td><td><b>${t.PredictedPoints ?? '—'}</b></td><td>${mv(t.CurrentPosition, t.PredictedPosition)}</td></tr>`).join('')}</table>` : ''}`;
 }
 
 // Rythme et dégradation sur le relais en cours (tours "propres" uniquement).
