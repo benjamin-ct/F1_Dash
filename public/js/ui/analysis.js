@@ -4,6 +4,7 @@
 import { store, versionOf, on, setFocus } from '../store.js';
 import { $, esc, drivers, orderedNumbers, teamColor, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet } from '../util.js';
 import { prefs, isFav } from '../prefs.js';
+import { renderCompare, initCompare } from './compare.js';
 
 const OPTS_KEY = 'f1dash.analysis';
 const opts = { trace: 'leader', ref: null, scope: 'top10', clamp: 60, lapsSlow: true, cutoff: 107, sort: 'ideal', ...storageGet(OPTS_KEY, {}) };
@@ -365,6 +366,7 @@ export function renderAnalysis(force = false) {
   else if (tab === 'tyrehist') renderTyres();
   else if (tab === 'sectors') renderSectors();
   else if (tab === 'pace') renderPace();
+  else if (tab === 'compare') renderCompare();
 }
 
 function fillRefSelect() {
@@ -377,6 +379,7 @@ function fillRefSelect() {
 }
 
 export function initAnalysis() {
+  initCompare();
   for (const id of ['anaTraceCanvas', 'anaPosCanvas', 'anaLapCanvas']) bindHover($(`#${id}`), $(`#${id}`).parentElement.querySelector('.ana-tip'));
   const sync = () => {
     $('#anaTrace').value = opts.trace;

@@ -9,7 +9,7 @@ import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
 import { season } from './season.js';
-import { seasonStats } from './race-stats.js';
+import { seasonStats, archiveError } from './race-stats.js';
 import { seasonTech } from './fia-tech.js';
 import { fiaDocuments } from './fia.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
@@ -17,6 +17,7 @@ import { Recorder, listRecordings, recordingPath } from './recorder.js';
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 import { createLan, isLoopback } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
+import { compareLaps } from './compare.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -113,6 +114,14 @@ async function handleApi(req, res, url) {
 
     case 'GET /api/status':
       return sendJSON(res, 200, { ...hub.statusPayload(), auth: tokenInfo(getConfig().f1tvToken) });
+
+    // Meilleurs tours de deux pilotes : secteurs et mini-secteurs (à la date du délai TV)
+    case 'GET /api/compare': {
+      const a = url.searchParams.get('a'), b = url.searchParams.get('b');
+      const until = Number(url.searchParams.get('until')) || Date.now();
+      if (!/^\d+$/.test(a || '') || !/^\d+$/.test(b || '')) return sendJSON(res, 400, { error: 'Pilotes manquants' });
+      return sendJSON(res, 200, await compareLaps(hub, { a, b, until: Math.min(until, hub.clock()) }));
+    }
 
     case 'GET /api/circuit': {
       const key = Number(url.searchParams.get('key'));
@@ -212,7 +221,11 @@ async function handleApi(req, res, url) {
 
     case 'GET /api/archive': {
       const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
-      return sendJSON(res, 200, await seasonIndex(year));
+      try {
+        return sendJSON(res, 200, await seasonIndex(year));
+      } catch (err) {
+        return sendJSON(res, 502, { error: `Replays ${year} indisponibles : ${archiveError(year, err)}` });
+      }
     }
 
     case 'POST /api/live':

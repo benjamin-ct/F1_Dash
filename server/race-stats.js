@@ -168,6 +168,13 @@ function findRaceSession(index, race) {
   return null;
 }
 
+// Message lisible quand l'index des archives officielles d'une année est inaccessible
+export function archiveError(year, err) {
+  return err?.status === 403 || err?.status === 404
+    ? `la F1 ne donne pas accès aux archives officielles de ${year}`
+    : `archives officielles de la F1 injoignables (${err?.message || err}) ; nouvel essai dans quelques minutes`;
+}
+
 const jobs = new Map();       // année -> { running, failed: Map(round -> date) }
 const file = (year, round) => path.join(CACHE_DIR, `race-${year}-${round}.json`);
 const readRace = (year, round) => {
@@ -214,7 +221,9 @@ export async function seasonStats(year) {
     const cached = readRace(year, r.round);
     if (cached) { races.push(cached); continue; }
     if (job.running || Date.now() - (job.failed.get(r.round) || 0) < 10 * 60000) continue;
-    index ||= await seasonIndex(year).catch(() => []);
+    if (!index) {
+      try { index = await seasonIndex(year); } catch (err) { index = []; job.indexError = archiveError(year, err); }
+    }
     const s = findRaceSession(index, r);
     if (s) todo.push({ round: r.round, ...s });
   }
@@ -222,5 +231,7 @@ export async function seasonStats(year) {
     job.running = true;
     runJob(year, todo).catch(() => { job.running = false; });
   }
+  // Archives officielles inaccessibles et rien en cache : on le dit plutôt que « 0 / 22 »
+  if (!races.length && !job.running && job.indexError) return { year, total: done.length, done: 0, pending: false, races, error: job.indexError };
   return { year, total: done.length, done: races.length, pending: job.running, races };
 }

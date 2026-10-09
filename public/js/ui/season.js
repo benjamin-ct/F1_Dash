@@ -64,17 +64,25 @@ const fmtTime = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit'
 const done = (r) => r.results.length > 0;
 
 async function load(force = false) {
-  if (loading || (data?.year === year && !force)) return;
-  loading = true;
-  $('#szContent').innerHTML = '<div class="note">Chargement de la saison…</div>';
+  // Une autre année demandée pendant un chargement : on la charge (la réponse en retard
+  // de l'année précédente est ignorée)
+  if ((loading === year) || (data?.year === year && !force)) return;
+  const y = year;
+  loading = y;
+  $('#szContent').innerHTML = `<div class="note">Chargement de la saison ${y}…</div>`;
+  let d;
   try {
-    data = await api(`/api/season?year=${year}`);
+    d = await api(`/api/season?year=${y}`);
   } catch (err) {
-    $('#szContent').innerHTML = `<div class="note">Données de la saison indisponibles (${esc(err.message)}). Une connexion internet est nécessaire au premier affichage.</div>`;
+    if (y !== year) return;
     loading = false;
+    $('#szContent').innerHTML = `<div class="note">Données de la saison ${y} indisponibles (${esc(err.message)}). <button class="btn small" id="szRetry">Réessayer</button><br><span class="small muted">Une connexion internet est nécessaire au premier affichage.</span></div>`;
+    $('#szRetry')?.addEventListener('click', () => load(true));
     return;
   }
+  if (y !== year) return;
   loading = false;
+  data = d;
   render();
   if (!stats || stats.year !== year || stats.pending) loadStats();
   if (!fia || fia.year !== year || fia.pending) loadFia();
