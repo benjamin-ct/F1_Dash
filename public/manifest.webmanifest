@@ -1,0 +1,13 @@
+{
+  "name": "F1 Dash",
+  "short_name": "F1 Dash",
+  "description": "Dashboard Formule 1 en direct, calé sur votre diffusion TV",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

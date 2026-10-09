@@ -16,6 +16,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Commentaires F1 TV Pro** ou radio de votre choix, synchronisés sur le dashboard.
 - **Espace Saison** : calendrier, classements, statistiques par pilote, régularité, arrêts, vitesses, profils des circuits, évolutions techniques et éléments moteur (documents FIA).
 - **Replays** de toutes les sessions archivées, disposition libre des panneaux, second écran.
+- **Sur votre téléphone ou tablette** : l'ordinateur affiche un QR code ; scannez-le pour retrouver le dashboard sur le réseau Wi-Fi de la maison, calé sur le même délai TV.
 
 | | |
 |---|---|
@@ -50,6 +51,12 @@ Ajustement fin : `←` `→` ±1 s, `Maj` ±5 s, `Alt` ±0,1 s.
 ## 📡 Avec un abonnement F1 TV (optionnel)
 
 Tout fonctionne sans compte. Avec F1 TV, connectez-vous dans ⚙ Réglages pour avoir **les positions GPS exactes et la télémétrie** en direct (sinon les positions sont estimées). **F1 TV Pro** donne en plus les **commentaires en direct** (bouton 🎙).
+
+## 📱 Sur téléphone ou tablette
+
+Sur l'ordinateur : ⚙ Réglages → Application → **« Autoriser l'accès depuis le réseau local »**, puis scannez le QR code avec le téléphone (même Wi-Fi). Le téléphone reprend le délai TV de l'ordinateur et affiche un panneau à la fois, avec des onglets en bas. Pour l'avoir comme une appli : « Ajouter à l'écran d'accueil ». Détails dans le [guide](docs/GUIDE.md#-sur-téléphone-ou-tablette).
+
+![F1 Dash sur téléphone : classement, carte et analyse](docs/screenshots/telephone.png)
 
 ## ⌨ Raccourcis
 

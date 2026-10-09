@@ -1,6 +1,6 @@
 // Réglages : choix live / replay, jeton F1 TV, barre de contrôle du replay.
 import { store, serverNow, on } from '../store.js';
-import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers } from '../util.js';
+import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, storageSet } from '../util.js';
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav } from '../prefs.js';
 
@@ -68,6 +68,27 @@ async function control(body) {
   try { await api('/api/replay/control', { method: 'POST', body }); } catch (err) { toast(err.message); }
 }
 
+// Accès depuis un téléphone / une tablette du réseau local (réglage disponible sur l'ordinateur uniquement)
+async function renderLan(change) {
+  let info;
+  try {
+    info = await api('/api/lan', change ? { method: 'POST', body: change } : undefined);
+  } catch {
+    $('#lanBlock').hidden = true;   // ouvert depuis un téléphone : réglage réservé à l'ordinateur
+    return;
+  }
+  $('#lanBlock').hidden = false;
+  $('#lanEnabled').checked = info.enabled;
+  const ok = info.enabled && info.running && info.urls.length;
+  $('#lanInfo').hidden = !ok;
+  $('#lanError').hidden = !(info.enabled && !ok);
+  $('#lanError').textContent = info.error ? `⚠ Accès réseau impossible : ${info.error}.` : !info.urls.length ? '⚠ Aucun réseau local détecté sur cet ordinateur.' : 'Démarrage…';
+  if (!ok) return;
+  $('#lanQr').innerHTML = info.qr;
+  $('#lanUrl').textContent = info.urls[0].url;
+  $('#lanOther').textContent = info.urls.length > 1 ? `Autres adresses possibles : ${info.urls.slice(1).map((u) => u.url).join(' · ')}` : '';
+}
+
 export function initSettings() {
   // Réglages en onglets (Source, Compte F1 TV, Affichage, Alertes, Application)
   const showGroup = (g) => {
@@ -107,6 +128,9 @@ export function initSettings() {
   setInterval(() => { if (modal.open && !$('#favList .fav')) renderFavs(); }, 1000);
 
   // Application de bureau : connexion F1 TV intégrée (le cookie est lu directement par l'appli).
+  renderLan();
+  $('#lanEnabled').addEventListener('change', (e) => renderLan({ enabled: e.target.checked }));
+  $('#lanRegen').addEventListener('click', () => { if (confirm('Changer la clé ? Les téléphones et tablettes déjà autorisés devront rescanner le QR code.')) renderLan({ regenerate: true }); });
   // Application de bureau : fenêtres détachées rouvertes au lancement
   $('#themeSel').value = prefs.theme;
   $('#themeSel').addEventListener('change', (e) => setPref('theme', e.target.value));
@@ -117,6 +141,13 @@ export function initSettings() {
   $('#teamLogos').checked = prefs.teamLogos;
   $('#teamLogos').addEventListener('change', (e) => setPref('teamLogos', e.target.checked));
   on('prefs', (k) => { if (k === 'teamLogos') $('#teamLogos').checked = prefs.teamLogos; });
+  // Téléphone ou tablette connecté à l'ordinateur : suivre son délai TV
+  on('role', (host) => { $('#followHostBlock').hidden = host; });
+  $('#followHost').checked = storageGet('f1dash.followHost', true);
+  $('#followHost').addEventListener('change', (e) => storageSet('f1dash.followHost', e.target.checked));
+  $('#keepAwake').checked = prefs.keepAwake;
+  $('#keepAwake').addEventListener('change', (e) => setPref('keepAwake', e.target.checked));
+  on('prefs', (k) => { if (k === 'keepAwake') $('#keepAwake').checked = prefs.keepAwake; });
   if (window.f1desktop?.getRestoreWindows) {
     $('#restoreWinRow').hidden = false;
     window.f1desktop.getRestoreWindows().then((v) => { $('#restoreWin').checked = v; });

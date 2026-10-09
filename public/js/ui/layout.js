@@ -161,11 +161,51 @@ function narrow() {
   return isMain && window.innerWidth <= 1000;
 }
 
+// Téléphone (et tablette en portrait) : un seul panneau à la fois, choisi dans la barre du bas.
+const MOB_TABS = [
+  ['tower', '🏁', 'Classement'], ['map', '🗺', 'Carte'], ['feed', '📢', 'Course'], ['duel', '⚔', 'Duel'],
+  ['analysis', '📈', 'Analyse'], ['extra', '🔧', 'Stratégie'], ['radio', '📻', 'Radios'],
+];
+const MOB_KEY = 'f1dash.mobileTab';
+let mobTab = storageGet(MOB_KEY, 'tower');
+
+function mobile() {
+  return isMain && window.innerWidth <= 900;
+}
+
+export function showMobilePanel(id) {
+  mobTab = id;
+  storageSet(MOB_KEY, id);
+  render(true);
+}
+
+function renderMobile(grid) {
+  grid.classList.remove('custom', 'has-max');
+  grid.classList.add('mobile');
+  const tabs = MOB_TABS.filter(([id]) => isVisible(id));
+  if (!tabs.some(([id]) => id === mobTab)) mobTab = tabs[0]?.[0] || 'tower';
+  for (const p of PANELS) {
+    const el = panelEl(p.id);
+    el.style.flex = '';
+    el.classList.remove('maximized');
+    el.classList.toggle('hidden-panel', p.id !== mobTab || !isVisible(p.id));
+    grid.appendChild(el);
+  }
+  for (const el of grid.querySelectorAll('.lcol, .lsplit-v, .lstash')) el.remove();
+  const nav = $('#mobNav');
+  nav.hidden = false;
+  nav.innerHTML = tabs.map(([id, ic, label]) => `<button data-mob="${id}" class="${id === mobTab ? 'active' : ''}"><span class="mn-ic">${ic}</span><span class="mn-l">${label}</span></button>`).join('');
+  nav.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
 function render(force = false) {
   const grid = $('.grid');
-  const key = `${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
+  const key = `${mobile()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
   renderKey = key;
+  if (mobile()) { renderMobile(grid); return; }
+  grid.classList.remove('mobile');
+  if ($('#mobNav')) $('#mobNav').hidden = true;
   const stash = grid.querySelector('.lstash') || Object.assign(document.createElement('div'), { className: 'lstash', hidden: true });
   if (narrow()) {
     // Petit écran : empilement vertical classique
@@ -467,6 +507,7 @@ export function initLayout() {
     if (e.key === 'Escape' && $('.grid').classList.contains('has-max') && !document.querySelector('dialog[open]')) unmaximize();
   });
   window.addEventListener('resize', () => render());
+  $('#mobNav')?.addEventListener('click', (e) => { const b = e.target.closest('[data-mob]'); if (b) showMobilePanel(b.dataset.mob); });
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {

@@ -12,6 +12,7 @@ import { renderTelemetry, renderStrategy, renderWeather, renderChampionship } fr
 import { initSettings } from './ui/settings.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
 import { initAlerts } from './ui/alerts.js';
+import { initWakeLock } from './ui/wakelock.js';
 import { initRadio, initStewards, renderStewards, initRcmFilters } from './ui/feed.js';
 import { initLayout } from './ui/layout.js';
 import { initUpdates } from './ui/updates.js';
@@ -71,6 +72,7 @@ initDuel();
 initSettings();
 initRaceTools();
 initAlerts();
+initWakeLock();
 initRadio();
 initRcmFilters();
 initStewards();

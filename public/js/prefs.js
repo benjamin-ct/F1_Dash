@@ -4,13 +4,14 @@ import { emit, touch } from './store.js';
 
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
-  alerts: { sound: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true },
+  alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true },
   hiddenPanels: [],
   hiddenCols: [],
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'noir',          // 'noir' | 'bleu'
   vividTeams: true,       // couleurs d'équipe contrastées plutôt qu'officielles
-  teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
+  teamLogos: true,
+  keepAwake: true,        // écran toujours allumé pendant une séance        // logos des écuries (classement, championnat) plutôt que barres de couleur
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
   radioLang: 'fr',        // langue de traduction des transcriptions ('none' : anglais)

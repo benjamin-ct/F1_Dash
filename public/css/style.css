@@ -966,3 +966,128 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .sz-h2h-pick { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .sz-wrap td { white-space: normal; }
 .sz-wrap td:first-child { white-space: nowrap; }
+
+/* ======================================================================
+   Mode mobile (téléphone, tablette en portrait) : un panneau à la fois
+   ====================================================================== */
+.mob-nav { display: none; }
+.tb-break { display: none; }
+@media (max-width: 900px) {
+  .topbar .tb-break { display: block; flex-basis: 100%; height: 0; }
+  .topbar #sourceLabel { font-size: 11px; }
+  .grid.mobile .tower .drv-num { display: none; }
+  .grid.mobile .tower .team-logo { width: 22px; height: 22px; }
+  html, body { height: 100%; }
+  body { overflow: hidden; height: 100dvh; padding-top: env(safe-area-inset-top); }
+  /* Barre du haut sur trois lignes compactes */
+  .topbar { flex-wrap: wrap; gap: 6px 10px; padding: 8px 10px; }
+  .topbar .brand-name, .topbar .weather-mini, .topbar .delay-title, .topbar .preset, .topbar .spacer,
+  .topbar #resetUiBtn, .topbar .sb-label, .topbar .sync-label,
+  .topbar .dbtn[data-step="-100"], .topbar .dbtn[data-step="100"], .topbar .dbtn[data-step="-5000"], .topbar .dbtn[data-step="5000"] { display: none !important; }
+  .topbar .brand { order: 0; }
+  .topbar .session { order: 1; flex: 1 1 0; min-width: 0; max-width: none !important; }
+  .topbar .tb-break.b1 { order: 2; }
+  .topbar .tb-break.b2 { order: 4; }
+  .topbar .session-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+  .topbar .track-status { order: 1; min-width: 0; padding: 5px 9px; font-size: 12px; }
+  .topbar .hstat { order: 3; }
+  .topbar .hstat-label { font-size: 9.5px; }
+  .topbar .hstat-value { font-size: 15px; }
+  .topbar .delay { order: 5; flex: 0 1 auto; justify-content: flex-start; gap: 6px; padding: 3px 5px; }
+  .topbar .delay-controls { gap: 4px; }
+  .topbar .delay-input { width: 58px; font-size: 17px; }
+  .topbar .dbtn { min-width: 34px; min-height: 34px; }
+  .topbar #syncBtn { padding: 6px 12px; font-size: 16px; }
+  .topbar .delay > * { flex: none; }
+  .topbar .source-badge { order: 6; padding: 5px 8px; margin-left: auto; }
+  .topbar #seasonBtn, .topbar #commBtn, .topbar #settingsBtn { order: 7; }
+  .topbar #seasonBtn { padding: 5px 9px; }
+  .topbar .icon-btn { padding: 4px 6px; font-size: 19px; }
+  /* Barre de lecture (replay) */
+  .replaybar { flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
+  .replaybar [data-skip="-60000"], .replaybar [data-skip="60000"], .replaybar #rpStart { display: none; }
+  .replaybar input[type=range] { order: 9; flex: 1 1 100%; }
+  .rp-time { min-width: 0; font-size: 11.5px; flex: 1; }
+  /* Un panneau à la fois, sur toute la hauteur disponible */
+  .grid.mobile { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 6px; gap: 0; overflow: hidden; }
+  .grid.mobile > .panel { flex: 1 1 auto; height: auto !important; min-height: 0; border-radius: 10px; }
+  .grid.mobile .panel-ctrl { display: none; }
+  .grid.mobile .panel-head .hint, .p-tower .panel-head .hint { display: none; }
+  /* Classement : colonnes essentielles */
+  .grid.mobile .tower .c-last, .grid.mobile .tower .c-best, .grid.mobile .tower .c-sec, .grid.mobile .tower .c-pred,
+  .grid.mobile .tower .c-q, .grid.mobile .tower .c-speed, .grid.mobile .tower .c-duel { display: none; }
+  .grid.mobile .tower { zoom: 1 !important; }
+  .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 4px; padding-right: 4px; }
+  /* ☆ visible seulement au survol : inutile au doigt (favoris dans ⚙ → Alertes & favoris) */
+  .grid.mobile .tower .fav-btn { display: none; }
+  .grid.mobile .tower .drv { gap: 5px; }
+  /* Barre d'onglets du bas */
+  .mob-nav { display: flex; flex: none; overflow-x: auto; scrollbar-width: none; background: var(--panel); border-top: 1px solid var(--border);
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 2px; }
+  .mob-nav[hidden] { display: none; }
+  .mob-nav::-webkit-scrollbar { display: none; }
+  .mob-nav button { flex: 1 0 auto; min-width: 64px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 6px 4px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; }
+  .mob-nav button .mn-ic { font-size: 19px; line-height: 1.1; }
+  .mob-nav button.active { color: var(--text); background: var(--panel-3); }
+  /* Espace Saison : menu en bandeau horizontal */
+  .season-view { flex-direction: column; }
+  .sz-side { width: auto !important; flex-direction: row; align-items: center; overflow-x: auto; padding: 6px 8px; border-right: 0; border-bottom: 1px solid var(--border); gap: 4px; }
+  .sz-side-head { padding: 0 6px 0 0; flex: none; }
+  .sz-side-head b { display: none; }
+  #szNav { display: flex; flex-direction: row; gap: 2px; flex: none; }
+  #szNav button { white-space: nowrap; padding: 7px 9px; }
+  .sz-nav-sep, .sz-src { display: none; }
+  .sz-back { flex: none; }
+  .sz-main { padding: 10px !important; }
+  .sz-cards { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; }
+  .sz-count { grid-column: 1 / -1 !important; }
+  .sz-upd { grid-template-columns: 1fr; }
+  .sz-circs { grid-template-columns: 1fr; }
+  .sz-hbar { grid-template-columns: 96px 1fr 64px; font-size: 12px; }
+  .sz-scroll, .sz-box { overflow-x: auto; }
+  /* Fenêtres de réglages / synchro sur toute la largeur */
+  .modal { width: calc(100vw - 16px) !important; max-width: none !important; max-height: calc(100dvh - 16px); }
+  /* Champs à 16 px : pas de zoom automatique sur iPhone */
+  input, select, textarea { font-size: 16px; }
+}
+@media (max-width: 480px) {
+  .topbar #sourceLabel { display: none; }
+  .topbar .source-badge { padding: 9px; }
+  .topbar .hstat-value { font-size: 14px; }
+  .topbar { row-gap: 4px; }
+}
+@media (max-width: 400px) {
+  .topbar { column-gap: 6px; padding: 6px 8px; }
+  .topbar .delay { gap: 4px; padding: 3px 4px; }
+  .topbar .delay-input { width: 50px; }
+  .topbar .dbtn { min-width: 30px; }
+  .topbar #syncBtn { padding: 6px 8px; }
+  .topbar #seasonBtn { padding: 5px 6px; }
+  .topbar .icon-btn { padding: 4px 4px; }
+}
+@media (min-width: 600px) and (max-width: 900px) {
+  .grid.mobile .tower .c-last, .grid.mobile .tower .c-best { display: table-cell; }
+}
+@media (max-width: 900px) {
+  .grid.mobile .p-duel .panel-head { flex-wrap: wrap; row-gap: 6px; }
+}
+
+/* Accès depuis le téléphone */
+.lan-wrap { display: flex; gap: 16px; align-items: flex-start; margin-top: 8px; flex-wrap: wrap; }
+.lan-qr { width: 170px; height: 170px; flex: none; background: #fff; border-radius: 10px; padding: 6px; }
+.lan-qr svg { width: 100%; height: 100%; display: block; }
+.lan-wrap .small { flex: 1; min-width: 220px; }
+.lan-wrap p { margin: 0 0 8px; }
+#lanUrl { word-break: break-all; user-select: all; }
+
+/* Écran tactile sans clavier : pas de raccourcis clavier */
+@media (hover: none) and (pointer: coarse) {
+  #shortcutsBlock { display: none !important; }
+}
+@media (max-width: 380px) {
+  .grid.mobile .tower td, .grid.mobile .tower th { padding-left: 3px; padding-right: 3px; }
+}
+@media (max-width: 340px) {
+  .grid.mobile .tower .c-pits { display: none; }
+}
