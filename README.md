@@ -12,6 +12,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Barre d'état de la séance** : drapeau, tour et progression de la course, temps restant, **heure locale du circuit**, météo, état de la piste.
 - **Carte du circuit** : toutes les voitures en mouvement (GPS), drapeaux par secteur, safety car, zones ligne droite et détection.
 - **Synchro TV** : tout (chronos, carte, drapeaux, radios, alertes) est retardé pour coller à votre image, **sans spoiler**.
+- **Pneus du week-end** : jeux neufs et utilisés de chaque pilote sur toutes les séances, composés choisis par Pirelli et ses préconisations (stratégie attendue).
 - **Duels, bagarres et simulateur d'arrêt** : écart en temps réel, tendance, « s'il s'arrête maintenant, il ressort P8 ».
 - **Analyse** : race trace, positions, temps au tour, rythme, pneus, secteurs, télémétrie.
 - **Direction de course et enquêtes**, avec les documents officiels de la FIA.

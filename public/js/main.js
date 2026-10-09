@@ -22,6 +22,7 @@ import { initCommentary } from './ui/commentary.js';
 import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 import { initSeason } from './ui/season.js';
 import { initRail } from './ui/rail.js';
+import { initTyres, renderTyres } from './ui/tyres.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -58,6 +59,7 @@ function loop() {
   safe(renderPits);
   safe(renderTelemetry);
   safe(renderStrategy);
+  safe(renderTyres);
   safe(renderWeather);
   safe(renderChampionship);
   safe(renderPitSim);
@@ -88,6 +90,7 @@ initCommentary();
 initAnalysis();
 initSeason();
 initRail();
+initTyres();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));

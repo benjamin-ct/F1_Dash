@@ -18,6 +18,7 @@ import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from
 import { createLan, isLoopback } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
+import { weekendTyres } from './tyres.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -121,6 +122,15 @@ async function handleApi(req, res, url) {
       const until = Number(url.searchParams.get('until')) || Date.now();
       if (!/^\d+$/.test(a || '') || !/^\d+$/.test(b || '')) return sendJSON(res, 400, { error: 'Pilotes manquants' });
       return sendJSON(res, 200, await compareLaps(hub, { a, b, until: Math.min(until, hub.clock()) }));
+    }
+
+    // Pneus du week-end : relais des séances précédentes, choix et communiqués de Pirelli
+    case 'GET /api/tyres': {
+      const p = url.searchParams.get('path') || '';
+      if (!/^\d{4}\/[\w\-./]+\/$/.test(p)) return sendJSON(res, 400, { error: 'Séance invalide' });
+      const until = Number(url.searchParams.get('until')) || Date.now();
+      const hint = Object.fromEntries(['name', 'location', 'country', 'session'].map((k) => [k, (url.searchParams.get(k) || '').slice(0, 80)]));
+      return sendJSON(res, 200, await weekendTyres(p, until, hint));
     }
 
     case 'GET /api/circuit': {

@@ -49,7 +49,7 @@ const PROFILE_KEY = 'f1dash.layoutProfiles';   // { race: { hiddenPanels, hidden
 const TABS_KEY = 'f1dash.profileTabs';         // { race: { analysis: 'trace', … }, quali: … }
 const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
-  quali: { feed: 'rcm', analysis: 'compare', extra: 'weather' },
+  quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
 };
 const PROFILE_DEFAULTS = { race: { hiddenPanels: [], hiddenCols: [] }, quali: { hiddenPanels: [], hiddenCols: [] } };
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');

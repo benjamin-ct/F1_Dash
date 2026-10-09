@@ -28,6 +28,7 @@ Le [README](../README.md) résume l'essentiel. Vous trouverez ici le détail de 
 | **Arrêts** | Résumé (arrêt le plus rapide, médiane), vue chronologique (pneus retirés → montés, voie des stands et immobilisation avec barres de comparaison) ou par pilote (relais et arrêts). Les passages sans changement de pneus (drapeau rouge) sont distingués. |
 | **Télémétrie** | Vitesse, rapport, régime, accélérateur, frein (et DRS avant 2026) du pilote suivi, avec la courbe de vitesse des 30 dernières secondes. |
 | **Pneus** | Stratégie complète de chaque pilote (relais, gommes, nombre de tours), **rythme** du relais en cours et **usure** (évolution du temps au tour, en s/tour). |
+| **Jeux de pneus** | Onglet *Pneus* : pour chaque pilote et chaque composé, **jeux neufs encore jamais montés** et **jeux déjà utilisés** (avec leur nombre de tours), sur tout le week-end (essais, qualifs, sprint, course) ; jeu monté en ce moment encadré, jeu de tendres en plus pour les pilotes en Q3. Au-dessus : **les composés choisis par Pirelli** (C1 à C5 en dur / medium / tendre, allocation 13 jeux, 12 en week-end sprint) et **ce que préconise Pirelli** (stratégie attendue, extraits de ses communiqués du week-end, traduisibles en français). Rien n'est affiché avant l'instant que vous regardez (délai TV, replays). |
 | **Météo / Championnat** | Station météo du circuit ; projection du championnat en direct pendant les courses. |
 
 ## 🏆 Espace Saison

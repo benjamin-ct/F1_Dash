@@ -55,6 +55,7 @@ const L = {
   extra: {
     pits: [txt('Arrêts aux stands : immobilisation = voiture à l\'arrêt pendant le changement de pneus ; voie des stands = temps total entre l\'entrée et la sortie des stands.')],
     strategy: [txt('Relais de chaque pilote : chaque barre est un train de pneus, colorée selon le type (rouge tendre, jaune médium, blanc dur, vert intermédiaire, bleu pluie), avec le nombre de tours.')],
+    tyres: [txt('Pour chaque composé : pastille = jeux neufs jamais montés (allocation moins les jeux neufs déjà utilisés ; certains doivent être rendus à Pirelli en cours de week-end), chiffres = jeux déjà utilisés avec leur nombre de tours ; encadré = jeu monté en ce moment. Q3 = un jeu de tendres en plus.')],
     pitsim: [txt('Simulateur : où ressortirait le pilote s\'il s\'arrêtait maintenant, d\'après le temps perdu dans la voie des stands (réglable) et les écarts actuels.')],
     battles: [txt('Bagarres en cours (en course) : pilotes à moins de 1,5 s l\'un de l\'autre ; en surbrillance sous la seconde, avec la tendance de l\'écart sur les derniers tours.')],
     weather: [txt('Station météo du circuit : températures de l\'air et de la piste, humidité, pression, vent (la flèche indique d\'où il vient) et pluie.')],
