@@ -58,6 +58,17 @@ function renderReplayBar() {
   const range = $('#rpRange');
   range.max = String(src.duration);
   if (!dragging) range.value = String(Math.max(0, pos));
+  // Drapeaux rouges : repères sur la barre et bouton pour passer l'interruption
+  const reds = src.redFlags || [];
+  const marks = $('#rpMarks');
+  const mk = `${src.duration}|${reds.map((r) => `${r.start}-${r.end}`).join()}`;
+  if (marks.dataset.k !== mk) {
+    marks.dataset.k = mk;
+    marks.innerHTML = reds.map((r) => `<i title="Drapeau rouge" style="left:${(100 * r.start) / src.duration}%;width:${Math.max(0.3, (100 * (r.end - r.start)) / src.duration)}%"></i>`).join('');
+  }
+  const red = reds.find((r) => pos >= r.start - 1000 && pos < r.end - 35000);
+  $('#rpRed').hidden = !red;
+  $('#rpRed').dataset.end = red ? red.end : '';
   const rel = pos - (src.sessionStart || 0);
   $('#rpTime').textContent = `${rel >= 0 ? 'Départ +' : 'Départ −'}${fmtDuration(Math.abs(rel))} · ${fmtDuration(pos)} / ${fmtDuration(src.duration)}`;
   $('#rpPlay').textContent = store.status.paused ? '▶' : '❚❚';
@@ -232,6 +243,12 @@ export function initSettings() {
   $('#replayBar').addEventListener('click', (e) => {
     const b = e.target.closest('[data-skip]');
     if (b) control({ action: 'skip', deltaMs: Number(b.dataset.skip) });
+  });
+  $('#rpRed').addEventListener('click', (e) => {
+    const end = Number(e.currentTarget.dataset.end);
+    if (!end) return;
+    control({ action: 'seek', toMs: end - 30000 + store.delay * (store.status?.source?.speed || 1) });
+    toast('⏭ Reprise 30 s avant la relance de la séance');
   });
   $('#rpStart').addEventListener('click', () => {
     const src = store.status?.source;

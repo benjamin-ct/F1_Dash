@@ -70,13 +70,14 @@
     <button class="btn" id="rpPlay" title="Pause">❚❚</button>
     <button class="btn" data-skip="-60000">−60 s</button>
     <button class="btn" data-skip="-10000">−10 s</button>
-    <input type="range" id="rpRange" min="0" max="1000" value="0" step="1">
+    <div class="rp-track"><input type="range" id="rpRange" min="0" max="1000" value="0" step="1"><div class="rp-marks" id="rpMarks"></div></div>
     <button class="btn" data-skip="10000">+10 s</button>
     <button class="btn" data-skip="60000">+60 s</button>
     <span class="rp-time" id="rpTime">—</span>
     <select id="rpSpeed" class="preset" title="Vitesse de lecture">
       <option value="0.5">×0,5</option><option value="1" selected>×1</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option>
     </select>
+    <button class="btn rp-red" id="rpRed" hidden title="Passer l'interruption : reprendre 30 s avant la relance de la séance">⏭ Fin du drapeau rouge</button>
     <button class="btn" id="rpStart" title="Aller au départ de la session">⏮ Départ</button>
   </div>
 

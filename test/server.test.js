@@ -99,3 +99,14 @@ test('hub : les téléphones du réseau local reçoivent le délai TV de l\'ordi
   assert.equal(hub.hostDelay, 45000);
   hub.close();
 });
+
+test('replay : périodes de drapeau rouge', async () => {
+  const { redFlagPeriods } = await import('../server/replay.js');
+  const ev = (off, Status) => ({ off, topic: 'TrackStatus', data: { Status } });
+  const events = [ev(0, '1'), ev(1000, '2'), ev(5000, '5'), ev(6000, '5'), { off: 7000, topic: 'LapCount', data: {} }, ev(9000, '4'), ev(20000, '5')];
+  assert.deepEqual(redFlagPeriods(events, 30000), [{ start: 5000, end: 9000 }, { start: 20000, end: 30000 }]);
+  assert.deepEqual(redFlagPeriods([ev(0, '1')], 100), []);
+  // Reprise réelle de la séance plus tard que le retour au vert de la piste
+  const st = (off, Status) => ({ off, topic: 'SessionStatus', data: { Status } });
+  assert.deepEqual(redFlagPeriods([st(0, 'Started'), ev(100, '5'), st(101, 'Aborted'), ev(500, '1'), st(900, 'Started')], 2000), [{ start: 100, end: 900 }]);
+});

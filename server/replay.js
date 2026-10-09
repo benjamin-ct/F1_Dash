@@ -70,6 +70,27 @@ export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_
   return { events, stream, duration, startOff: started ? started.off : 0, info };
 }
 
+// Périodes de drapeau rouge, en ms depuis le début : du drapeau (TrackStatus 5) à la reprise
+// de la séance (SessionStatus « Started » après « Aborted »), sinon au statut de piste suivant
+export function redFlagPeriods(events, duration) {
+  const out = [];
+  let cur = null;
+  for (const e of events) {
+    if (e.topic !== 'TrackStatus' || e.data?.Status === undefined) continue;
+    const red = String(e.data.Status) === '5';
+    if (red && !cur) cur = { start: e.off };
+    else if (!red && cur) { out.push({ start: cur.start, end: e.off }); cur = null; }
+  }
+  if (cur) out.push({ start: cur.start, end: duration });
+  const restarts = events.filter((e) => e.topic === 'SessionStatus' && e.data?.Status === 'Started').map((e) => e.off);
+  out.forEach((r, i) => {
+    const next = out[i + 1]?.start ?? Infinity;
+    const restart = restarts.find((t) => t > r.start && t < next);
+    if (restart !== undefined && restart > r.end) r.end = restart;
+  });
+  return out;
+}
+
 // Enregistrement local -> même format qu'une archive officielle.
 async function loadLocal(id) {
   const file = recordingPath(id);
@@ -130,6 +151,7 @@ export class ReplaySource {
       connected: true,
       duration: this.duration,
       sessionStart: this.startOff,
+      redFlags: redFlagPeriods(archive.events, archive.duration),
       anchor: this.anchor,
       speed: this.speed,
     };

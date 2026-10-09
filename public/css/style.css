@@ -175,6 +175,11 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
   background: var(--top-2); border-bottom: 1px solid var(--border); flex: none;
 }
 .replaybar input[type=range] { flex: 1; accent-color: var(--blue); }
+.rp-track { flex: 1; position: relative; display: flex; align-items: center; min-width: 0; }
+.rp-track input[type=range] { width: 100%; }
+.rp-marks { position: absolute; left: 8px; right: 8px; bottom: -3px; height: 3px; pointer-events: none; }
+.rp-marks i { position: absolute; top: 0; height: 3px; border-radius: 2px; background: var(--red); }
+.replaybar .rp-red { border-color: var(--red); color: #fff; background: color-mix(in srgb, var(--red) 28%, var(--panel-3)); }
 .rp-time { min-width: 210px; text-align: right; color: var(--text-2); }
 
 /* ---------- Grille ---------- */
@@ -1008,6 +1013,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
   .replaybar { flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
   .replaybar [data-skip="-60000"], .replaybar [data-skip="60000"], .replaybar #rpStart { display: none; }
   .replaybar input[type=range] { order: 9; flex: 1 1 100%; }
+  .replaybar .rp-track { order: 9; flex: 1 1 100%; }
   .rp-time { min-width: 0; font-size: 11.5px; flex: 1; }
   /* Un panneau à la fois, sur toute la hauteur disponible */
   .grid.mobile { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 6px; gap: 0; overflow: hidden; }
