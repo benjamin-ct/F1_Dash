@@ -1158,5 +1158,42 @@ body.solo #muteBtn { display: none; }
 .panel-legend .lg-tyre { width: 15px; height: 15px; border-width: 2px; font-size: 8px; }
 .grid.mobile .panel-legend { font-size: 11px; padding: 5px 10px; }
 .sz-help { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 0 6px 6px 0; color: var(--text-2); font-size: 13px; }
-.panel-legend .lg-hide { margin-left: auto; background: none; border: 1px solid transparent; border-radius: 5px; color: var(--muted); font-size: 11px; padding: 1px 6px; cursor: pointer; }
+.panel-legend { position: relative; padding-right: 78px; }
+.panel-legend .lg-hide { position: absolute; right: 8px; top: 4px; background: none; border: 1px solid transparent; border-radius: 5px; color: var(--muted); font-size: 11px; padding: 1px 6px; cursor: pointer; }
 .panel-legend .lg-hide:hover { border-color: var(--border); color: var(--text); }
+
+/* ================= Thème « F1 sobre » (par défaut) =================
+   Noir neutre, fin filet rouge en haut, rouge réservé à ce qui est actif, couleurs officielles
+   du chronométrage, graisses modérées. Le thème « Classique » (noir) reste disponible. */
+:root[data-theme="f1"] {
+  --bg: #0a0a0c; --panel: #121215; --panel-2: #16161a; --panel-3: #1d1d23;
+  --border: #222228; --line: #19191e; --line-2: #2b2b32; --hover: #17171c; --deep: #08080a;
+  --top-1: #0a0a0c; --top-2: #0a0a0c; --focus: #1a1a20;
+  --text: #ececf1; --text-2: #b9b9c4; --muted: #7d7d89; --radius: 6px;
+}
+[data-theme="f1"] body { border-top: 2px solid var(--accent); }
+[data-theme="f1"] .topbar { background: var(--bg); border-bottom-color: var(--border); }
+[data-theme="f1"] .brand, [data-theme="f1"] .brand-name { font-weight: 700; }
+[data-theme="f1"] .logo { border-radius: 3px; font-weight: 900; }
+[data-theme="f1"] .track-status { border-radius: 999px; font-weight: 600; letter-spacing: .3px; text-transform: none; min-width: 0; padding: 5px 13px; border: 1px solid transparent; }
+[data-theme="f1"] .track-status:not(.yellow):not(.sc):not(.vsc):not(.red):not(.chequered) { background: transparent; border-color: var(--border); color: var(--text); }
+[data-theme="f1"] .track-status.green .ts-dot { background: var(--green); box-shadow: 0 0 0 3px rgba(53, 208, 127, .18); }
+[data-theme="f1"] .ts-dot { width: 8px; height: 8px; }
+[data-theme="f1"] .hstat-label { font-size: 10.5px; letter-spacing: 1.2px; }
+[data-theme="f1"] .delay { background: transparent; border-radius: 6px; }
+[data-theme="f1"] .dbtn, [data-theme="f1"] .btn { background: transparent; border-radius: 5px; }
+[data-theme="f1"] .btn-accent { background: var(--accent); }
+[data-theme="f1"] .delay-input { font-weight: 700; background: transparent; }
+[data-theme="f1"] .panel-head { background: var(--panel); padding-top: 8px; padding-bottom: 8px; }
+[data-theme="f1"] .panel-head h2 { font-size: 11.5px; font-weight: 700; letter-spacing: 1.6px; color: var(--text); display: flex; align-items: center; }
+[data-theme="f1"] .panel-head h2::before { content: ''; width: 10px; height: 2px; background: var(--accent); margin-right: 8px; flex: none; }
+[data-theme="f1"] .tab { position: relative; border-radius: 0; font-size: 11.5px; font-weight: 600; letter-spacing: .8px; padding: 6px 8px; }
+[data-theme="f1"] .tab:hover { color: var(--text-2); }
+[data-theme="f1"] .tab.active { background: none; color: var(--text); }
+[data-theme="f1"] .tab.active::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -3px; height: 2px; background: var(--accent); }
+[data-theme="f1"] .tower th { background: var(--panel); font-size: 10px; letter-spacing: 1.2px; font-weight: 600; }
+[data-theme="f1"] .tower tr.focus td { background: var(--focus); }
+[data-theme="f1"] .pit-card { background: var(--panel-2); border: 1px solid var(--border); border-radius: 5px; }
+[data-theme="f1"] .sz-card, [data-theme="f1"] .sz-box { border-radius: 6px; }
+[data-theme="f1"] :is(.duel-name, .duel-gap-val, .gauge-val, .battle-gap, .pit-result .big, .sz-big, .sz-countdown b, .sz-race-name, .sz-drv-name, .sz-circ-head b, .mf-banner) { font-weight: 700; }
+[data-theme="f1"] .panel-legend { background: var(--panel); }

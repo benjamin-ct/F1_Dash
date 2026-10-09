@@ -13,7 +13,7 @@
   <title>F1 Dash</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e10600'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='900' font-size='15' fill='white' text-anchor='middle'%3EF1%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="/css/style.css">
-  <script>try { document.documentElement.dataset.theme = (JSON.parse(localStorage.getItem('f1dash.prefs') || '{}').theme) || 'noir'; } catch { document.documentElement.dataset.theme = 'noir'; }</script>
+  <script>try { const p = JSON.parse(localStorage.getItem('f1dash.prefs') || '{}'); document.documentElement.dataset.theme = p.themeV ? p.theme || 'f1' : (p.theme && p.theme !== 'noir' ? p.theme : 'f1'); } catch { document.documentElement.dataset.theme = 'f1'; }</script>
 </head>
 <body>
   <header class="topbar">
@@ -434,7 +434,7 @@
         <div class="small muted">Colonnes du classement :</div>
         <div class="row" id="colOpts"></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="towerFit"> Agrandir le classement pour remplir la hauteur disponible (grand écran, fenêtre détachée)</label></div>
-        <div class="row"><label class="small">Thème <select id="themeSel"><option value="noir">Noir (par défaut)</option><option value="bleu">Bleu nuit</option></select></label></div>
+        <div class="row"><label class="small">Thème <select id="themeSel"><option value="f1">F1 sobre (par défaut)</option><option value="noir">Classique (noir)</option><option value="bleu">Bleu nuit</option></select></label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement et le championnat (décoché : simples barres de couleur)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées (une teinte bien distincte par équipe ; décoché : couleurs officielles)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="legendsOn"> Légendes sous les panneaux (couleurs, colonnes, graphiques)</label></div>
