@@ -2,9 +2,9 @@
 // tour, historique des pneus, secteurs et vitesses de pointe. Calculé à partir de l'historique
 // tour par tour (données dérivées) et des statistiques du chronométrage.
 import { store, versionOf, on, setFocus } from '../store.js';
-import { $, esc, drivers, orderedNumbers, teamColor, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet } from '../util.js';
+import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet } from '../util.js';
 import { prefs, isFav } from '../prefs.js';
-import { renderCompare, initCompare } from './compare.js';
+import { renderCompare, initCompare, openCompareLap } from './compare.js';
 
 const OPTS_KEY = 'f1dash.analysis';
 const opts = { trace: 'leader', ref: null, scope: 'top10', clamp: 60, lapsSlow: true, cutoff: 107, sort: 'ideal', ...storageGet(OPTS_KEY, {}) };
@@ -135,7 +135,7 @@ function multiChart(canvas, series, o) {
     ctx.strokeStyle = 'rgba(255,255,255,.25)';
     ctx.beginPath(); ctx.moveTo(X(hoverX), padT); ctx.lineTo(X(hoverX), H - padB); ctx.stroke();
   }
-  canvas._map = { X, xMin, xMax, padL, padR, W, series, o };
+  canvas._map = { X, Y, xMin, xMax, padL, padR, W, H, padT, padB, series, o };
 }
 
 function ticks(min, max, count) {
@@ -363,7 +363,7 @@ function renderTyres() {
       const ci = compoundInfo(l.compound);
       const v = lapSeconds(l.time);
       const cls = l.pit ? 'pit' : v && v <= best + 0.001 ? 'best' : '';
-      return `<td class="${cls}" style="--tc:${ci.color}" title="Tour ${i + 1} · ${esc(ci.name)}${l.pit ? ' · stand' : ''}">${v ? fmtLap(v) : '—'}</td>`;
+      return `<td class="${cls}${v ? ' cmp-link' : ''}" style="--tc:${ci.color}" ${v ? `data-cmp="${n}|${i + 1}"` : ''} title="Tour ${i + 1} · ${esc(ci.name)}${l.pit ? ' · stand' : ''}${v ? ' · clic : comparer ce tour' : ''}">${v ? fmtLap(v) : '—'}</td>`;
     }).join('');
     return `<tr><th class="sticky"><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[n])}"></span>${esc(dl[n]?.Tla || n)}</span></th>${cells}</tr>`;
   }).join('');
@@ -371,6 +371,36 @@ function renderTyres() {
   el.innerHTML = `<table class="tyre-hist"><tr><th class="sticky">Tour</th>${head}</tr>${rows}</table>
     <div class="small muted tyre-legend">${['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET'].map((c) => `<span style="--tc:${compoundInfo(c).color}">${esc(compoundInfo(c).name)}</span>`).join('')} · cadre blanc = arrêt aux stands · violet = meilleur tour</div>`;
   if (atEnd) el.scrollLeft = el.scrollWidth;
+}
+
+// Références du circuit (éditions précédentes) : chargées une fois par circuit
+let records = null, recordsKey = '', recordsLoading = false;
+function recordsStrip(rows, dl) {
+  const info = store.state.SessionInfo;
+  const key = info?.Meeting?.Circuit?.Key;
+  const year = Number(String(info?.StartDate || '').slice(0, 4)) || new Date().getFullYear();
+  if (!key) return '';
+  const k = `${key}|${year}`;
+  if (k !== recordsKey && !recordsLoading) {
+    recordsLoading = true;
+    api(`/api/records?key=${key}&year=${year}`).then((r) => { records = r; recordsKey = k; }).catch(() => { records = null; recordsKey = k; })
+      .finally(() => { recordsLoading = false; lastKey = ''; });
+  }
+  if (recordsKey !== k || !records?.editions?.length) return '';
+  const race = sessionKind(store.state) === 'race';
+  const ref = race ? records.bestRaceLap : records.bestPole;
+  const last = records.editions[0];
+  const lastRef = race ? last.fastest : last.pole;
+  const best = rows.filter((r) => r.best > 0).sort((a, b) => a.best - b.best)[0];
+  const cmp = (r) => (best && r ? ` <span class="${best.best <= r.time ? 'sec-better' : 'sec-worse'}">${best.best <= r.time ? '−' : '+'}${Math.abs(best.best - r.time).toFixed(3)} s</span>` : '');
+  const item = (e, kind) => (e[kind] ? `<span class="rec-i"><b>${e.year}</b> <i style="background:#${esc(e[kind].color || '888')}"></i>${esc(e[kind].tla)} ${fmtLap(e[kind].time)}</span>` : '');
+  return `<div class="rec-strip">
+    <div class="rec-row"><span class="rec-k">Pole</span>${records.editions.map((e) => item(e, 'pole')).join('')}</div>
+    <div class="rec-row"><span class="rec-k">Meilleur tour en course</span>${records.editions.map((e) => item(e, 'fastest')).join('')}</div>
+    ${best ? `<div class="rec-row rec-now"><span class="rec-k">Cette séance</span><span class="rec-i"><i style="background:${teamColor(dl[best.n])}"></i>${esc(dl[best.n]?.Tla || best.n)} ${fmtLap(best.best)}</span>
+      ${lastRef ? `<span class="muted">vs ${race ? 'meilleur tour' : 'pole'} ${last.year} :</span>${cmp(lastRef)}` : ''}
+      ${ref && ref.year !== last.year ? `<span class="muted">· vs meilleur ${race ? 'tour' : 'pole'} (${ref.year}) :</span>${cmp(ref)}` : ''}</div>` : ''}
+  </div>`;
 }
 
 function renderSectors() {
@@ -397,9 +427,24 @@ function renderSectors() {
   const kind = cols.find((c) => c[0] === opts.sort)?.[2] || 'time';
   rows.sort((a, b) => (a[opts.sort] > 0 ? 0 : 1) - (b[opts.sort] > 0 ? 0 : 1) || (kind === 'time' ? a[opts.sort] - b[opts.sort] : b[opts.sort] - a[opts.sort]));
   const fmt = (v, k) => (!v ? '<span class="dim">—</span>' : cols.find((c) => c[0] === k)[2] === 'time' ? (k === 'ideal' || k === 'best' ? fmtLap(v) : v.toFixed(3)) : String(v));
-  $('#anaSectors').innerHTML = `<table class="sector-board"><tr><th>#</th><th>Pilote</th>${cols.map(([k, label]) => `<th class="${opts.sort === k ? 'sorted' : ''}" data-sort="${k}" title="Trier">${label}</th>`).join('')}</tr>
-    ${rows.map((r, i) => `<tr data-num="${r.n}"><td>${i + 1}</td><td><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[r.n])}"></span><b>${esc(dl[r.n]?.Tla || r.n)}</b></span></td>
-      ${cols.map(([k]) => `<td class="${r[k] && r[k] === extreme[k] ? 'purple' : ''}">${fmt(r[k], k)}</td>`).join('')}</tr>`).join('')}</table>
+  // Écarts à un pilote de référence (comme MultiViewer) : temps en ±s, vitesses en ±km/h
+  const ref = opts.secRef && rows.find((r) => r.n === opts.secRef);
+  const cell = (r, k) => {
+    const v = r[k];
+    if (!ref || r === ref || !v || !ref[k]) return `<td class="${v && v === extreme[k] ? 'purple' : ''}${ref && r === ref ? ' sec-ref' : ''}">${fmt(v, k)}</td>`;
+    const time = cols.find((c) => c[0] === k)[2] === 'time';
+    const d = v - ref[k];
+    const better = time ? d < 0 : d > 0;
+    const txt = time ? `${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(d).toFixed(3)}` : `${d > 0 ? '+' : d < 0 ? '−' : '±'}${Math.abs(d)}`;
+    return `<td class="${d === 0 ? '' : better ? 'sec-better' : 'sec-worse'}" title="${fmt(v, k)}">${txt}</td>`;
+  };
+  const refSel = $('#secRef');
+  const refHtml = `<option value="">Temps de chacun</option>${rows.filter((r) => dl[r.n]).map((r) => `<option value="${r.n}">Écart à ${esc(dl[r.n].Tla)}</option>`).join('')}`;
+  if (refSel._html !== refHtml) { refSel.innerHTML = refHtml; refSel._html = refHtml; }
+  refSel.value = ref ? ref.n : '';
+  $('#anaSectors').innerHTML = `${recordsStrip(rows, dl)}<table class="sector-board"><tr><th>#</th><th>Pilote</th>${cols.map(([k, label]) => `<th class="${opts.sort === k ? 'sorted' : ''}" data-sort="${k}" title="Trier">${label}</th>`).join('')}</tr>
+    ${rows.map((r, i) => `<tr data-num="${r.n}" class="${ref && r === ref ? 'is-ref' : ''}"><td>${i + 1}</td><td><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[r.n])}"></span><b>${esc(dl[r.n]?.Tla || r.n)}</b></span></td>
+      ${cols.map(([k]) => cell(r, k)).join('')}</tr>`).join('')}</table>
     <div class="small muted" style="padding:6px 10px">Tour idéal = somme des meilleurs secteurs du pilote · violet = meilleur de la séance · vitesses en km/h (Inter 1 / 2 : points de mesure intermédiaires, Ligne : ligne d'arrivée).</div>`;
 }
 
@@ -465,6 +510,25 @@ export function initAnalysis() {
     a.download = `f1dash-${b.closest('.tabpane').dataset.pane}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.png`;
     a.href = out.toDataURL('image/png');
     a.click();
+  });
+  $('#secRef').addEventListener('change', (e) => set('secRef', e.target.value || null));
+  // Comparer un tour précis : clic sur un temps (Pneus) ou sur un point du graphique Temps au tour
+  $('#anaTyres').addEventListener('click', (e) => {
+    const td = e.target.closest('[data-cmp]');
+    if (td) { const [n, lap] = td.dataset.cmp.split('|'); openCompareLap(n, lap); }
+  });
+  $('#anaLapCanvas').addEventListener('click', (e) => {
+    const m = $('#anaLapCanvas')._map;
+    if (!m || hoverX === null) return;
+    const y = e.clientY - $('#anaLapCanvas').getBoundingClientRect().top;
+    let best = null;
+    for (const sr of m.series) {
+      const p = sr.points.find((q) => q.x === hoverX);
+      if (!p) continue;
+      const d = Math.abs(m.Y(p.y) - y);
+      if (d < 16 && (!best || d < best.d)) best = { d, num: sr.num };
+    }
+    if (best) openCompareLap(best.num, hoverX);
   });
   $('#anaSectors').addEventListener('click', (e) => {
     const th = e.target.closest('[data-sort]');

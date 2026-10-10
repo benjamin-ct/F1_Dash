@@ -14,7 +14,8 @@ const DEFAULTS = {
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
   keepAwake: true,        // écran toujours allumé pendant une séance
   legends: true,          // légendes sous les panneaux (couleurs, colonnes, graphiques)
-  replayMarks: true,      // replay : périodes de safety car / VSC sur la barre de lecture
+  replayMarks: true,
+  hotLapDim: false,       // essais / qualifs : voitures hors tour lancé estompées (carte, classement)      // replay : périodes de safety car / VSC sur la barre de lecture
   layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
@@ -33,6 +34,7 @@ const DEFAULTS = {
   radioStation: null,
   rcmBlue: true,          // direction de course : drapeaux bleus affichés
   rcmDeleted: true,       // direction de course : temps supprimés affichés
+  rcmType: 'all',         // direction de course : type de messages affichés
   spoilers: false,
   mapFollow: false,
   muted: false,

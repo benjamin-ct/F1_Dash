@@ -19,6 +19,7 @@ import { createLan, isLoopback } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
 import { weekendTyres } from './tyres.js';
+import { circuitRecords } from './records.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
@@ -139,7 +140,8 @@ async function handleApi(req, res, url) {
       const a = url.searchParams.get('a'), b = url.searchParams.get('b');
       const until = Number(url.searchParams.get('until')) || Date.now();
       if (!/^\d+$/.test(a || '') || !/^\d+$/.test(b || '')) return sendJSON(res, 400, { error: 'Pilotes manquants' });
-      return sendJSON(res, 200, await compareLaps(hub, { a, b, until: Math.min(until, hub.clock()) }));
+      const lapNo = (k) => (/^\d{1,3}$/.test(url.searchParams.get(k) || '') ? Number(url.searchParams.get(k)) : null);
+      return sendJSON(res, 200, await compareLaps(hub, { a, b, until: Math.min(until, hub.clock()), la: lapNo('la'), lb: lapNo('lb') }));
     }
 
     // Pneus du week-end : relais des séances précédentes, choix et communiqués de Pirelli
@@ -149,6 +151,14 @@ async function handleApi(req, res, url) {
       const until = Number(url.searchParams.get('until')) || Date.now();
       const hint = Object.fromEntries(['name', 'location', 'country', 'session'].map((k) => [k, (url.searchParams.get(k) || '').slice(0, 80)]));
       return sendJSON(res, 200, await weekendTyres(p, until, hint));
+    }
+
+    // Pole et meilleur tour en course des éditions précédentes sur ce circuit
+    case 'GET /api/records': {
+      const key = Number(url.searchParams.get('key'));
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
+      return sendJSON(res, 200, await circuitRecords(key, year));
     }
 
     case 'GET /api/circuit': {

@@ -142,6 +142,7 @@
             <div class="map-layers-menu">
               <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms des pilotes</label>
               <label class="toggle" title="Courte traînée derrière chaque voiture (direction et vitesse)"><input type="checkbox" id="mapTrails" checked> Traînées</label>
+              <label class="toggle" title="Essais et qualifs : les voitures qui ne sont pas dans un tour rapide sont estompées (carte et classement)"><input type="checkbox" id="hotLapDim"> Estomper hors tour lancé</label>
               <label class="toggle"><input type="checkbox" id="mapCorners" checked> Numéros de virage</label>
               <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
               <label class="toggle" title="Numéros des micro-secteurs (1.1, 1.2…) quand on zoome sur la carte"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs (zoom)</label>
@@ -175,6 +176,10 @@
           <div class="subbar">
             <label class="toggle"><input type="checkbox" id="rcmBlue"> Drapeaux bleus</label>
             <label class="toggle"><input type="checkbox" id="rcmDeleted"> Temps supprimés</label>
+            <select id="rcmType" aria-label="Type de messages" title="N'afficher qu'un type de messages">
+              <option value="all">Tous les messages</option><option value="flags">Drapeaux</option><option value="sc">Safety car / VSC</option>
+              <option value="stewards">Enquêtes et pénalités</option><option value="limits">Limites de piste</option><option value="other">Autres</option>
+            </select>
             <span class="muted small" id="rcmHidden"></span>
           </div>
           <ul class="rcm" id="rcmList"></ul>
@@ -273,12 +278,17 @@
           </div>
         </div>
         <div class="tabpane" data-pane="tyrehist"><div class="tyre-hist-wrap" id="anaTyres"></div></div>
-        <div class="tabpane" data-pane="sectors"><div id="anaSectors"></div></div>
+        <div class="tabpane" data-pane="sectors">
+          <div class="subbar"><label class="small" title="Afficher les temps et vitesses en écart à un pilote">Affichage <select id="secRef"></select></label><span class="small muted">vert = mieux que le pilote de référence, rouge = moins bien</span></div>
+          <div id="anaSectors"></div>
+        </div>
         <div class="tabpane" data-pane="compare">
           <div class="subbar">
             <label class="small" title="Pilote A (bleu)">A <select id="cmpA"></select></label>
+            <select id="cmpLapA" class="cmp-lap" aria-label="Tour du pilote A"></select>
             <button class="btn small" id="cmpSwap" title="Inverser A et B">⇄</button>
             <label class="small" title="Pilote B (orange)">B <select id="cmpB"></select></label>
+            <select id="cmpLapB" class="cmp-lap" aria-label="Tour du pilote B"></select>
             <button class="btn small" id="cmpTop" title="Revenir à P1 contre P2">P1 / P2</button>
           </div>
           <div id="anaCompare" class="cmp"></div>
