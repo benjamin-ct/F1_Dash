@@ -266,19 +266,23 @@ function drawZones() {
     ctx.setLineDash([]);
   }
   ctx.lineCap = 'round';
-  const d = zones.detection;
-  if (d && d.idx < n) {
-    const p = pts[d.idx], a = pts[(d.idx - 1 + n) % n], b = pts[(d.idx + 1) % n];
+  // Mode dépassement : point de détection (rose) et point d'activation (vert), officiels (plan FIA
+  // du circuit) ou estimés ; étiquettes de part et d'autre de la piste pour ne pas se chevaucher
+  const mark = (m, color, ink, text, side) => {
+    if (!m || m.idx >= n) return;
+    const p = pts[m.idx], a = pts[(m.idx - 1 + n) % n], b = pts[(m.idx + 1) % n];
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-    const nx = -(b[1] - a[1]) / len, ny = (b[0] - a[0]) / len;
-    ctx.strokeStyle = '#ff4fd8';
+    const nx = (-(b[1] - a[1]) / len) * side, ny = ((b[0] - a[0]) / len) * side;
+    ctx.strokeStyle = color;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(p[0] - nx * (W / 2 + 4), p[1] - ny * (W / 2 + 4));
     ctx.lineTo(p[0] + nx * (W / 2 + 4), p[1] + ny * (W / 2 + 4));
     ctx.stroke();
-    badge(p[0] + nx * (W / 2 + 20), p[1] + ny * (W / 2 + 20), 'DÉTECTION', '#ff4fd8', '#2a0623');
-  }
+    badge(p[0] + nx * (W / 2 + 20), p[1] + ny * (W / 2 + 20), text, color, ink);
+  };
+  mark(zones.detection, '#ff4fd8', '#2a0623', 'DÉTECTION', 1);
+  mark(zones.activation, '#3ce08a', '#062414', 'ACTIVATION', -1);
   ctx.restore();
 }
 

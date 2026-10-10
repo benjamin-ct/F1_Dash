@@ -69,12 +69,14 @@ function angleDiff(a, b) {
   return d > Math.PI ? 2 * Math.PI - d : d;
 }
 
-export function estimateZones(track, carData, positions) {
+// official : définitions du plan FIA du circuit (voir server/fia-circuit.js) ; les zones et
+// points officiels remplacent alors les estimations (la télémétrie sert à trouver la fin des zones).
+export function estimateZones(track, carData, positions, official = null) {
   const pts = track.pts;
   const n = pts.length;
   if (n < 20) return null;
   const tl = timelines(positions);
-  if (!tl.size) return null;
+  if (!tl.size && !official) return null;
 
   // Distances cumulées le long du tracé
   const cum = [0];
@@ -110,7 +112,7 @@ export function estimateZones(track, carData, positions) {
     }
     if (samples >= MAX_SAMPLES) break;
   }
-  if (samples < 2000) return null;
+  if (samples < 2000 && !official) return null;
 
   // 2. Proportion « à fond » par point, parmi les passages rapides (on écarte tours de
   //    rentrée, tours lents de qualif, safety car : vitesse < 85 % de la vitesse de référence),
@@ -200,7 +202,58 @@ export function estimateZones(track, carData, positions) {
     while (idx < n - 1 && cum[idx + 1] <= med) idx++;
     detection = { idx, samples: entries.length };
   }
-  return { v: 2, zones, detection, pitLane: pitLanePath(passes), samples };
+  const pitLane = pitLanePath(passes);
+  if (official) return { ...officialLayout(track, official, cum, frac, zones), pitLane, samples };
+  return { v: 3, zones, detection, pitLane, samples };
+}
+
+// Positions officielles (« 45m after T19 ») -> indices du tracé, fin des zones « ligne droite » :
+// là où les voitures cessent d'être à fond (télémétrie), au plus tard au virage suivant.
+function officialLayout(track, official, cum, frac, estimated = []) {
+  const pts = track.pts;
+  const n = pts.length;
+  const total = cum[n];
+  const cornerIdx = new Map(track.corners.map((c) => [c.number, track.nearestIndex(c.x, c.y)]));
+  const idxAt = (dist) => {
+    const d = ((dist % total) + total) % total;
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cum[mid] <= d) lo = mid; else hi = mid; }
+    return lo;
+  };
+  const at = (p) => {
+    if (!p || !cornerIdx.has(p.turn)) return null;
+    return idxAt(cum[cornerIdx.get(p.turn)] + p.dir * p.m * M);
+  };
+  const distFwd = (i, j) => { const d = cum[j] - cum[i]; return d >= 0 ? d : d + total; };
+  const corners = [...cornerIdx.values()];
+  const zones = [];
+  for (const z of official.zones || []) {
+    const from = at(z.normal) ?? at(z.low);
+    if (from === null) continue;
+    let end = from;
+    const hasTelemetry = frac.some((v) => v > 0);
+    if (hasTelemetry) {
+      // Fin : là où les voitures cessent d'être à fond (au moins 60 m d'affilée : un léger
+      // lever de pied dans un virage rapide ne termine pas la zone), 2,5 km au plus
+      let lowSince = null;
+      for (let j = (from + 1) % n, g = 0; g < n && distFwd(from, j) < 2500 * M; j = (j + 1) % n, g++) {
+        if (frac[j] >= 0.5) { end = j; lowSince = null; continue; }
+        lowSince ??= j;
+        if (distFwd(lowSince, j) > 60 * M && distFwd(from, j) > 80 * M) break;
+      }
+      // Ligne droite estimée qui commence juste après (ou contient le départ) : jusqu'à sa fin
+      for (const ez of estimated) {
+        const starts = distFwd(from, ez.from) < 400 * M || distFwd(ez.from, from) <= distFwd(ez.from, ez.to);
+        if (starts && distFwd(from, ez.to) > distFwd(from, end) && distFwd(from, ez.to) < 2500 * M) end = ez.to;
+      }
+    } else {
+      const next = corners.map((c) => distFwd(from, c)).filter((d) => d > 100 * M).sort((a, b) => a - b)[0] ?? 1000 * M;
+      end = idxAt(cum[from] + next - 60 * M);
+    }
+    zones.push({ name: z.name, from, to: end, length: Math.round(distFwd(from, end) / M), lowFrom: at(z.low), text: z.normal?.text || z.low?.text || '' });
+  }
+  const point = (p) => { const idx = at(p); return idx === null ? null : { idx, text: p.text }; };
+  return { v: 3, official: true, source: official.source, zones, detection: point(official.detection), activation: point(official.activation) };
 }
 
 // Voie des stands : moyenne des passages des voitures (rééchantillonnés le long de leur

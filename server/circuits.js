@@ -133,23 +133,37 @@ const inflate = (s) => JSON.parse(zlib.inflateRawSync(Buffer.from(s.raw, 'base64
 export function zones(key, year) {
   const name = `zones-${key}-${year}.json`;
   const cached = readCache(name);
-  // Format 2 : avec la voie des stands (les anciennes estimations sont refaites une fois)
-  if (cached?.v === 2) return Promise.resolve(cached);
+  // Format 3 : voie des stands et définitions officielles de la FIA (refait une fois). Sans
+  // définitions officielles (plan du circuit pas encore publié), nouvel essai toutes les 6 h
+  // pour la saison en cours.
+  const fresh = cached?.v === 3 && (cached.official || year < new Date().getFullYear() || Date.now() - (cached.checkedAt || 0) < 6 * 3600e3);
+  if (fresh) return Promise.resolve(cached);
   if (zoning.has(name)) return zoning.get(name);
   const job = (async () => {
     const data = await circuit(key, year);
     if (!data) return null;
     const track = new Track(data);
+    // Points de détection / d'activation et zones « ligne droite » officiels (plan FIA du circuit)
+    let official = null;
+    try {
+      const { officialCircuitData } = await import('./fia-circuit.js');
+      official = await officialCircuitData(year, { name: data.meetingName, location: data.location, country: data.countryName });
+    } catch (err) {
+      console.warn(`[zones] plan FIA du circuit ${key} : ${err.message}`);
+    }
+    // Rien de nouveau depuis la dernière estimation : on la garde
+    if (cached?.v === 3 && !official) { const out = { ...cached, checkedAt: Date.now() }; writeCache(name, out); return out; }
     for (const p of (await candidateSessions(key, year)).slice(0, 3)) {
       try {
         const arc = await loadArchive(p, undefined, ['Heartbeat', 'Position.z', 'CarData.z']);
         const positions = arc.stream.filter((s) => s.topic === 'Position').map((s) => ({ data: inflate(s) }));
         const carData = arc.stream.filter((s) => s.topic === 'CarData').map((s) => ({ data: inflate(s) }));
-        const res = estimateZones(track, carData, positions);
-        if (res && (res.zones.length || res.pitLane)) {
-          res.source = p;
+        const res = estimateZones(track, carData, positions, official);
+        if (res && (res.zones.length || res.pitLane || res.detection)) {
+          res.session = p;
+          res.checkedAt = Date.now();
           writeCache(name, res);
-          console.log(`[zones] circuit ${key} : ${res.zones.length} zones ligne droite, détection ${res.detection ? 'trouvée' : 'inconnue'}, voie des stands ${res.pitLane ? `${res.pitLane.length} m` : 'inconnue'} (${p})`);
+          console.log(`[zones] circuit ${key} : ${res.zones.length} zones ligne droite, détection ${res.detection ? 'trouvée' : 'inconnue'}, voie des stands ${res.pitLane ? `${res.pitLane.length} m` : 'inconnue'}${res.official ? ' — définitions officielles FIA' : ' — estimations'} (${p})`);
           return res;
         }
       } catch (err) {

@@ -23,6 +23,7 @@ l'application (Réglages → Application → Nouveautés).
 - Les étiquettes des pilotes ne sautent plus d'un côté à l'autre dans les paquets.
 - Bandeau « Drapeau rouge » de la carte décalé pour ne plus être coupé par le cadre rouge.
 - Voie des stands sur la carte, reconstituée à partir des passages des voitures dans les stands (calque « Voie des stands »).
+- Zones « ligne droite » et points de détection / d'activation du mode dépassement à leur position officielle, lue dans le plan du circuit publié par la FIA pour chaque Grand Prix (avant : estimations).
 
 ### Panneaux
 - En-têtes : les outils (« Positions estimées », « Suivre », « Calques », « Colonnes ») sont de nouveau à côté du titre, et les boutons ⠿ ⤢ ↗ ✕ sont centrés sur la hauteur de l'en-tête dans tous les panneaux.

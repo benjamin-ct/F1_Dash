@@ -23,7 +23,7 @@ const L = {
   map: {
     _: [
       txt('Pastille = pilote (trigramme, couleur de son écurie) · trait central coloré par secteur (S1 rouge, S2 bleu, S3 orange), ou selon les drapeaux'),
-      sw('#3cc86e', 'hachures : zone ligne droite', 'dash'), sw('#ff4fd8', 'détection dépassement'), sw('#4a4a55', 'voie des stands (estimée)'),
+      sw('#3cc86e', 'hachures : zone ligne droite', 'dash'), sw('#ff4fd8', 'détection'), sw('#3ce08a', 'activation (mode dépassement)'), sw('#4a4a55', 'voie des stands (estimée)'),
       txt('· GPS : positions réelles ; « estimées » : calculées depuis les chronos'),
     ],
   },
