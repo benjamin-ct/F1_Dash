@@ -4,7 +4,7 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.15.0 — à venir
+## v1.15.0 — 2026-10-10
 
 ### Nouveau design « F1 Pro »
 - Design « F1 Pro » par défaut : barre latérale, barre d'état, cartes et barre de replay en bas ; les thèmes « F1 sobre », « Noir » et « Bleu nuit » restent disponibles.
