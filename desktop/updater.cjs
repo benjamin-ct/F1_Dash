@@ -6,6 +6,8 @@
 //   supprimé au démarrage suivant) ;
 // - macOS : l'archive .zip est décompressée à la place de « F1 Dash.app » une fois l'appli fermée.
 // Paquet .deb (Linux) : pas de mise à jour automatique (installer le nouveau paquet).
+// Au lancement (startup), l'écran de démarrage vérifie s'il existe une nouvelle version et
+// l'installe avant d'ouvrir l'appli ; sans connexion ou en cas d'échec, l'appli s'ouvre quand même.
 const { app, BrowserWindow } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -15,6 +17,8 @@ const { spawn } = require('node:child_process');
 const pkg = require('./package.json');
 const REPO = process.env.F1DASH_UPDATE_REPO || pkg.f1dash?.updateRepo || 'benjamin-ct/F1_Dash';
 const CHECK_EVERY_MS = 6 * 3600 * 1000;
+const CHECK_TIMEOUT_MS = 10000;     // réponse de GitHub
+const STALL_TIMEOUT_MS = 30000;     // téléchargement sans aucune donnée reçue
 
 // Bundle « F1 Dash.app » de l'appli macOS, s'il peut être remplacé (pas lancé depuis l'image disque)
 function macBundle() {
@@ -25,6 +29,8 @@ function macBundle() {
 }
 
 function detectKind() {
+  // Appli lancée depuis les sources (développement) : rien à remplacer
+  if (!app.isPackaged && !process.env.F1DASH_UPDATER_DEV) return 'unsupported';
   if (process.env.PORTABLE_EXECUTABLE_FILE) return 'portable';
   if (process.platform === 'win32') return 'installer';
   if (process.platform === 'linux' && process.env.APPIMAGE) return 'appimage';
@@ -45,20 +51,30 @@ const state = {
 };
 
 let settingsFile = null;
+// Dernière installation lancée au démarrage ({ version }) : si l'appli redémarre sans avoir
+// changé de version, l'installation a échoué et on ne bloque pas l'ouverture une seconde fois.
+let installTry = null;
 
 function loadSettings() {
-  try { Object.assign(state, { auto: JSON.parse(fs.readFileSync(settingsFile, 'utf8')).auto !== false }); } catch { /* défaut */ }
+  try {
+    const st = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+    state.auto = st.auto !== false;
+    installTry = st.installTry || null;
+  } catch { /* défaut */ }
 }
 
 function saveSettings() {
-  try { fs.writeFileSync(settingsFile, JSON.stringify({ auto: state.auto })); } catch { /* ignore */ }
+  try { fs.writeFileSync(settingsFile, JSON.stringify({ auto: state.auto, installTry })); } catch { /* ignore */ }
 }
+
+const listeners = new Set();
 
 function broadcast() {
   const payload = publicState();
   for (const w of BrowserWindow.getAllWindows()) {
     if (!w.isDestroyed()) w.webContents.send('update-state', payload);
   }
+  for (const fn of listeners) fn(payload);
 }
 
 function publicState() {
@@ -96,34 +112,60 @@ function pickAsset(release) {
 const selfFile = () => process.env.PORTABLE_EXECUTABLE_FILE || process.env.APPIMAGE;
 
 async function download(asset, dest) {
-  // Lien public direct, sinon l'API GitHub (qui redirige vers le même fichier).
-  let res = await fetch(asset.browser_download_url, { headers: { 'User-Agent': 'F1-Dash-updater' } });
-  if (!res.ok && asset.url) {
-    res = await fetch(asset.url, { headers: { Accept: 'application/octet-stream', 'User-Agent': 'F1-Dash-updater' } });
+  const ctrl = new AbortController();
+  const tmp = `${dest}.part`;
+  try {
+    await fetchTo(asset, tmp, ctrl);
+    fs.renameSync(tmp, dest);
+  } catch (err) {
+    ctrl.abort();
+    fs.rmSync(tmp, { force: true });
+    throw err;
   }
+}
+
+// Attend une promesse au plus ms millisecondes (connexion coupée ou bloquée)
+function within(promise, ms, ctrl) {
+  let t;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => { t = setTimeout(() => { ctrl.abort(); reject(new Error('Téléchargement interrompu (connexion trop lente ou coupée)')); }, ms); }),
+  ]).finally(() => clearTimeout(t));
+}
+
+async function fetchTo(asset, tmp, ctrl) {
+  // Lien public direct, sinon l'API GitHub (qui redirige vers le même fichier).
+  const get = (url, headers) => within(fetch(url, { headers: { 'User-Agent': 'F1-Dash-updater', ...headers }, signal: ctrl.signal }), STALL_TIMEOUT_MS, ctrl);
+  let res = await get(asset.browser_download_url);
+  if (!res.ok && asset.url) res = await get(asset.url, { Accept: 'application/octet-stream' });
   if (!res.ok || !res.body) throw new Error(`Téléchargement impossible (HTTP ${res.status})`);
   const total = Number(res.headers.get('content-length')) || asset.size || 0;
   const hash = crypto.createHash('sha256');
-  const tmp = `${dest}.part`;
   const out = fs.createWriteStream(tmp);
+  const reader = res.body.getReader();
   let received = 0;
   let lastBroadcast = 0;
-  for await (const chunk of res.body) {
-    hash.update(chunk);
-    received += chunk.length;
-    if (!out.write(chunk)) await new Promise((r) => out.once('drain', r));
-    if (total && Date.now() - lastBroadcast > 500) {
-      lastBroadcast = Date.now();
-      set({ progress: received / total });
+  try {
+    for (;;) {
+      const { done, value } = await within(reader.read(), STALL_TIMEOUT_MS, ctrl);
+      if (done) break;
+      hash.update(value);
+      received += value.length;
+      if (!out.write(value)) await new Promise((r) => out.once('drain', r));
+      if (total && Date.now() - lastBroadcast > 300) {
+        lastBroadcast = Date.now();
+        set({ progress: Math.min(1, received / total) });
+      }
+      // Taille annoncée atteinte : terminé, même si la connexion ne se ferme pas
+      if (total && received >= total) break;
     }
+  } finally {
+    reader.cancel().catch(() => {});
+    await new Promise((resolve, reject) => out.end((err) => (err ? reject(err) : resolve())));
   }
-  await new Promise((resolve, reject) => out.end((err) => (err ? reject(err) : resolve())));
+  if (total && received < total) throw new Error('Téléchargement incomplet');
   const digest = `sha256:${hash.digest('hex')}`;
-  if (asset.digest && asset.digest !== digest) {
-    fs.rmSync(tmp, { force: true });
-    throw new Error('Fichier téléchargé corrompu (empreinte SHA-256 différente)');
-  }
-  fs.renameSync(tmp, dest);
+  if (asset.digest && asset.digest !== digest) throw new Error('Fichier téléchargé corrompu (empreinte SHA-256 différente)');
 }
 
 let running = null;
@@ -136,6 +178,7 @@ async function check({ manual = false } = {}) {
     try {
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
         headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'F1-Dash-updater' },
+        signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
       });
       if (res.status === 404) throw new Error(`Aucune version publiée sur ${REPO}`);
       if (!res.ok) throw new Error(`GitHub a répondu ${res.status}`);
@@ -146,15 +189,17 @@ async function check({ manual = false } = {}) {
       if (state.status === 'ready' && state.latest?.version === version && state.file) return;
       const asset = pickAsset(release);
       if (!asset) throw new Error('Fichier de mise à jour introuvable dans la version publiée');
-      if (!state.auto && !manual) { set({ status: 'available' }); return; }
+      if (!state.auto && !manual) { set({ status: 'available', asset: { name: asset.name, size: asset.size } }); return; }
       const dir = path.join(app.getPath('userData'), 'updates');
       fs.mkdirSync(dir, { recursive: true });
       const dest = path.join(dir, asset.name);
-      set({ status: 'downloading', progress: 0 });
+      set({ status: 'downloading', progress: 0, asset: { name: asset.name, size: asset.size } });
       if (!fs.existsSync(dest)) await download(asset, dest);
       set({ status: 'ready', progress: 1, file: dest });
     } catch (err) {
-      set({ status: 'error', error: err.message });
+      const msg = err.name === 'TimeoutError' ? 'GitHub ne répond pas (pas de connexion ?)'
+        : /fetch failed|ENOTFOUND|ECONN|EAI_AGAIN/i.test(`${err.message} ${err.cause?.code || ''}`) ? 'Pas de connexion internet' : err.message;
+      set({ status: 'error', error: msg });
     }
   })().finally(() => { running = null; });
   await running;
@@ -215,17 +260,61 @@ function setAuto(value) {
   if (state.auto && state.status === 'available') check();
 }
 
+// Au lancement, avant d'ouvrir l'appli : recherche d'une nouvelle version, téléchargement et
+// installation (l'appli redémarre alors toute seule sur la nouvelle version).
+// onState(état) suit l'avancement. Renvoie :
+// - { action: 'installing', version } : installation lancée, l'appli va se fermer ;
+// - { action: 'notify', version, url } : nouvelle version, mais à installer à la main (.deb, image disque) ;
+// - { action: 'open', reason? } : à jour, hors ligne, ou échec : on ouvre l'appli.
+async function startup(onState = () => {}) {
+  listeners.add(onState);
+  try {
+    if (state.kind === 'unsupported') {
+      if (!app.isPackaged && !process.env.F1DASH_UPDATER_DEV) return { action: 'open' };
+      // Pas d'installation automatique possible : on signale seulement la nouvelle version
+      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'F1-Dash-updater' },
+        signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+      }).catch(() => null);
+      const release = res?.ok ? await res.json().catch(() => null) : null;
+      const version = String(release?.tag_name || '').replace(/^v/, '');
+      return version && newer(version, state.current) ? { action: 'notify', version, url: release.html_url } : { action: 'open' };
+    }
+    await check({ manual: true });
+    if (state.status !== 'ready') return { action: 'open', reason: state.status === 'error' ? state.error : null };
+    const version = state.latest?.version;
+    // Déjà tenté au lancement précédent sans succès : on n'insiste pas (bouton dans les réglages)
+    if (installTry?.version === version) {
+      set({ status: 'ready', error: null });
+      return { action: 'open', reason: `L'installation automatique de la version ${version} n'a pas abouti` };
+    }
+    installTry = { version, at: Date.now() };
+    saveSettings();
+    const r = install(true);
+    return r.ok ? { action: 'installing', version } : { action: 'open', reason: r.error };
+  } catch (err) {
+    return { action: 'open', reason: err.message };
+  } finally {
+    listeners.delete(onState);
+  }
+}
+
 function init(ipcMain) {
   settingsFile = path.join(app.getPath('userData'), 'updater.json');
   loadSettings();
+  // Version installée au lancement précédent bien en place : on oublie la tentative
+  if (installTry && !newer(installTry.version, state.current)) { installTry = null; saveSettings(); }
   // Nettoyage après une mise à jour de la version portable / de l'AppImage.
   if (state.kind === 'portable' || state.kind === 'appimage') {
     try { fs.rmSync(`${selfFile()}.old`, { force: true }); } catch { /* encore verrouillé */ }
   }
-  // Anciens téléchargements
+  // Anciens téléchargements (version déjà installée ou plus ancienne, fichiers incomplets)
   try {
     const dir = path.join(app.getPath('userData'), 'updates');
-    for (const f of fs.readdirSync(dir)) if (!f.includes(state.current)) fs.rmSync(path.join(dir, f), { force: true });
+    for (const f of fs.readdirSync(dir)) {
+      const v = /(\d+\.\d+\.\d+)/.exec(f)?.[1];
+      if (f.endsWith('.part') || (v && !newer(v, state.current))) fs.rmSync(path.join(dir, f), { force: true });
+    }
   } catch { /* pas de dossier */ }
 
   ipcMain.handle('update-get', () => publicState());
@@ -239,8 +328,8 @@ function init(ipcMain) {
   });
 
   if (state.kind === 'unsupported') { state.status = 'unsupported'; return; }
-  setTimeout(() => check(), 15000);
+  // Première vérification faite par l'écran de démarrage, puis régulièrement pendant l'utilisation
   setInterval(() => check(), CHECK_EVERY_MS);
 }
 
-module.exports = { init, check, install, state, newer };
+module.exports = { init, startup, check, install, state, newer };

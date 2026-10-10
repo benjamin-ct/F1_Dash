@@ -142,11 +142,13 @@ Le délai peut aller jusqu'à 10 minutes (modifiable avec `MAX_DELAY_SECONDS`). 
 
 ## 🔄 Mise à jour automatique de l'application
 
-L'application vérifie les nouvelles versions au démarrage puis toutes les 6 h. Quand une version sort, elle la télécharge en arrière-plan et vérifie son empreinte SHA-256. Elle l'installe ensuite **à la fermeture de l'appli**, ou tout de suite avec le bouton « Redémarrer ». Réglages : ⚙ → *Mises à jour de l'application*.
+**Au lancement**, un écran « Recherche de mise à jour… » s'affiche. S'il existe une nouvelle version, elle est téléchargée (barre de progression), son empreinte SHA-256 est vérifiée, puis elle est installée et l'appli redémarre directement sur la nouvelle version : on ne rouvre jamais une ancienne version. Sans connexion internet, si GitHub ne répond pas (10 s) ou si le téléchargement reste bloqué 30 s, l'appli s'ouvre normalement. Si une installation n'a pas abouti, l'appli s'ouvre au lancement suivant au lieu de réessayer en boucle (bouton « Redémarrer et mettre à jour » dans les réglages).
+
+**Pendant l'utilisation**, l'appli vérifie aussi toutes les 6 h : la nouvelle version est téléchargée en arrière-plan et installée **à la fermeture de l'appli**, ou tout de suite avec le bouton « Redémarrer ». Réglages : ⚙ → *Mises à jour de l'application*.
 
 - **Windows** : la version installée relance l'installateur en mode silencieux ; la version portable remplace son propre `.exe`.
 - **macOS** : la nouvelle version (archive `.zip`) remplace « F1 Dash.app » une fois l'appli fermée. Pas de mise à jour automatique si l'appli est lancée directement depuis l'image disque (`.dmg`) : glissez-la d'abord dans Applications.
-- **Linux** : l'AppImage se remplace elle-même. Le paquet `.deb` ne se met pas à jour tout seul : installez le nouveau paquet.
+- **Linux** : l'AppImage se remplace elle-même. Le paquet `.deb` ne se met pas à jour tout seul : au lancement, l'écran de démarrage signale la nouvelle version et propose de la télécharger (ou de continuer avec la version actuelle). Idem pour une appli macOS lancée depuis l'image disque.
 
 Les versions sont lues sur les *Releases* de ce dépôt (public) : rien à configurer. Chaque version publiée (Actions → *Application de bureau* → *Run workflow* avec « Version à publier », ou tag `v*`) est proposée automatiquement à toutes les applis installées (Windows à partir de la v1.2.1, macOS et AppImage à partir de la v1.12.0).
 
