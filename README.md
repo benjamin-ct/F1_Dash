@@ -76,6 +76,8 @@ Sur l'ordinateur : ⚙ Réglages → Application → **« Autoriser l'accès dep
 
 Le **[guide complet](docs/GUIDE.md)** détaille chaque panneau, l'espace Saison, les alertes, les commentaires et la radio, la disposition et le second écran, les replays et enregistrements, les options de lancement et le fonctionnement interne.
 
+Les nouveautés de chaque version sont dans le **[journal des modifications](CHANGELOG.md)** (aussi visible dans l'application : Réglages → Application).
+
 Tests : `npm test`.
 
 > Projet non officiel, sans lien avec la Formula 1, la FIA ou Canal+. Les données proviennent du flux public F1 Live Timing et sont destinées à un usage personnel.

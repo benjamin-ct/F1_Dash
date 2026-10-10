@@ -454,6 +454,12 @@
           <button class="btn btn-accent" id="updateInstall" hidden>Redémarrer et mettre à jour</button>
           <label class="toggle small"><input type="checkbox" id="updateAuto"> Télécharger et installer automatiquement (à la fermeture de l'appli)</label>
         </div>
+        <details class="cl-ver cl-next" id="updateNotes" hidden><summary>Nouveautés de la version <span id="updateNotesVer"></span></summary><div class="cl-body" id="updateNotesBody"></div></details>
+      </section>
+
+      <section class="set-block" data-sgroup="app">
+        <h4>📝 Nouveautés (journal des modifications)</h4>
+        <div class="cl-list" id="changelog"><p class="muted">Chargement…</p></div>
       </section>
 
       <section class="set-block" data-sgroup="alerts">

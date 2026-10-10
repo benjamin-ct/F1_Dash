@@ -1,0 +1,22 @@
+// Lecture du journal des modifications (CHANGELOG.md) : une section « ## vX.Y.Z — date » par
+// version. Utilisé pour la page de chaque version publiée et l'affichage dans l'application.
+
+// [{ version: '1.15.0', date: '2026-10-10' | null, title, body }] dans l'ordre du fichier
+export function parseChangelog(text) {
+  const out = [];
+  let cur = null;
+  for (const line of String(text || '').split(/\r?\n/)) {
+    const m = /^## v?(\d+\.\d+\.\d+)\s*(?:[—–-]\s*(.*))?$/.exec(line.trim());
+    if (m) {
+      cur = { version: m[1], date: /^\d{4}-\d{2}-\d{2}$/.test(m[2] || '') ? m[2] : null, title: (m[2] || '').trim(), lines: [] };
+      out.push(cur);
+    } else if (cur) cur.lines.push(line);
+  }
+  return out.map(({ lines, ...v }) => ({ ...v, body: lines.join('\n').trim() }));
+}
+
+// Section d'une version (« v1.15.0 » ou « 1.15.0 »), ou null
+export function changelogFor(text, tag) {
+  const v = String(tag || '').replace(/^v/, '');
+  return parseChangelog(text).find((x) => x.version === v) || null;
+}

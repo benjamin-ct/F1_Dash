@@ -20,6 +20,7 @@ import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
 import { weekendTyres } from './tyres.js';
 import { circuitRecords } from './records.js';
+import { parseChangelog } from '../shared/changelog.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
@@ -183,6 +184,12 @@ async function handleApi(req, res, url) {
       if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
       const data = await loops(key, year);
       return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Calibration indisponible' });
+    }
+
+    case 'GET /api/changelog': {
+      let text = '';
+      try { text = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'); } catch { /* journal absent */ }
+      return sendJSON(res, 200, { versions: parseChangelog(text) });
     }
 
     case 'GET /api/season': {
