@@ -47,8 +47,18 @@ function boundsVisible(b) {
   });
 }
 
+// Choix au lancement : 'last' (comme à la fermeture), 'saved' (emplacement enregistré), 'none'
+function startMode(st = readState()) {
+  if (st.windowsStart === 'saved' && st.saved) return 'saved';
+  if (st.windowsStart === 'none' || st.restoreWindows === false) return 'none';
+  return 'last';
+}
+
 function loadWindowState() {
   const st = readState();
+  if (startMode(st) === 'saved' && st.saved.main?.bounds) {
+    return { bounds: boundsVisible(st.saved.main.bounds) ? st.saved.main.bounds : null, maximized: st.saved.main.maximized !== false };
+  }
   if (!st.bounds) return { bounds: null, maximized: true };
   return { bounds: boundsVisible(st.bounds) ? st.bounds : null, maximized: st.maximized !== false };
 }
@@ -75,21 +85,26 @@ function snapshotChildren() {
 
 const childPrefs = () => ({ contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') });
 
+function openChild(baseUrl, c) {
+  const win = new BrowserWindow({
+    autoHideMenuBar: true,
+    icon: APP_ICON,
+    backgroundColor: '#000000',
+    ...(boundsVisible(c.bounds) ? c.bounds : { width: 1200, height: 800 }),
+    webPreferences: childPrefs(),
+  });
+  setupContents(win.webContents, baseUrl);
+  if (c.maximized) win.maximize();
+  win.loadURL(`${baseUrl}${c.search}`);
+  return win;
+}
+
 function restoreChildren(baseUrl) {
   const st = readState();
-  if (st.restoreWindows === false) return;
-  for (const c of st.children || []) {
-    if (!isPanelUrl(c.search)) continue;
-    const win = new BrowserWindow({
-      autoHideMenuBar: true,
-      icon: APP_ICON,
-      backgroundColor: '#000000',
-      ...(boundsVisible(c.bounds) ? c.bounds : { width: 1200, height: 800 }),
-      webPreferences: childPrefs(),
-    });
-    setupContents(win.webContents, baseUrl);
-    if (c.maximized) win.maximize();
-    win.loadURL(`${baseUrl}${c.search}`);
+  const mode = startMode(st);
+  if (mode === 'none') return;
+  for (const c of (mode === 'saved' ? st.saved.children : st.children) || []) {
+    if (isPanelUrl(c.search)) openChild(baseUrl, c);
   }
 }
 
@@ -277,7 +292,55 @@ function splashAsk(win, version) {
 }
 
 ipcMain.handle('restore-windows-get', () => readState().restoreWindows !== false);
-ipcMain.handle('restore-windows-set', (_e, v) => { writeState({ restoreWindows: !!v }); return !!v; });
+ipcMain.handle('restore-windows-set', (_e, v) => { writeState({ restoreWindows: !!v, windowsStart: v ? 'last' : 'none' }); return !!v; });
+ipcMain.handle('windows-start-get', () => { const st = readState(); return st.windowsStart || (st.restoreWindows === false ? 'none' : 'last'); });
+ipcMain.handle('windows-start-set', (_e, v) => {
+  const mode = ['last', 'saved', 'none'].includes(v) ? v : 'last';
+  writeState({ windowsStart: mode, restoreWindows: mode !== 'none' });
+  return mode;
+});
+// Enregistre la place de toutes les fenêtres et leurs dispositions (envoyées par la page)
+ipcMain.handle('windows-save', (_e, layouts) => {
+  if (!mainWindow) return false;
+  writeState({ saved: {
+    at: Date.now(),
+    main: { bounds: mainWindow.getNormalBounds(), maximized: mainWindow.isMaximized() || mainWindow.isFullScreen() },
+    children: snapshotChildren(),
+    layouts: layouts && typeof layouts === 'object' ? layouts : null,
+  } });
+  return true;
+});
+// Remet les fenêtres à leur place enregistrée : fenêtre principale déplacée, fenêtres
+// secondaires fermées puis rouvertes (elles reprennent leur disposition enregistrée)
+ipcMain.handle('windows-restore', () => {
+  const saved = readState().saved;
+  if (!saved || !mainWindow) return false;
+  const base = mainWindow.webContents.getURL().replace(/[?#].*$/, '');
+  for (const w of childWindows()) w.destroy();
+  if (saved.main?.bounds && boundsVisible(saved.main.bounds)) {
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    mainWindow.setBounds(saved.main.bounds);
+  }
+  if (saved.main?.maximized) mainWindow.maximize();
+  for (const c of saved.children || []) if (isPanelUrl(c.search)) openChild(base, c);
+  return true;
+});
+// Au lancement (emplacement enregistré) : la page principale reprend les dispositions enregistrées
+let startupLayoutsSent = false;
+ipcMain.on('windows-startup-layouts', (e) => {
+  const st = readState();
+  const isMain = mainWindow && e.sender === mainWindow.webContents;
+  e.returnValue = isMain && !startupLayoutsSent && startMode(st) === 'saved' ? st.saved.layouts || null : null;
+  if (isMain) startupLayoutsSent = true;
+});
+ipcMain.handle('window-focus', (e) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  if (!w) return false;
+  if (w.isMinimized()) w.restore();
+  w.show();
+  w.focus();
+  return true;
+});
 
 async function start() {
   const updater = require('./updater.cjs');

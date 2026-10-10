@@ -4,6 +4,36 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.17.0 — 2026-10-10
+
+### Télémétrie
+- Animation ultra fluide : compteurs et courbe de vitesse mis à jour à chaque image de l'écran, avec des valeurs interpolées entre les mesures de la F1 (3 à 4 par seconde) au lieu d'avancer par à-coups.
+- Les compteurs remplacent les anciennes jauges dans le panneau Duel.
+- Choix des pilotes : puces ajustées au trigramme (plus de grand vide après « + Comparer… »), flèche et ✕ bien alignés.
+
+### Barre du haut
+- Façon MultiViewer : drapeau du pays, nom court du Grand Prix (« Azerbaijan GP — Race »), temps restant en grand, météo détaillée (vent et direction, piste, air, humidité, pression, pluie) selon la place disponible.
+- Menu des documents de la FIA : filtre, résumé en français de chaque document, ouverture du PDF, point rouge quand un nouveau document est publié (en replay, seuls les documents déjà publiés à l'instant affiché).
+- Menu des vitesses (intermédiaires, ligne d'arrivée, speed trap ; meilleures ou dernier passage) et menu des meilleurs secteurs avec le tour idéal, triables par colonne.
+- Case du délai TV ajustée à la valeur (moins d'espace autour des secondes).
+
+### Classement
+- Étiquettes STAND, SORTIE, TOUR… dans leur propre colonne : alignées d'une ligne à l'autre.
+- Options pour masquer le nom complet du pilote et la colonne des étiquettes (bouton « Colonnes »).
+- Nouvelle colonne « Meilleurs secteurs » (S1 / S2 / S3 de chaque pilote, violet = meilleur de tous).
+
+### Fenêtres et second écran
+- Enregistrer l'emplacement des fenêtres (menu « Dispo. » ou Réglages → Affichage) et y revenir en un clic ; dans l'application de bureau, choix au lancement : comme à la fermeture, emplacement enregistré ou sans les fenêtres détachées.
+- Disposition libre aussi dans les fenêtres du second écran (bouton ✥ en haut) : panneaux placés n'importe où.
+- Le bouton « Analyse » de la barre latérale fonctionne quand le panneau est sur le second écran : il s'y affiche en grand et sa fenêtre passe devant.
+- En disposition libre, un panneau ne peut plus passer sous la barre de replay.
+
+### Carte
+- Case « Textes des drapeaux jaunes » (menu Calques) pour masquer la liste des zones sous drapeau jaune qui recouvre la carte (les fanions restent sur la piste).
+
+### Fluidité
+- Rafraîchissement de l'interface calé sur l'affichage, transitions douces (onglets, panneau agrandi, menus, couleurs du classement et de l'état de la piste).
+
 ## v1.16.0 — 2026-10-10
 
 ### Mises à jour

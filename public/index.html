@@ -32,8 +32,11 @@
     <div class="brand"><img class="logo" src="/logo.svg" alt="F1"><span class="brand-name">DASH</span></div>
 
     <div class="session">
-      <div class="session-name" id="sessionName">Connexion…</div>
-      <div class="session-sub" id="sessionSub"></div>
+      <img class="session-flag" id="sessionFlag" alt="" hidden>
+      <div class="session-txt">
+        <div class="session-name" id="sessionName">Connexion…</div>
+        <div class="session-sub" id="sessionSub"></div>
+      </div>
     </div>
 
     <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
@@ -41,10 +44,15 @@
 
     <div class="hstat lap-box"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div><div class="lap-bar" id="lapBar" hidden><i></i></div></div>
     <div class="hstat" id="lapsLeftBox" hidden><div class="hstat-label">Tours restants</div><div class="hstat-value" id="lapsLeft">—</div></div>
-    <div class="hstat"><div class="hstat-label">Temps restant</div><div class="hstat-value" id="clockValue">—</div></div>
+    <div class="hstat clock-box" id="clockBox"><div class="hstat-label">Temps restant</div><div class="hstat-value" id="clockValue">—</div></div>
     <div class="hstat" id="circuitTimeBox" hidden title="Heure locale sur le circuit (au moment affiché, délai TV compris)"><div class="hstat-label">Heure circuit</div><div class="hstat-value" id="circuitTime">—</div></div>
     <div class="hstat weather-mini" id="weatherMini" title="Météo"></div>
     <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
+    <div class="tb-tools" id="tbTools">
+      <button class="tb-tool" data-tool="docs" title="Documents officiels de la FIA (Grand Prix en cours)"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><i class="tb-dot" hidden></i></button>
+      <button class="tb-tool" data-tool="speeds" title="Vitesses : intermédiaires 1 et 2, ligne d'arrivée et speed trap de chaque pilote"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1.3"/></svg></button>
+      <button class="tb-tool" data-tool="sectors" title="Meilleurs secteurs de chaque pilote et tour idéal"><svg viewBox="0 0 24 24"><path d="M5 20V11M10 20V5M15 20v-7M20 20V9"/></svg></button>
+    </div>
 
     <div class="spacer"></div>
     <div class="tb-break b2"></div>
@@ -76,6 +84,7 @@
     <button class="btn season-btn" id="seasonBtn" title="Saison : prochaine séance, calendrier, classements, résultats, duels entre coéquipiers">🏆<span class="sb-label"> Saison</span></button>
     <button class="icon-btn" id="muteBtn" title="Son des alertes (touche M)">🔔</button>
     <button class="icon-btn comm-btn" id="commBtn" title="Commentaires en direct F1 TV Pro (touche C : couper / remettre le son)">🎙</button>
+    <button class="icon-btn" id="soloFreeBtn" hidden>✥</button>
     <button class="icon-btn" id="resetUiBtn" title="Réinitialiser l'interface (disposition, panneaux et colonnes par défaut)">⟲</button>
     <button class="icon-btn" id="settingsBtn" title="Réglages : source (live / replay), compte F1 TV, affichage, alertes, application">⚙</button>
   </header>
@@ -158,6 +167,7 @@
               <label class="toggle" title="Numéros des micro-secteurs (1.1, 1.2…) quand on zoome sur la carte"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs (zoom)</label>
               <label class="toggle" title="Zones « ligne droite » (straight mode, hachures vertes), points de détection (rose) et d'activation (vert) du mode dépassement : d'après le plan officiel du circuit publié par la FIA, sinon estimés à partir de la télémétrie d'une séance du circuit."><input type="checkbox" id="mapZones" checked> Zones LD / détection</label>
               <label class="toggle" title="Voie des stands, reconstituée à partir des passages des voitures dans une séance du circuit (la F1 ne fournit pas son tracé)"><input type="checkbox" id="mapPit" checked> Voie des stands</label>
+              <label class="toggle" title="Liste des zones sous drapeau jaune affichée en haut à gauche de la carte (les fanions restent sur la piste)"><input type="checkbox" id="mapFlagText" checked> Textes des drapeaux jaunes</label>
               <label class="toggle" title="Trame de points et halo en fond de carte"><input type="checkbox" id="mapGrid"> Fond texturé</label>
             </div>
           </details>
@@ -485,6 +495,8 @@
         <div class="row"><label class="small">Disposition <select id="layoutModeSel"><option value="auto">Automatique selon la séance</option><option value="race">Toujours « Course »</option><option value="quali">Toujours « Qualif &amp; essais »</option></select></label></div>
         <div class="small muted">Deux dispositions indépendantes, l'une pour les courses (et sprints), l'autre pour les qualifications et les essais : chacune garde ses panneaux, leurs tailles, les colonnes du classement et les onglets ouverts. <b id="layoutProfileNow"></b></div>
         <div class="row"><label class="small">Placement des panneaux <select id="freeSel"><option value="cols">Rangés en colonnes (redimensionnables)</option><option value="free">Libre : n'importe où, chevauchement possible</option></select></label></div>
+        <div class="row"><button class="btn small" id="winSave" title="Garde la disposition de chaque fenêtre (panneaux, tailles, mode libre) et la place des fenêtres sur les écrans">💾 Enregistrer l'emplacement des fenêtres</button> <button class="btn small" id="winRestore">↩ Revenir à l'emplacement enregistré</button></div>
+        <div class="row" id="winStartRow" hidden><label class="small">Au lancement de l'application <select id="winStart"><option value="last">rouvrir les fenêtres comme à la fermeture</option><option value="saved">reprendre l'emplacement enregistré</option><option value="none">ne pas rouvrir les fenêtres détachées</option></select></label></div>
         <div class="row"><button class="btn small" id="layoutReset">Réinitialiser l'interface</button> <span class="small muted">(aussi avec le bouton ⟲ en haut)</span></div>
         <div class="small muted">Panneaux visibles :</div>
         <div class="row" id="panelOpts"></div>
@@ -498,7 +510,6 @@
         <div class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées (une teinte bien distincte par équipe ; décoché : couleurs officielles)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="legendsOn"> Légendes sous les panneaux (couleurs, colonnes, graphiques)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance (sur téléphone : touchez l'écran une fois)</label></div>
-        <div class="row" id="restoreWinRow" hidden><label class="toggle small"><input type="checkbox" id="restoreWin"> Rouvrir les fenêtres détachées (second écran) à leur place au lancement de l'application</label></div>
       </section>
 
       <section class="set-block" data-sgroup="app" id="shortcutsBlock">

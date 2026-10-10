@@ -62,7 +62,8 @@ export function renderTower(force = false) {
   const secHead = TH('c-sec', 'S1') + TH('c-sec', 'S2') + TH('c-sec', 'S3');
   // Colonnes facultatives (menu « Colonnes » du classement)
   const extraHead = TH('c-grid', 'Grille', 'Position de départ') + TH('c-laps', 'Tours', 'Tours effectués')
-    + TH('c-gapf', 'Suivi', 'Écart au pilote suivi (clic sur un pilote)') + TH('c-spd', 'I1 · I2 · Arr.', 'Vitesses aux intermédiaires 1 et 2 et sur la ligne d\'arrivée (km/h)') + TH('c-team', 'Écurie');
+    + TH('c-gapf', 'Suivi', 'Écart au pilote suivi (clic sur un pilote)') + TH('c-spd', 'I1 · I2 · Arr.', 'Vitesses aux intermédiaires 1 et 2 et sur la ligne d\'arrivée (km/h)')
+    + [1, 2, 3].map((i) => TH('t-lap c-bsec', `Meill. S${i}`, `Meilleur secteur ${i} du pilote dans la séance (violet : meilleur de tous)`)).join('') + TH('c-team', 'Écurie');
   // Écart au pilote suivi : course = écart au leader, essais / qualifs = meilleur tour
   const gapSec = (n) => {
     const l = lines[n] || {};
@@ -75,13 +76,13 @@ export function renderTower(force = false) {
   };
   let head;
   if (kind === 'race') {
-    head = TH('', 'Pos') + TH('', 'Pilote') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-last', 'Dernier') + TH('t-lap c-best', 'Meilleur') +
+    head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-last', 'Dernier') + TH('t-lap c-best', 'Meilleur') +
       secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Arr.', 'Arrêts aux stands') + TH('c-speed', 'V.max', 'Vitesse au speed trap') + extraHead + TH('c-duel', 'Duel');
   } else if (kind === 'quali') {
-    head = TH('', 'Pos') + TH('', 'Pilote') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé (secteurs réalisés + meilleurs secteurs du pilote) et position visée') +
+    head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé (secteurs réalisés + meilleurs secteurs du pilote) et position visée') +
       TH('t-lap c-last', 'Dernier') + secHead + TH('t-lap c-q', 'Q1') + TH('t-lap c-q', 'Q2') + TH('t-lap c-q', 'Q3') + TH('c-tyre', 'Pneu') + extraHead + TH('c-duel', 'Duel');
   } else {
-    head = TH('', 'Pos') + TH('', 'Pilote') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé') +
+    head = TH('', 'Pos') + TH('', 'Pilote') + TH('c-tags', '') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé') +
       TH('t-lap c-last', 'Dernier') + secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Tours') + extraHead + TH('c-duel', 'Duel');
   }
 
@@ -121,7 +122,7 @@ export function renderTower(force = false) {
       if (dlt) posDelta = `<span class="pos-delta ${dlt > 0 ? 'up' : 'down'}">${dlt > 0 ? '▲' : '▼'}${Math.abs(dlt)}</span>`;
     }
 
-    const drv = `<td><div class="drv">${teamMark(d)}<span class="drv-num">${esc(d.RacingNumber || num)}</span><span class="drv-tla" title="${esc(d.FullName || '')} — ${esc(d.TeamName || '')}">${esc(d.Tla || num)}</span><span class="drv-last">${esc(d.LastName || '')}</span><button class="fav-btn ${isFav(num) ? 'on' : ''}" data-fav="${num}" title="${isFav(num) ? 'Retirer des favoris' : 'Ajouter aux favoris (alertes, radios…)'}">${isFav(num) ? '★' : '☆'}</button><span class="drv-tags">${tags.join('')}</span></div></td>`;
+    const drv = `<td><div class="drv">${teamMark(d)}<span class="drv-num">${esc(d.RacingNumber || num)}</span><span class="drv-tla" title="${esc(d.FullName || '')} — ${esc(d.TeamName || '')}">${esc(d.Tla || num)}</span><span class="drv-last">${esc(d.LastName || '')}</span><button class="fav-btn ${isFav(num) ? 'on' : ''}" data-fav="${num}" title="${isFav(num) ? 'Retirer des favoris' : 'Ajouter aux favoris (alertes, radios…)'}">${isFav(num) ? '★' : '☆'}</button></div></td><td class="c-tags"><div class="drv-tags">${tags.join('')}</div></td>`;
     const sectors = list(l.Sectors);
     const secCells = [0, 1, 2].map((i) => sectorCell(sectors[i])).join('');
     const tyre = `<td class="c-tyre">${stint ? tyreBadge(stint.Compound, stint.TotalLaps, stint.New) : '<span class="dim">—</span>'}</td>`;
@@ -143,6 +144,8 @@ export function renderTower(force = false) {
       + `<td class="c-laps">${esc(l.NumberOfLaps ?? '') || '<span class="dim">—</span>'}</td>`
       + `<td class="c-gapf ${dg === null ? '' : dg < 0 ? 'ahead' : 'behind'}">${store.focus === num ? '<span class="dim">suivi</span>' : dg === null ? '<span class="dim">—</span>' : `${dg < 0 ? '−' : '+'}${Math.abs(dg).toFixed(3)}`}</td>`
       + `<td class="c-spd">${v('I1')} · ${v('I2')} · ${v('FL')}</td>`
+      + list(stats[num]?.BestSectors).slice(0, 3).concat([null, null, null]).slice(0, 3)
+        .map((b) => `<td class="t-lap c-bsec ${b?.Position === 1 ? 'purple' : ''}">${esc(b?.Value || '') || '<span class="dim">—</span>'}</td>`).join('')
       + `<td class="c-team">${esc(d.TeamName || '')}</td>`;
 
     let cells;
@@ -312,7 +315,7 @@ export function fitTower(force = false) {
   const room = (wrap.clientHeight - 2) / table.offsetHeight;
   if (wrap.scrollWidth > wrap.clientWidth + 1) {
     // Un peu trop large (qualifications, Q1 à Q3) : légère réduction pour voir toutes les colonnes
-    if (wrap.clientWidth / wrap.scrollWidth >= 0.88) {
+    if (wrap.clientWidth / wrap.scrollWidth >= 0.8) {
       z = Math.floor((wrap.clientWidth / wrap.scrollWidth) * 100) / 100;
       table.style.zoom = z;
     }

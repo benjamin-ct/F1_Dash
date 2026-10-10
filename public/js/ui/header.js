@@ -12,7 +12,10 @@ export function renderHeader() {
     lastVer = v;
     const info = s.SessionInfo;
     const kind = sessionKind(s);
-    $('#sessionName').textContent = info ? `${info.Meeting?.Name || ''} — ${info.Name || ''}` : (store.connected ? 'En attente de données…' : 'Connexion au serveur…');
+    // « Azerbaijan GP — Race » (nom complet au survol), comme MultiViewer : plus de place pour le reste
+    const sn = $('#sessionName');
+    sn.textContent = info ? `${String(info.Meeting?.Name || '').replace(/\bGrand Prix\b/i, 'GP')} — ${info.Name || ''}` : (store.connected ? 'En attente de données…' : 'Connexion au serveur…');
+    sn.title = info ? `${info.Meeting?.Name || ''} — ${info.Name || ''}` : '';
     const status = s.SessionStatus?.Status || info?.SessionStatus;
     $('#sessionSub').textContent = info
       ? [info.Meeting?.Circuit?.ShortName, info.Meeting?.Country?.Name, status ? SESSION_STATUS_FR[status] || status : null].filter(Boolean).join(' · ')
@@ -58,12 +61,23 @@ export function renderHeader() {
     gmtOffset = parseGmtOffset(info?.GmtOffset);
     $('#circuitTimeBox').hidden = gmtOffset === null;
 
-    // Météo compacte
+    // Drapeau du pays
+    const iso = FLAG_ISO[String(info?.Meeting?.Country?.Code || '').toUpperCase()];
+    const flag = $('#sessionFlag');
+    if (iso && flag.dataset.iso !== iso) { flag.dataset.iso = iso; flag.src = `https://flagcdn.com/w80/${iso}.png`; flag.onerror = () => { flag.hidden = true; }; flag.onload = () => { flag.hidden = false; }; }
+    if (!iso) { flag.hidden = true; flag.dataset.iso = ''; }
+    flag.title = info?.Meeting?.Country?.Name || '';
+
+    // Météo : vent (vitesse et direction), piste, air, humidité, pression, pluie
     const w = s.WeatherData;
-    $('#weatherMini').innerHTML = w ? `
-      <div class="wm"><span class="muted">Air</span><b>${esc(w.AirTemp)}°</b></div>
-      <div class="wm"><span class="muted">Piste</span><b>${esc(w.TrackTemp)}°</b></div>
-      <div class="wm"><span class="muted">Pluie</span><b>${w.Rainfall === '1' || w.Rainfall === 1 ? '🌧 Oui' : 'Non'}</b></div>` : '';
+    const wind = Number(w?.WindSpeed), dir = Number(w?.WindDirection) || 0;
+    const wm = (cls, label, val, title = '') => `<div class="wm ${cls}"${title ? ` title="${esc(title)}"` : ''}><span class="muted">${label}</span><b>${val}</b></div>`;
+    $('#weatherMini').innerHTML = w ? wm('wm-wind', 'Vent', Number.isFinite(wind) ? `${(wind * 3.6).toFixed(0)}<small> km/h</small> <i class="wind-arrow" style="transform:rotate(${dir + 180}deg)">↑</i>` : '—', `Vent venant de ${dir}°`)
+      + wm('wm-track', 'Piste', `${esc(w.TrackTemp)}°`)
+      + wm('wm-air', 'Air', `${esc(w.AirTemp)}°`)
+      + wm('wm-hum', 'Humidité', `${esc(Math.round(Number(w.Humidity)) || w.Humidity)}<small> %</small>`)
+      + wm('wm-pres', 'Pression', `${esc(Math.round(Number(w.Pressure)) || w.Pressure)}<small> hPa</small>`)
+      + wm('wm-rain', 'Pluie', w.Rainfall === '1' || w.Rainfall === 1 ? '🌧 Oui' : 'Non') : '';
     const surf = trackSurface(s);
     const sb = $('#surfaceBox');
     sb.hidden = !surf;
@@ -97,6 +111,13 @@ export function renderHeader() {
 }
 
 let gmtOffset = null;
+
+// Code pays de la F1 (3 lettres) -> code ISO à 2 lettres (images des drapeaux)
+const FLAG_ISO = {
+  AUS: 'au', AUT: 'at', AZE: 'az', BRN: 'bh', BEL: 'be', BRA: 'br', CAN: 'ca', CHN: 'cn', ESP: 'es', FRA: 'fr', GBR: 'gb',
+  GER: 'de', HUN: 'hu', ITA: 'it', JPN: 'jp', KSA: 'sa', MEX: 'mx', MON: 'mc', NED: 'nl', POR: 'pt', QAT: 'qa', RUS: 'ru',
+  SGP: 'sg', TUR: 'tr', UAE: 'ae', ARE: 'ae', USA: 'us', ARG: 'ar', RSA: 'za', KOR: 'kr', IND: 'in', MAL: 'my', MYS: 'my', VIE: 'vn', SUI: 'ch', MAR: 'ma', THA: 'th',
+};
 
 // « 04:00:00 », « -05:00:00 » -> décalage en ms par rapport à UTC
 function parseGmtOffset(v) {

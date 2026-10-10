@@ -3,6 +3,7 @@ import { store, setDuel, displayNow, versionOf, on } from '../store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, tyreBadge, currentStint, fmtLap, fmtSigned } from '../util.js';
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { lineChart } from './charts.js';
+import { Dial, animate, carNow } from './gauge.js';
 
 let skeletonFor = null;
 let lastSlowKey = '';
@@ -98,11 +99,11 @@ function skeleton() {
   $('#duelBody').innerHTML = `
     <div class="duel-hero" id="dHero"><div id="dSideA"></div><div id="dGap"></div><div id="dSideB"></div></div>
     <div class="duel-trend" id="dTrend"></div>
+    <div id="dTele"></div>
     <div id="dLiveWrap"><div class="chart-title"><span>Écart en direct (GPS) — 3 dernières minutes</span><span>positif = A devant</span></div><div class="duel-chart" id="dLive"></div></div>
     <div id="dLapWrap"><div class="chart-title"><span>Écart à chaque tour (s)</span><span>positif = A devant</span></div><div class="duel-chart" id="dLap"></div></div>
     <div id="dPaceWrap"><div class="chart-title"><span>Rythme : temps au tour (s)</span><span class="legend-inline" id="dPaceLegend"></span></div><div class="duel-chart" id="dPace"></div></div>
     <table class="cmp" id="dCmp"></table>
-    <div id="dTele"></div>
     <div class="chart-title"><span>Derniers tours</span></div>
     <table class="laps-cmp" id="dLaps"></table>`;
 }
@@ -261,15 +262,29 @@ function renderSlow(a, b) {
     : '<tr><td class="note">Aucun tour commun pour l\'instant.</td></tr>';
 }
 
-function teleBlock(num, tla) {
-  const c = store.positions.carAt(num, displayNow());
-  if (!c) return `<div class="gauge"><div class="gauge-lbl">${esc(tla)}</div><div class="muted small">Pas de télémétrie</div></div>`;
-  const brk = c.brk > 0 ? 100 : 0;
-  return `<div class="gauge mini-tele"><div class="gauge-lbl">${esc(tla)}</div>
-    <div class="gauge-val">${c.speed ?? '—'}<small> km/h</small> · <span title="Rapport">${c.gear ?? '—'}</span><small>e</small></div>
-    <div class="row2"><span>Accélérateur</span><span>${c.thr ?? '—'} %</span></div><div class="bar thr"><i style="width:${Math.min(100, c.thr || 0)}%"></i></div>
-    <div class="row2"><span>Frein</span><span>${c.brk === null ? '—' : brk ? 'Oui' : 'Non'}</span></div><div class="bar brk"><i style="width:${brk}%"></i></div>
-    <div class="row2"><span>Régime</span><span>${c.rpm ?? '—'} tr/min</span></div><div class="bar rpm"><i style="width:${Math.min(100, ((c.rpm || 0) / 13000) * 100)}%"></i></div></div>`;
+// Télémétrie côte à côte : les mêmes compteurs que l'onglet Télémétrie, animés image par image
+let duelTele = null;   // { a, b, dialA, dialB }
+function renderDuelTele(a, b) {
+  const host = $('#dTele');
+  if (!store.positions.car.size) { if (duelTele) { host.innerHTML = ''; duelTele = null; } return; }
+  if (!duelTele || duelTele.a !== a || duelTele.b !== b || !host.contains(duelTele.dialA.el)) {
+    const dl = drivers(store.state);
+    const head = (n, cls, letter) => `<div class="tele-name" style="--tc:${teamColor(dl[n] || {})}"><b class="duel-letter ${cls}">${letter}</b><b>${esc(dl[n]?.Tla || n)}</b><span class="muted small">${esc(dl[n]?.LastName || '')}</span></div>`;
+    host.innerHTML = `<div class="chart-title"><span>Télémétrie</span></div><div class="tele2-dials two duel-dials">
+      <div class="tele2-col">${head(a, 'a', 'A')}<div class="tele-dial" id="dDialA"></div></div><div class="tele2-vs">VS</div>
+      <div class="tele2-col">${head(b, 'b', 'B')}<div class="tele-dial" id="dDialB"></div></div></div>`;
+    duelTele = { a, b, dialA: new Dial(teamColor(dl[a] || {})), dialB: new Dial(teamColor(dl[b] || {})) };
+    $('#dDialA').appendChild(duelTele.dialA.el);
+    $('#dDialB').appendChild(duelTele.dialB.el);
+  }
+  animate('duel', (dt) => {
+    const t = duelTele;
+    if (!t || !t.dialA.el.isConnected || !t.dialA.el.getClientRects().length) return false;
+    const disp = displayNow();
+    t.dialA.update(carNow(t.a, disp), dt);
+    t.dialB.update(carNow(t.b, disp), dt);
+    return true;
+  });
 }
 
 export function renderDuel() {
@@ -302,8 +317,7 @@ export function renderDuel() {
   if (now - lastFast > 200) {
     lastFast = now;
     renderHero(a, b);
-    const tlaA = dl[a]?.Tla || a, tlaB = dl[b]?.Tla || b;
-    $('#dTele').innerHTML = store.positions.car.size ? `<div class="tele-duel">${teleBlock(a, tlaA)}${teleBlock(b, tlaB)}</div>` : '';
+    renderDuelTele(a, b);
   }
   const slowKey = `${versionOf(['TimingData', 'TimingAppData', '__reset'])}`;
   if (slowKey !== lastSlowKey && now - (renderDuel.lastSlow || 0) > 700) {

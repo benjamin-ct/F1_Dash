@@ -346,6 +346,21 @@ export class Positions {
     return arr[i];
   }
 
+  // Télémétrie interpolée entre les deux échantillons qui encadrent l'heure affichée (la F1
+  // n'en envoie que 3 à 4 par seconde) : vitesse, régime, accélérateur et frein varient en
+  // continu ; le rapport reste celui de l'échantillon précédent.
+  carLerp(num, now) {
+    const arr = this.car.get(num);
+    if (!arr || !arr.length) return null;
+    const i = sampleIndex(arr, now);
+    if (i < 0 || now - arr[i].t > 10000) return null;
+    const a = arr[i], b = arr[i + 1];
+    if (!b || b.t - a.t > 2000) return a;
+    const u = Math.max(0, Math.min(1, (now - a.t) / (b.t - a.t || 1)));
+    const mix = (x, y) => (typeof x === 'number' && typeof y === 'number' ? x + (y - x) * u : x);
+    return { t: now, rpm: mix(a.rpm, b.rpm), speed: mix(a.speed, b.speed), gear: a.gear, thr: mix(a.thr, b.thr), brk: mix(a.brk, b.brk), drs: a.drs };
+  }
+
   carHistory(num, from, to) {
     const arr = this.car.get(num);
     if (!arr) return [];

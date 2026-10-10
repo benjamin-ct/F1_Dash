@@ -3,6 +3,7 @@ import { store, serverNow, on } from '../store.js';
 import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, storageSet } from '../util.js';
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav } from '../prefs.js';
+import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 
 let archive = [];
 let dragging = false;
@@ -238,10 +239,20 @@ export function initSettings() {
   $('#keepAwake').checked = prefs.keepAwake;
   $('#keepAwake').addEventListener('change', (e) => setPref('keepAwake', e.target.checked));
   on('prefs', (k) => { if (k === 'keepAwake') $('#keepAwake').checked = prefs.keepAwake; });
-  if (window.f1desktop?.getRestoreWindows) {
-    $('#restoreWinRow').hidden = false;
-    window.f1desktop.getRestoreWindows().then((v) => { $('#restoreWin').checked = v; });
-    $('#restoreWin').addEventListener('change', (e) => window.f1desktop.setRestoreWindows(e.target.checked));
+  // Emplacement des fenêtres : enregistrer / revenir ; application de bureau : choix au lancement
+  $('#winSave').addEventListener('click', () => { saveWindowsSnapshot(); $('#winRestore').disabled = false; });
+  $('#winRestore').disabled = !hasWindowsSnapshot();
+  $('#winRestore').addEventListener('click', () => restoreWindowsSnapshot());
+  if (window.f1desktop?.getWindowsStart) {
+    $('#winStartRow').hidden = false;
+    window.f1desktop.getWindowsStart().then((v) => { $('#winStart').value = v; });
+    $('#winStart').addEventListener('change', (e) => window.f1desktop.setWindowsStart(e.target.value));
+  } else if (window.f1desktop?.getRestoreWindows) {
+    // Application de bureau d'une version précédente (avant le choix « emplacement enregistré »)
+    $('#winStartRow').hidden = false;
+    $('#winStart').querySelector('[value="saved"]').remove();
+    window.f1desktop.getRestoreWindows().then((v) => { $('#winStart').value = v ? 'last' : 'none'; });
+    $('#winStart').addEventListener('change', (e) => window.f1desktop.setRestoreWindows(e.target.value !== 'none'));
   }
   // Connexion F1 TV : renouvellement immédiat, rappel avant la fin de la session
   $('#tokenStatus').addEventListener('click', async (e) => {
