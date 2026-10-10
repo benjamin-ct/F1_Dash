@@ -3,7 +3,8 @@
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
 import { $, esc, api, teamColor } from '../util.js';
-import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits } from './season-stats.js';
+import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge } from './season-stats.js';
+import { driverRatings, qualiGaps } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
@@ -25,7 +26,29 @@ let statsTimer = null;
 let drvCode = null;
 let speedPt = 'ST';
 let circSort = 'round';
-const STATS_SECTIONS = new Set(['drivers', 'consistency', 'pits', 'speeds', 'circuits']);
+let rateSort = 'season';
+const STATS_SECTIONS = new Set(['drivers', 'consistency', 'pits', 'speeds', 'circuits', 'ratings', 'h2h']);
+let prev = null;           // saison précédente (comparaison des points d'un pilote)
+let ratingsMemo = null;
+
+// Notes des pilotes, recalculées seulement quand les données changent
+function ratingsFor(d, st) {
+  if (ratingsMemo?.d !== d || ratingsMemo?.st !== st) ratingsMemo = { d, st, v: driverRatings(d, st?.races ? st : null) };
+  return ratingsMemo.v;
+}
+
+async function loadPrev() {
+  const y = year - 1;
+  if (prev?.year === y || prev?.loading === y) return;
+  prev = { loading: y };
+  try {
+    const d = await api(`/api/season?year=${y}`);
+    if (prev?.loading === y) prev = d;
+  } catch (err) {
+    if (prev?.loading === y) prev = { year: y, error: err.message };
+  }
+  if (section === 'drivers' && !$('#seasonView').hidden) render();
+}
 const FIA_SECTIONS = new Set(['tech', 'elements']);
 let fia = null;            // documents FIA (évolutions techniques, éléments moteur)
 let fiaTimer = null;
@@ -247,6 +270,36 @@ function renderResults() {
 
 let h2hTeam = null;
 
+// Écart en qualification entre les deux coéquipiers, manche par manche
+function qualiGapBox(g, A, B, ca) {
+  if (!g.rounds.length) return '<section class="sz-box"><h3>Écart en qualification</h3><div class="note small">Temps de qualification indisponibles pour cette saison.</div></section>';
+  const f3 = (v) => `${Math.abs(v).toFixed(3).replace('.', ',')} s`;
+  const lead = g.median <= 0 ? A : B;
+  const W = 900, H = 200, pl = 44, pr = 10, pt = 14, pb = 34, mid = (H - pb + pt) / 2;
+  // Échelle calée sur le 2e plus grand écart : un écart isolé est coupé (sa valeur est écrite)
+  const abs = g.rounds.filter((x) => !x.outlier).map((x) => Math.abs(x.s)).sort((a, b) => b - a);
+  const cap = Math.max(0.2, Math.min(abs[0] || 0, (abs[1] ?? abs[0] ?? 0) * 1.4));
+  const bw = (W - pl - pr) / g.rounds.length;
+  const Y = (v) => mid - (Math.max(-cap, Math.min(cap, v)) / cap) * ((H - pb - pt) / 2);
+  const bars = g.rounds.map((x, i) => {
+    const y = Y(-x.s), x0 = pl + i * bw + bw * 0.18;
+    const c = x.s <= 0 ? ca : 'var(--muted)';
+    return `<rect x="${x0}" y="${Math.min(y, mid)}" width="${bw * 0.64}" height="${Math.max(1, Math.abs(y - mid))}" rx="2" fill="${c}" ${x.outlier ? 'opacity=".35"' : ''}><title>R${x.round} ${esc(x.name.replace(' Grand Prix', ''))} (Q${x.part}) : ${esc(x.s <= 0 ? A.last : B.last)} devant de ${f3(x.s)}</title></rect>
+      ${Math.abs(x.s) > cap ? `<text x="${pl + i * bw + bw / 2}" y="${x.s < 0 ? y + 12 : y - 4}" class="sz-ax sz-clip" text-anchor="middle">${Math.abs(x.s).toFixed(2).replace('.', ',')} s</text>` : ''}
+      <text x="${pl + i * bw + bw / 2}" y="${H - 18}" class="sz-ax" text-anchor="middle">R${x.round}</text><text x="${pl + i * bw + bw / 2}" y="${H - 5}" class="sz-ax" text-anchor="middle">Q${x.part}</text>`;
+  }).join('');
+  const axis = `<line x1="${pl}" x2="${W - pr}" y1="${mid}" y2="${mid}" class="sz-gl"/>
+    <text x="${pl - 6}" y="${pt + 8}" class="sz-ax" text-anchor="end">${esc(A.code)}</text><text x="${pl - 6}" y="${H - pb}" class="sz-ax" text-anchor="end">${esc(B.code)}</text>`;
+  return `<section class="sz-box"><h3>Écart en qualification</h3>
+    <div class="sz-cards sz-kpis">
+      <div class="sz-card sz-kpi"><div class="muted small">Écart médian</div><div class="sz-big">${g.median === null ? '—' : f3(g.median)}</div><div class="muted small">${g.median ? `en faveur de ${esc(lead.last)} · ${Math.abs(g.medianPct).toFixed(2).replace('.', ',')} %` : ''}</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Écart moyen</div><div class="sz-big">${g.mean === null ? '—' : f3(g.mean)}</div><div class="muted small">${g.mean ? `en faveur de ${esc((g.mean <= 0 ? A : B).last)}` : ''}</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Plus devant</div><div class="sz-big">${esc(A.code)} ${g.rounds.filter((x) => x.s < 0).length} – ${g.rounds.filter((x) => x.s > 0).length} ${esc(B.code)}</div><div class="muted small">séances où l'un a battu l'autre au temps</div></div>
+    </div>
+    <div class="sz-scroll"><svg viewBox="0 0 ${W} ${H}" class="sz-svg sz-gap-chart">${axis}${bars}</svg></div>
+    <div class="muted small">Barre vers le haut : ${esc(A.last)} plus rapide ; vers le bas : ${esc(B.last)}.</div></section>`;
+}
+
 function renderH2H() {
   const teams = data.constructors.map((c) => ({ id: c.id, name: c.name }));
   h2hTeam ||= teams[0]?.id;
@@ -281,6 +334,9 @@ function renderH2H() {
     ['Abandons', stat((c) => sum(c, (r, k) => (res(r, k) && !/^\d+$/.test(res(r, k).posText) ? 1 : 0)))],
   ];
   const ca = color(A.team, A.teamId);
+  const gaps = qualiGaps(races, A.code, B.code);
+  const rt = ratingsFor(data, stats?.year === data.year ? stats : null);
+  const ra = rt.find((e) => e.code === A.code), rb = rt.find((e) => e.code === B.code);
   return `<div class="sz-h2h-pick"><label class="small">Écurie <select id="szTeam">${teams.map((t) => `<option value="${t.id}" ${t.id === h2hTeam ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label></div>
     <section class="sz-box sz-h2h"><div class="sz-h2h-head"><b style="color:${ca}">${esc(A.name)}</b><span class="sz-vs">VS</span><b>${esc(B.name)}</b></div>
       ${rows.map(([label, [a, b]]) => {
@@ -288,26 +344,32 @@ function renderH2H() {
         const better = label === 'Abandons' ? (a < b ? 'a' : b < a ? 'b' : '') : (a > b ? 'a' : b > a ? 'b' : '');
         return `<div class="sz-h2h-row"><div class="sz-h2h-label">${label}</div>
           <div class="sz-h2h-bar"><span class="${better === 'a' ? 'win' : ''}">${a}</span><div class="sz-h2h-track"><i class="a" style="width:${(a / tot) * 50}%;background:${ca}"></i><i class="b" style="width:${(b / tot) * 50}%"></i></div><span class="${better === 'b' ? 'win' : ''}">${b}</span></div></div>`;
-      }).join('')}</section>
-    <p class="muted small">Duel en course : meilleure place à l'arrivée quand les deux pilotes ont couru (un abandon compte comme une défaite).</p>`;
+      }).join('')}
+      <div class="sz-h2h-row"><div class="sz-h2h-label">Note face au coéquipier</div><div class="sz-h2h-bar sz-h2h-grades"><span>${ra ? gradeBadge(ra.mate, ra.mateGrade) : '—'}</span><div></div><span>${rb ? gradeBadge(rb.mate, rb.mateGrade) : '—'}</span></div></div>
+    </section>
+    ${qualiGapBox(gaps, A, B, ca)}
+    <p class="muted small">Duel en course : meilleure place à l'arrivée quand les deux pilotes ont couru (un abandon compte comme une défaite). Écart en qualification : dans la dernière partie disputée par les deux (Q3, sinon Q2, sinon Q1) ; les écarts de plus de 3 % (incident, piste qui change) sont montrés en transparence mais pas comptés.</p>`;
 }
 
 // Explication en tête des vues qui n'en ont pas déjà une
 const HELP = {
   standings: 'Classements officiels des pilotes et des constructeurs, mis à jour après chaque course (sprints compris).',
-  drivers: 'Fiche d\'un pilote : ses chiffres clés de la saison, sa position au départ et à l\'arrivée de chaque course, puis le détail course par course (qualification, grille, arrivée, points, meilleur tour, vitesse, arrêts).',
+  drivers: 'Fiche d\'un pilote : ses chiffres clés et ses notes de la saison, sa position au départ et à l\'arrivée de chaque course, la répartition de ses arrivées, ses points comparés à la saison précédente, puis le détail course par course (qualification, grille, arrivée, points, tours en tête, meilleur tour, vitesse, arrêts).',
+  ratings: 'Une note sur 100 et une lettre (S, A, B, C, D, F) pour chaque pilote : la note de la saison le compare à tous les pilotes, la note face au coéquipier le compare à son coéquipier dans la même voiture.',
   tech: 'Évolutions déclarées par chaque écurie avant chaque Grand Prix (document officiel FIA « Car Presentation Submissions ») : pièce modifiée, raison (performance, spécifique au circuit, fiabilité) et explication de l\'écurie.',
 };
 
 function render() {
   if (!data) return;
   for (const b of document.querySelectorAll('#szNav [data-sz]')) b.classList.toggle('active', b.dataset.sz === section);
-  const ctx = { data, stats: stats?.year === data.year || stats?.error ? stats : null, color, bar, official: (id) => OFFICIAL[id] || '8b95a8' };
+  const st = stats?.year === data.year || stats?.error ? stats : null;
+  const ctx = { data, stats: st, color, bar, official: (id) => OFFICIAL[id] || '8b95a8', ratings: ratingsFor(data, st), prev: prev?.year === data.year - 1 ? prev : null };
+  if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
     home: renderHome, calendar: renderCalendar, standings: renderStandings, results: renderResults, h2h: renderH2H,
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
-    speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort),
+    speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData),
   }[section]();
   const help = HELP[section] ? `<p class="sz-help">${HELP[section]}</p>` : '';
@@ -336,7 +398,7 @@ export function openSeason(sec) {
   timer = setInterval(tick, 1000);
 }
 
-function closeSeason() {
+export function closeSeason() {
   $('#seasonView').hidden = true;
   $('#seasonBtn').classList.remove('on');
   clearInterval(timer);
@@ -357,6 +419,7 @@ export function initSeason() {
     else if (id === 'szDriver') drvCode = e.target.value;
     else if (id === 'szSpeedPt') speedPt = e.target.value;
     else if (id === 'szCircSort') circSort = e.target.value;
+    else if (id === 'szRateSort') rateSort = e.target.value;
     else if (id === 'szTechGp') setTechFilter(e.target.value, 'all');
     else if (id === 'szTechTeam') setTechFilter(undefined, e.target.value);
     else if (id === 'szTechOrig') toggleTechOriginal(e.target.checked);

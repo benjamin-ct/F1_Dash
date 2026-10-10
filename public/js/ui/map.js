@@ -1,8 +1,10 @@
 // Carte du circuit : tracé, secteurs sous drapeau, voitures (GPS ou estimées), virages.
-import { store, displayNow, f1Now } from '../store.js';
+import { store, displayNow, f1Now, on } from '../store.js';
+import { prefs, setPref } from '../prefs.js';
 import { $, api, drivers, teamColor, storageGet, storageSet } from '../util.js';
 import { loadTrack } from '../track.js';
 import { parseUtc } from '/shared/f1.js';
+import { hotLaps } from './tower.js';
 
 const canvas = () => $('#mapCanvas');
 let ctx = null;
@@ -458,7 +460,8 @@ function draw() {
   const dpr = size.dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, size.w, size.h);
-  if (!track) return;
+  // Carte masquée (autre panneau agrandi, Saison ouverte) : rien à dessiner
+  if (!track || !canvas().width || !canvas().height) return;
   if (!xf) xf = { base: makeTransform() };
   // Suivi du pilote : on centre la vue sur sa voiture (repérée à l'image précédente).
   if ($('#mapFollow').checked && followTarget) {
@@ -821,9 +824,12 @@ function drawCars(dt) {
     ctx.restore();
   }
 
-  // Voitures
+  // Voitures (essais / qualifs, option : celles hors tour lancé sont estompées)
+  const hot = hotLaps();
+  for (const c of cars) c.cool = !!hot && !hot.has(c.num) && !c.sp;
   for (const c of cars) {
     const [x, y] = c.p;
+    ctx.globalAlpha = c.cool ? 0.3 : 1;
     if (c.sp) {
       ctx.beginPath();
       ctx.arc(x, y, c.r + 4, 0, Math.PI * 2);
@@ -858,6 +864,7 @@ function drawCars(dt) {
       ctx.setLineDash([]);
     }
   }
+  ctx.globalAlpha = 1;
 
   // Étiquettes : position + trigramme, placées sans se chevaucher (pilotes suivis puis ordre de course)
   const placed = cars.map((c) => ({ x: c.p[0] - c.r, y: c.p[1] - c.r, w: c.r * 2, h: c.r * 2, num: c.num }));
@@ -881,7 +888,7 @@ function drawCars(dt) {
     if (!spot) spot = spots[0];
     const [lx, ly] = spot;
     placed.push({ x: lx, y: ly, w, h, num: c.num });
-    ctx.globalAlpha = crowded && !c.sp ? 0.55 : 1;
+    ctx.globalAlpha = c.cool ? 0.3 : crowded && !c.sp ? 0.55 : 1;
     ctx.fillStyle = pal().label;
     ctx.beginPath();
     ctx.roundRect(lx, ly, w, h, 4);
@@ -921,6 +928,10 @@ function initMapOptions() {
     if (typeof saved[id] === 'boolean') el.checked = saved[id];
     el.addEventListener('change', () => storageSet('f1dash.mapOpts', Object.fromEntries(MAP_OPTS.map((k) => [k, $(`#${k}`).checked]))));
   }
+  const hot = $('#hotLapDim');
+  hot.checked = prefs.hotLapDim;
+  hot.addEventListener('change', (e) => setPref('hotLapDim', e.target.checked));
+  on('prefs', (k) => { if (k === 'hotLapDim') hot.checked = prefs.hotLapDim; });
 }
 
 export function initMap() {

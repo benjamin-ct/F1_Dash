@@ -20,7 +20,49 @@ function gapsToLeader(state) {
     else if (g && g.s !== undefined) s = g.s;
     if (s !== null) out.push({ num: n, gap: s, lapped: g?.laps || 0 });
   }
-  return out.sort((a, b) => a.gap - b.gap);
+  out.sort((a, b) => a.gap - b.gap);
+  out.lap = leaderLap;
+  return out;
+}
+
+// Cercle de position (comme le « Circle of Doom » de MultiViewer) : un tour = un tour de cercle.
+// Chaque voiture est placée selon son écart au leader (le leader en haut, les poursuivants dans
+// le sens inverse des aiguilles), avec la position de sortie des stands du pilote choisi.
+function circleSvg(gaps, me, projected, dl) {
+  const lap = gaps.lap || 90;
+  const R = 100, C = 130;
+  const ang = (gap) => -((gap % lap) / lap) * 2 * Math.PI;
+  const pt = (a, r) => [C + r * Math.sin(a), C - r * Math.cos(a)];
+  const mine = gaps.find((g) => g.num === me);
+  // Arc entre la position actuelle et la sortie des stands
+  const a0 = ang(mine.gap), a1 = ang(projected);
+  const span = ((mine.gap - projected) / lap) * 2 * Math.PI;   // négatif : on recule
+  const [x0, y0] = pt(a0, R), [x1, y1] = pt(a1, R);
+  const arc = `<path d="M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 ${Math.abs(span) > Math.PI ? 1 : 0} 0 ${x1.toFixed(1)} ${y1.toFixed(1)}" class="cd-loss"/>`;
+  // Étiquettes alternées dedans / dehors pour limiter les chevauchements
+  const placed = [];
+  const dots = gaps.map((g) => {
+    const a = ang(g.gap);
+    const [x, y] = pt(a, R);
+    const near = placed.filter((p) => Math.abs(Math.atan2(Math.sin(p.a - a), Math.cos(p.a - a))) < 0.2).length;
+    placed.push({ a });
+    const lr = near % 2 ? R - 24 : R + 22;
+    const [lx, ly] = pt(a, lr);
+    const col = teamColor(dl[g.num]);
+    return `<g class="cd-car${g.num === me ? ' me' : ''}"><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${g.num === me ? 7 : 5.5}" fill="${col}"/>
+      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" fill="${col}">${esc(dl[g.num]?.Tla || g.num)}</text></g>`;
+  }).join('');
+  const [gx, gy] = pt(a1, R);
+  const [glx, gly] = pt(a1, R - 40);
+  const ticks = Array.from({ length: 12 }, (_, i) => { const a = (i / 12) * 2 * Math.PI; const [ax, ay] = pt(a, R - 6); const [bx, by] = pt(a, R + 6); return `<line x1="${ax.toFixed(1)}" y1="${ay.toFixed(1)}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"/>`; }).join('');
+  return `<svg class="cd" viewBox="0 0 260 260" role="img" aria-label="Cercle de position">
+    <circle cx="${C}" cy="${C}" r="${R}" class="cd-ring"/><g class="cd-ticks">${ticks}</g>
+    ${arc}
+    <circle cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" r="8" class="cd-ghost"/>
+    <text x="${glx.toFixed(1)}" y="${gly.toFixed(1)}" class="cd-ghost-l">sortie ${esc(dl[me]?.Tla || me)}</text>
+    ${dots}
+    <text x="${C}" y="${C - 18}" class="cd-mid2">▲ leader en haut</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', ',')} s</text>
+  </svg>`;
 }
 
 // ---------------- Simulateur d'arrêt ----------------
@@ -107,7 +149,7 @@ export function renderPitSim(force = false) {
   $('#simLossSrc').textContent = `(${lossOverride !== null ? 'réglage manuel' : loss.label})`;
   if (document.activeElement !== $('#simLoss')) $('#simLoss').value = lossVal;
   $('#simLossReset').hidden = lossOverride === null;
-  $('#simOut').innerHTML = `<div class="pit-result">
+  $('#simOut').innerHTML = `<div class="pitsim-cols"><div class="cd-wrap">${circleSvg(gaps, me, projected, dl)}</div><div class="pitsim-res"><div class="pit-result">
       <div class="small muted">Si <b>${esc(dl[me]?.Tla || me)}</b> s'arrête maintenant (actuellement P${curPos}) :</div>
       <div class="big">P${newPos}</div>
       <div class="small">${ahead ? `à <b>${(projected - ahead.gap).toFixed(1).replace('.', ',')} s</b> derrière ${esc(dl[ahead.num]?.Tla || ahead.num)}` : 'en tête'}${behind ? ` · <b>${(behind.gap - projected).toFixed(1).replace('.', ',')} s</b> devant ${esc(dl[behind.num]?.Tla || behind.num)}` : ''}</div>
@@ -115,7 +157,7 @@ export function renderPitSim(force = false) {
     </div>
     <table class="pit-order">${slice.map((o) => `<tr class="${o.me ? 'me' : ''}"><td>P${order.indexOf(o) + 1}</td>
       <td><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[o.num])}"></span>${esc(dl[o.num]?.Tla || o.num)}${o.me ? ' (après arrêt)' : ''}</span></td>
-      <td style="text-align:right">${o.me ? '' : fmtSigned(o.gap - projected, 1) + ' s'}</td></tr>`).join('')}</table>`;
+      <td style="text-align:right">${o.me ? '' : fmtSigned(o.gap - projected, 1) + ' s'}</td></tr>`).join('')}</table></div></div>`;
 }
 
 // ---------------- Bagarres ----------------

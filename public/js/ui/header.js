@@ -41,17 +41,22 @@ export function renderHeader() {
       const left = lc?.TotalLaps && lc?.CurrentLap ? Math.max(0, Number(lc.TotalLaps) - Number(lc.CurrentLap) + (finished ? 0 : 1)) : null;
       $('#lapsLeftBox').hidden = left === null;
       if (left !== null) $('#lapsLeft').textContent = finished ? '0' : String(left);
+      lapBar(lc?.TotalLaps ? Math.min(1, Number(lc.CurrentLap || 0) / Number(lc.TotalLaps)) : null);
     } else if (kind === 'quali') {
       $('#lapsLeftBox').hidden = true;
       $('#lapLabel').textContent = 'Partie';
       const part = s.TimingData?.SessionPart;
       const sprint = /sprint/i.test(info?.Name || '');
       $('#lapValue').textContent = part ? `${sprint ? 'SQ' : 'Q'}${part}` : '—';
+      lapBar(null);
     } else {
       $('#lapsLeftBox').hidden = true;
       $('#lapLabel').textContent = 'Session';
       $('#lapValue').textContent = info?.Name?.replace('Practice', 'EL') || '—';
+      lapBar(null);
     }
+    gmtOffset = parseGmtOffset(info?.GmtOffset);
+    $('#circuitTimeBox').hidden = gmtOffset === null;
 
     // Météo compacte
     const w = s.WeatherData;
@@ -81,6 +86,30 @@ export function renderHeader() {
   }
   const cv = $('#clockValue');
   if (cv.textContent !== txt) cv.textContent = txt;
+
+  // Heure locale du circuit, au moment affiché (délai TV et replay compris)
+  if (gmtOffset !== null) {
+    const d = new Date(f1Now() + gmtOffset);
+    const hm = `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+    const ct = $('#circuitTime');
+    if (ct.textContent !== hm) ct.textContent = hm;
+  }
+}
+
+let gmtOffset = null;
+
+// « 04:00:00 », « -05:00:00 » -> décalage en ms par rapport à UTC
+function parseGmtOffset(v) {
+  const m = /^\s*([+-])?(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(v || ''));
+  if (!m) return null;
+  return (m[1] === '-' ? -1 : 1) * ((+m[2] * 60 + +m[3]) * 60 + +(m[4] || 0)) * 1000;
+}
+
+// Barre de progression de la course (tour en cours / total)
+function lapBar(frac) {
+  const bar = $('#lapBar');
+  bar.hidden = frac === null;
+  if (frac !== null) bar.firstElementChild.style.width = `${(frac * 100).toFixed(1)}%`;
 }
 
 // État de la piste : déclaration de la direction de course (« TRACK DECLARED WET / DRY ») et

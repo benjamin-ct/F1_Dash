@@ -9,15 +9,27 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="F1 Dash">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="apple-touch-icon" href="/icon-512.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <title>F1 Dash</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23e10600'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='900' font-size='15' fill='white' text-anchor='middle'%3EF1%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/style.css">
-  <script>try { const p = JSON.parse(localStorage.getItem('f1dash.prefs') || '{}'); document.documentElement.dataset.theme = p.themeV ? p.theme || 'f1' : (p.theme && p.theme !== 'noir' ? p.theme : 'f1'); } catch { document.documentElement.dataset.theme = 'f1'; }</script>
+  <script>try { const p = JSON.parse(localStorage.getItem('f1dash.prefs') || '{}'); const v = p.themeV || 0; document.documentElement.dataset.theme = v >= 3 ? p.theme || 'pro' : (v === 2 ? (!p.theme || p.theme === 'f1' ? 'pro' : p.theme) : (p.theme === 'bleu' ? 'bleu' : 'pro')); } catch { document.documentElement.dataset.theme = 'pro'; }</script>
 </head>
 <body>
+  <!-- Nouveau design : barre de navigation latérale (fenêtre principale, grand écran) -->
+  <nav class="rail" id="rail" aria-label="Navigation">
+    <img class="rail-logo" src="/logo.svg" alt="F1 Dash">
+    <button class="rail-btn" data-rail="live" title="Direct : tableau de bord de la séance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><small>Direct</small></button>
+    <button class="rail-btn" data-rail="ana" title="Analyse : graphiques, comparaison des tours (plein écran ; Échap pour revenir)"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7"/></svg><small>Analyse</small></button>
+    <button class="rail-btn" data-rail="season" title="Saison : calendrier, classements, résultats, statistiques"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><small>Saison</small></button>
+    <button class="rail-btn" data-rail="replay" title="Replays : rejouer une séance passée"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M10 9l5 3-5 3z"/></svg><small>Replays</small></button>
+    <button class="rail-btn" data-rail="radio" title="Commentaires en direct F1 TV / radio"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><small>Radios</small></button>
+    <div class="rail-sp"></div>
+    <button class="rail-btn" data-rail="reset" title="Réinitialiser l'interface (disposition, panneaux et colonnes par défaut)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
+    <button class="rail-btn" data-rail="settings" title="Réglages : source, compte F1 TV, affichage, alertes, application"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><small>Réglages</small></button>
+  </nav>
   <header class="topbar">
-    <div class="brand"><span class="logo">F1</span><span class="brand-name">DASH</span></div>
+    <div class="brand"><img class="logo" src="/logo.svg" alt="F1"><span class="brand-name">DASH</span></div>
 
     <div class="session">
       <div class="session-name" id="sessionName">Connexion…</div>
@@ -27,9 +39,10 @@
     <div class="track-status" id="trackStatus"><span class="ts-dot"></span><span class="ts-label">—</span></div>
     <div class="tb-break b1"></div>
 
-    <div class="hstat"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div></div>
+    <div class="hstat lap-box"><div class="hstat-label" id="lapLabel">Tour</div><div class="hstat-value" id="lapValue">—</div><div class="lap-bar" id="lapBar" hidden><i></i></div></div>
     <div class="hstat" id="lapsLeftBox" hidden><div class="hstat-label">Tours restants</div><div class="hstat-value" id="lapsLeft">—</div></div>
     <div class="hstat"><div class="hstat-label">Temps restant</div><div class="hstat-value" id="clockValue">—</div></div>
+    <div class="hstat" id="circuitTimeBox" hidden title="Heure locale sur le circuit (au moment affiché, délai TV compris)"><div class="hstat-label">Heure circuit</div><div class="hstat-value" id="circuitTime">—</div></div>
     <div class="hstat weather-mini" id="weatherMini" title="Météo"></div>
     <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
 
@@ -42,13 +55,16 @@
         <span class="delay-warn" id="delayWarn" hidden title="">⚠</span>
       </div>
       <div class="delay-controls">
-        <button class="dbtn" data-step="-5000" title="−5 s (Maj + ←)">−5</button>
-        <button class="dbtn" data-step="-1000" title="−1 s (←)">−1</button>
-        <button class="dbtn" data-step="-100" title="−0,1 s (Alt + ←)">−.1</button>
         <input id="delayInput" class="delay-input" type="text" inputmode="decimal" aria-label="Délai en secondes">
-        <button class="dbtn" data-step="100" title="+0,1 s (Alt + →)">+.1</button>
-        <button class="dbtn" data-step="1000" title="+1 s (→)">+1</button>
-        <button class="dbtn" data-step="5000" title="+5 s (Maj + →)">+5</button>
+        <button class="dmore" id="delayMore" type="button" title="Ajuster le délai : ±0,1 / ±1 / ±5 s (flèches du clavier)" aria-expanded="false">±</button>
+        <div class="delay-steps" id="delaySteps">
+          <button class="dbtn m" data-step="-5000" title="−5 s (Maj + ←)">−5</button>
+          <button class="dbtn m" data-step="-1000" title="−1 s (←)">−1</button>
+          <button class="dbtn m" data-step="-100" title="−0,1 s (Alt + ←)">−.1</button>
+          <button class="dbtn" data-step="100" title="+0,1 s (Alt + →)">+.1</button>
+          <button class="dbtn" data-step="1000" title="+1 s (→)">+1</button>
+          <button class="dbtn" data-step="5000" title="+5 s (Maj + →)">+5</button>
+        </div>
       </div>
       <select id="presetSelect" class="preset" aria-label="Préréglages de délai"></select>
       <button class="btn btn-accent" id="syncBtn" title="Caler le délai sur votre diffusion TV (touche S)">🎯<span class="sync-label"> Synchro TV</span></button>
@@ -90,6 +106,7 @@
         <button data-sz="standings">🏆 Classements</button>
         <button data-sz="results">🏁 Résultats & records</button>
         <button data-sz="h2h">⚔ Coéquipiers</button>
+        <button data-sz="ratings">🎖 Notes des pilotes</button>
         <div class="sz-nav-sep">Statistiques détaillées</div>
         <button data-sz="drivers">👤 Pilotes</button>
         <button data-sz="consistency">📏 Régularité</button>
@@ -126,6 +143,7 @@
             <div class="map-layers-menu">
               <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms des pilotes</label>
               <label class="toggle" title="Courte traînée derrière chaque voiture (direction et vitesse)"><input type="checkbox" id="mapTrails" checked> Traînées</label>
+              <label class="toggle" title="Essais et qualifs : les voitures qui ne sont pas dans un tour rapide sont estompées (carte et classement)"><input type="checkbox" id="hotLapDim"> Estomper hors tour lancé</label>
               <label class="toggle"><input type="checkbox" id="mapCorners" checked> Numéros de virage</label>
               <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
               <label class="toggle" title="Numéros des micro-secteurs (1.1, 1.2…) quand on zoome sur la carte"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs (zoom)</label>
@@ -159,6 +177,10 @@
           <div class="subbar">
             <label class="toggle"><input type="checkbox" id="rcmBlue"> Drapeaux bleus</label>
             <label class="toggle"><input type="checkbox" id="rcmDeleted"> Temps supprimés</label>
+            <select id="rcmType" aria-label="Type de messages" title="N'afficher qu'un type de messages">
+              <option value="all">Tous les messages</option><option value="flags">Drapeaux</option><option value="sc">Safety car / VSC</option>
+              <option value="stewards">Enquêtes et pénalités</option><option value="limits">Limites de piste</option><option value="other">Autres</option>
+            </select>
             <span class="muted small" id="rcmHidden"></span>
           </div>
           <ul class="rcm" id="rcmList"></ul>
@@ -257,12 +279,17 @@
           </div>
         </div>
         <div class="tabpane" data-pane="tyrehist"><div class="tyre-hist-wrap" id="anaTyres"></div></div>
-        <div class="tabpane" data-pane="sectors"><div id="anaSectors"></div></div>
+        <div class="tabpane" data-pane="sectors">
+          <div class="subbar"><label class="small" title="Afficher les temps et vitesses en écart à un pilote">Affichage <select id="secRef"></select></label><span class="small muted">vert = mieux que le pilote de référence, rouge = moins bien</span></div>
+          <div id="anaSectors"></div>
+        </div>
         <div class="tabpane" data-pane="compare">
           <div class="subbar">
             <label class="small" title="Pilote A (bleu)">A <select id="cmpA"></select></label>
+            <select id="cmpLapA" class="cmp-lap" aria-label="Tour du pilote A"></select>
             <button class="btn small" id="cmpSwap" title="Inverser A et B">⇄</button>
             <label class="small" title="Pilote B (orange)">B <select id="cmpB"></select></label>
+            <select id="cmpLapB" class="cmp-lap" aria-label="Tour du pilote B"></select>
             <button class="btn small" id="cmpTop" title="Revenir à P1 contre P2">P1 / P2</button>
           </div>
           <div id="anaCompare" class="cmp"></div>
@@ -275,6 +302,7 @@
       <div class="panel-head tabs" data-tabs="extra">
         <button class="tab active" data-tab="pits">Arrêts</button>
         <button class="tab" data-tab="strategy" title="Relais et pneus de chaque pilote">Stratégie</button>
+        <button class="tab" data-tab="tyres" title="Jeux de pneus neufs et utilisés sur le week-end, choix et préconisations de Pirelli">Pneus</button>
         <button class="tab" data-tab="pitsim" title="Simulateur d'arrêt au stand">Simul.</button>
         <button class="tab" data-tab="battles">Bagarres</button>
         <button class="tab" data-tab="weather">Météo</button>
@@ -283,6 +311,7 @@
       <div class="panel-body">
         <div class="tabpane active" data-pane="pits"><div id="pitList"></div></div>
         <div class="tabpane" data-pane="strategy" id="strategy"></div>
+        <div class="tabpane" data-pane="tyres" id="tyres"></div>
         <div class="tabpane" data-pane="pitsim" id="pitsim"></div>
         <div class="tabpane" data-pane="battles" id="battles"></div>
         <div class="tabpane" data-pane="weather" id="weather"></div>
@@ -374,7 +403,7 @@
             <li>Ouvrez les outils de développement (F12) → onglet <b>Application</b> (Chrome/Edge) ou <b>Stockage</b> (Firefox) → <b>Cookies</b> → <code>https://www.formula1.com</code>.</li>
             <li>Copiez la <b>valeur</b> du cookie <code>login-session</code> et collez-la ci-dessous (le jeton est extrait automatiquement).</li>
           </ol>
-          <p>Le jeton est enregistré uniquement sur votre PC (fichier <code>config.json</code>) et n'est envoyé qu'à livetiming.formula1.com. Il expire au bout de quelques jours : il faudra le recoller.</p>
+          <p>Le jeton est enregistré uniquement sur votre PC (fichier <code>config.json</code>). Il n'est envoyé qu'aux serveurs de la F1 (dont api.formula1.com pour le renouvellement). Il vaut environ 4 jours et l'application le <b>renouvelle automatiquement</b> tant que votre session formula1.com est valide (environ 30 jours après la connexion) ; un rappel s'affiche quelques jours avant la fin.</p>
         </details>
         <div class="row" id="desktopLogin" hidden>
           <button class="btn btn-accent" id="desktopLoginBtn">🔐 Se connecter à F1 TV</button>
@@ -425,6 +454,12 @@
           <button class="btn btn-accent" id="updateInstall" hidden>Redémarrer et mettre à jour</button>
           <label class="toggle small"><input type="checkbox" id="updateAuto"> Télécharger et installer automatiquement (à la fermeture de l'appli)</label>
         </div>
+        <details class="cl-ver cl-next" id="updateNotes" hidden><summary>Nouveautés de la version <span id="updateNotesVer"></span></summary><div class="cl-body" id="updateNotesBody"></div></details>
+      </section>
+
+      <section class="set-block" data-sgroup="app">
+        <h4>📝 Nouveautés (journal des modifications)</h4>
+        <div class="cl-list" id="changelog"><p class="muted">Chargement…</p></div>
       </section>
 
       <section class="set-block" data-sgroup="alerts">
@@ -444,8 +479,10 @@
         <div class="small muted">Colonnes du classement :</div>
         <div class="row" id="colOpts"></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="towerFit"> Agrandir le classement pour remplir la hauteur disponible (grand écran, fenêtre détachée)</label></div>
-        <div class="row"><label class="small">Thème <select id="themeSel"><option value="f1">F1 sobre (par défaut)</option><option value="noir">Classique (noir)</option><option value="bleu">Bleu nuit</option></select></label></div>
+        <div class="row"><label class="small">Thème <select id="themeSel"><option value="pro">F1 Pro (par défaut)</option><option value="f1">F1 sobre</option><option value="noir">Classique (noir)</option><option value="bleu">Bleu nuit</option></select></label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="replayMarks"> Replays : périodes de safety car et de VSC sur la barre de lecture (les drapeaux rouges sont toujours indiqués)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="teamLogos"> Logos des écuries dans le classement et le championnat (décoché : simples barres de couleur)</label></div>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="logoColor"> Logos dans leurs couleurs officielles (décoché : logo blanc sur la couleur de l'écurie)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="vividTeams"> Couleurs d'équipe contrastées (une teinte bien distincte par équipe ; décoché : couleurs officielles)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="legendsOn"> Légendes sous les panneaux (couleurs, colonnes, graphiques)</label></div>
         <div class="row"><label class="toggle small"><input type="checkbox" id="keepAwake"> Garder l'écran allumé pendant une séance (sur téléphone : touchez l'écran une fois)</label></div>
@@ -506,6 +543,7 @@
     <video id="commMedia" hidden playsinline></video>
   </div>
 
+  <div class="update-pill auth-pill" id="authPill" hidden><span id="authPillText"></span><button class="btn small btn-accent" id="authPillBtn">Se reconnecter</button><button class="icon-btn small" id="authPillClose" title="Masquer jusqu'à demain">✕</button></div>
   <div class="update-pill" id="updatePill" hidden><span id="updatePillText"></span><button class="btn small btn-accent" id="updatePillBtn">Redémarrer</button><button class="icon-btn small" id="updatePillClose" title="Plus tard (installée à la fermeture)">✕</button></div>
 
   <div class="toast" id="toast" hidden></div>

@@ -8,6 +8,7 @@ import { getJSON } from './net.js';
 import { loadArchive, seasonIndex } from './replay.js';
 import { circuit, CACHE_DIR } from './circuits.js';
 import { season } from './season.js';
+import { seasonNominations } from './tyres.js';
 import { createDerived, applyEvent } from '../shared/derive.js';
 import { parseLapTime } from '../shared/f1.js';
 import { Track } from '../shared/track.js';
@@ -233,5 +234,5 @@ export async function seasonStats(year) {
   }
   // Archives officielles inaccessibles et rien en cache : on le dit plutôt que « 0 / 22 »
   if (!races.length && !job.running && job.indexError) return { year, total: done.length, done: 0, pending: false, races, error: job.indexError };
-  return { year, total: done.length, done: races.length, pending: job.running, races };
+  return { year, total: done.length, done: races.length, pending: job.running, races, tyres: seasonNominations(year, sd.races) };
 }

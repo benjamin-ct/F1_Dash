@@ -27,14 +27,25 @@ function rcmFlagClass(m) {
   return '';
 }
 
+// Type d'un message de la direction de course (filtre « Type »)
+export function rcmType(m) {
+  const t = String(m.Message || '').toUpperCase();
+  if (m.Category === 'SafetyCar' || /SAFETY CAR|\bVSC\b/.test(t)) return 'sc';
+  if (/TRACK LIMITS|\bDELETED\b/.test(t)) return 'limits';
+  if (/STEWARDS|INVESTIGAT|PENALTY|NOTED|REPRIMAND|NO FURTHER ACTION|SUMMONED|DECISION/.test(t)) return 'stewards';
+  if (m.Flag || m.Category === 'Flag') return 'flags';
+  return 'other';
+}
+
 function rcmShown(m) {
   if (!prefs.rcmBlue && m.Flag === 'BLUE') return false;
   if (!prefs.rcmDeleted && /\bDELETED\b/.test(m.Message || '')) return false;
+  if (prefs.rcmType && prefs.rcmType !== 'all' && rcmType(m) !== prefs.rcmType) return false;
   return true;
 }
 
 export function renderRcm() {
-  const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}`;
+  const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}|${prefs.rcmType}`;
   if (v === rcmVer) return;
   const sameList = String(rcmVer).split('|')[0] === v.split('|')[0] || rcmVer === -1;
   rcmVer = v;
@@ -298,6 +309,10 @@ export function initRcmFilters() {
     $(`#${id}`).addEventListener('change', (e) => setPref(key, e.target.checked));
   }
   on('prefs', (k) => { if (k === 'rcmBlue' || k === 'rcmDeleted') $(`#${k}`).checked = prefs[k]; });
+  const type = $('#rcmType');
+  type.value = prefs.rcmType || 'all';
+  type.addEventListener('change', (e) => setPref('rcmType', e.target.value));
+  on('prefs', (k) => { if (k === 'rcmType') type.value = prefs.rcmType; });
 }
 
 export function initRadio() {

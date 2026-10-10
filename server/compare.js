@@ -140,14 +140,16 @@ export function miniSectors(loopData, segCounts) {
 }
 
 // Meilleur tour d'un pilote retrouvé dans le GPS : deux passages de ligne séparés du temps officiel
-function findLapRun(runs, lapTime, untilUtc) {
+// endUtc (facultatif) : heure de fin du tour cherché ; le passage sur la ligne doit y correspondre
+function findLapRun(runs, lapTime, untilUtc, endUtc = null) {
   let best = null;
   for (const run of runs) {
     if (run.p.length < 10) continue;
     for (let n = Math.ceil(run.p[0]); n + 1 <= run.p.at(-1); n++) {
       const t0 = timeAt(run, n), t1 = timeAt(run, n + 1);
       if (t0 === null || t1 === null || t1 > untilUtc) continue;
-      const err = Math.abs((t1 - t0) / 1000 - lapTime);
+      if (endUtc !== null && Math.abs(t1 - endUtc) > 6000) continue;
+      const err = Math.abs((t1 - t0) / 1000 - lapTime) + (endUtc !== null ? Math.abs(t1 - endUtc) / 20000 : 0);
       if (err < 0.8 && (!best || err < best.err)) best = { run, n, t0, t1, err };
     }
   }
@@ -161,7 +163,17 @@ function bestLap(state, derived, num) {
   if (!time) return null;
   const entry = (derived.laps[num] || []).find((l) => parseLapTime(l.time) === time);
   const s = entry?.s?.map((v) => parseLapTime(v)) || [null, null, null];
-  return { time, lap: Number(line.BestLapTime.Lap) || entry?.lap || null, sectors: s };
+  return { time, lap: Number(line.BestLapTime.Lap) || entry?.lap || null, sectors: s, best: true, endT: entry?.t ?? null };
+}
+
+// Tour précis d'un pilote (numéro de tour), sinon son meilleur tour
+function pickLap(state, derived, num, lapNo) {
+  if (!lapNo) return bestLap(state, derived, num);
+  const entry = (derived.laps[num] || []).find((l) => Number(l.lap) === Number(lapNo));
+  const time = parseLapTime(entry?.time);
+  if (!time) return null;
+  const best = bestLap(state, derived, num);
+  return { time, lap: Number(entry.lap), sectors: entry.s?.map((v) => parseLapTime(v)) || [null, null, null], best: !!best && best.time === time, endT: entry.t ?? null };
 }
 
 /**
@@ -169,7 +181,7 @@ function bestLap(state, derived, num) {
  * @param a, b numéros des pilotes
  * @param until heure locale : rien après (délai TV du navigateur)
  */
-export async function compareLaps(hub, { a, b, until }) {
+export async function compareLaps(hub, { a, b, until, la = null, lb = null }) {
   const state = {};
   const derived = createDerived();
   for (const e of hub.events) {
@@ -178,14 +190,14 @@ export async function compareLaps(hub, { a, b, until }) {
   }
   const dl = state.DriverList || {};
   const stats = state.TimingStats?.Lines || {};
-  const who = (num) => {
+  const who = (num, lapNo) => {
     const d = dl[num] || {};
-    const lap = bestLap(state, derived, num);
+    const lap = pickLap(state, derived, num, lapNo);
     const sp = stats[num]?.BestSpeeds || {};
     const speeds = Object.fromEntries(['I1', 'I2', 'FL', 'ST'].map((k) => [k, Number(sp[k]?.Value) || null]));
     return { num, tla: d.Tla || num, name: d.FullName || d.BroadcastName || num, team: d.TeamName || '', color: d.TeamColour || '', lap, speeds };
   };
-  const out = { a: who(a), b: who(b), gps: false, minis: [], track: null, reason: null };
+  const out = { a: who(a, la), b: who(b, lb), gps: false, minis: [], track: null, reason: null };
   if (!out.a.lap || !out.b.lap) { out.reason = 'Pas encore de tour chronométré pour l\'un des deux pilotes.'; return out; }
 
   const info = state.SessionInfo;
@@ -215,13 +227,15 @@ export async function compareLaps(hub, { a, b, until }) {
     const d = out[side];
     const car = cars.get(String(d.num));
     if (!car) { out.reason = `Pas de GPS pour ${d.tla}.`; return out; }
-    const found = findLapRun(progressRuns(car, track, ldata.line ?? 0, untilUtc), d.lap.time, untilUtc);
-    if (!found) { out.reason = `Meilleur tour de ${d.tla} introuvable dans le GPS.`; return out; }
+    const endUtc = d.lap.endT != null ? d.lap.endT - offset : null;
+    const runs = progressRuns(car, track, ldata.line ?? 0, untilUtc);
+    const found = findLapRun(runs, d.lap.time, untilUtc, endUtc) || (d.lap.best ? findLapRun(runs, d.lap.time, untilUtc) : null);
+    if (!found) { out.reason = `Tour ${d.lap.lap || ''} de ${d.tla} introuvable dans le GPS.`; return out; }
     const raw = [];
     let prev = found.t0;
     for (const m of minis) {
       const t = m.to >= 1 ? found.t1 : timeAt(found.run, found.n + m.to);
-      if (t === null) { out.reason = `GPS incomplet sur le meilleur tour de ${d.tla}.`; return out; }
+      if (t === null) { out.reason = `GPS incomplet sur le tour de ${d.tla}.`; return out; }
       raw.push((t - prev) / 1000);
       prev = t;
     }

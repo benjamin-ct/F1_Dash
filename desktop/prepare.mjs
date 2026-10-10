@@ -10,6 +10,8 @@ fs.rmSync(out, { recursive: true, force: true });
 for (const dir of ['server', 'public', 'shared']) {
   fs.cpSync(path.join(root, dir), path.join(out, dir), { recursive: true });
 }
+// Journal des modifications, affiché dans les réglages
+fs.copyFileSync(path.join(root, 'CHANGELOG.md'), path.join(out, 'CHANGELOG.md'));
 // Le serveur est un module ES : il a besoin de son package.json ("type": "module").
 fs.writeFileSync(path.join(out, 'package.json'), JSON.stringify({ type: 'module', private: true }, null, 2));
 console.log('Application copiée dans desktop/bundle');

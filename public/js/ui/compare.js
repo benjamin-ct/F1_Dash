@@ -2,10 +2,10 @@
 // par mini-secteur (P1 contre P2 par défaut, ou deux pilotes au choix). Les mini-secteurs sont
 // mesurés par le serveur avec le GPS (voir server/compare.js), au rythme du délai TV.
 import { store, serverNow, versionOf } from '../store.js';
-import { $, esc, api, drivers, orderedNumbers, fmtLap, storageGet, storageSet } from '../util.js';
+import { $, esc, api, drivers, orderedNumbers, fmtLap, lapSeconds, storageGet, storageSet } from '../util.js';
 
 const KEY = 'f1dash.compare';
-const sel = { a: null, b: null, ...storageGet(KEY, {}) };   // null : P1 / P2 automatiques
+const sel = { a: null, b: null, ...storageGet(KEY, {}), la: null, lb: null };   // null : P1 / P2 automatiques, meilleurs tours
 let data = null;
 let loading = false;
 let lastReq = '';
@@ -36,17 +36,25 @@ function fillSelects(a, b) {
     if (el._html !== html) { el.innerHTML = html; el._html = html; }
     if (v) el.value = v;
   }
+  // Tour comparé : meilleur tour ou n'importe quel tour chronométré
+  for (const [id, n, k] of [['#cmpLapA', a, 'la'], ['#cmpLapB', b, 'lb']]) {
+    const el = $(id);
+    const laps = (store.derived.laps?.[n] || []).filter((l) => lapSeconds(l.time) > 0);
+    const html = `<option value="">Meilleur tour</option>${laps.map((l) => `<option value="${l.lap}">Tour ${l.lap} · ${fmtLap(lapSeconds(l.time))}${l.pit ? ' (stand)' : ''}</option>`).join('')}`;
+    if (el._html !== html) { el.innerHTML = html; el._html = html; }
+    el.value = sel[k] && laps.some((l) => Number(l.lap) === Number(sel[k])) ? String(sel[k]) : '';
+  }
 }
 
 async function load(a, b) {
   const lines = store.state.TimingData?.Lines || {};
-  const req = `${a}|${b}|${lines[a]?.BestLapTime?.Value}|${lines[b]?.BestLapTime?.Value}|${store.status?.source?.path || ''}`;
+  const req = `${a}|${b}|${sel.la}|${sel.lb}|${lines[a]?.BestLapTime?.Value}|${lines[b]?.BestLapTime?.Value}|${store.status?.source?.path || ''}`;
   if (loading || (req === lastReq && Date.now() - lastAt < 30000)) return;
   loading = true;
   lastReq = req;
   lastAt = Date.now();
   try {
-    data = await api(`/api/compare?a=${a}&b=${b}&until=${Math.round(serverNow() - store.delay)}`);
+    data = await api(`/api/compare?a=${a}&b=${b}&until=${Math.round(serverNow() - store.delay)}${sel.la ? `&la=${sel.la}` : ''}${sel.lb ? `&lb=${sel.lb}` : ''}`);
   } catch (err) {
     data = { error: err.message };
   } finally {
@@ -130,32 +138,49 @@ function draw() {
   }).join('');
   el.innerHTML = `
     <div class="cmp-head">
-      <div class="cmp-drv" style="--c:${COL_A}"><b>${esc(A.tla)}</b><span>${fmtLap(A.lap.time)}</span><small class="muted">${esc(A.team)}${A.lap.lap ? ` · tour ${A.lap.lap}` : ''}</small></div>
+      <div class="cmp-drv" style="--c:${COL_A}"><b>${esc(A.tla)}</b><span>${fmtLap(A.lap.time)}</span><small class="muted">${esc(A.team)}${A.lap.lap ? ` · tour ${A.lap.lap}` : ''}${A.lap.best ? ' (meilleur)' : ''}</small></div>
       <div class="cmp-gap"><b>${sgn(gap)}</b><small class="muted">${gap < 0 ? `${esc(A.tla)} devant` : gap > 0 ? `${esc(B.tla)} devant` : 'égalité'}</small></div>
-      <div class="cmp-drv right" style="--c:${COL_B}"><b>${esc(B.tla)}</b><span>${fmtLap(B.lap.time)}</span><small class="muted">${esc(B.team)}${B.lap.lap ? ` · tour ${B.lap.lap}` : ''}</small></div>
+      <div class="cmp-drv right" style="--c:${COL_B}"><b>${esc(B.tla)}</b><span>${fmtLap(B.lap.time)}</span><small class="muted">${esc(B.team)}${B.lap.lap ? ` · tour ${B.lap.lap}` : ''}${B.lap.best ? ' (meilleur)' : ''}</small></div>
     </div>
     <div class="cmp-sectors">${sectors}</div>
     ${d.gps ? `${summary}<div class="cmp-vis">${trackSvg(d)}<div class="cmp-right"><div class="muted small">Écart cumulé le long du tour (s) · au-dessus de 0 : <span style="color:${COL_B}">${esc(B.tla)} devant</span> · en dessous : <span style="color:${COL_A}">${esc(A.tla)} devant</span></div>${deltaSvg(d)}</div></div>${minis}` : `<div class="note small">${esc(d.reason || '')}</div>`}
     ${sp ? `<table class="cmp-speeds"><tr><th>Vitesse max (km/h)</th><th style="color:${COL_A}">${esc(A.tla)}</th><th style="color:${COL_B}">${esc(B.tla)}</th></tr>${sp}</table>` : ''}
-    <p class="muted small">Meilleur tour de chaque pilote. Secteurs : temps officiels. Mini-secteurs : mesurés avec le GPS et recalés sur les temps officiels de chaque secteur (précision d'environ ±0,05 s) ; en pointillé, emplacement de la boucle estimé.</p>`;
+    <p class="muted small">${A.lap.best && B.lap.best ? 'Meilleur tour de chaque pilote' : 'Tours choisis'} (vitesses max : meilleures de la séance). Secteurs : temps officiels. Mini-secteurs : mesurés avec le GPS et recalés sur les temps officiels de chaque secteur (précision d'environ ±0,05 s) ; en pointillé, emplacement de la boucle estimé.</p>`;
 }
 
 export function renderCompare(force = false) {
   const [a, b] = pair();
   fillSelects(a, b);
   if (!a || !b) { $('#anaCompare').innerHTML = '<div class="note">Il faut au moins deux pilotes avec un tour chronométré.</div>'; return; }
-  if (data && (data.a?.num !== a || data.b?.num !== b)) data = null;
+  if (data && (data.a?.num !== a || data.b?.num !== b || (data.a?.lap && sel.la && data.a.lap.lap !== Number(sel.la)) || (data.b?.lap && sel.lb && data.b.lap.lap !== Number(sel.lb)))) data = null;
   if (force) lastReq = '';
   draw();
   load(a, b);
 }
 
 export function initCompare() {
-  const set = (k, v) => { sel[k] = v; storageSet(KEY, sel); data = null; renderCompare(true); };
-  $('#cmpA').addEventListener('change', (e) => set('a', e.target.value));
-  $('#cmpB').addEventListener('change', (e) => set('b', e.target.value));
-  $('#cmpSwap').addEventListener('click', () => { const [a, b] = pair(); sel.a = b; sel.b = a; storageSet(KEY, sel); data = null; renderCompare(true); });
-  $('#cmpTop').addEventListener('click', () => { sel.a = null; sel.b = null; storageSet(KEY, sel); data = null; renderCompare(true); });
+  const set = (k, v) => { sel[k] = v; storageSet(KEY, { a: sel.a, b: sel.b }); data = null; renderCompare(true); };
+  $('#cmpA').addEventListener('change', (e) => { sel.la = null; set('a', e.target.value); });
+  $('#cmpB').addEventListener('change', (e) => { sel.lb = null; set('b', e.target.value); });
+  $('#cmpLapA').addEventListener('change', (e) => set('la', e.target.value || null));
+  $('#cmpLapB').addEventListener('change', (e) => set('lb', e.target.value || null));
+  $('#cmpSwap').addEventListener('click', () => { const [a, b] = pair(); sel.a = b; sel.b = a; [sel.la, sel.lb] = [sel.lb, sel.la]; storageSet(KEY, sel); data = null; renderCompare(true); });
+  $('#cmpTop').addEventListener('click', () => { sel.a = null; sel.b = null; sel.la = null; sel.lb = null; storageSet(KEY, sel); data = null; renderCompare(true); });
+}
+
+// Ouvre la comparaison sur un tour précis d'un pilote (clic sur un temps : Temps au tour, Pneus).
+// L'autre pilote garde son tour (meilleur tour par défaut).
+export function openCompareLap(num, lap) {
+  num = String(num);
+  const [a, b] = pair();
+  if (num === b) { sel.b = a; sel.lb = sel.la; }
+  sel.a = num;
+  sel.la = lap ? Number(lap) : null;
+  if (!sel.b || sel.b === num) sel.b = num === b ? a : b;
+  storageSet(KEY, { a: sel.a, b: sel.b });
+  data = null;
+  document.querySelector('.p-analysis [data-tab="compare"]')?.click();
+  renderCompare(true);
 }
 
 export const compareVersion = () => versionOf(['TimingData', 'DriverList', '__reset']);

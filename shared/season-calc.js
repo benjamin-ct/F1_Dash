@@ -1,0 +1,203 @@
+// Calculs de l'espace « Saison » (fonctions pures, testées) : écart en qualification entre
+// coéquipiers, notes des pilotes (saison et face au coéquipier), tours en tête, circuits proches.
+// data : saison Jolpica (/api/season) ; stats : analyse des archives (/api/season/stats).
+
+export const median = (a) => {
+  if (!a.length) return null;
+  const s = [...a].sort((x, y) => x - y);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+export const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+const classified = (x) => /^\d+$/.test(x?.posText || '');
+
+// Tours représentatifs d'un pilote dans une course : hors 1er tour, tours aux stands et sous
+// neutralisation, et sans les tours anormalement lents (> 107 % de sa médiane : trafic, incident…).
+export function cleanLaps(d) {
+  const v = (d?.laps || []).filter((l) => !(l[2] & 7)).map((l) => l[1]);
+  if (v.length < 8) return null;
+  const med = median(v);
+  return v.filter((t) => t <= med * 1.07 && t >= med * 0.93);
+}
+
+// Écart en qualification entre deux pilotes (lignes de qualification avec q = [Q1, Q2, Q3] en s) :
+// dernière partie où les deux ont un temps. s < 0 : a plus rapide.
+export function qualiGap(a, b) {
+  if (!a?.q || !b?.q) return null;
+  for (let i = 2; i >= 0; i--) {
+    if (a.q[i] && b.q[i]) return { s: Math.round((a.q[i] - b.q[i]) * 1000) / 1000, pct: ((a.q[i] - b.q[i]) / b.q[i]) * 100, part: i + 1 };
+  }
+  return null;
+}
+
+// Écarts manche par manche entre deux pilotes (codes), avec médiane (les écarts de plus de 3 %
+// — incident, piste qui change — sont montrés mais pas comptés)
+export function qualiGaps(races, codeA, codeB) {
+  const rounds = [];
+  for (const r of races) {
+    const g = qualiGap(r.quali.find((x) => x.code === codeA), r.quali.find((x) => x.code === codeB));
+    if (g) rounds.push({ round: r.round, name: r.name, ...g, outlier: Math.abs(g.pct) > 3 });
+  }
+  const kept = rounds.filter((g) => !g.outlier);
+  return { rounds, median: median(kept.map((g) => g.s)), medianPct: median(kept.map((g) => g.pct)), mean: mean(kept.map((g) => g.s)) };
+}
+
+// Tours en tête d'un pilote dans une course analysée (position à la fin de chaque tour)
+export const lapsLed = (d) => (d?.laps || []).filter((l) => l[3] === 1).length;
+
+// Rang centile (0 = moins bon, 1 = meilleur) de chaque valeur, plus haut = mieux
+function percentiles(entries) {
+  const out = new Map();
+  const vals = entries.filter(([, v]) => v !== null && v !== undefined && !Number.isNaN(v));
+  for (const [k, v] of vals) {
+    if (vals.length < 2) { out.set(k, 0.5); continue; }
+    let below = 0, same = 0;
+    for (const [, w] of vals) { if (w < v) below++; else if (w === v) same++; }
+    out.set(k, (below + (same - 1) / 2) / (vals.length - 1));
+  }
+  return out;
+}
+
+export const GRADES = [['S', 85], ['A', 70], ['B', 55], ['C', 45], ['D', 35], ['F', -Infinity]];
+export const grade = (score) => (score === null || score === undefined ? null : GRADES.find(([, min]) => score >= min)[0]);
+
+// Critères de la note de saison : [clé, poids, libellé, sens (1 : plus haut = mieux)]
+export const SEASON_CRITERIA = [
+  ['ppr', 30, 'Points par course', 1],
+  ['pace', 20, 'Rythme de course', -1],
+  ['avgFinish', 15, 'Place moyenne à l\'arrivée', -1],
+  ['avgQuali', 15, 'Place moyenne en qualification', -1],
+  ['gained', 10, 'Places gagnées par course', 1],
+  ['finishRate', 10, 'Courses terminées', 1],
+];
+export const MATE_CRITERIA = [
+  ['quali', 30, 'Duel en qualification'],
+  ['race', 25, 'Duel en course'],
+  ['points', 25, 'Part des points de l\'écurie'],
+  ['gap', 20, 'Écart moyen en qualification'],
+];
+
+// Notes des pilotes sur 100 :
+// - saison : moyenne pondérée des rangs centiles parmi les pilotes ayant couru au moins 40 %
+//   des courses (50 = pilote médian) ;
+// - coéquipier : part des duels (qualif, course), part des points de l'écurie et écart médian en
+//   qualification face au(x) coéquipier(s) de chaque course (50 = à égalité).
+export function driverRatings(data, stats) {
+  const races = data.races.filter((r) => r.results.length);
+  const statsBy = new Map((stats?.races || []).map((r) => [r.round, new Map(r.drivers.map((d) => [d.tla, d]))]));
+  const minStarts = Math.max(2, Math.ceil(races.length * 0.4));
+  const per = new Map();
+  const get = (x) => {
+    if (!per.has(x.code)) per.set(x.code, { code: x.code, name: x.name, last: x.last, team: x.team, teamId: x.teamId, starts: 0, pts: 0, fin: [], finAll: [], quali: [], gained: [], pace: [], led: 0, h2h: { qa: 0, qb: 0, ra: 0, rb: 0, pts: 0, matePts: 0, gaps: [], mates: new Set() } });
+    return per.get(x.code);
+  };
+  for (const r of races) {
+    // Rythme : tour médian « propre » rapporté au meilleur de la course
+    const meds = new Map();
+    for (const [tla, d] of statsBy.get(r.round) || []) { const c = cleanLaps(d); if (c) meds.set(tla, median(c)); }
+    const best = meds.size ? Math.min(...meds.values()) : null;
+    for (const x of r.results) {
+      const e = get(x);
+      e.team = x.team; e.teamId = x.teamId;
+      e.starts++;
+      e.pts += x.points;
+      e.finAll.push(classified(x) ? x.pos : 20);
+      if (classified(x)) { e.fin.push(x.pos); if (x.grid) e.gained.push(x.grid - x.pos); }
+      if (best && meds.has(x.code)) e.pace.push(((meds.get(x.code) - best) / best) * 100);
+      e.led += lapsLed(statsBy.get(r.round)?.get(x.code));
+    }
+    for (const x of r.sprintResults) get(x).pts += x.points;
+    for (const q of r.quali) if (q.pos) get(q).quali.push(q.pos);
+    // Duels avec le coéquipier de cette course
+    const teams = new Map();
+    for (const x of r.results) teams.set(x.teamId, [...(teams.get(x.teamId) || []), x]);
+    for (const [teamId, pair] of teams) {
+      if (pair.length !== 2) continue;
+      const [a, b] = pair;
+      const qa = r.quali.find((q) => q.code === a.code), qb = r.quali.find((q) => q.code === b.code);
+      const ptsOf = (x) => x.points + (r.sprintResults.find((s) => s.code === x.code && s.teamId === teamId)?.points || 0);
+      const g = qualiGap(qa, qb);
+      for (const [me, other, qm, qo, sign] of [[a, b, qa, qb, 1], [b, a, qb, qa, -1]]) {
+        const h = get(me).h2h;
+        h.mates.add(other.last || other.code);
+        if (qm?.pos && qo?.pos) qm.pos < qo.pos ? h.qa++ : h.qb++;
+        const pm = classified(me) ? me.pos : 99, po = classified(other) ? other.pos : 99;
+        if (pm !== po) pm < po ? h.ra++ : h.rb++;
+        h.pts += ptsOf(me);
+        h.matePts += ptsOf(other);
+        if (g && Math.abs(g.pct) <= 3) h.gaps.push(sign * g.pct);
+      }
+    }
+  }
+  const all = [...per.values()].map((e) => ({
+    ...e,
+    eligible: e.starts >= minStarts,
+    metrics: {
+      ppr: e.starts ? e.pts / e.starts : null,
+      pace: e.pace.length ? mean(e.pace) : null,
+      avgFinish: mean(e.finAll),
+      avgQuali: mean(e.quali),
+      gained: e.gained.length ? mean(e.gained) : null,
+      finishRate: e.starts ? e.fin.length / e.starts : null,
+    },
+  }));
+  const pool = all.filter((e) => e.eligible);
+  const pct = {};
+  for (const [k, , , dir] of SEASON_CRITERIA) pct[k] = percentiles(pool.map((e) => [e.code, e.metrics[k] === null ? null : dir * e.metrics[k]]));
+  for (const e of all) {
+    e.parts = {};
+    let sw = 0, s = 0;
+    for (const [k, w] of SEASON_CRITERIA) {
+      const p = pct[k].get(e.code);
+      e.parts[k] = p ?? null;
+      if (p !== undefined && e.eligible) { s += w * p; sw += w; }
+    }
+    e.season = e.eligible && sw ? Math.round((s / sw) * 100) : null;
+    // Face au coéquipier
+    const h = e.h2h;
+    const share = (a, b) => (a + b ? a / (a + b) : null);
+    const gapMed = median(h.gaps);
+    const mp = {
+      quali: share(h.qa, h.qb),
+      race: share(h.ra, h.rb),
+      points: h.pts + h.matePts ? h.pts / (h.pts + h.matePts) : (h.qa + h.qb + h.ra + h.rb ? 0.5 : null),
+      gap: gapMed === null ? null : Math.min(1, Math.max(0, 0.5 - gapMed / 2)),   // 1 % plus rapide = 1
+    };
+    let mw = 0, ms = 0;
+    for (const [k, w] of MATE_CRITERIA) if (mp[k] !== null) { ms += w * mp[k]; mw += w; }
+    e.mateParts = mp;
+    e.gapPct = gapMed;
+    e.mates = [...h.mates];
+    e.mate = mw && h.qa + h.qb + h.ra + h.rb >= 2 ? Math.round((ms / mw) * 100) : null;
+    e.seasonGrade = grade(e.season);
+    e.mateGrade = grade(e.mate);
+  }
+  return all.sort((a, b) => (b.season ?? -1) - (a.season ?? -1) || b.pts - a.pts);
+}
+
+// Circuits les plus proches : distance entre profils normalisés (écart à la moyenne / écart-type).
+// items : [{ round, key?, length, corners, … }] ; key : même tracé (exclu de ses propres voisins)
+export const CIRCUIT_FEATURES = [
+  ['length', 'longueur'], ['corners', 'virages'], ['avgSpeed', 'vitesse moyenne'], ['topSpeed', 'vitesse de pointe'],
+  ['passes', 'dépassements'], ['stopsPerCar', 'arrêts'], ['hard', 'pneus'],
+];
+export function similarCircuits(items, n = 3) {
+  const stat = {};
+  for (const [k] of CIRCUIT_FEATURES) {
+    const v = items.map((x) => x[k]).filter((x) => x !== null && x !== undefined && !Number.isNaN(x));
+    const m = mean(v);
+    const s = v.length > 1 ? Math.sqrt(v.reduce((a, x) => a + (x - m) ** 2, 0) / (v.length - 1)) : 0;
+    stat[k] = { m, s };
+  }
+  const z = (x, k) => (x[k] === null || x[k] === undefined || !stat[k].s ? null : (x[k] - stat[k].m) / stat[k].s);
+  const out = new Map();
+  for (const a of items) {
+    const near = items.filter((b) => b !== a && (a.key === undefined || b.key !== a.key)).map((b) => {
+      let d = 0, c = 0;
+      for (const [k] of CIRCUIT_FEATURES) { const za = z(a, k), zb = z(b, k); if (za !== null && zb !== null) { d += (za - zb) ** 2; c++; } }
+      return { b, d: c >= 3 ? Math.sqrt(d / c) : Infinity };
+    }).filter((x) => x.d < Infinity).sort((x, y) => x.d - y.d);
+    out.set(a.key ?? a.round, near.slice(0, n).map((x) => ({ ...x.b, dist: x.d })));
+  }
+  return out;
+}

@@ -109,6 +109,14 @@ export function initDelay() {
     if (b) setDelay(store.delay + Number(b.dataset.step));
   });
 
+  // Design « F1 Pro » : les boutons ±0,1 / ±1 / ±5 s sont rangés dans un petit menu sous le délai
+  const box = $('#delayBox');
+  const more = $('#delayMore');
+  const setOpen = (open) => { box.classList.toggle('open', open); more.setAttribute('aria-expanded', String(open)); };
+  more.addEventListener('click', () => setOpen(!box.classList.contains('open')));
+  document.addEventListener('pointerdown', (e) => { if (!box.contains(e.target)) setOpen(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+
   const input = $('#delayInput');
   input.addEventListener('change', () => {
     const ms = parseInput(input.value);

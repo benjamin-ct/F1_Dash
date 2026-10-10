@@ -37,7 +37,7 @@ function gapText(v) {
 
 export function renderTower(force = false) {
   const now = performance.now();
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.focus}|${prefs.hiddenCols.join()}|${prefs.favs.join()}`;
+  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.focus}|${prefs.hiddenCols.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -76,6 +76,7 @@ export function renderTower(force = false) {
   const bestOf = (l) => kind === 'quali' ? lapSeconds(list(l.BestLapTimes)[part - 1]?.Value) : lapSeconds(l.BestLapTime?.Value);
   const bests = nums.map((n) => ({ n, t: bestOf(lines[n] || {}) })).filter((x) => x.t);
 
+  const hot = hotLaps();
   const rows = nums.map((num) => {
     const d = dl[num] || {};
     const l = lines[num] || {};
@@ -106,7 +107,7 @@ export function renderTower(force = false) {
       if (dlt) posDelta = `<span class="pos-delta ${dlt > 0 ? 'up' : 'down'}">${dlt > 0 ? '▲' : '▼'}${Math.abs(dlt)}</span>`;
     }
 
-    const drv = `<td><div class="drv">${teamMark(d)}<span class="drv-num">${esc(d.RacingNumber || num)}</span><span class="drv-tla" title="${esc(d.FullName || '')} — ${esc(d.TeamName || '')}">${esc(d.Tla || num)}</span><button class="fav-btn ${isFav(num) ? 'on' : ''}" data-fav="${num}" title="${isFav(num) ? 'Retirer des favoris' : 'Ajouter aux favoris (alertes, radios…)'}">${isFav(num) ? '★' : '☆'}</button><span class="drv-tags">${tags.join('')}</span></div></td>`;
+    const drv = `<td><div class="drv">${teamMark(d)}<span class="drv-num">${esc(d.RacingNumber || num)}</span><span class="drv-tla" title="${esc(d.FullName || '')} — ${esc(d.TeamName || '')}">${esc(d.Tla || num)}</span><span class="drv-last">${esc(d.LastName || '')}</span><button class="fav-btn ${isFav(num) ? 'on' : ''}" data-fav="${num}" title="${isFav(num) ? 'Retirer des favoris' : 'Ajouter aux favoris (alertes, radios…)'}">${isFav(num) ? '★' : '☆'}</button><span class="drv-tags">${tags.join('')}</span></div></td>`;
     const sectors = list(l.Sectors);
     const secCells = [0, 1, 2].map((i) => sectorCell(sectors[i])).join('');
     const tyre = `<td class="c-tyre">${stint ? tyreBadge(stint.Compound, stint.TotalLaps, stint.New) : '<span class="dim">—</span>'}</td>`;
@@ -155,6 +156,7 @@ export function renderTower(force = false) {
     if (cutoff && Number(pos) > cutoff && !l.KnockedOut) cls.push('danger');
     if (cutoff && Number(pos) === cutoff) cls.push('cut');
     if (store.focus === num) cls.push('focus');
+    if (hot && !pred && store.focus !== num && store.duel.a !== num && store.duel.b !== num) cls.push('cool');
     if (store.duel.a === num) cls.push('duel-a');
     if (store.duel.b === num) cls.push('duel-b');
     return { num, cls: cls.join(' '), cells };
@@ -311,6 +313,21 @@ export function fitTower(force = false) {
 }
 
 // Temps prévu d'un tour lancé : secteurs réalisés + meilleurs secteurs personnels restants.
+// Pilotes dans un tour lancé (essais / qualifs), pour estomper les autres (option, comme
+// MultiViewer). Vide en course ou si l'option est coupée.
+let hotKey = '', hotSet = new Set();
+export function hotLaps() {
+  const s = store.state;
+  if (!prefs.hotLapDim || sessionKind(s) === 'race') return null;
+  const k = versionOf(['TimingData', 'TimingStats', '__reset']);
+  if (k !== hotKey) {
+    hotKey = k;
+    const lines = s.TimingData?.Lines || {}, stats = s.TimingStats?.Lines || {};
+    hotSet = new Set(Object.keys(lines).filter((n) => predictLap(lines[n], stats[n])));
+  }
+  return hotSet;
+}
+
 function predictLap(l, st) {
   if (l.InPit || l.PitOut || l.Retired || l.Stopped) return null;
   const secs = list(l.Sectors);

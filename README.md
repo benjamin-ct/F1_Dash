@@ -1,22 +1,26 @@
+<img src="public/icon-512.png" alt="F1 Dash" width="84" align="right">
+
 # 🏁 F1 Dash
 
 Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordinateur, **calé sur le délai de votre diffusion TV** (Canal+, myCANAL…). Windows, macOS et Linux.
 
 ![F1 Dash pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
 
-<sub>Sur chaque capture : à gauche le thème « F1 sobre » (par défaut), à droite le thème « Classique », au choix dans ⚙ Réglages → Affichage.</sub>
+<sub>Design « F1 Pro » (par défaut). Les designs précédents restent disponibles dans Réglages → Affichage (voir plus bas).</sub>
 
 ## ✨ En bref
 
-- **Classement en direct** : écarts, secteurs et mini-secteurs, pneus, arrêts, vitesse de pointe, logos des écuries ; en qualif, limite d'élimination et temps à battre.
+- **Classement en direct** : écarts, secteurs et mini-secteurs, pneus, arrêts, vitesse de pointe, logos officiels des écuries dans leurs vraies couleurs ; en qualif, limite d'élimination et temps à battre.
+- **Barre d'état de la séance** : drapeau, tour et progression de la course, temps restant, **heure locale du circuit**, météo, état de la piste.
 - **Carte du circuit** : toutes les voitures en mouvement (GPS), drapeaux par secteur, safety car, zones ligne droite et détection.
 - **Synchro TV** : tout (chronos, carte, drapeaux, radios, alertes) est retardé pour coller à votre image, **sans spoiler**.
+- **Pneus du week-end** : jeux neufs et utilisés de chaque pilote sur toutes les séances, composés choisis par Pirelli et ses préconisations (stratégie attendue).
 - **Duels, bagarres et simulateur d'arrêt** : écart en temps réel, tendance, « s'il s'arrête maintenant, il ressort P8 ».
 - **Analyse** : race trace, positions, temps au tour, rythme, pneus, secteurs, télémétrie.
 - **Direction de course et enquêtes**, avec les documents officiels de la FIA.
 - **Radios d'équipe** retranscrites et traduites en français, sur votre ordinateur.
 - **Commentaires F1 TV Pro** ou radio de votre choix, synchronisés sur le dashboard.
-- **Espace Saison** : calendrier, classements, statistiques par pilote, régularité, arrêts, vitesses, profils des circuits, évolutions techniques et éléments moteur (documents FIA).
+- **Espace Saison** : calendrier, classements, notes des pilotes (S à F), écart en qualification entre coéquipiers, statistiques par pilote, régularité, arrêts, vitesses, profils des circuits, évolutions techniques et éléments moteur (documents FIA).
 - **Replays** de toutes les sessions archivées, disposition libre des panneaux, second écran.
 - **Sur votre téléphone ou tablette** : l'ordinateur affiche un QR code ; scannez-le pour retrouver le dashboard sur le réseau Wi-Fi de la maison, calé sur le même délai TV.
 
@@ -25,6 +29,10 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 | ![Classement](docs/screenshots/classement.png) | ![Carte](docs/screenshots/carte.png) |
 | ![Analyse : rythme](docs/screenshots/analyse-rythme.png) | ![Saison : accueil](docs/screenshots/saison-accueil.png) |
 | ![Saison : fiche pilote](docs/screenshots/saison-pilote.png) | ![Saison : évolutions techniques](docs/screenshots/saison-evolutions-techniques.png) |
+
+**Quatre designs au choix** (Réglages → Affichage → Thème) : F1 Pro (par défaut), F1 sobre, Classique et Bleu nuit.
+
+![Les quatre designs : F1 Pro, F1 sobre, Classique, Bleu nuit](docs/screenshots/themes.png)
 
 ## 🚀 Installation
 
@@ -67,6 +75,8 @@ Sur l'ordinateur : ⚙ Réglages → Application → **« Autoriser l'accès dep
 ## 📖 Pour aller plus loin
 
 Le **[guide complet](docs/GUIDE.md)** détaille chaque panneau, l'espace Saison, les alertes, les commentaires et la radio, la disposition et le second écran, les replays et enregistrements, les options de lancement et le fonctionnement interne.
+
+Les nouveautés de chaque version sont dans le **[journal des modifications](CHANGELOG.md)** (aussi visible dans l'application : Réglages → Application).
 
 Tests : `npm test`.
 

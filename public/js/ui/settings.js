@@ -30,19 +30,59 @@ function fillSessions() {
   $('#rpSession').value = String(Math.max(0, sessions.length - 1));
 }
 
+const fmtWhen = (ms) => new Date(ms).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const SESSION_WARN = 3 * 86400000;   // rappel 3 jours avant la fin de la session formula1.com
+
 async function refreshAuth() {
   try {
     const a = await api('/api/auth');
+    renderAuthPill(a);
     const el = $('#tokenStatus');
-    if (!a.hasToken) el.innerHTML = '<span class="muted">Aucun jeton enregistré : positions estimées en live.</span>';
-    else if (a.expired) el.innerHTML = '<span style="color:var(--orange)">⚠ Jeton expiré : recollez un jeton récent.</span>';
-    else {
-      const exp = a.expiresAt ? new Date(a.expiresAt).toLocaleString('fr-FR') : 'inconnue';
-      const live = store.status?.source?.authenticated;
-      const offer = a.product ? ` · offre « ${esc(a.product)} »${a.country ? ` (${esc(a.country)})` : ''}${/pro/i.test(a.product) ? '' : ' — commentaires 🎙 réservés à F1 TV Pro'}` : '';
-      el.innerHTML = `<span style="color:var(--green)">✔ Jeton enregistré</span> · expire le ${esc(exp)}${offer}${store.status?.source?.mode === 'live' ? (live ? ' · GPS reçu ✔' : ' · GPS pas encore reçu (normal hors session)') : ''}`;
-    }
+    if (!a.hasToken) { el.innerHTML = '<span class="muted">Aucun jeton enregistré : positions estimées en live.</span>'; return; }
+    const live = store.status?.source?.authenticated;
+    const offer = a.product ? ` · offre « ${esc(a.product)} »${a.country ? ` (${esc(a.country)})` : ''}${/pro/i.test(a.product) ? '' : ' — commentaires 🎙 réservés à F1 TV Pro'}` : '';
+    const gps = !a.expired && store.status?.source?.mode === 'live' ? (live ? ' · GPS reçu ✔' : ' · GPS pas encore reçu (normal hors session)') : '';
+    let head;
+    if (a.expired) head = `<span style="color:var(--orange)">⚠ Jeton expiré${a.autoRenew && !a.renewRejected ? ' : renouvellement en cours…' : ' : reconnectez-vous'}</span>`;
+    else head = `<span style="color:var(--green)">✔ Connecté</span> · jeton valable jusqu'au ${esc(a.expiresAt ? fmtWhen(a.expiresAt) : 'inconnu')}`;
+    let renew;
+    if (a.renewRejected) renew = `<span style="color:var(--orange)">La F1 a mis fin à la session : reconnectez-vous pour continuer.</span>`;
+    else if (a.autoRenew) {
+      renew = `🔄 Renouvelé automatiquement (tous les ~4 jours)${a.sessionExpiresAt ? ` jusqu'au <b>${esc(fmtWhen(a.sessionExpiresAt))}</b>, fin de la session formula1.com (≈ 30 jours après la connexion) : il faudra alors se reconnecter` : ''}.`;
+      if (a.renewError) renew += ` <span style="color:var(--orange)">Dernier essai : ${esc(a.renewError)}</span>`;
+    } else renew = `<span class="muted">Ce jeton ne se renouvelle pas tout seul : reconnectez-vous avant son expiration.</span>`;
+    el.innerHTML = `${head}${offer}${gps}<br>${renew} ${a.autoRenew && !a.renewRejected ? '<button class="btn small" id="tokenRenew">Renouveler maintenant</button>' : ''}`;
   } catch { /* ignore */ }
+}
+
+// Rappel discret avant de perdre la connexion F1 TV (sur l'ordinateur)
+function renderAuthPill(a) {
+  const pill = $('#authPill');
+  if (!pill || store.isHost === false) return;
+  const now = Date.now();
+  let msg = '';
+  if (a.hasToken) {
+    if (a.renewRejected || (a.expired && !a.autoRenew)) msg = 'Connexion F1 TV perdue : reconnectez-vous pour retrouver le GPS et la télémétrie en live.';
+    else if (!a.autoRenew && a.expiresAt && a.expiresAt - now < 86400000) msg = `Connexion F1 TV : le jeton expire ${fmtWhen(a.expiresAt)}.`;
+    else if (a.sessionExpiresAt && a.sessionExpiresAt - now < SESSION_WARN) msg = `Connexion F1 TV : la session formula1.com se termine ${fmtWhen(a.sessionExpiresAt)}. Reconnectez-vous pour 30 jours de plus.`;
+  }
+  const key = msg ? `${new Date().toDateString()}|${msg.slice(0, 40)}` : '';
+  pill.hidden = !msg || storageGet('f1dash.authPillClosed', '') === key;
+  if (msg) { $('#authPillText').textContent = msg; pill.dataset.k = key; }
+}
+
+async function reconnectF1TV() {
+  if (window.f1desktop?.isDesktop) {
+    toast('Connectez-vous dans la fenêtre F1 qui vient de s\'ouvrir…', 6000);
+    const res = await window.f1desktop.loginF1TV();
+    if (res?.ok) toast('✅ Connecté à F1 TV', 5000);
+    else if (res?.error) toast(res.error, 6000);
+    refreshAuth();
+  } else {
+    $('#settingsModal').showModal();
+    $('#setNav [data-sgroup="f1tv"]')?.click();
+    refreshAuth();
+  }
 }
 
 function renderReplayBar() {
@@ -59,12 +99,16 @@ function renderReplayBar() {
   range.max = String(src.duration);
   if (!dragging) range.value = String(Math.max(0, pos));
   // Drapeaux rouges : repères sur la barre et bouton pour passer l'interruption
+  // Safety car / VSC : repères optionnels (ils révèlent les neutralisations à venir)
   const reds = src.redFlags || [];
+  const neutral = prefs.replayMarks ? src.neutralized || [] : [];
   const marks = $('#rpMarks');
-  const mk = `${src.duration}|${reds.map((r) => `${r.start}-${r.end}`).join()}`;
+  const mk = `${src.duration}|${reds.map((r) => `${r.start}-${r.end}`).join()}|${neutral.map((r) => `${r.kind}${r.start}-${r.end}`).join()}`;
   if (marks.dataset.k !== mk) {
     marks.dataset.k = mk;
-    marks.innerHTML = reds.map((r) => `<i title="Drapeau rouge" style="left:${(100 * r.start) / src.duration}%;width:${Math.max(0.3, (100 * (r.end - r.start)) / src.duration)}%"></i>`).join('');
+    const mark = (r, cls, title) => `<i class="${cls}" title="${title}" style="left:${(100 * r.start) / src.duration}%;width:${Math.max(0.3, (100 * (r.end - r.start)) / src.duration)}%"></i>`;
+    marks.innerHTML = neutral.map((r) => mark(r, r.kind, r.kind === 'sc' ? 'Voiture de sécurité' : 'Voiture de sécurité virtuelle')).join('')
+      + reds.map((r) => mark(r, 'red', 'Drapeau rouge')).join('');
   }
   const red = reds.find((r) => pos >= r.start - 1000 && pos < r.end - 35000);
   $('#rpRed').hidden = !red;
@@ -149,9 +193,14 @@ export function initSettings() {
   $('#vividTeams').checked = prefs.vividTeams;
   $('#vividTeams').addEventListener('change', (e) => setPref('vividTeams', e.target.checked));
   on('prefs', (k) => { if (k === 'vividTeams') $('#vividTeams').checked = prefs.vividTeams; });
+  $('#replayMarks').checked = prefs.replayMarks;
+  $('#replayMarks').addEventListener('change', (e) => setPref('replayMarks', e.target.checked));
   $('#teamLogos').checked = prefs.teamLogos;
   $('#teamLogos').addEventListener('change', (e) => setPref('teamLogos', e.target.checked));
   on('prefs', (k) => { if (k === 'teamLogos') $('#teamLogos').checked = prefs.teamLogos; });
+  $('#logoColor').checked = prefs.logoColor;
+  $('#logoColor').addEventListener('change', (e) => setPref('logoColor', e.target.checked));
+  on('prefs', (k) => { if (k === 'logoColor') $('#logoColor').checked = prefs.logoColor; });
   // Téléphone ou tablette connecté à l'ordinateur : suivre son délai TV
   on('role', (host) => { $('#followHostBlock').hidden = host; });
   $('#followHost').checked = storageGet('f1dash.followHost', true);
@@ -164,6 +213,19 @@ export function initSettings() {
     window.f1desktop.getRestoreWindows().then((v) => { $('#restoreWin').checked = v; });
     $('#restoreWin').addEventListener('change', (e) => window.f1desktop.setRestoreWindows(e.target.checked));
   }
+  // Connexion F1 TV : renouvellement immédiat, rappel avant la fin de la session
+  $('#tokenStatus').addEventListener('click', async (e) => {
+    const b = e.target.closest('#tokenRenew');
+    if (!b) return;
+    b.disabled = true;
+    try { await api('/api/auth/renew', { method: 'POST' }); toast('✅ Connexion F1 TV renouvelée'); } catch (err) { toast(err.message, 6000); }
+    refreshAuth();
+  });
+  $('#authPillBtn')?.addEventListener('click', reconnectF1TV);
+  $('#authPillClose')?.addEventListener('click', () => { storageSet('f1dash.authPillClosed', $('#authPill').dataset.k || ''); $('#authPill').hidden = true; });
+  refreshAuth();
+  setInterval(refreshAuth, 30 * 60 * 1000);
+
   if (window.f1desktop?.isDesktop) {
     $('#desktopLogin').hidden = false;
     $('#bookmarkletHelp').hidden = true;

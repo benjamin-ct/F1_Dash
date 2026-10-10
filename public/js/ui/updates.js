@@ -1,6 +1,7 @@
 // Mises à jour automatiques de l'application de bureau (Windows, Linux, macOS).
 import { $ } from '../util.js';
 import { toast } from './delay.js';
+import { changelogHtml } from './changelog.js';
 
 const desk = window.f1desktop;
 let dismissed = false;
@@ -26,6 +27,16 @@ function render(s) {
   const pill = $('#updatePill');
   pill.hidden = s.status !== 'ready' || dismissed;
   $('#updatePillText').textContent = `🔄 F1 Dash ${s.latest?.version} est prête`;
+  // Nouveautés de la version à installer (page de la version : avant la ligne « --- »)
+  const notes = ['available', 'downloading', 'ready'].includes(s.status) ? String(s.latest?.notes || '').split(/\n-{3,}\s*\n/)[0].replace(/^## .*\n/, '') : '';
+  $('#updateNotes').hidden = !notes.trim();
+  if (notes.trim()) { $('#updateNotesVer').textContent = s.latest.version; $('#updateNotesBody').innerHTML = changelogHtml(notes); }
+  // Première ouverture après une mise à jour : on le signale
+  if (s.current) {
+    let seen = null;
+    try { seen = localStorage.getItem('f1dash.seenVersion'); localStorage.setItem('f1dash.seenVersion', s.current); } catch { /* stockage indisponible */ }
+    if (seen && seen !== s.current) toast(`F1 Dash a été mise à jour en ${s.current} : les nouveautés sont dans Réglages → Application`, 8000);
+  }
 }
 
 async function install() {
