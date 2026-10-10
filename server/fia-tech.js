@@ -16,7 +16,7 @@ const VERSION = 4;
 
 // ---------------- Lecture des PDF ----------------
 let pdfLib = null;
-async function pdfPages(buf) {
+export async function pdfPages(buf) {
   // Chargé à la demande (Node 22+ requis par la bibliothèque)
   if (!pdfLib) {
     try { pdfLib = await import('unpdf'); } catch (err) {

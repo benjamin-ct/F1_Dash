@@ -4,6 +4,39 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.16.0 — 2026-10-10
+
+### Mises à jour
+- Écran de démarrage « Recherche de mise à jour… » : quand une nouvelle version existe, elle est téléchargée et installée avant l'ouverture, et l'appli redémarre directement dessus. Sans connexion, l'appli s'ouvre normalement.
+- Paquet Linux .deb et appli macOS lancée depuis l'image disque : la nouvelle version est signalée au démarrage, avec un bouton pour la télécharger.
+- Téléchargement des mises à jour plus fiable : arrêt propre si la connexion est coupée, nettoyage des anciens téléchargements.
+
+### Disposition
+- Disposition libre : les panneaux se placent n'importe où et se redimensionnent par leur coin, avec aimantation aux bords et aux autres panneaux (menu « Dispo. » de la barre latérale).
+
+### Classement
+- Bouton « Colonnes » sur le classement pour retirer ou ajouter des colonnes : position de départ, tours effectués, écart au pilote suivi, vitesses I1 / I2 / ligne d'arrivée, écurie.
+- Correction : masquer la colonne des secteurs fonctionne.
+
+### Carte
+- Nouveau dessin : piste avec trait central coloré par secteur, zones « ligne droite » en hachures vertes, numéros de virage reliés à la piste, pilotes en pastilles rondes avec leur trigramme, fond uni.
+- Les étiquettes des pilotes ne sautent plus d'un côté à l'autre dans les paquets.
+- Bandeau « Drapeau rouge » de la carte décalé pour ne plus être coupé par le cadre rouge.
+- Voie des stands sur la carte, reconstituée à partir des passages des voitures dans les stands (calque « Voie des stands »).
+- Zones « ligne droite » et points de détection / d'activation du mode dépassement à leur position officielle, lue dans le plan du circuit publié par la FIA pour chaque Grand Prix (avant : estimations).
+
+### Panneaux
+- En-têtes : les outils (« Positions estimées », « Suivre », « Calques », « Colonnes ») sont de nouveau à côté du titre, et les boutons ⠿ ⤢ ↗ ✕ sont centrés sur la hauteur de l'en-tête dans tous les panneaux.
+
+### Télémétrie
+- Deux compteurs côte à côte (pilote suivi et pilote au choix) : vitesse, accélérateur, frein, régime et rapport, et courbe de vitesse des deux pilotes ; textes bien séparés des cercles.
+
+### Replays
+- Nouvelle barre de lecture : séance en cours en vert, début et fin de chaque partie (Q1, Q2, Q3, départ, reprise), drapeaux jaunes / SC / VSC / rouges, partie lue en bleu, vitesses 1x à 30x, bouton pour revenir au direct.
+
+### Barre du haut
+- Moins d'espace vide : plus de trou après « SQ1 » en qualifs, case du délai TV ajustée à sa valeur.
+
 ## v1.15.0 — 2026-10-10
 
 ### Nouveau design « F1 Pro »

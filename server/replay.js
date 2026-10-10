@@ -87,6 +87,41 @@ export function neutralPeriods(events, duration) {
   return out;
 }
 
+// Parties de la séance (Q1, Q2, Q3, course, reprise après drapeau rouge…) : du feu vert
+// (SessionStatus « Started ») au drapeau à damier (« Finished ») ou à l'interruption.
+// part = numéro de partie des qualifications (TimingData.SessionPart), sinon null.
+// Vitesses de lecture possibles
+export const SPEEDS = [0.5, 1, 2, 4, 5, 8, 10, 20, 30];
+
+export function sessionPhases(events, duration) {
+  const out = [];
+  let cur = null;
+  let part = null;
+  for (const e of events) {
+    if (e.topic === 'TimingData' && e.data?.SessionPart !== undefined) part = Number(e.data.SessionPart) || null;
+    if (e.topic !== 'SessionStatus' || !e.data?.Status) continue;
+    const st = e.data.Status;
+    if (st === 'Started' && !cur) cur = { start: e.off, part };
+    else if (cur && ['Finished', 'Aborted', 'Inactive', 'Ends', 'Finalised'].includes(st)) { out.push({ ...cur, end: e.off }); cur = null; }
+  }
+  if (cur) out.push({ ...cur, end: duration });
+  return out;
+}
+
+// Drapeaux jaunes (piste entière ou secteur signalé par TrackStatus = 2)
+export function yellowPeriods(events, duration) {
+  const out = [];
+  let cur = null;
+  for (const e of events) {
+    if (e.topic !== 'TrackStatus' || e.data?.Status === undefined) continue;
+    const y = String(e.data.Status) === '2';
+    if (y && !cur) cur = { start: e.off };
+    else if (!y && cur) { out.push({ start: cur.start, end: e.off }); cur = null; }
+  }
+  if (cur) out.push({ start: cur.start, end: duration });
+  return out;
+}
+
 export function redFlagPeriods(events, duration) {
   const out = [];
   let cur = null;
@@ -168,6 +203,8 @@ export class ReplaySource {
       sessionStart: this.startOff,
       redFlags: redFlagPeriods(archive.events, archive.duration),
       neutralized: neutralPeriods(archive.events, archive.duration),
+      phases: sessionPhases(archive.events, archive.duration),
+      yellows: yellowPeriods(archive.events, archive.duration),
       anchor: this.anchor,
       speed: this.speed,
     };
@@ -195,7 +232,7 @@ export class ReplaySource {
   }
 
   setSpeed(speed) {
-    if (!this.isActive() || ![0.5, 1, 2, 4, 8].includes(speed)) return;
+    if (!this.isActive() || !SPEEDS.includes(speed)) return;
     const pos = this.position();
     this.speed = speed;
     this.anchor = this.hub.clock() - pos / speed;

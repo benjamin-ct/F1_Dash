@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>F1 Dash</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(120% 90% at 50% 0%, #2a0a0d 0%, #0b0b0f 60%);
+    color: #f2f2f5; font: 13px/1.4 "Segoe UI", system-ui, -apple-system, sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    border: 1px solid #26262e; border-radius: 12px; user-select: none; -webkit-app-region: drag; overflow: hidden;
+  }
+  img { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 8px 28px rgba(225, 6, 0, .35); }
+  h1 { margin: 6px 0 0; font-size: 20px; font-weight: 800; letter-spacing: .3px; }
+  #ver { color: #8b8b98; font-size: 12px; margin-top: -6px; }
+  #title { font-weight: 600; margin-top: 8px; text-align: center; padding: 0 24px; }
+  #detail { color: #9d9daa; font-size: 12px; text-align: center; padding: 0 24px; min-height: 17px; }
+  .bar { width: 260px; height: 6px; border-radius: 3px; background: #22222a; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #e10600, #ff6a3d); border-radius: 3px; transition: width .3s; }
+  .bar.busy i { width: 35%; animation: slide 1.1s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(290%); } }
+  .btns { display: flex; gap: 8px; margin-top: 4px; -webkit-app-region: no-drag; }
+  .btns[hidden] { display: none; }
+  a.btn { color: #f2f2f5; text-decoration: none; padding: 7px 12px; border-radius: 7px; border: 1px solid #3a3a46; background: #1a1a21; font-weight: 600; font-size: 12px; }
+  a.btn.main { background: #e10600; border-color: #e10600; }
+</style>
+</head>
+<body>
+  <img src="icon.png" alt="">
+  <h1>F1 Dash</h1>
+  <div id="ver"></div>
+  <div id="title">Recherche de mise à jour…</div>
+  <div class="bar busy" id="bar"><i></i></div>
+  <div id="detail"></div>
+  <div class="btns" id="btns" hidden>
+    <a class="btn main" href="f1dash://download">Télécharger la nouvelle version</a>
+    <a class="btn" href="f1dash://continue">Continuer</a>
+  </div>
+<script>
+  // Appelé par l'application : progress = null (activité en cours), 0…1 (avancement) ou false (pas de barre)
+  function setStatus(title, detail, progress) {
+    document.getElementById('title').textContent = title || '';
+    document.getElementById('detail').textContent = detail || '';
+    const bar = document.getElementById('bar');
+    bar.hidden = progress === false;
+    bar.classList.toggle('busy', progress === null || progress === undefined);
+    bar.firstElementChild.style.width = typeof progress === 'number' ? `${Math.round(progress * 100)}%` : '';
+  }
+  function setVersion(v) { document.getElementById('ver').textContent = `Version ${v}`; }
+  function ask(show) { document.getElementById('btns').hidden = !show; }
+</script>
+</body>
+</html>

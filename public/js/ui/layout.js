@@ -23,6 +23,25 @@ export const COLUMNS = [
   ['int', 'Intervalle'], ['last', 'Dernier tour'], ['best', 'Meilleur tour'], ['sec', 'Secteurs'], ['pred', 'Tour en cours (qualifs)'],
   ['q', 'Q1/Q2/Q3'], ['tyre', 'Pneus'], ['pits', 'Arrêts / tours'], ['speed', 'Speed trap'], ['duel', 'Boutons duel'],
 ];
+// Colonnes facultatives, masquées par défaut (prefs.extraCols : celles ajoutées)
+export const EXTRA_COLUMNS = [
+  ['grid', 'Position de départ'], ['laps', 'Tours effectués'], ['gapf', 'Écart au pilote suivi'],
+  ['spd', 'Vitesses I1 / I2 / arrivée'], ['team', 'Écurie'],
+];
+
+// Cases à cocher des colonnes (réglages et menu « Colonnes » du classement)
+function colOptsHtml() {
+  const box = (k, name, on, extra) => `<label class="toggle small"><input type="checkbox" data-col="${k}"${extra ? ' data-extra="1"' : ''} ${on ? 'checked' : ''}> ${esc(name)}</label>`;
+  return COLUMNS.map(([k, n]) => box(k, n, !prefs.hiddenCols.includes(k), false)).join('')
+    + '<div class="col-sep">Colonnes en plus</div>'
+    + EXTRA_COLUMNS.map(([k, n]) => box(k, n, prefs.extraCols.includes(k), true)).join('');
+}
+function onColChange(e) {
+  const k = e.target.dataset.col;
+  if (!k) return;
+  if (e.target.dataset.extra) setPref('extraCols', e.target.checked ? [...prefs.extraCols, k] : prefs.extraCols.filter((x) => x !== k));
+  else setPref('hiddenCols', e.target.checked ? prefs.hiddenCols.filter((x) => x !== k) : [...prefs.hiddenCols, k]);
+}
 
 // Fenêtre courante : « main » ou une fenêtre secondaire (?win=…). « ?panel=x » : ancien lien d'un panneau seul.
 const params = new URLSearchParams(location.search);
@@ -104,7 +123,18 @@ function normalize(l) {
       seen.add(p.id);
     }
   }
-  return rescale({ cols });
+  const out = rescale({ cols });
+  // Disposition libre : position et taille de chaque panneau (fractions de la zone des panneaux)
+  if (l?.free && typeof l.free === 'object') {
+    const rects = {};
+    for (const [id, r] of Object.entries(l.free.rects || {})) {
+      if (!PANELS.some((p) => p.id === id) || !r) continue;
+      const n = (v, d) => (Number.isFinite(Number(v)) ? Math.max(0, Math.min(1, Number(v))) : d);
+      rects[id] = { x: n(r.x, 0), y: n(r.y, 0), w: Math.max(0.05, n(r.w, 0.3)), h: Math.max(0.05, n(r.h, 0.3)) };
+    }
+    out.free = { rects, z: (Array.isArray(l.free.z) ? l.free.z : []).filter((id) => rects[id]) };
+  }
+  return out;
 }
 
 // Proportions ramenées à une moyenne de 1 : en CSS, des flex-grow dont la somme est
@@ -231,7 +261,8 @@ export function showMobilePanel(id) {
 }
 
 function renderMobile(grid) {
-  grid.classList.remove('custom', 'has-max');
+  grid.classList.remove('custom', 'has-max', 'free');
+  for (const p of PANELS) clearFree(panelEl(p.id));
   grid.classList.add('mobile');
   const tabs = MOB_TABS.filter(([id]) => isVisible(id));
   if (!tabs.some(([id]) => id === mobTab)) mobTab = tabs[0]?.[0] || 'tower';
@@ -260,9 +291,10 @@ function render(force = false) {
   const stash = grid.querySelector('.lstash') || Object.assign(document.createElement('div'), { className: 'lstash', hidden: true });
   if (narrow()) {
     // Petit écran : empilement vertical classique
-    grid.classList.remove('custom');
+    grid.classList.remove('custom', 'free');
     for (const p of PANELS) {
       const el = panelEl(p.id);
+      clearFree(el);
       el.style.flex = '';
       el.classList.toggle('hidden-panel', !isVisible(p.id));
       grid.appendChild(el);
@@ -272,8 +304,10 @@ function render(force = false) {
   }
   grid.classList.add('custom');
   grid.appendChild(stash);
-  for (const p of PANELS) { const el = panelEl(p.id); el.classList.remove('hidden-panel'); stash.appendChild(el); }
+  for (const p of PANELS) { const el = panelEl(p.id); el.classList.remove('hidden-panel'); clearFree(el); stash.appendChild(el); }
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v')) el.remove();
+  grid.classList.toggle('free', !!layout.free);
+  if (layout.free) { renderFree(grid, stash); return; }
   const cols = layout.cols.map((c) => ({ c, items: c.items.filter((it) => isVisible(it.id)) })).filter((x) => x.items.length);
   const sumW = cols.reduce((t, x) => t + x.c.w, 0) || 1;
   cols.forEach(({ c, items }, i) => {
@@ -310,6 +344,134 @@ function render(force = false) {
     note.textContent = isMain ? 'Tous les panneaux sont masqués ou ouverts dans une autre fenêtre.' : 'Fenêtre vide.';
     grid.insertBefore(note, stash);
   }
+}
+
+// ---------------- Disposition libre ----------------
+// Chaque panneau a sa position et sa taille (en fractions de la zone des panneaux) : on le
+// déplace avec ⠿ et on le redimensionne par son coin, n'importe où ; il s'aimante aux bords
+// de la zone et des autres panneaux. Clic sur un panneau = il passe au premier plan.
+const FREE_GAP = 6;     // écart laissé entre deux panneaux aimantés (px)
+const SNAP = 12;        // distance d'aimantation (px)
+
+function clearFree(el) {
+  if (!el._free) return;
+  for (const k of ['position', 'left', 'top', 'width', 'height', 'zIndex']) el.style[k] = '';
+  el.querySelector(':scope > .fr-rs')?.remove();
+  el._free = false;
+}
+
+// Positions de départ du mode libre : celles des panneaux tels qu'ils sont affichés (colonnes)
+function freeFromCurrent() {
+  const g = $('.grid').getBoundingClientRect();
+  const rects = {};
+  for (const p of PANELS) {
+    const r = panelEl(p.id).getBoundingClientRect();
+    if (r.width && r.height) rects[p.id] = { x: (r.left - g.left) / g.width, y: (r.top - g.top) / g.height, w: r.width / g.width, h: r.height / g.height };
+  }
+  // Panneaux invisibles pour l'instant : en cascade au centre
+  let i = 0;
+  for (const p of PANELS) if (!rects[p.id]) { rects[p.id] = { x: 0.3 + 0.03 * i, y: 0.2 + 0.03 * i, w: 0.4, h: 0.45 }; i++; }
+  return { rects, z: [] };
+}
+
+export function setFreeLayout(on) {
+  if (!!layout.free === on) return;
+  layout.free = on ? freeFromCurrent() : undefined;
+  if (!on) delete layout.free;
+  renderKey = '';
+  render(true);
+  save();
+}
+export const isFreeLayout = () => !!layout.free;
+
+function applyRect(el, r) {
+  Object.assign(el.style, { left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` });
+}
+
+function renderFree(grid, stash) {
+  const ids = PANELS.map((p) => p.id).filter(isVisible);
+  const z = layout.free.z;
+  for (const id of ids) {
+    if (!layout.free.rects[id]) layout.free.rects[id] = { x: 0.3, y: 0.25, w: 0.4, h: 0.45 };
+    const el = panelEl(id);
+    el.style.flex = '';
+    el.style.position = 'absolute';
+    applyRect(el, layout.free.rects[id]);
+    el.style.zIndex = String(10 + z.indexOf(id) + 1);   // panneaux cliqués en dernier au-dessus
+    el._free = true;
+    el._model = null;
+    if (!el.querySelector(':scope > .fr-rs')) {
+      const rs = document.createElement('div');
+      rs.className = 'fr-rs';
+      rs.title = 'Glisser pour redimensionner';
+      rs.addEventListener('pointerdown', (e) => freeDrag(id, e, 'resize'));
+      el.appendChild(rs);
+    }
+    grid.insertBefore(el, stash);
+  }
+  if (!ids.length) {
+    const note = document.createElement('div');
+    note.className = 'lcol note';
+    note.textContent = isMain ? 'Tous les panneaux sont masqués ou ouverts dans une autre fenêtre.' : 'Fenêtre vide.';
+    grid.insertBefore(note, stash);
+  }
+}
+
+function bringToFront(id) {
+  if (!layout.free || layout.free.z.at(-1) === id) return;
+  layout.free.z = [...layout.free.z.filter((x) => x !== id), id];
+  layout.free.z.forEach((x, i) => { panelEl(x).style.zIndex = String(11 + i); });
+}
+
+// Déplacement (mode 'move') ou redimensionnement (mode 'resize') d'un panneau en disposition libre
+function freeDrag(id, e, mode) {
+  e.preventDefault();
+  e.stopPropagation();
+  const grid = $('.grid');
+  const g = grid.getBoundingClientRect();
+  const el = panelEl(id);
+  const r0 = el.getBoundingClientRect();
+  const sx = e.clientX, sy = e.clientY;
+  bringToFront(id);
+  // Bords auxquels s'aimanter : zone des panneaux et autres panneaux visibles
+  const others = PANELS.map((p) => p.id).filter((x) => x !== id && isVisible(x)).map((x) => panelEl(x).getBoundingClientRect());
+  const xs = [g.left, g.right, ...others.flatMap((o) => [o.left - FREE_GAP, o.right + FREE_GAP, o.left, o.right])];
+  const ys = [g.top, g.bottom, ...others.flatMap((o) => [o.top - FREE_GAP, o.bottom + FREE_GAP, o.top, o.bottom])];
+  const snap = (v, list) => { let best = v, d = SNAP; for (const c of list) if (Math.abs(c - v) < d) { d = Math.abs(c - v); best = c; } return best; };
+  document.body.classList.add('dragging-panel');
+  const target = e.currentTarget;
+  target.setPointerCapture?.(e.pointerId);
+  let rect = { left: r0.left, top: r0.top, width: r0.width, height: r0.height };
+  const move = (ev) => {
+    const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    if (mode === 'move') {
+      let left = Math.max(g.left, Math.min(g.right - r0.width, r0.left + dx));
+      let top = Math.max(g.top, Math.min(g.bottom - 40, r0.top + dy));
+      // Aimantation du bord gauche ou droit, du haut ou du bas
+      const sl = snap(left, xs), sr = snap(left + r0.width, xs) - r0.width;
+      left = Math.abs(sl - left) <= Math.abs(sr - left) ? sl : sr;
+      const st = snap(top, ys), sb = snap(top + r0.height, ys) - r0.height;
+      top = Math.abs(st - top) <= Math.abs(sb - top) ? st : sb;
+      rect = { left, top, width: r0.width, height: r0.height };
+    } else {
+      const right = snap(Math.min(g.right, Math.max(r0.left + MIN_W, r0.right + dx)), xs);
+      const bottom = snap(Math.min(g.bottom, Math.max(r0.top + MIN_H, r0.bottom + dy)), ys);
+      rect = { left: r0.left, top: r0.top, width: right - r0.left, height: bottom - r0.top };
+    }
+    const r = { x: (rect.left - g.left) / g.width, y: (rect.top - g.top) / g.height, w: rect.width / g.width, h: rect.height / g.height };
+    layout.free.rects[id] = r;
+    applyRect(el, r);
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    document.body.classList.remove('dragging-panel');
+    renderKey = '';
+    save();
+    window.dispatchEvent(new Event('resize'));   // graphiques et carte à la nouvelle taille
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
 }
 
 // Séparateur : redistribue la place entre les deux voisins (a avant, b après) en gardant leur total.
@@ -615,13 +777,14 @@ function switchProfile(next, quiet = false) {
   if (isMain) {
     // Panneaux masqués et colonnes du classement : propres à chaque disposition
     const st = storageGet(PROFILE_KEY, {});
-    st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenCols: prefs.hiddenCols };
+    st[profile] = { hiddenPanels: prefs.hiddenPanels, hiddenCols: prefs.hiddenCols, extraCols: prefs.extraCols };
     storageSet(PROFILE_KEY, st);
     const n = st[next] || PROFILE_DEFAULTS[next];
     profile = next;
     storageSet('f1dash.lastProfile', next);
     setPref('hiddenPanels', n.hiddenPanels || []);
     setPref('hiddenCols', n.hiddenCols || []);
+    setPref('extraCols', n.extraCols || []);
   } else profile = next;
   // Fenêtre secondaire sans disposition pour ce type de séance : elle garde ses panneaux
   layout = normalize(allLayouts()[lkey()] || (isMain ? defaultLayout() : layout));
@@ -641,6 +804,19 @@ function checkProfile() {
 
 export const currentProfile = () => profile;
 
+// Boutons ⠿ ⤢ ↗ ✕ centrés sur la hauteur de la première ligne de l'en-tête (titre, outils ou
+// onglets), quelle que soit sa hauteur réelle (thème, boutons « Calques », onglets sur 2 lignes)
+function alignCtrl(head) {
+  const items = [...head.children].filter((x) => !x.classList.contains('panel-ctrl') && x.offsetParent);
+  if (!items.length) return;
+  const top = head.getBoundingClientRect().top;
+  const firstTop = Math.min(...items.map((x) => x.getBoundingClientRect().top));
+  const row = items.filter((x) => x.getBoundingClientRect().top < firstTop + 6).map((x) => x.getBoundingClientRect());
+  const mid = (Math.min(...row.map((r) => r.top)) + Math.max(...row.map((r) => r.bottom))) / 2 - top;
+  head.style.setProperty('--ctrl-top', `${Math.max(0, Math.round(mid - 13))}px`);
+}
+const headObserver = 'ResizeObserver' in window ? new ResizeObserver((entries) => { for (const e of entries) alignCtrl(e.target); }) : null;
+
 // ---------------- Initialisation ----------------
 export function initLayout() {
   if (!isMain) {
@@ -652,13 +828,18 @@ export function initLayout() {
     const head = panelEl(p.id).querySelector('.panel-head');
     const ctrl = document.createElement('div');
     ctrl.className = 'panel-ctrl';
-    ctrl.innerHTML = `<button data-act="drag" class="lgrip" title="Glisser pour déplacer ce panneau (à côté, au-dessus, en dessous d'un autre, ou pour l'échanger)">⠿</button>`
+    ctrl.innerHTML = `<button data-act="drag" class="lgrip" title="Glisser pour déplacer ce panneau (colonnes : à côté, au-dessus, en dessous d'un autre ou échange ; disposition libre : n'importe où)">⠿</button>`
       + '<button data-act="max" title="Agrandir / réduire (Échap)">⤢</button>'
       + '<button data-act="pop" title="Envoyer vers une autre fenêtre (second écran) : nouvelle fenêtre ou fenêtre déjà ouverte">↗</button>'
       + (isMain ? '<button data-act="hide" title="Masquer ce panneau (réaffichable dans ⚙ Réglages)">✕</button>'
         : '<button data-act="back" title="Remettre ce panneau dans la fenêtre principale">↙</button>');
     head.appendChild(ctrl);
-    ctrl.querySelector('.lgrip').addEventListener('pointerdown', (e) => { if (!narrow()) startDrag(p.id, e); });
+    headObserver?.observe(head);
+    ctrl.querySelector('.lgrip').addEventListener('pointerdown', (e) => {
+      if (narrow() || mobile()) return;
+      if (layout.free) freeDrag(p.id, e, 'move'); else startDrag(p.id, e);
+    });
+    panelEl(p.id).addEventListener('pointerdown', () => { if (layout.free) bringToFront(p.id); });
     ctrl.addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       const act = b?.dataset.act;
@@ -677,10 +858,16 @@ export function initLayout() {
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {
     if (k === 'hiddenPanels') render();
-    if (['hiddenPanels', 'hiddenCols', 'towerFit'].includes(k)) renderLayoutOptions();
+    if (['hiddenPanels', 'hiddenCols', 'extraCols', 'towerFit'].includes(k)) renderLayoutOptions();
   });
   render(true);
   renderLayoutOptions();
+  // Menu « Colonnes » du classement : se ferme au clic ailleurs ou avec Échap
+  const colMenu = $('#towerCols');
+  if (colMenu) {
+    document.addEventListener('pointerdown', (e) => { if (colMenu.open && !colMenu.contains(e.target)) colMenu.open = false; });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') colMenu.open = false; });
+  }
   // Onglets ouverts : mémorisés pour chaque disposition
   for (const [id, head] of tabHeads()) {
     head.addEventListener('click', (e) => {
@@ -712,6 +899,7 @@ export function resetLayout(ask = true) {
   const def = PROFILE_DEFAULTS[profile];
   setPref('hiddenPanels', [...def.hiddenPanels]);
   setPref('hiddenCols', [...def.hiddenCols]);
+  setPref('extraCols', []);
   if (!prefs.towerFit) setPref('towerFit', true);
   layout = normalize(defaultLayout());
   applyTabs();
@@ -735,10 +923,14 @@ export function renderLayoutOptions() {
   $('#towerFit').checked = prefs.towerFit;
   $('#towerFit').onchange = (e) => setPref('towerFit', e.target.checked);
   for (const b of [$('#layoutReset'), $('#resetUiBtn')]) if (b) b.onclick = () => resetLayout();
-  $('#colOpts').innerHTML = COLUMNS.map(([k, name]) => `<label class="toggle small"><input type="checkbox" data-col="${k}" ${prefs.hiddenCols.includes(k) ? '' : 'checked'}> ${esc(name)}</label>`).join('');
-  $('#colOpts').onchange = (e) => {
-    const k = e.target.dataset.col;
-    if (!k) return;
-    setPref('hiddenCols', e.target.checked ? prefs.hiddenCols.filter((x) => x !== k) : [...prefs.hiddenCols, k]);
-  };
+  const fs = $('#freeSel');
+  if (fs) {
+    fs.value = layout.free ? 'free' : 'cols';
+    fs.onchange = () => setFreeLayout(fs.value === 'free');
+  }
+  for (const box of [$('#colOpts'), $('#towerColOpts')]) {
+    if (!box) continue;
+    box.innerHTML = colOptsHtml();
+    box.onchange = onColChange;
+  }
 }

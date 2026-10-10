@@ -69,12 +69,14 @@ function angleDiff(a, b) {
   return d > Math.PI ? 2 * Math.PI - d : d;
 }
 
-export function estimateZones(track, carData, positions) {
+// official : définitions du plan FIA du circuit (voir server/fia-circuit.js) ; les zones et
+// points officiels remplacent alors les estimations (la télémétrie sert à trouver la fin des zones).
+export function estimateZones(track, carData, positions, official = null) {
   const pts = track.pts;
   const n = pts.length;
   if (n < 20) return null;
   const tl = timelines(positions);
-  if (!tl.size) return null;
+  if (!tl.size && !official) return null;
 
   // Distances cumulées le long du tracé
   const cum = [0];
@@ -101,7 +103,7 @@ export function estimateZones(track, carData, positions) {
         if (!series.has(num)) series.set(num, []);
         const s = series.get(num);
         const r = project(track, p.x, p.y, s.length ? s[s.length - 1].idx : -1);
-        s.push({ t, idx: r.idx, d: r.d, speed });
+        s.push({ t, idx: r.idx, d: r.d, speed, x: p.x, y: p.y });
         if (r.d > 15 * M) continue;
         bins[r.idx].push(speed, throttle >= 98 ? 1 : 0);
         if (++samples >= MAX_SAMPLES) break;
@@ -110,7 +112,7 @@ export function estimateZones(track, carData, positions) {
     }
     if (samples >= MAX_SAMPLES) break;
   }
-  if (samples < 2000) return null;
+  if (samples < 2000 && !official) return null;
 
   // 2. Proportion « à fond » par point, parmi les passages rapides (on écarte tours de
   //    rentrée, tours lents de qualif, safety car : vitesse < 85 % de la vitesse de référence),
@@ -171,6 +173,7 @@ export function estimateZones(track, carData, positions) {
   // 5. Détection ≈ entrée des stands : là où une voiture qui roule au limiteur hors piste
   //    a quitté le tracé (dernier point encore sur la piste avant la voie des stands).
   const entries = [];
+  const passes = [];    // passages complets dans la voie des stands (points GPS)
   for (const s of series.values()) {
     for (let k = 0; k < s.length; k++) {
       if (!(s[k].d > 12 * M && s[k].speed > 40 && s[k].speed < 90)) continue;
@@ -179,7 +182,13 @@ export function estimateZones(track, carData, positions) {
       if (s[e - 1].t - s[k].t >= 8000) {
         let b = k;
         while (b > 0 && s[b].d > 4 * M && s[k].t - s[b].t < 20000) b--;
-        if (s[b].d <= 4 * M) entries.push(cum[s[b].idx]);
+        if (s[b].d <= 4 * M) {
+          entries.push(cum[s[b].idx]);
+          // Retour sur la piste : premier point de nouveau sur le tracé
+          let f = e;
+          while (f < s.length && s[f].d > 4 * M && s[f].t - s[e - 1].t < 20000) f++;
+          if (f < s.length && s[f].d <= 4 * M) passes.push(s.slice(b, f + 1));
+        }
       }
       k = e;
     }
@@ -193,5 +202,88 @@ export function estimateZones(track, carData, positions) {
     while (idx < n - 1 && cum[idx + 1] <= med) idx++;
     detection = { idx, samples: entries.length };
   }
-  return { zones, detection, samples };
+  const pitLane = pitLanePath(passes);
+  if (official) return { ...officialLayout(track, official, cum, frac, zones), pitLane, samples };
+  return { v: 3, zones, detection, pitLane, samples };
+}
+
+// Positions officielles (« 45m after T19 ») -> indices du tracé, fin des zones « ligne droite » :
+// là où les voitures cessent d'être à fond (télémétrie), au plus tard au virage suivant.
+function officialLayout(track, official, cum, frac, estimated = []) {
+  const pts = track.pts;
+  const n = pts.length;
+  const total = cum[n];
+  const cornerIdx = new Map(track.corners.map((c) => [c.number, track.nearestIndex(c.x, c.y)]));
+  const idxAt = (dist) => {
+    const d = ((dist % total) + total) % total;
+    let lo = 0, hi = n - 1;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cum[mid] <= d) lo = mid; else hi = mid; }
+    return lo;
+  };
+  const at = (p) => {
+    if (!p || !cornerIdx.has(p.turn)) return null;
+    return idxAt(cum[cornerIdx.get(p.turn)] + p.dir * p.m * M);
+  };
+  const distFwd = (i, j) => { const d = cum[j] - cum[i]; return d >= 0 ? d : d + total; };
+  const corners = [...cornerIdx.values()];
+  const zones = [];
+  for (const z of official.zones || []) {
+    const from = at(z.normal) ?? at(z.low);
+    if (from === null) continue;
+    let end = from;
+    const hasTelemetry = frac.some((v) => v > 0);
+    if (hasTelemetry) {
+      // Fin : là où les voitures cessent d'être à fond (au moins 60 m d'affilée : un léger
+      // lever de pied dans un virage rapide ne termine pas la zone), 2,5 km au plus
+      let lowSince = null;
+      for (let j = (from + 1) % n, g = 0; g < n && distFwd(from, j) < 2500 * M; j = (j + 1) % n, g++) {
+        if (frac[j] >= 0.5) { end = j; lowSince = null; continue; }
+        lowSince ??= j;
+        if (distFwd(lowSince, j) > 60 * M && distFwd(from, j) > 80 * M) break;
+      }
+      // Ligne droite estimée qui commence juste après (ou contient le départ) : jusqu'à sa fin
+      for (const ez of estimated) {
+        const starts = distFwd(from, ez.from) < 400 * M || distFwd(ez.from, from) <= distFwd(ez.from, ez.to);
+        if (starts && distFwd(from, ez.to) > distFwd(from, end) && distFwd(from, ez.to) < 2500 * M) end = ez.to;
+      }
+    } else {
+      const next = corners.map((c) => distFwd(from, c)).filter((d) => d > 100 * M).sort((a, b) => a - b)[0] ?? 1000 * M;
+      end = idxAt(cum[from] + next - 60 * M);
+    }
+    zones.push({ name: z.name, from, to: end, length: Math.round(distFwd(from, end) / M), lowFrom: at(z.low), text: z.normal?.text || z.low?.text || '' });
+  }
+  const point = (p) => { const idx = at(p); return idx === null ? null : { idx, text: p.text }; };
+  return { v: 3, official: true, source: official.source, zones, detection: point(official.detection), activation: point(official.activation) };
+}
+
+// Voie des stands : moyenne des passages des voitures (rééchantillonnés le long de leur
+// chemin), en écartant ceux dont la longueur s'éloigne de la médiane (arrêt atypique, GPS).
+export function pitLanePath(passes, n = 80) {
+  const resample = (pts) => {
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+    const L = cum.at(-1);
+    if (!(L > 0)) return null;
+    const out = [];
+    let j = 0;
+    for (let k = 0; k < n; k++) {
+      const target = (L * k) / (n - 1);
+      while (j < pts.length - 2 && cum[j + 1] < target) j++;
+      const u = cum[j + 1] > cum[j] ? (target - cum[j]) / (cum[j + 1] - cum[j]) : 0;
+      out.push([pts[j].x + (pts[j + 1].x - pts[j].x) * u, pts[j].y + (pts[j + 1].y - pts[j].y) * u]);
+    }
+    return { L, out };
+  };
+  const rs = passes.filter((p) => p.length >= 6).map(resample).filter(Boolean);
+  if (rs.length < 2) return null;
+  const lens = rs.map((r) => r.L).sort((a, b) => a - b);
+  const med = lens[lens.length >> 1];
+  const keep = rs.filter((r) => Math.abs(r.L - med) <= med * 0.2);
+  if (keep.length < 2 || med < 150 * M || med > 1500 * M) return null;
+  const path = [];
+  for (let k = 0; k < n; k++) {
+    const xs = keep.map((r) => r.out[k][0]).sort((a, b) => a - b), ys = keep.map((r) => r.out[k][1]).sort((a, b) => a - b);
+    path.push([Math.round(xs[xs.length >> 1]), Math.round(ys[ys.length >> 1])]);
+  }
+  return { path, length: Math.round(med / M), samples: keep.length };
 }

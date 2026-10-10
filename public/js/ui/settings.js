@@ -85,6 +85,17 @@ async function reconnectF1TV() {
   }
 }
 
+const SPEEDS = [1, 2, 5, 10, 20, 30];
+
+// Nom de chaque partie de la séance (Q1, Q2, Q3 / départ et reprises / séance)
+function phaseLabels(src) {
+  const ph = src.phases || [];
+  const quali = ph.some((p) => p.part);
+  const sq = /sprint/i.test(`${src.session || ''} ${src.path || ''}`) && quali ? 'SQ' : 'Q';
+  const race = /race|course|sprint/i.test(`${src.session || ''} ${src.path || ''}`);
+  return ph.map((p, i) => (quali ? `${sq}${p.part || i + 1}` : race ? (i ? 'Reprise' : 'Départ') : ph.length > 1 ? `Séance ${i + 1}` : 'Séance'));
+}
+
 function renderReplayBar() {
   const src = store.status?.source;
   const bar = $('#replayBar');
@@ -92,31 +103,50 @@ function renderReplayBar() {
   bar.hidden = !active;
   if (!active) return;
   const speed = src.speed || 1;
-  const pos = (serverNow() - store.delay - src.anchor) * speed;
-  const sel = $('#rpSpeed');
-  if (document.activeElement !== sel && Number(sel.value) !== speed) sel.value = String(speed);
+  const dur = src.duration || 1;
+  const pos = Math.max(0, Math.min(dur, (serverNow() - store.delay - src.anchor) * speed));
   const range = $('#rpRange');
-  range.max = String(src.duration);
-  if (!dragging) range.value = String(Math.max(0, pos));
-  // Drapeaux rouges : repères sur la barre et bouton pour passer l'interruption
-  // Safety car / VSC : repères optionnels (ils révèlent les neutralisations à venir)
+  range.max = String(dur);
+  if (!dragging) range.value = String(pos);
+  const shown = dragging ? Number(range.value) : pos;
+  $('#rpPlayed').style.width = `${(100 * shown) / dur}%`;
+  for (const b of $$('#rpSpeeds [data-speed]')) b.classList.toggle('on', Number(b.dataset.speed) === speed);
+  if ($('#rpFlags').checked !== prefs.replayMarks) $('#rpFlags').checked = prefs.replayMarks;
+
+  // Segments : séance en cours (vert), drapeaux jaunes, SC / VSC (option « Drapeaux ») et
+  // drapeaux rouges (toujours), sur fond sombre quand la séance est arrêtée ; points blancs au
+  // début et à la fin de chaque partie (Q1, Q2, Q3, départ, reprise…)
   const reds = src.redFlags || [];
-  const neutral = prefs.replayMarks ? src.neutralized || [] : [];
-  const marks = $('#rpMarks');
-  const mk = `${src.duration}|${reds.map((r) => `${r.start}-${r.end}`).join()}|${neutral.map((r) => `${r.kind}${r.start}-${r.end}`).join()}`;
-  if (marks.dataset.k !== mk) {
-    marks.dataset.k = mk;
-    const mark = (r, cls, title) => `<i class="${cls}" title="${title}" style="left:${(100 * r.start) / src.duration}%;width:${Math.max(0.3, (100 * (r.end - r.start)) / src.duration)}%"></i>`;
-    marks.innerHTML = neutral.map((r) => mark(r, r.kind, r.kind === 'sc' ? 'Voiture de sécurité' : 'Voiture de sécurité virtuelle')).join('')
-      + reds.map((r) => mark(r, 'red', 'Drapeau rouge')).join('');
+  const phases = src.phases || [];
+  const labels = phaseLabels(src);
+  const flags = prefs.replayMarks;
+  const neutral = flags ? src.neutralized || [] : [];
+  const yellows = flags ? src.yellows || [] : [];
+  const mk = `${dur}|${flags}|${phases.length}|${reds.length}|${neutral.length}|${yellows.length}`;
+  const segs = $('#rpSegs');
+  if (segs.dataset.k !== mk) {
+    segs.dataset.k = mk;
+    const pct = (t) => (100 * Math.max(0, Math.min(dur, t))) / dur;
+    const seg = (r, cls, title) => `<i class="${cls}" title="${title}" style="left:${pct(r.start)}%;width:${Math.max(0.25, pct(r.end) - pct(r.start))}%"></i>`;
+    segs.innerHTML = phases.map((p, i) => seg(p, 'run', `${labels[i]} : ${fmtDuration(p.start)} → ${fmtDuration(p.end)}`)).join('')
+      + yellows.map((r) => seg(r, 'yellow', 'Drapeau jaune')).join('')
+      + neutral.map((r) => seg(r, r.kind, r.kind === 'sc' ? 'Voiture de sécurité' : 'Voiture de sécurité virtuelle')).join('')
+      + reds.map((r) => seg(r, 'red', 'Drapeau rouge')).join('');
+    $('#rpDots').innerHTML = phases.map((p, i) => `<b class="rp-dot" data-seek="${p.start}" style="left:${pct(p.start)}%" title="Début ${labels[i]} — cliquer pour y aller"></b>`
+      + `<span class="rp-lbl" style="left:${pct(p.start)}%">${labels[i]}</span>`
+      + `<b class="rp-dot end" data-seek="${p.end}" style="left:${pct(p.end)}%" title="Fin ${labels[i]}"></b>`).join('');
   }
   const red = reds.find((r) => pos >= r.start - 1000 && pos < r.end - 35000);
   $('#rpRed').hidden = !red;
   $('#rpRed').dataset.end = red ? red.end : '';
-  const rel = pos - (src.sessionStart || 0);
-  $('#rpTime').textContent = `${rel >= 0 ? 'Départ +' : 'Départ −'}${fmtDuration(Math.abs(rel))} · ${fmtDuration(pos)} / ${fmtDuration(src.duration)}`;
+  // Partie en cours et temps écoulé dans cette partie
+  const cur = phases.findIndex((p) => shown >= p.start && shown < p.end);
+  const next = phases.findIndex((p) => shown < p.start);
+  $('#rpPhase').textContent = cur >= 0 ? `${labels[cur]} · ${fmtDuration(shown - phases[cur].start, false)}`
+    : next > 0 ? `Entre ${labels[next - 1]} et ${labels[next]}` : next === 0 ? `Avant ${labels[0]} · ${fmtDuration(phases[0].start - shown, false)}` : phases.length ? 'Séance terminée' : '';
+  $('#rpTime').textContent = `${fmtDuration(shown)} / ${fmtDuration(dur)}`;
   $('#rpPlay').textContent = store.status.paused ? '▶' : '❚❚';
-  $('#rpPlay').title = store.status.paused ? 'Reprendre' : 'Pause';
+  $('#rpPlay').title = store.status.paused ? 'Reprendre (barre d\'espace)' : 'Pause (barre d\'espace)';
 }
 
 async function control(body) {
@@ -322,7 +352,20 @@ export function initSettings() {
     dragging = false;
     control({ action: 'seek', toMs: Number(range.value) + store.delay * (store.status?.source?.speed || 1) });
   });
-  $('#rpSpeed').addEventListener('change', (e) => control({ action: 'speed', speed: Number(e.target.value) }));
+  $('#rpSpeeds').innerHTML = SPEEDS.map((v) => `<button class="rp-speed" data-speed="${v}" title="Vitesse ×${v}">${v}x</button>`).join('');
+  $('#rpSpeeds').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-speed]');
+    if (b) control({ action: 'speed', speed: Number(b.dataset.speed) });
+  });
+  $('#rpFlags').addEventListener('change', (e) => setPref('replayMarks', e.target.checked));
+  $('#rpDots').addEventListener('click', (e) => {
+    const d = e.target.closest('[data-seek]');
+    if (d) control({ action: 'seek', toMs: Number(d.dataset.seek) + store.delay * (store.status?.source?.speed || 1) });
+  });
+  $('#rpClose').addEventListener('click', async () => {
+    await api('/api/live', { method: 'POST' }).catch((err) => toast(err.message));
+    toast('Retour au direct');
+  });
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && !e.target.closest('input, select, textarea, button') && store.status?.source?.mode === 'replay') {
       e.preventDefault();

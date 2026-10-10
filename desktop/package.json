@@ -34,6 +34,7 @@
       "main.cjs",
       "preload.cjs",
       "updater.cjs",
+      "splash.html",
       "icon.png",
       "bundle/**/*",
       "package.json"

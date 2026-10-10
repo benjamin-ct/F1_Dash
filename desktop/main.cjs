@@ -169,7 +169,6 @@ function loginF1TV() {
 }
 
 ipcMain.handle('f1tv-login', () => loginF1TV());
-app.whenReady().then(() => require('./updater.cjs').init(ipcMain));
 ipcMain.handle('f1tv-logout', async () => {
   await session.fromPartition('persist:f1tv').clearStorageData();
   return { ok: true };
@@ -215,10 +214,81 @@ function setupContents(wc, url) {
   });
 }
 
+// ---------- Écran de démarrage : recherche et installation des mises à jour ----------
+function createSplash() {
+  const win = new BrowserWindow({
+    width: 440,
+    height: 330,
+    frame: false,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    center: true,
+    show: false,
+    backgroundColor: '#0b0b0f',
+    title: 'F1 Dash',
+    icon: APP_ICON,
+    webPreferences: { contextIsolation: true, sandbox: true, javascript: true },
+  });
+  win.once('ready-to-show', () => win.show());
+  win.on('closed', () => { if (!mainWindow && !splashDone) app.quit(); });
+  win.loadFile(path.join(__dirname, 'splash.html'));
+  return win;
+}
+
+let splashDone = false;
+
+// Met à jour le texte de l'écran de démarrage (progress : null = activité, 0…1, false = sans barre)
+function splashSay(win, title, detail = '', progress = null) {
+  if (!win || win.isDestroyed()) return;
+  const run = () => win.webContents.executeJavaScript(`setStatus(${JSON.stringify(title)}, ${JSON.stringify(detail)}, ${JSON.stringify(progress)})`).catch(() => {});
+  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', run); else run();
+}
+
+const mo = (b) => `${Math.round(b / 1048576)} Mo`;
+
+// Avancement de la mise à jour affiché sur l'écran de démarrage
+function splashUpdate(win, st) {
+  if (st.status === 'checking') splashSay(win, 'Recherche de mise à jour…');
+  else if (st.status === 'downloading') {
+    const size = st.asset?.size;
+    splashSay(win, `Téléchargement de la version ${st.latest?.version}…`,
+      size ? `${mo(size * (st.progress || 0))} / ${mo(size)} · l'appli s'ouvrira sur la nouvelle version` : 'l\'appli s\'ouvrira sur la nouvelle version', st.progress || 0);
+  } else if (st.status === 'ready') splashSay(win, `Installation de la version ${st.latest?.version}…`, 'L\'appli va redémarrer toute seule dans quelques secondes.');
+}
+
+// Nouvelle version qui ne s'installe pas toute seule (.deb, appli lancée depuis l'image disque) :
+// « Télécharger » ouvre la page de la version, « Continuer » ouvre l'appli actuelle
+function splashAsk(win, version) {
+  return new Promise((resolve) => {
+    if (!win || win.isDestroyed()) { resolve('continue'); return; }
+    splashSay(win, `Nouvelle version ${version} disponible`, 'Elle s\'installe à la main pour cette installation.', false);
+    win.webContents.executeJavaScript('ask(true)').catch(() => {});
+    const onNav = (e, target) => {
+      e.preventDefault();
+      if (!/^f1dash:/.test(target)) return;
+      win.webContents.removeListener('will-navigate', onNav);
+      win.webContents.executeJavaScript('ask(false)').catch(() => {});
+      resolve(target.includes('download') ? 'download' : 'continue');
+    };
+    win.webContents.on('will-navigate', onNav);
+    win.once('closed', () => resolve('continue'));
+  });
+}
+
 ipcMain.handle('restore-windows-get', () => readState().restoreWindows !== false);
 ipcMain.handle('restore-windows-set', (_e, v) => { writeState({ restoreWindows: !!v }); return !!v; });
 
 async function start() {
+  const updater = require('./updater.cjs');
+  updater.init(ipcMain);
+  const splash = createSplash();
+  splash.webContents.once('did-finish-load', () => splash.webContents.executeJavaScript(`setVersion(${JSON.stringify(app.getVersion())})`).catch(() => {}));
+  const res = await updater.startup((st) => splashUpdate(splash, st));
+  console.log('[mise à jour]', JSON.stringify(res));
+  if (res.action === 'installing') { splashDone = true; return; }   // l'appli se ferme puis redémarre
+  if (res.action === 'notify' && await splashAsk(splash, res.version) === 'download') shell.openExternal(res.url);
+  splashSay(splash, 'Démarrage…', res.reason ? `Mise à jour impossible : ${res.reason}` : '');
   await widevineReady();
   const port = await pickPort();
   process.env.PORT = String(port || 3000);
@@ -252,8 +322,18 @@ async function start() {
   // Laisse le serveur démarrer avant de charger la page.
   const load = (tries = 0) => mainWindow.loadURL(url).catch(() => tries < 20 && setTimeout(() => load(tries + 1), 250));
   setTimeout(load, 300);
-  if (ws.maximized) mainWindow.maximize();
-  mainWindow.show();
+  // Fenêtre affichée une fois la page chargée (au plus tard après 10 s), puis fin de l'écran de démarrage
+  let shown = false;
+  const showMain = () => {
+    if (shown || !mainWindow) return;
+    shown = true;
+    if (ws.maximized) mainWindow.maximize();
+    mainWindow.show();
+    splashDone = true;
+    if (!splash.isDestroyed()) splash.destroy();
+  };
+  mainWindow.webContents.once('did-finish-load', showMain);
+  setTimeout(showMain, 10000);
   // Sauvegarde à chaque changement de taille / position (et à la fermeture)
   let saveTimer = null;
   const saveSoon = () => { clearTimeout(saveTimer); saveTimer = setTimeout(() => mainWindow && saveWindowState(mainWindow), 800); };
