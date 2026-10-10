@@ -844,11 +844,16 @@ function drawCars(dt) {
   if (!followNum) followTarget = null;
   const W = trackWidth();
   const trails = $('#mapTrails').checked;
+  const hideOut = !$('#mapShowOut').checked;
+  const red = String(store.state.TrackStatus?.Status || '') === '5' || store.state.SessionStatus?.Status === 'Aborted';
   const nowMs = performance.now();
   const cars = [];
   for (const num of drawOrder) {
     const l = lines[num] || {};
-    if (l.Retired) { trail.delete(num); continue; }
+    // Pilotes hors course (abandon, voiture arrêtée, éliminé en qualif) : retirés de la carte
+    // (case « Pilotes hors course » du menu Calques). Sous drapeau rouge, une voiture arrêtée
+    // dans les stands n'est pas hors course.
+    if (l.Retired || (hideOut && (l.KnockedOut || (l.Stopped && !red)))) { trail.delete(num); continue; }
     let g = null;
     if (gps) g = store.positions.gpsAt(num, disp);
     else {
@@ -1017,7 +1022,7 @@ function drawCars(dt) {
 }
 
 // Cases de la carte mémorisées d'une session à l'autre
-const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapPit', 'mapFlagText', 'mapTrails', 'mapGrid'];
+const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapPit', 'mapFlagText', 'mapShowOut', 'mapTrails', 'mapGrid'];
 
 function initMapOptions() {
   const saved = storageGet('f1dash.mapOpts', {});
