@@ -79,6 +79,18 @@ function multiChart(canvas, series, o) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   for (const v of ticks(xMin, xMax, 8).filter((v) => Number.isInteger(v))) ctx.fillText(String(v), X(v), H - padB + 5);
 
+  // Périodes neutralisées (safety car, VSC, drapeau rouge), en tours
+  for (const b of o.bands || []) {
+    const x1 = X(Math.max(xMin, b.from)), x2 = X(Math.min(xMax, b.to));
+    if (x2 < padL || x1 > W - padR) continue;
+    const w = Math.max(3, x2 - x1);
+    ctx.fillStyle = b.kind === 'red' ? 'rgba(255,59,48,.16)' : b.kind === 'vsc' ? 'rgba(255,176,32,.08)' : 'rgba(255,176,32,.14)';
+    ctx.fillRect(x1, padT, w, H - padT - padB);
+    ctx.fillStyle = b.kind === 'red' ? '#ff6b61' : '#ffb020';
+    ctx.font = '700 10px "Titillium Web", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(b.kind === 'red' ? 'DRAPEAU ROUGE' : b.kind === 'vsc' ? 'VSC' : 'SC', x1 + 3, padT + 2);
+  }
+
   // Séries (la série mise en avant est dessinée en dernier, plus épaisse)
   const order = [...series].sort((a, b) => (a.num === highlight) - (b.num === highlight));
   const labels = [];
@@ -226,6 +238,30 @@ function lapTimeSeries() {
   return series;
 }
 
+// Périodes de safety car / VSC / drapeau rouge en tours, d'après les messages de la direction de
+// course (au rythme du délai TV)
+export function neutralBands(state = store.state) {
+  const raw = state.RaceControlMessages?.Messages;
+  const msgs = Array.isArray(raw) ? raw : Object.values(raw || {});
+  const out = [];
+  let cur = null;
+  const close = (lap) => { if (cur) { out.push({ ...cur, to: Math.max(cur.from + 0.5, lap) }); cur = null; } };
+  for (const m of msgs) {
+    const lap = Number(m?.Lap);
+    if (!lap) continue;
+    const text = String(m.Message || '').toUpperCase();
+    if (m.Category === 'SafetyCar') {
+      const vsc = /VIRTUAL/.test(String(m.Mode || text));
+      if (m.Status === 'DEPLOYED') { if (!cur || cur.kind !== (vsc ? 'vsc' : 'sc')) { close(lap); cur = { kind: vsc ? 'vsc' : 'sc', from: lap }; } } else if (m.Status === 'ENDING' || m.Status === 'IN THIS LAP') close(lap);
+    } else if (m.Flag === 'RED' && (m.Scope === 'Track' || /RED FLAG/.test(text))) {
+      close(lap);
+      out.push({ kind: 'red', from: lap - 0.15, to: lap + 0.15 });
+    }
+  }
+  if (cur) out.push({ ...cur, to: Number(state.LapCount?.CurrentLap) || cur.from + 1 });
+  return out;
+}
+
 // ---------------- Rendus ----------------
 function renderTrace() {
   const series = traceSeries();
@@ -233,7 +269,7 @@ function renderTrace() {
   const clamp = Number(opts.clamp) || 0;
   const yMin = Math.min(0, ...ys);
   const yMax = clamp ? Math.min(Math.max(...ys, 1), clamp) : undefined;
-  multiChart($('#anaTraceCanvas'), series, { invert: true, yMin: opts.trace === 'leader' ? 0 : yMin, yMax, yFmt: (v) => `${v > 0 ? '+' : ''}${v}`, tipFmt: fmtGap });
+  multiChart($('#anaTraceCanvas'), series, { invert: true, yMin: opts.trace === 'leader' ? 0 : yMin, yMax, yFmt: (v) => `${v > 0 ? '+' : ''}${v}`, tipFmt: fmtGap, bands: neutralBands() });
 }
 
 function renderPositions() {
@@ -371,7 +407,7 @@ export function renderAnalysis(force = false) {
   const tab = activeTab();
   if (!tab || !document.querySelector('.p-analysis')?.offsetParent) return;
   const wrap = document.querySelector('.p-analysis .panel-body');
-  const key = `${tab}|${versionOf(['TimingData', 'TimingAppData', 'TimingStats', 'DriverList', '__reset'])}|${JSON.stringify(opts)}|${highlight}|${hoverX}|${wrap.clientWidth}x${wrap.clientHeight}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
+  const key = `${tab}|${versionOf(['TimingData', 'TimingAppData', 'TimingStats', 'DriverList', 'RaceControlMessages', '__reset'])}|${JSON.stringify(opts)}|${highlight}|${hoverX}|${wrap.clientWidth}x${wrap.clientHeight}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
   if (!force && key === lastKey) return;
   lastKey = key;
   if (tab === 'trace') renderTrace();

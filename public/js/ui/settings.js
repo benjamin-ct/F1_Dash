@@ -99,12 +99,16 @@ function renderReplayBar() {
   range.max = String(src.duration);
   if (!dragging) range.value = String(Math.max(0, pos));
   // Drapeaux rouges : repères sur la barre et bouton pour passer l'interruption
+  // Safety car / VSC : repères optionnels (ils révèlent les neutralisations à venir)
   const reds = src.redFlags || [];
+  const neutral = prefs.replayMarks ? src.neutralized || [] : [];
   const marks = $('#rpMarks');
-  const mk = `${src.duration}|${reds.map((r) => `${r.start}-${r.end}`).join()}`;
+  const mk = `${src.duration}|${reds.map((r) => `${r.start}-${r.end}`).join()}|${neutral.map((r) => `${r.kind}${r.start}-${r.end}`).join()}`;
   if (marks.dataset.k !== mk) {
     marks.dataset.k = mk;
-    marks.innerHTML = reds.map((r) => `<i title="Drapeau rouge" style="left:${(100 * r.start) / src.duration}%;width:${Math.max(0.3, (100 * (r.end - r.start)) / src.duration)}%"></i>`).join('');
+    const mark = (r, cls, title) => `<i class="${cls}" title="${title}" style="left:${(100 * r.start) / src.duration}%;width:${Math.max(0.3, (100 * (r.end - r.start)) / src.duration)}%"></i>`;
+    marks.innerHTML = neutral.map((r) => mark(r, r.kind, r.kind === 'sc' ? 'Voiture de sécurité' : 'Voiture de sécurité virtuelle')).join('')
+      + reds.map((r) => mark(r, 'red', 'Drapeau rouge')).join('');
   }
   const red = reds.find((r) => pos >= r.start - 1000 && pos < r.end - 35000);
   $('#rpRed').hidden = !red;
@@ -189,6 +193,8 @@ export function initSettings() {
   $('#vividTeams').checked = prefs.vividTeams;
   $('#vividTeams').addEventListener('change', (e) => setPref('vividTeams', e.target.checked));
   on('prefs', (k) => { if (k === 'vividTeams') $('#vividTeams').checked = prefs.vividTeams; });
+  $('#replayMarks').checked = prefs.replayMarks;
+  $('#replayMarks').addEventListener('change', (e) => setPref('replayMarks', e.target.checked));
   $('#teamLogos').checked = prefs.teamLogos;
   $('#teamLogos').addEventListener('change', (e) => setPref('teamLogos', e.target.checked));
   on('prefs', (k) => { if (k === 'teamLogos') $('#teamLogos').checked = prefs.teamLogos; });

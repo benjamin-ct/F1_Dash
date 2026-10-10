@@ -72,6 +72,21 @@ export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_
 
 // Périodes de drapeau rouge, en ms depuis le début : du drapeau (TrackStatus 5) à la reprise
 // de la séance (SessionStatus « Started » après « Aborted »), sinon au statut de piste suivant
+// Périodes de voiture de sécurité (4) et de VSC (6 ; 7 = fin de VSC), en ms depuis le début
+export function neutralPeriods(events, duration) {
+  const out = [];
+  let cur = null;
+  for (const e of events) {
+    if (e.topic !== 'TrackStatus' || e.data?.Status === undefined) continue;
+    const st = String(e.data.Status);
+    const kind = st === '4' ? 'sc' : st === '6' || st === '7' ? 'vsc' : null;
+    if (cur && kind !== cur.kind) { out.push({ ...cur, end: e.off }); cur = null; }
+    if (kind && !cur) cur = { kind, start: e.off };
+  }
+  if (cur) out.push({ ...cur, end: duration });
+  return out;
+}
+
 export function redFlagPeriods(events, duration) {
   const out = [];
   let cur = null;
@@ -152,6 +167,7 @@ export class ReplaySource {
       duration: this.duration,
       sessionStart: this.startOff,
       redFlags: redFlagPeriods(archive.events, archive.duration),
+      neutralized: neutralPeriods(archive.events, archive.duration),
       anchor: this.anchor,
       speed: this.speed,
     };

@@ -1481,3 +1481,15 @@ body.solo .grid .panel-head { padding-right: 116px; }
 @media (max-width: 1450px) {
   :root:not([data-theme="pro"]) .topbar { gap: 7px; }
 }
+/* Barre du haut : la barre de progression du tour ne décale plus la case « Tour » par rapport
+   aux autres (libellés et valeurs alignés) */
+[data-theme="pro"] .topbar .lap-box { position: relative; }
+[data-theme="pro"] .topbar .lap-bar:not([hidden]) { position: absolute; left: 0; right: 0; bottom: -6px; margin: 0; }
+/* Bouton Saison sans cadre, comme les autres icônes de la barre (téléphone, fenêtres secondaires) */
+[data-theme="pro"] .topbar #seasonBtn:not(.on) { background: none; border-color: transparent; }
+[data-theme="pro"] .topbar > .hstat { height: 38px; justify-content: flex-start; align-self: center; }
+[data-theme="pro"] .topbar .hstat-label, [data-theme="pro"] .topbar .weather-mini .wm span { line-height: 14px; }
+[data-theme="pro"] .topbar .hstat-value, [data-theme="pro"] .topbar .weather-mini .wm b { line-height: 22px; }
+[data-theme="pro"] .topbar .surface .hstat-value { line-height: 20px; }
+.rp-marks i.sc { background: var(--sc); }
+.rp-marks i.vsc { background: repeating-linear-gradient(90deg, var(--sc) 0 4px, transparent 4px 7px); }
