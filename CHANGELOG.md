@@ -4,7 +4,7 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.17.1 — à venir
+## v1.17.1 — 2026-10-10
 
 ### Carte
 - Les pilotes hors course (abandon, voiture arrêtée en piste, éliminés en qualifications) disparaissent de la carte. Case « Pilotes hors course » du menu Calques pour les réafficher.
