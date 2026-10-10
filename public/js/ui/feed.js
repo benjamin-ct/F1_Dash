@@ -397,7 +397,7 @@ function stewardsData() {
 // Documents officiels FIA de l'épreuve (rafraîchis toutes les 2 min, cache côté serveur).
 let fia = { key: '', docs: [], page: null, at: 0, loading: false };
 
-function fiaState() {
+export function fiaState() {
   const info = store.state.SessionInfo;
   const name = info?.Meeting?.Name;
   if (!name) return fia;

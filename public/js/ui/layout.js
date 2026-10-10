@@ -20,13 +20,13 @@ const SHORT = { tower: 'Classement', map: 'Circuit', feed: 'Direction de course'
 const ADDED_NEAR = { radio: ['feed', 1], analysis: ['extra', 0] }; // [voisin, 1 = après / 0 = avant]
 
 export const COLUMNS = [
-  ['int', 'Intervalle'], ['last', 'Dernier tour'], ['best', 'Meilleur tour'], ['sec', 'Secteurs'], ['pred', 'Tour en cours (qualifs)'],
+  ['name', 'Nom complet du pilote'], ['tags', 'État (stand, sortie, tour rapide…)'], ['int', 'Intervalle'], ['last', 'Dernier tour'], ['best', 'Meilleur tour'], ['sec', 'Secteurs'], ['pred', 'Tour en cours (qualifs)'],
   ['q', 'Q1/Q2/Q3'], ['tyre', 'Pneus'], ['pits', 'Arrêts / tours'], ['speed', 'Speed trap'], ['duel', 'Boutons duel'],
 ];
 // Colonnes facultatives, masquées par défaut (prefs.extraCols : celles ajoutées)
 export const EXTRA_COLUMNS = [
   ['grid', 'Position de départ'], ['laps', 'Tours effectués'], ['gapf', 'Écart au pilote suivi'],
-  ['spd', 'Vitesses I1 / I2 / arrivée'], ['team', 'Écurie'],
+  ['spd', 'Vitesses I1 / I2 / arrivée'], ['bsec', 'Meilleurs secteurs (S1 / S2 / S3)'], ['team', 'Écurie'],
 ];
 
 // Cases à cocher des colonnes (réglages et menu « Colonnes » du classement)
@@ -160,6 +160,15 @@ function storeLayout(win, l) {
   storageSet(LAYOUTS_KEY, all);
 }
 
+// Application de bureau réglée sur « emplacement enregistré » : au lancement, les dispositions
+// enregistrées remplacent celles de la dernière session (avant que les fenêtres ne se rouvrent)
+if (isMain) {
+  try {
+    const saved = window.f1desktop?.startupLayouts?.();
+    if (saved && typeof saved === 'object') storageSet(LAYOUTS_KEY, saved);
+  } catch { /* version sans cette fonction */ }
+}
+
 let layout = normalize(allLayouts()[lkey()] || (profile !== 'race' && !isMain && allLayouts()[WIN]) || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
 
 function save() {
@@ -221,7 +230,7 @@ function detachedElsewhere(id) {
 }
 
 function isVisible(id) {
-  if (!isMain) return true;
+  if (!isMain) return !!locate(id);
   return !prefs.hiddenPanels.includes(id) && !detachedElsewhere(id);
 }
 
@@ -393,6 +402,10 @@ function renderFree(grid, stash) {
   const z = layout.free.z;
   for (const id of ids) {
     if (!layout.free.rects[id]) layout.free.rects[id] = { x: 0.3, y: 0.25, w: 0.4, h: 0.45 };
+    // Panneau qui dépasse de la zone (fenêtre plus petite qu'avant) : ramené dedans
+    const fr = layout.free.rects[id];
+    fr.w = Math.min(1, fr.w); fr.h = Math.min(1, fr.h);
+    fr.x = Math.max(0, Math.min(fr.x, 1 - fr.w)); fr.y = Math.max(0, Math.min(fr.y, 1 - fr.h));
     const el = panelEl(id);
     el.style.flex = '';
     el.style.position = 'absolute';
@@ -446,12 +459,13 @@ function freeDrag(id, e, mode) {
     const dx = ev.clientX - sx, dy = ev.clientY - sy;
     if (mode === 'move') {
       let left = Math.max(g.left, Math.min(g.right - r0.width, r0.left + dx));
-      let top = Math.max(g.top, Math.min(g.bottom - 40, r0.top + dy));
+      // Le panneau reste entièrement dans la zone des panneaux (pas sous la barre de replay)
+      let top = Math.max(g.top, Math.min(Math.max(g.top, g.bottom - r0.height), r0.top + dy));
       // Aimantation du bord gauche ou droit, du haut ou du bas
       const sl = snap(left, xs), sr = snap(left + r0.width, xs) - r0.width;
       left = Math.abs(sl - left) <= Math.abs(sr - left) ? sl : sr;
       const st = snap(top, ys), sb = snap(top + r0.height, ys) - r0.height;
-      top = Math.abs(st - top) <= Math.abs(sb - top) ? st : sb;
+      top = Math.max(g.top, Math.min(Math.max(g.top, g.bottom - r0.height), Math.abs(st - top) <= Math.abs(sb - top) ? st : sb));
       rect = { left, top, width: r0.width, height: r0.height };
     } else {
       const right = snap(Math.min(g.right, Math.max(r0.left + MIN_W, r0.right + dx)), xs);
@@ -632,7 +646,7 @@ function winTitle(panels) {
 function announce() {
   if (isMain || !channel) return;
   const panels = layout.cols.flatMap((c) => c.items.map((it) => it.id));
-  channel.postMessage({ type: 'alive', win: WIN, panels });
+  channel.postMessage({ type: 'alive', win: WIN, panels, bounds: { x: window.screenX, y: window.screenY, w: window.outerWidth, h: window.outerHeight } });
   document.title = `F1 Dash · ${winTitle(panels)}`;
 }
 
@@ -704,6 +718,12 @@ function initChannel() {
     const { type, win, panels, panel } = e.data || {};
     if (type === 'reset' && !isMain) { window.close(); return; }
     if (!win || win === WIN) {
+      // Panneau demandé depuis la barre latérale de la fenêtre principale : affiché en grand ici
+      if (type === 'show' && win === WIN && locate(panel)) {
+        if (!panelEl(panel).classList.contains('maximized')) maximize(panel);
+        focusSelf();
+        return;
+      }
       if (type === 'add' && win === WIN && PANELS.some((p) => p.id === panel) && !locate(panel)) {
         addAsColumn(panel);
         render();
@@ -712,7 +732,7 @@ function initChannel() {
       }
       return;
     }
-    if (type === 'alive') others.set(win, { panels: (panels || []).filter((p) => PANELS.some((x) => x.id === p)), last: Date.now() });
+    if (type === 'alive') others.set(win, { panels: (panels || []).filter((p) => PANELS.some((x) => x.id === p)), bounds: e.data.bounds, last: Date.now() });
     if (type === 'closed') others.delete(win);
     if (type === 'hello' && !isMain) announce();
     if (isMain) render();
@@ -750,10 +770,22 @@ function maximize(id) {
   }
 }
 
-// Ouvre un panneau en grand (barre latérale) : réaffiché s'il était masqué. Renvoie false s'il
-// est dans une autre fenêtre.
+// Fenêtre mise au premier plan (application de bureau : aussi si elle est réduite)
+function focusSelf() {
+  if (window.f1desktop?.focusWindow) window.f1desktop.focusWindow();
+  else window.focus();
+}
+
+// Ouvre un panneau en grand (barre latérale) : réaffiché s'il était masqué. S'il est dans une
+// autre fenêtre (second écran), c'est cette fenêtre qui l'affiche en grand et passe devant :
+// renvoie alors 'elsewhere'.
 export function showPanelLarge(id) {
-  if (!isMain || detachedElsewhere(id)) return false;
+  if (!isMain) return false;
+  const holder = [...others.entries()].find(([, o]) => o.panels.includes(id))?.[0];
+  if (holder) {
+    channel?.postMessage({ type: 'show', win: holder, panel: id });
+    return 'elsewhere';
+  }
   if (prefs.hiddenPanels.includes(id)) setPref('hiddenPanels', prefs.hiddenPanels.filter((p) => p !== id));
   if (mobile()) { showMobilePanel(id); return true; }
   if (!panelEl(id).classList.contains('maximized')) maximize(id);
@@ -822,6 +854,14 @@ export function initLayout() {
   if (!isMain) {
     document.body.classList.add('solo');
     if (legacyPanel && !allLayouts()[lkey()]) storeLayout(lkey(), layout);
+    // Fenêtre secondaire : bascule colonnes / disposition libre (panneaux n'importe où)
+    const fb = $('#soloFreeBtn');
+    if (fb) {
+      fb.hidden = false;
+      const sync = () => { fb.classList.toggle('on', !!layout.free); fb.title = layout.free ? 'Disposition libre (cliquer pour ranger les panneaux en colonnes)' : 'Panneaux en colonnes (cliquer pour les placer librement : ⠿ pour déplacer, coin pour redimensionner)'; };
+      fb.addEventListener('click', () => { unmaximize(); setFreeLayout(!layout.free); sync(); toast(layout.free ? 'Disposition libre : glissez ⠿ pour déplacer un panneau, son coin pour le redimensionner' : 'Panneaux rangés en colonnes'); });
+      sync();
+    }
   }
   initChannel();
   for (const p of PANELS) {
@@ -883,6 +923,52 @@ export function initLayout() {
   on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo')) checkProfile(); });
   on('prefs', (k) => { if (k === 'layoutMode') checkProfile(); });
   checkProfile();
+}
+
+// ---------------- Emplacement des fenêtres enregistré ----------------
+// « Enregistrer » garde les dispositions de toutes les fenêtres (panneaux, tailles, mode libre)
+// et la place de chaque fenêtre ; « Revenir » remet tout comme au moment de l'enregistrement.
+// Application de bureau : la place des fenêtres est gérée par l'application (et peut être reprise
+// à chaque lancement) ; navigateur : les fenêtres secondaires sont rouvertes à leur place.
+const SNAP_KEY = 'f1dash.savedWindows';
+export const hasWindowsSnapshot = () => !!storageGet(SNAP_KEY, null)?.layouts;
+
+export async function saveWindowsSnapshot() {
+  if (!isMain) return;
+  save();
+  const layouts = allLayouts();
+  const wins = [...others.entries()].map(([win, o]) => ({ win, bounds: o.bounds || null }));
+  storageSet(SNAP_KEY, { at: Date.now(), layouts, wins });
+  try { await window.f1desktop?.saveWindows?.(layouts); } catch { /* ancienne version */ }
+  toast(`Emplacement des fenêtres enregistré (${wins.length + 1} fenêtre${wins.length ? 's' : ''})`, 3500);
+}
+
+export async function restoreWindowsSnapshot() {
+  if (!isMain) return;
+  const snap = storageGet(SNAP_KEY, null);
+  if (!snap?.layouts) { toast('Aucun emplacement enregistré'); return; }
+  storageSet(LAYOUTS_KEY, snap.layouts);
+  unmaximize();
+  layout = normalize(snap.layouts[lkey()] || defaultLayout());
+  renderKey = '';
+  if (window.f1desktop?.restoreWindows) {
+    // L'application ferme les fenêtres secondaires et les rouvre à leur place enregistrée
+    others.clear();
+    await window.f1desktop.restoreWindows();
+  } else {
+    channel?.postMessage({ type: 'reset', win: WIN });
+    others.clear();
+    // Navigateur : une seule fenêtre peut s'ouvrir par clic, les autres sont bloquées par le navigateur
+    let blocked = 0;
+    for (const w of snap.wins || []) {
+      const b = w.bounds;
+      const feat = b ? `left=${b.x},top=${b.y},width=${b.w},height=${b.h}` : 'width=1200,height=800';
+      if (!window.open(`/?win=${encodeURIComponent(w.win)}`, `f1dash-${w.win}`, feat)) blocked++;
+    }
+    if (blocked) toast(`${blocked} fenêtre(s) bloquée(s) par le navigateur : autorisez les fenêtres pop-up de F1 Dash`, 5000);
+  }
+  render(true);
+  renderLayoutOptions();
 }
 
 // Retour à l'interface par défaut : disposition, panneaux masqués, colonnes du classement ;

@@ -2,7 +2,7 @@
 // Réglages). Elle reprend les actions des boutons du haut, masqués dans ce design.
 import { $, $$ } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
-import { unmaximize, showPanelLarge, setFreeLayout, isFreeLayout } from './layout.js';
+import { unmaximize, showPanelLarge, setFreeLayout, isFreeLayout, saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { toast } from './delay.js';
 
 function openSettings(group) {
@@ -14,7 +14,7 @@ const ACTIONS = {
   live: () => { closeSeason(); unmaximize(); },
   ana: () => {
     closeSeason();
-    if (!showPanelLarge('analysis')) toast('Le panneau Analyse est ouvert dans une autre fenêtre');
+    if (showPanelLarge('analysis') === 'elsewhere') toast('Analyse affichée en grand dans l\'autre fenêtre (second écran)');
   },
   season: () => ($('#seasonView').hidden ? openSeason() : closeSeason()),
   replay: () => openSettings('source'),
@@ -31,6 +31,10 @@ function layoutMenu(btn) {
   menu.className = 'lpop-menu rail-menu';
   menu.innerHTML = `<button data-l="cols">${free ? '' : '✔ '}▦ Panneaux rangés en colonnes</button>
     <button data-l="free">${free ? '✔ ' : ''}✥ Disposition libre : panneaux n'importe où (⠿ pour déplacer, coin pour redimensionner)</button>
+    <div class="rail-sep"></div>
+    <button data-l="save">💾 Enregistrer l'emplacement des fenêtres (panneaux, tailles, second écran)</button>
+    <button data-l="restore" ${hasWindowsSnapshot() ? '' : 'disabled'}>↩ Revenir à l'emplacement enregistré</button>
+    <div class="rail-sep"></div>
     <button data-l="reset">⟲ Réinitialiser l'interface</button>`;
   const r = btn.getBoundingClientRect();
   menu.style.left = `${r.right + 8}px`;
@@ -41,6 +45,8 @@ function layoutMenu(btn) {
     if (!k) return;
     menu.remove();
     if (k === 'reset') $('#resetUiBtn').click();
+    else if (k === 'save') saveWindowsSnapshot();
+    else if (k === 'restore') restoreWindowsSnapshot();
     else {
       unmaximize();
       setFreeLayout(k === 'free');

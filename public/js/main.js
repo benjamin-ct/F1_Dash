@@ -24,6 +24,7 @@ import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 import { initSeason } from './ui/season.js';
 import { initRail } from './ui/rail.js';
 import { initTyres, renderTyres } from './ui/tyres.js';
+import { initTopInfo } from './ui/topinfo.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -67,7 +68,9 @@ function loop() {
   safe(renderBattles);
   safe(renderStewards);
   safe(renderAnalysis);
-  setTimeout(loop, 100);
+  // Mises à jour calées sur l'affichage (juste avant une image) : pas de saccade à mi-image.
+  // Fenêtre cachée : pas d'images, on continue au minuteur (alertes, radios)
+  setTimeout(() => (document.visibilityState === 'visible' ? requestAnimationFrame(loop) : loop()), 100);
 }
 
 initTabs();
@@ -93,6 +96,7 @@ initAnalysis();
 initSeason();
 initRail();
 initTyres();
+initTopInfo();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));
