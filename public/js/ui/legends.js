@@ -22,8 +22,8 @@ const L = {
   },
   map: {
     _: [
-      txt('Pastille = pilote, couleur de son écurie · secteurs colorés selon les drapeaux'),
-      sw('var(--green)', 'zone ligne droite', 'dash'), sw('#ff4fd8', 'détection dépassement'),
+      txt('Pastille = pilote (trigramme, couleur de son écurie) · trait central coloré par secteur (S1 rouge, S2 bleu, S3 orange), ou selon les drapeaux'),
+      sw('#3cc86e', 'hachures : zone ligne droite', 'dash'), sw('#ff4fd8', 'détection dépassement'),
       txt('· GPS : positions réelles ; « estimées » : calculées depuis les chronos'),
     ],
   },
@@ -50,7 +50,7 @@ const L = {
     tyrehist: [txt('Chaque case est un tour, colorée selon le pneu utilisé ; cadre blanc = arrêt au stand ; violet = meilleur tour du pilote. Clic sur un temps : comparer ce tour.')],
     sectors: [txt('Meilleur temps de chaque pilote dans chaque secteur, tour idéal (somme des 3 meilleurs secteurs) et vitesses de pointe. Violet = meilleur de la séance. En haut : pole et meilleur tour en course des éditions précédentes sur ce circuit (archives F1), comparés au meilleur temps de la séance.')],
     compare: [sw('var(--blue)', 'pilote A plus rapide'), sw('var(--orange)', 'pilote B plus rapide'), txt('· tours comparés (meilleurs par défaut, ou au choix ; clic sur un temps dans Temps / Pneus) : secteurs officiels, mini-secteurs mesurés au GPS ; courbe = écart cumulé le long du tour ; pointillés = emplacement de boucle estimé')],
-    telemetry: [txt('Télémétrie du pilote suivi (clic sur un pilote du classement) : vitesse, rapport engagé, régime moteur, accélérateur et frein, en direct. Nécessite un compte F1 TV.')],
+    telemetry: [txt('Compteurs du pilote suivi (clic sur un pilote du classement) et d\'un second pilote au choix (« + Comparer », par défaut le pilote B du duel) : vitesse sur l\'anneau, accélérateur (vert, à gauche) et frein (rouge, à droite), régime et rapport au centre ; courbe de vitesse des 30 dernières secondes. En live, nécessite un compte F1 TV.')],
   },
   extra: {
     pits: [txt('Arrêts aux stands : immobilisation = voiture à l\'arrêt pendant le changement de pneus ; voie des stands = temps total entre l\'entrée et la sortie des stands.')],

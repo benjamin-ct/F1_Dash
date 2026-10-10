@@ -37,7 +37,7 @@ function gapText(v) {
 
 export function renderTower(force = false) {
   const now = performance.now();
-  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.focus}|${prefs.hiddenCols.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
+  const key = `${versionOf(['TimingData', 'TimingAppData', 'DriverList', 'TimingStats', 'RaceControlMessages', '__reset'])}|${store.duel.a}|${store.duel.b}|${store.focus}|${prefs.hiddenCols.join()}|${prefs.extraCols.join()}|${prefs.favs.join()}|${prefs.hotLapDim}`;
   const carTick = store.positions.car.size ? Math.floor(now / 500) : 0;
   if (!force && key + carTick === lastKey) return;
   if (!force && now - lastRender < 250) return;
@@ -60,21 +60,35 @@ export function renderTower(force = false) {
 
   const TH = (cls, label, title = '') => `<th class="${cls}"${title ? ` title="${title}"` : ''}>${label}</th>`;
   const secHead = TH('c-sec', 'S1') + TH('c-sec', 'S2') + TH('c-sec', 'S3');
+  // Colonnes facultatives (menu « Colonnes » du classement)
+  const extraHead = TH('c-grid', 'Grille', 'Position de départ') + TH('c-laps', 'Tours', 'Tours effectués')
+    + TH('c-gapf', 'Suivi', 'Écart au pilote suivi (clic sur un pilote)') + TH('c-spd', 'I1 · I2 · Arr.', 'Vitesses aux intermédiaires 1 et 2 et sur la ligne d\'arrivée (km/h)') + TH('c-team', 'Écurie');
+  // Écart au pilote suivi : course = écart au leader, essais / qualifs = meilleur tour
+  const gapSec = (n) => {
+    const l = lines[n] || {};
+    if (kind === 'race') {
+      const g = String(l.GapToLeader ?? '');
+      if (/^LAP/i.test(g) || (Number(l.Position) === 1 && !g)) return 0;
+      return /L/i.test(g) ? null : parseFloat(g.replace('+', '')) || null;
+    }
+    return bestOf(l);
+  };
   let head;
   if (kind === 'race') {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-last', 'Dernier') + TH('t-lap c-best', 'Meilleur') +
-      secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Arr.', 'Arrêts aux stands') + TH('c-speed', 'V.max', 'Vitesse au speed trap') + TH('c-duel', 'Duel');
+      secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Arr.', 'Arrêts aux stands') + TH('c-speed', 'V.max', 'Vitesse au speed trap') + extraHead + TH('c-duel', 'Duel');
   } else if (kind === 'quali') {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé (secteurs réalisés + meilleurs secteurs du pilote) et position visée') +
-      TH('t-lap c-last', 'Dernier') + secHead + TH('t-lap c-q', 'Q1') + TH('t-lap c-q', 'Q2') + TH('t-lap c-q', 'Q3') + TH('c-tyre', 'Pneu') + TH('c-duel', 'Duel');
+      TH('t-lap c-last', 'Dernier') + secHead + TH('t-lap c-q', 'Q1') + TH('t-lap c-q', 'Q2') + TH('t-lap c-q', 'Q3') + TH('c-tyre', 'Pneu') + extraHead + TH('c-duel', 'Duel');
   } else {
     head = TH('', 'Pos') + TH('', 'Pilote') + TH('t-lap', 'Meilleur') + TH('t-gap', 'Écart') + TH('t-int c-int', 'Interv.') + TH('t-lap c-pred', 'Tour en cours', 'Temps prévu du tour lancé') +
-      TH('t-lap c-last', 'Dernier') + secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Tours') + TH('c-duel', 'Duel');
+      TH('t-lap c-last', 'Dernier') + secHead + TH('c-tyre', 'Pneu') + TH('c-pits', 'Tours') + extraHead + TH('c-duel', 'Duel');
   }
 
   // Meilleurs temps de la partie en cours (qualifs) / de la séance, pour classer les tours en cours.
   const bestOf = (l) => kind === 'quali' ? lapSeconds(list(l.BestLapTimes)[part - 1]?.Value) : lapSeconds(l.BestLapTime?.Value);
   const bests = nums.map((n) => ({ n, t: bestOf(lines[n] || {}) })).filter((x) => x.t);
+  const focusGap = store.focus ? gapSec(store.focus) : null;
 
   const hot = hotLaps();
   const rows = nums.map((num) => {
@@ -121,6 +135,16 @@ export function renderTower(force = false) {
       predCell = `<td class="t-lap c-pred"><span class="pred ${cls}" title="${pred.done} secteur(s) réalisé(s)">${fmtLap(pred.time)} <small>→ P${rank}</small></span></td>`;
     }
 
+    const g = focusGap !== null && store.focus !== num ? gapSec(num) : null;
+    const dg = g !== null ? g - focusGap : null;
+    const sp = l.Speeds || {};
+    const v = (k) => (sp[k]?.Value ? `<b class="${timingClass(sp[k])}">${esc(sp[k].Value)}</b>` : '<span class="dim">—</span>');
+    const extra = `<td class="c-grid">${a.GridPos ? `P${esc(a.GridPos)}` : '<span class="dim">—</span>'}</td>`
+      + `<td class="c-laps">${esc(l.NumberOfLaps ?? '') || '<span class="dim">—</span>'}</td>`
+      + `<td class="c-gapf ${dg === null ? '' : dg < 0 ? 'ahead' : 'behind'}">${store.focus === num ? '<span class="dim">suivi</span>' : dg === null ? '<span class="dim">—</span>' : `${dg < 0 ? '−' : '+'}${Math.abs(dg).toFixed(3)}`}</td>`
+      + `<td class="c-spd">${v('I1')} · ${v('I2')} · ${v('FL')}</td>`
+      + `<td class="c-team">${esc(d.TeamName || '')}</td>`;
+
     let cells;
     if (kind === 'race') {
       const int = l.IntervalToPositionAhead || {};
@@ -132,7 +156,7 @@ export function renderTower(force = false) {
         <td class="t-int c-int ${int.Catching ? 'catching' : ''}">${gapText(int.Value)}</td>
         ${last}<td class="t-lap c-best ${bestPurple ? 'purple' : ''}">${esc(best) || '<span class="dim">—</span>'}</td>
         ${secCells}${tyre}<td class="c-pits">${esc(l.NumberOfPitStops ?? 0)}</td>
-        <td class="c-speed ${timingClass(st)}">${esc(st?.Value || '') || '<span class="dim">—</span>'}</td>${duel}`;
+        <td class="c-speed ${timingClass(st)}">${esc(st?.Value || '') || '<span class="dim">—</span>'}</td>${extra}${duel}`;
     } else if (kind === 'quali') {
       const bl = list(l.BestLapTimes);
       const stp = list(l.Stats)[part - 1] || {};
@@ -142,13 +166,13 @@ export function renderTower(force = false) {
         <td class="t-lap">${esc(best) || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(stp.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(stp.TimeDifftoPositionAhead || '') || '<span class="dim">—</span>'}</td>
-        ${predCell}${last}${secCells}${q}${tyre}${duel}`;
+        ${predCell}${last}${secCells}${q}${tyre}${extra}${duel}`;
     } else {
       cells = `<td class="pos">${esc(pos)}</td>${drv}
         <td class="t-lap">${esc(l.BestLapTime?.Value || '') || '<span class="dim">—</span>'}</td>
         <td class="t-gap">${esc(l.TimeDiffToFastest || '') || '<span class="dim">—</span>'}</td>
         <td class="t-int c-int">${esc(l.TimeDiffToPositionAhead || '') || '<span class="dim">—</span>'}</td>
-        ${predCell}${last}${secCells}${tyre}<td class="c-pits">${esc(l.NumberOfLaps ?? '')}</td>${duel}`;
+        ${predCell}${last}${secCells}${tyre}<td class="c-pits">${esc(l.NumberOfLaps ?? '')}</td>${extra}${duel}`;
     }
 
     const cls = ['trow'];
@@ -173,7 +197,7 @@ export function renderTower(force = false) {
   }
 
   const table = $('#tower');
-  table.className = `tower ${prefs.hiddenCols.map((c) => `hide-${c}`).join(' ')}`;
+  table.className = `tower ${prefs.hiddenCols.map((c) => `hide-${c}`).join(' ')} ${prefs.extraCols.map((c) => `show-${c}`).join(' ')}`;
   syncTable(table, cutInfo, head, rows);
   fitTower();
 }

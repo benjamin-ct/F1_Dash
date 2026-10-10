@@ -7,6 +7,7 @@ const DEFAULTS = {
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true },
   hiddenPanels: [],
   hiddenCols: [],
+  extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pro',           // 'pro' (F1 Pro) | 'f1' (F1 sobre) | 'noir' (classique) | 'bleu' (bleu nuit)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles

@@ -112,6 +112,9 @@ function makeTransform() {
   return f;
 }
 
+// Côté choisi pour l'étiquette de chaque pilote : { i, blocked } (voir drawCars)
+const labelSide = new Map();
+
 // Vue (zoom / déplacement) appliquée par-dessus la projection de base.
 const view = { z: 1, x: 0, y: 0 };
 let followTarget = null;
@@ -192,16 +195,17 @@ function drawZones() {
   const W = trackWidth();
   ctx.save();
   ctx.lineCap = 'round';
+  // Zones « ligne droite » : hachures vertes de part et d'autre de la piste
+  ctx.lineCap = 'butt';
   for (const z of zones.zones) {
-    ctx.strokeStyle = 'rgba(60, 224, 138, 0.9)';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([10, 5]);
-    strokeOffset(z.from, z.to, W / 2 + 5);
+    ctx.strokeStyle = 'rgba(60, 200, 110, 0.85)';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([2, 3]);
+    strokeOffset(z.from, z.to, W / 2 + 3.5);
+    strokeOffset(z.from, z.to, -(W / 2 + 3.5));
     ctx.setLineDash([]);
-    const p = pts[z.from], q = pts[(z.from + 1) % n];
-    const len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
-    badge(p[0] - ((q[1] - p[1]) / len) * (W / 2 + 17), p[1] + ((q[0] - p[0]) / len) * (W / 2 + 17), 'LD', '#3ce08a', '#062414');
   }
+  ctx.lineCap = 'round';
   const d = zones.detection;
   if (d && d.idx < n) {
     const p = pts[d.idx], a = pts[(d.idx - 1 + n) % n], b = pts[(d.idx + 1) % n];
@@ -258,7 +262,7 @@ function screenAt(r) {
 
 // ---------- Secteurs et micro-secteurs du chronométrage ----------
 // Couleurs des secteurs choisies pour ne pas se confondre avec les drapeaux (jaune, rouge)
-const SECTOR_COLORS = ['#ff6b8a', '#2fa8e8', '#b48cff'];
+const SECTOR_COLORS = ['#ff3b4a', '#2f8cff', '#ffb340'];
 let layoutCache = null;
 
 const mod = (r, L) => ((r % L) + L) % L;
@@ -365,8 +369,8 @@ function drawSectors(lay) {
   const W = trackWidth();
   // Bande centrale lumineuse colorée par secteur
   ctx.save();
-  ctx.lineWidth = Math.max(2.5, W * 0.26);
-  ctx.shadowBlur = W * 0.9;
+  ctx.lineWidth = Math.max(2.5, W * 0.3);
+  ctx.shadowBlur = W * 0.35;
   for (const sec of lay.sectors) {
     ctx.strokeStyle = SECTOR_COLORS[sec.i];
     ctx.shadowColor = SECTOR_COLORS[sec.i];
@@ -378,8 +382,8 @@ function drawSectors(lay) {
   for (const m of lay.minis) {
     const p = screenAt(m.r);
     const len = m.last ? W / 2 + 5 : W / 2 - 1;
-    ctx.strokeStyle = m.last ? '#ffffff' : 'rgba(233,237,244,.75)';
-    ctx.lineWidth = m.last ? 2.5 : 1.5;
+    ctx.strokeStyle = m.last ? '#ffffff' : 'rgba(233,237,244,.45)';
+    ctx.lineWidth = m.last ? 2.5 : 1.2;
     ctx.beginPath();
     ctx.moveTo(p.x - p.nx * len, p.y - p.ny * len);
     ctx.lineTo(p.x + p.nx * len, p.y + p.ny * len);
@@ -722,8 +726,15 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
       const [x0, y0] = xf(c.x, c.y), [x1, y1] = xf(c.x + Math.cos(a) * 560, c.y + Math.sin(a) * 560);
       const len = Math.hypot(x1 - x0, y1 - y0) || 1;
       const rad = fs * 0.75 + (c.number >= 10 ? 2 : 0);
-      const off = W / 2 + rad + 5;
+      const off = W / 2 + rad + 9;
       const x = x0 + ((x1 - x0) / len) * off, y = y0 + ((y1 - y0) / len) * off;
+      // Trait qui relie la pastille au bord de la piste
+      ctx.strokeStyle = pal().chipEdge;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x0 + ((x1 - x0) / len) * (W / 2 + 1), y0 + ((y1 - y0) / len) * (W / 2 + 1));
+      ctx.lineTo(x - ((x1 - x0) / len) * rad, y - ((y1 - y0) / len) * rad);
+      ctx.stroke();
       ctx.beginPath();
       ctx.arc(x, y, rad, 0, Math.PI * 2);
       ctx.fillStyle = pal().chip;
@@ -797,7 +808,9 @@ function drawCars(dt) {
     const d = dl[num];
     const isA = store.duel.a === num, isB = store.duel.b === num, isF = store.focus === num;
     const sp = isA || isB || isF;
-    cars.push({ num, p, h, d, col: teamColor(d), isA, isB, isF, sp, pos: Number(l.Position) || null, r: Math.max(5.5, Math.min(10, W * 0.55)) + (sp ? 1.5 : 0) });
+    // Avec les noms : pastille ronde avec le trigramme à l'intérieur ; sinon simple point
+    const r = labels ? Math.max(12, Math.min(16, W * 0.85)) + (sp ? 1.5 : 0) : Math.max(5.5, Math.min(10, W * 0.55)) + (sp ? 1.5 : 0);
+    cars.push({ num, p, h, d, col: teamColor(d), isA, isB, isF, sp, pos: Number(l.Position) || null, r });
   }
 
   // Traînées (dégradé vers la couleur de l'écurie)
@@ -849,11 +862,20 @@ function drawCars(dt) {
     ctx.lineWidth = 2;
     ctx.strokeStyle = pal().ring;
     ctx.stroke();
-    // Reflet
-    ctx.beginPath();
-    ctx.arc(x - c.r * 0.3, y - c.r * 0.35, c.r * 0.38, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, .28)';
-    ctx.fill();
+    if (labels) {
+      // Trigramme dans la pastille
+      ctx.fillStyle = inkOn(c.col);
+      ctx.font = `800 ${(c.r * 0.78).toFixed(1)}px "Titillium Web", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(c.d?.Tla || c.num, x, y + 0.5);
+    } else {
+      // Reflet
+      ctx.beginPath();
+      ctx.arc(x - c.r * 0.3, y - c.r * 0.35, c.r * 0.38, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, .28)';
+      ctx.fill();
+    }
     if (!gps) {
       ctx.beginPath();
       ctx.arc(x, y, c.r, 0, Math.PI * 2);
@@ -867,9 +889,10 @@ function drawCars(dt) {
   ctx.globalAlpha = 1;
 
   // Étiquettes : position + trigramme, placées sans se chevaucher (pilotes suivis puis ordre de course)
+  const now = performance.now();
   const placed = cars.map((c) => ({ x: c.p[0] - c.r, y: c.p[1] - c.r, w: c.r * 2, h: c.r * 2, num: c.num }));
   const hit = (b, num) => b.x < 2 || b.y < 2 || b.x + b.w > size.w - 2 || b.y + b.h > size.h - 2 || placed.some((o) => o.num !== num && b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y);
-  const prio = cars.filter((c) => labels || c.sp).sort((a, b) => (b.sp - a.sp) || ((a.pos || 99) - (b.pos || 99)));
+  const prio = cars.filter((c) => !labels && c.sp).sort((a, b) => (b.sp - a.sp) || ((a.pos || 99) - (b.pos || 99)));
   ctx.textBaseline = 'middle';
   for (const c of prio) {
     const txt = c.d?.Tla || c.num;
@@ -883,10 +906,20 @@ function drawCars(dt) {
     const [x, y] = c.p;
     const g = c.r + 4;
     const spots = [[x + g, y - h / 2], [x - g - w, y - h / 2], [x + c.r - 2, y - c.r - h - 1], [x + c.r - 2, y + c.r + 1], [x - c.r - w + 2, y - c.r - h - 1], [x - c.r - w + 2, y + c.r + 1]];
-    let spot = spots.find(([sx, sy]) => !hit({ x: sx, y: sy, w, h }, c.num));
-    const crowded = !spot;
-    if (!spot) spot = spots[0];
-    const [lx, ly] = spot;
+    // Côté de l'étiquette gardé d'une image à l'autre : elle ne change de côté que si sa place
+    // reste prise plus de 0,7 s (sinon les étiquettes sautent sans arrêt dans les paquets)
+    const memo = labelSide.get(c.num);
+    const free = (i) => !hit({ x: spots[i][0], y: spots[i][1], w, h }, c.num);
+    let idx = memo && free(memo.i) ? memo.i : -1;
+    if (idx >= 0) memo.blocked = 0;
+    else {
+      const first = spots.findIndex((_, i) => free(i));
+      if (memo && (first < 0 || (memo.blocked ||= now) > now - 700)) idx = memo.i;
+      else idx = first >= 0 ? first : 0;
+    }
+    const crowded = !free(idx);
+    if (!memo || memo.i !== idx) labelSide.set(c.num, { i: idx, blocked: 0 });
+    const [lx, ly] = spots[idx];
     placed.push({ x: lx, y: ly, w, h, num: c.num });
     ctx.globalAlpha = c.cool ? 0.3 : crowded && !c.sp ? 0.55 : 1;
     ctx.fillStyle = pal().label;
@@ -923,10 +956,13 @@ const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZo
 
 function initMapOptions() {
   const saved = storageGet('f1dash.mapOpts', {});
+  // Nouveau dessin de la carte (v2) : fond uni par défaut, l'ancien choix du fond est oublié
+  if (saved.v !== 2) delete saved.mapGrid;
+  const save = () => storageSet('f1dash.mapOpts', { v: 2, ...Object.fromEntries(MAP_OPTS.map((k) => [k, $(`#${k}`).checked])) });
   for (const id of MAP_OPTS) {
     const el = $(`#${id}`);
     if (typeof saved[id] === 'boolean') el.checked = saved[id];
-    el.addEventListener('change', () => storageSet('f1dash.mapOpts', Object.fromEntries(MAP_OPTS.map((k) => [k, $(`#${k}`).checked]))));
+    el.addEventListener('change', save);
   }
   const hot = $('#hotLapDim');
   hot.checked = prefs.hotLapDim;

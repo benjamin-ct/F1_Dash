@@ -25,7 +25,7 @@
     <button class="rail-btn" data-rail="replay" title="Replays : rejouer une séance passée"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M10 9l5 3-5 3z"/></svg><small>Replays</small></button>
     <button class="rail-btn" data-rail="radio" title="Commentaires en direct F1 TV / radio"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><small>Radios</small></button>
     <div class="rail-sp"></div>
-    <button class="rail-btn" data-rail="reset" title="Réinitialiser l'interface (disposition, panneaux et colonnes par défaut)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
+    <button class="rail-btn" data-rail="reset" title="Disposition des panneaux : rangés en colonnes ou placés librement, réinitialisation"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
     <button class="rail-btn" data-rail="settings" title="Réglages : source, compte F1 TV, affichage, alertes, application"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><small>Réglages</small></button>
   </nav>
   <header class="topbar">
@@ -83,18 +83,26 @@
   <div class="flag-banner" id="flagBanner" hidden><span class="fb-icon"></span><span class="fb-text"></span><span class="fb-sub"></span></div>
 
   <div class="replaybar" id="replayBar" hidden>
-    <button class="btn" id="rpPlay" title="Pause">❚❚</button>
-    <button class="btn" data-skip="-60000">−60 s</button>
-    <button class="btn" data-skip="-10000">−10 s</button>
-    <div class="rp-track"><input type="range" id="rpRange" min="0" max="1000" value="0" step="1"><div class="rp-marks" id="rpMarks"></div></div>
-    <button class="btn" data-skip="10000">+10 s</button>
-    <button class="btn" data-skip="60000">+60 s</button>
-    <span class="rp-time" id="rpTime">—</span>
-    <select id="rpSpeed" class="preset" title="Vitesse de lecture">
-      <option value="0.5">×0,5</option><option value="1" selected>×1</option><option value="2">×2</option><option value="4">×4</option><option value="8">×8</option>
-    </select>
-    <button class="btn rp-red" id="rpRed" hidden title="Passer l'interruption : reprendre 30 s avant la relance de la séance">⏭ Fin du drapeau rouge</button>
-    <button class="btn" id="rpStart" title="Aller au départ de la session">⏮ Départ</button>
+    <button class="rp-play" id="rpPlay" title="Pause (barre d'espace)">❚❚</button>
+    <div class="rp-main">
+      <div class="rp-top"><span class="rp-title">Replay</span><span class="rp-phase" id="rpPhase"></span></div>
+      <div class="rp-track" id="rpTrack">
+        <div class="rp-segs" id="rpSegs"></div>
+        <div class="rp-played" id="rpPlayed"></div>
+        <div class="rp-dots" id="rpDots"></div>
+        <input type="range" id="rpRange" min="0" max="1000" value="0" step="1" aria-label="Position dans la séance">
+      </div>
+    </div>
+    <div class="rp-side">
+      <button class="btn small" data-skip="-10000" title="Reculer de 10 s">−10 s</button>
+      <button class="btn small" data-skip="10000" title="Avancer de 10 s">+10 s</button>
+      <label class="toggle small rp-flags" title="Afficher les drapeaux jaunes, safety car et VSC sur la barre (les drapeaux rouges restent toujours indiqués)"><input type="checkbox" id="rpFlags"> Drapeaux</label>
+      <span class="rp-time" id="rpTime">—</span>
+      <div class="rp-speeds" id="rpSpeeds" role="group" aria-label="Vitesse de lecture"></div>
+      <button class="btn small rp-red" id="rpRed" hidden title="Passer l'interruption : reprendre 30 s avant la relance de la séance">⏭ Fin du drapeau rouge</button>
+      <button class="icon-btn" id="rpStart" title="Aller au départ de la séance">⏮</button>
+      <button class="icon-btn" id="rpClose" title="Quitter le replay et revenir au direct">✕</button>
+    </div>
   </div>
 
   <div class="season-view" id="seasonView" hidden>
@@ -127,7 +135,8 @@
     <section class="panel p-tower">
       <div class="panel-head">
         <h2>Classement</h2>
-        <div class="panel-tools"><span class="hint">Cliquez <b>A</b> / <b>B</b> pour lancer un duel · clic sur un pilote = suivi</span></div>
+        <div class="panel-tools"><span class="hint">Cliquez <b>A</b> / <b>B</b> pour lancer un duel · clic sur un pilote = suivi</span>
+          <details class="map-layers tower-cols" id="towerCols"><summary class="btn small" title="Ajouter ou retirer des colonnes du classement">Colonnes ▾</summary><div class="map-layers-menu" id="towerColOpts"></div></details></div>
       </div>
       <div class="panel-body tower-wrap"><table class="tower" id="tower"></table></div>
     </section>
@@ -141,14 +150,14 @@
           <details class="map-layers" id="mapLayers">
             <summary class="btn small" title="Éléments affichés sur la carte">Calques ▾</summary>
             <div class="map-layers-menu">
-              <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms des pilotes</label>
+              <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms des pilotes (pastilles)</label>
               <label class="toggle" title="Courte traînée derrière chaque voiture (direction et vitesse)"><input type="checkbox" id="mapTrails" checked> Traînées</label>
               <label class="toggle" title="Essais et qualifs : les voitures qui ne sont pas dans un tour rapide sont estompées (carte et classement)"><input type="checkbox" id="hotLapDim"> Estomper hors tour lancé</label>
               <label class="toggle"><input type="checkbox" id="mapCorners" checked> Numéros de virage</label>
               <label class="toggle" title="Secteurs S1/S2/S3 et micro-secteurs du chronométrage"><input type="checkbox" id="mapSectors" checked> Secteurs</label>
               <label class="toggle" title="Numéros des micro-secteurs (1.1, 1.2…) quand on zoome sur la carte"><input type="checkbox" id="mapMiniNums"> N° micro-secteurs (zoom)</label>
               <label class="toggle" title="Zones « ligne droite » (straight mode, trait vert pointillé LD) et ligne de détection du mode dépassement (rose). Estimées à partir de la télémétrie d'une séance du circuit : la FIA ne les publie pas sous forme de données."><input type="checkbox" id="mapZones" checked> Zones LD / détection</label>
-              <label class="toggle" title="Trame de points et halo en fond de carte"><input type="checkbox" id="mapGrid" checked> Fond texturé</label>
+              <label class="toggle" title="Trame de points et halo en fond de carte"><input type="checkbox" id="mapGrid"> Fond texturé</label>
             </div>
           </details>
         </div>
@@ -474,6 +483,7 @@
         <div class="small muted">Disposition libre : glissez un panneau par sa poignée <b>⠿</b> à côté, au-dessus ou en dessous d'un autre (ou au centre pour les échanger), entre deux panneaux ou deux colonnes, ou contre le bord gauche ou droit de la fenêtre pour en faire une nouvelle colonne ; glissez les espaces entre les panneaux pour changer leur taille (double-clic : partage égal). <b>↗</b> envoie un panneau vers une nouvelle fenêtre ou l'ajoute à une fenêtre déjà ouverte (second écran), où il se dispose de la même façon ; <b>↙</b> le remet ici.</div>
         <div class="row"><label class="small">Disposition <select id="layoutModeSel"><option value="auto">Automatique selon la séance</option><option value="race">Toujours « Course »</option><option value="quali">Toujours « Qualif &amp; essais »</option></select></label></div>
         <div class="small muted">Deux dispositions indépendantes, l'une pour les courses (et sprints), l'autre pour les qualifications et les essais : chacune garde ses panneaux, leurs tailles, les colonnes du classement et les onglets ouverts. <b id="layoutProfileNow"></b></div>
+        <div class="row"><label class="small">Placement des panneaux <select id="freeSel"><option value="cols">Rangés en colonnes (redimensionnables)</option><option value="free">Libre : n'importe où, chevauchement possible</option></select></label></div>
         <div class="row"><button class="btn small" id="layoutReset">Réinitialiser l'interface</button> <span class="small muted">(aussi avec le bouton ⟲ en haut)</span></div>
         <div class="small muted">Panneaux visibles :</div>
         <div class="row" id="panelOpts"></div>

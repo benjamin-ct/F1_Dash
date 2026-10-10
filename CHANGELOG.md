@@ -11,6 +11,27 @@ l'application (Réglages → Application → Nouveautés).
 - Paquet Linux .deb et appli macOS lancée depuis l'image disque : la nouvelle version est signalée au démarrage, avec un bouton pour la télécharger.
 - Téléchargement des mises à jour plus fiable : arrêt propre si la connexion est coupée, nettoyage des anciens téléchargements.
 
+### Disposition
+- Disposition libre : les panneaux se placent n'importe où et se redimensionnent par leur coin, avec aimantation aux bords et aux autres panneaux (menu « Dispo. » de la barre latérale).
+
+### Classement
+- Bouton « Colonnes » sur le classement pour retirer ou ajouter des colonnes : position de départ, tours effectués, écart au pilote suivi, vitesses I1 / I2 / ligne d'arrivée, écurie.
+- Correction : masquer la colonne des secteurs fonctionne.
+
+### Carte
+- Nouveau dessin : piste avec trait central coloré par secteur, zones « ligne droite » en hachures vertes, numéros de virage reliés à la piste, pilotes en pastilles rondes avec leur trigramme, fond uni.
+- Les étiquettes des pilotes ne sautent plus d'un côté à l'autre dans les paquets.
+- Bandeau « Drapeau rouge » de la carte décalé pour ne plus être coupé par le cadre rouge.
+
+### Télémétrie
+- Deux compteurs côte à côte (pilote suivi et pilote au choix) : vitesse, accélérateur, frein, régime et rapport, et courbe de vitesse des deux pilotes.
+
+### Replays
+- Nouvelle barre de lecture : séance en cours en vert, début et fin de chaque partie (Q1, Q2, Q3, départ, reprise), drapeaux jaunes / SC / VSC / rouges, partie lue en bleu, vitesses 1x à 30x, bouton pour revenir au direct.
+
+### Barre du haut
+- Moins d'espace vide : plus de trou après « SQ1 » en qualifs, case du délai TV ajustée à sa valeur.
+
 ## v1.15.0 — 2026-10-10
 
 ### Nouveau design « F1 Pro »

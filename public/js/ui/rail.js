@@ -2,7 +2,7 @@
 // Réglages). Elle reprend les actions des boutons du haut, masqués dans ce design.
 import { $, $$ } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
-import { unmaximize, showPanelLarge } from './layout.js';
+import { unmaximize, showPanelLarge, setFreeLayout, isFreeLayout } from './layout.js';
 import { toast } from './delay.js';
 
 function openSettings(group) {
@@ -19,9 +19,36 @@ const ACTIONS = {
   season: () => ($('#seasonView').hidden ? openSeason() : closeSeason()),
   replay: () => openSettings('source'),
   radio: () => $('#commBtn').click(),
-  reset: () => $('#resetUiBtn').click(),
+  reset: (btn) => layoutMenu(btn),
   settings: () => openSettings(),
 };
+
+// Menu « Dispo. » : panneaux rangés en colonnes ou placés librement, réinitialisation
+function layoutMenu(btn) {
+  document.querySelector('.lpop-menu')?.remove();
+  const free = isFreeLayout();
+  const menu = document.createElement('div');
+  menu.className = 'lpop-menu rail-menu';
+  menu.innerHTML = `<button data-l="cols">${free ? '' : '✔ '}▦ Panneaux rangés en colonnes</button>
+    <button data-l="free">${free ? '✔ ' : ''}✥ Disposition libre : panneaux n'importe où (⠿ pour déplacer, coin pour redimensionner)</button>
+    <button data-l="reset">⟲ Réinitialiser l'interface</button>`;
+  const r = btn.getBoundingClientRect();
+  menu.style.left = `${r.right + 8}px`;
+  document.body.appendChild(menu);
+  menu.style.top = `${Math.max(8, Math.min(r.top - 40, innerHeight - menu.offsetHeight - 8))}px`;
+  menu.addEventListener('click', (e) => {
+    const k = e.target.closest('[data-l]')?.dataset.l;
+    if (!k) return;
+    menu.remove();
+    if (k === 'reset') $('#resetUiBtn').click();
+    else {
+      unmaximize();
+      setFreeLayout(k === 'free');
+      toast(k === 'free' ? 'Disposition libre : glissez ⠿ pour déplacer un panneau, son coin pour le redimensionner' : 'Panneaux rangés en colonnes');
+    }
+  });
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
+}
 
 // Élément actif : Saison ouverte, Analyse en grand, sinon Direct
 function sync() {
@@ -41,7 +68,7 @@ export function initRail() {
   rail.addEventListener('click', (e) => {
     const b = e.target.closest('[data-rail]');
     if (!b) return;
-    ACTIONS[b.dataset.rail]?.();
+    ACTIONS[b.dataset.rail]?.(b);
     sync();
   });
   const mo = new MutationObserver(sync);

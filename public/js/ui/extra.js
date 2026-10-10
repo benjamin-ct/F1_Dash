@@ -1,7 +1,6 @@
 // Onglets : télémétrie du pilote suivi, stratégie pneus, météo, championnat (prévision).
 import { store, displayNow, versionOf, setFocus } from '../store.js';
 import { $, esc, drivers, orderedNumbers, teamColor, teamMark, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds } from '../util.js';
-import { lineChart } from './charts.js';
 
 let lastTele = 0;
 let stratVer = -1, wxVer = -1, champVer = -1;
@@ -13,9 +12,69 @@ function focusDriver() {
   return orderedNumbers(store.state)[0] || null;
 }
 
+// Pilote B de la télémétrie (comparaison) : choisi dans l'onglet, sinon pilote B du duel
+let teleB = null;
+let teleBOff = false;
+
+// Compteur : vitesse sur l'anneau extérieur (0 à 360 km/h), accélérateur (gauche) et frein
+// (droite) sur les arcs intérieurs, régime et rapport au centre
+const SPEED_MAX = 360;
+function arc(cx, cy, r, a0, a1) {
+  const pt = (a) => [cx + r * Math.sin((a * Math.PI) / 180), cy - r * Math.cos((a * Math.PI) / 180)];
+  const [x0, y0] = pt(a0), [x1, y1] = pt(a1);
+  const large = Math.abs(a1 - a0) > 180 ? 1 : 0;
+  return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${large} ${a1 > a0 ? 1 : 0} ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+}
+function dial(c, color, uid) {
+  const cx = 120, cy = 112, R = 92, r = 70;
+  const sp = Math.max(0, Math.min(SPEED_MAX, c?.speed || 0));
+  const thr = Math.max(0, Math.min(100, c?.thr || 0));
+  const brk = c?.brk > 0 ? 100 : 0;
+  const aS = -135 + (270 * sp) / SPEED_MAX;
+  let ticks = '';
+  for (let v = 0; v <= SPEED_MAX; v += 60) {
+    const a = ((-135 + (270 * v) / SPEED_MAX) * Math.PI) / 180;
+    const tx = cx + (R + 14) * Math.sin(a), ty = cy - (R + 14) * Math.cos(a);
+    ticks += `<text x="${tx.toFixed(1)}" y="${(ty + 3).toFixed(1)}" class="dl-tick">${v || ''}</text>`;
+  }
+  // Arcs intérieurs : accélérateur de -130° à -20° (rempli depuis le bas), frein en miroir
+  const thrEnd = -130 + (110 * thr) / 100;
+  return `<svg viewBox="0 0 240 230" class="dial">
+    <defs><path id="thr${uid}" d="${arc(cx, cy, r + 9, -128, -22)}"/><path id="brk${uid}" d="${arc(cx, cy, r + 9, 22, 128)}"/></defs>
+    <path d="${arc(cx, cy, R, -135, 135)}" class="dl-track"/>
+    ${sp > 0 ? `<path d="${arc(cx, cy, R, -135, aS)}" class="dl-speed" style="stroke:${color}"/>` : ''}
+    ${ticks}
+    <path d="${arc(cx, cy, r, -130, -20)}" class="dl-in"/>
+    ${thr > 0 ? `<path d="${arc(cx, cy, r, -130, thrEnd)}" class="dl-thr"/>` : ''}
+    <path d="${arc(cx, cy, r, 130, 20)}" class="dl-in"/>
+    ${brk ? `<path d="${arc(cx, cy, r, 130, 20)}" class="dl-brk"/>` : ''}
+    <text class="dl-arc-lbl"><textPath href="#thr${uid}" startOffset="50%">ACCÉLÉRATEUR</textPath></text>
+    <text class="dl-arc-lbl"><textPath href="#brk${uid}" startOffset="50%">FREIN</textPath></text>
+    <text x="${cx}" y="${cy - 2}" class="dl-speed-val">${c?.speed ?? '—'}</text>
+    <text x="${cx}" y="${cy + 14}" class="dl-unit">KM/H</text>
+    <text x="${cx}" y="${cy + 38}" class="dl-rpm">${c?.rpm ?? '—'}</text>
+    <text x="${cx}" y="${cy + 51}" class="dl-unit">TR/MIN</text>
+    <text x="${cx}" y="${cy + 92}" class="dl-gear"><tspan class="dl-unit">RAPPORT </tspan>${c?.gear === 0 ? 'N' : c?.gear ?? '—'}</text>
+  </svg>`;
+}
+
+// Vitesse des 30 dernières secondes, un trait par pilote
+function speedTrace(series) {
+  const W = 600, H = 110, pl = 30, pr = 6, pt = 6, pb = 16;
+  const all = series.flatMap((s) => s.pts.map((p) => p.y));
+  if (!all.length) return '<div class="muted small">Pas encore de trace.</div>';
+  const lo = Math.max(0, Math.min(...all) - 10), hi = Math.max(lo + 50, Math.max(...all) + 10);
+  const X = (x) => pl + ((x + 30) / 30) * (W - pl - pr);
+  const Y = (y) => pt + (1 - (y - lo) / (hi - lo)) * (H - pt - pb);
+  let grid = '';
+  for (const v of [lo, (lo + hi) / 2, hi]) grid += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" class="sz-gl"/><text x="${pl - 4}" y="${Y(v) + 3}" class="sz-ax" text-anchor="end">${Math.round(v)}</text>`;
+  for (const x of [-30, -20, -10, 0]) grid += `<text x="${X(x)}" y="${H - 3}" class="sz-ax" text-anchor="middle">${x ? `${x} s` : 'maint.'}</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg tele-trace" preserveAspectRatio="none">${grid}${series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dash ? 'stroke-dasharray="5 4"' : ''} points="${s.pts.map((p) => `${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join(' ')}"/>`).join('')}</svg>`;
+}
+
 export function renderTelemetry() {
   const now = performance.now();
-  if (now - lastTele < 150) return;
+  if (now - lastTele < 120) return;
   lastTele = now;
   const el = $('#telemetry');
   if (!el.classList.contains('active')) return;
@@ -23,45 +82,59 @@ export function renderTelemetry() {
   const num = focusDriver();
   if (!store.positions.car.size) {
     el.innerHTML = `<div class="note">Pas de télémétrie disponible.<br><br>En <b>live</b>, la F1 réserve la télémétrie (vitesse, régime, rapport, accélérateur, frein) aux abonnés F1 TV : ajoutez votre jeton dans ⚙ Réglages.<br>En <b>replay</b>, elle est incluse.</div>`;
-    el._num = null;
+    el._k = null;
     return;
   }
   if (!num) return;
+  // Pilote B : choisi ici, sinon pilote B (ou A) du duel s'il est différent du pilote suivi
+  let numB = teleBOff ? null : teleB && dl[teleB] && teleB !== num ? teleB
+    : [store.duel.b, store.duel.a].find((n) => n && n !== num && dl[n]) || null;
   const disp = displayNow();
-  const c = store.positions.carAt(num, disp);
-  const d = dl[num] || {};
-  if (el._num !== num) {
-    el._num = num;
-    const nums = orderedNumbers(store.state).filter((n) => dl[n]);
-    el.innerHTML = `<div class="tele"><div class="tele-head">${d.HeadshotUrl ? `<img class="tele-photo" src="${esc(d.HeadshotUrl)}" alt="" onerror="this.remove()">` : ''}<span class="drv-bar" style="background:${teamColor(d)}"></span>
-      <select id="teleSel">${nums.map((n) => `<option value="${n}" ${n === num ? 'selected' : ''}>${esc(dl[n].Tla)} · ${esc(dl[n].FullName || '')}</option>`).join('')}</select>
-      <span class="muted small">(clic sur un pilote du classement pour le suivre)</span></div>
-      <div class="gauges" id="teleGauges"></div>
+  const nums = orderedNumbers(store.state).filter((n) => dl[n]);
+  const key = `${num}|${numB}|${nums.length}`;
+  if (el._k !== key) {
+    el._k = key;
+    const pick = (id, cur, none) => `<select id="${id}" class="tele-pick">${none ? '<option value="">+ Comparer…</option>' : ''}${nums.map((n) => `<option value="${n}" ${n === cur ? 'selected' : ''}>${esc(dl[n].Tla)}</option>`).join('')}</select>`;
+    const head = (n, id) => {
+      const d = dl[n] || {};
+      return `<div class="tele-name" style="--tc:${teamColor(d)}">${teamMark(d)}<b>${esc(d.Tla || n)}</b><span class="muted small">${esc(d.LastName || '')}</span></div>`;
+    };
+    el.innerHTML = `<div class="tele2">
+      <div class="tele2-bar"><span class="tele-chip" style="--tc:${teamColor(dl[num] || {})}">${pick('teleSel', num)}</span>
+        <span class="tele-vs">vs</span>
+        <span class="tele-chip" style="--tc:${numB ? teamColorOf(dl[numB]) : 'var(--border)'}">${pick('teleSelB', numB, true)}${numB ? '<button class="tele-x" id="teleClearB" title="Un seul pilote">✕</button>' : ''}</span>
+        <span class="muted small tele-hint">clic sur un pilote du classement = pilote suivi</span></div>
+      <div class="tele2-dials ${numB ? 'two' : 'one'}">
+        <div class="tele2-col">${head(num)}<div id="teleDialA"></div></div>
+        ${numB ? `<div class="tele2-vs">VS</div><div class="tele2-col">${head(numB)}<div id="teleDialB"></div></div>` : ''}
+      </div>
       <div class="trace"><div class="chart-title"><span>Vitesse — 30 dernières secondes (km/h)</span></div><div id="teleTrace"></div></div></div>`;
     $('#teleSel').addEventListener('change', (e) => setFocus(e.target.value));
+    $('#teleSelB').addEventListener('change', (e) => { teleB = e.target.value || null; teleBOff = !teleB; el._k = null; renderTelemetry.lastTrace = 0; lastTele = 0; renderTelemetry(); });
+    $('#teleClearB')?.addEventListener('click', () => { teleB = null; teleBOff = true; el._k = null; lastTele = 0; renderTelemetry(); });
   }
-  const clamp = (v) => Math.max(0, Math.min(100, v || 0));
-  const g = (lbl, val, unit, bar = '') => `<div class="gauge"><div class="gauge-lbl">${lbl}</div><div class="gauge-val">${val}<small> ${unit}</small></div>${bar}</div>`;
-  const gaugesHtml = c ? [
-    g('Vitesse', c.speed ?? '—', 'km/h'),
-    g('Rapport', c.gear ?? '—', ''),
-    g('Régime', c.rpm ?? '—', 'tr/min', `<div class="bar rpm"><i style="width:${Math.min(100, ((c.rpm || 0) / 13000) * 100)}%"></i></div>`),
-    g('Accélérateur', c.thr ?? '—', '%', `<div class="bar thr"><i style="width:${clamp(c.thr)}%"></i></div>`),
-    g('Frein', c.brk === null ? '—' : c.brk > 0 ? 'OUI' : 'non', '', `<div class="bar brk"><i style="width:${c.brk > 0 ? 100 : 0}%"></i></div>`),
-    c.drs !== undefined ? g('DRS', c.drs >= 10 ? 'OUVERT' : 'fermé', '') : g('Pilote', esc(d.Tla || num), ''),
-  ].join('') : '<div class="muted">Pas de données pour ce pilote à cet instant.</div>';
-  const gEl = $('#teleGauges');
-  if (gEl._html !== gaugesHtml) { gEl.innerHTML = gaugesHtml; gEl._html = gaugesHtml; }
-
+  const cA = store.positions.carAt(num, disp);
+  const colA = teamColor(dl[num] || {});
+  const hA = dial(cA, colA, 'a');
+  if ($('#teleDialA')._h !== hA) { $('#teleDialA').innerHTML = hA; $('#teleDialA')._h = hA; }
+  let colB = null;
+  if (numB) {
+    const cB = store.positions.carAt(numB, disp);
+    colB = teamColor(dl[numB] || {});
+    const hB = dial(cB, colB, 'b');
+    if ($('#teleDialB')._h !== hB) { $('#teleDialB').innerHTML = hB; $('#teleDialB')._h = hB; }
+  }
   if (now - (renderTelemetry.lastTrace || 0) > 500) {
     renderTelemetry.lastTrace = now;
-    const hist = store.positions.carHistory(num, disp - 30000, disp);
-    lineChart($('#teleTrace'), hist.map((h) => ({ x: (h.t - disp) / 1000, y: h.speed || 0 })), {
-      height: 120, color: teamColor(d), zero: false, yFmt: (v) => String(Math.round(v)), xFmt: (v) => `${Math.round(v)} s`,
-      tipFmt: (p) => `${Math.round(p.y)} km/h (${Math.round(-p.x)} s avant)`, yMinSpan: 50,
-    });
+    const series = [num, numB].filter(Boolean).map((n, i) => ({
+      color: i ? colB : colA,
+      dash: i && dl[n]?.TeamName === dl[num]?.TeamName,
+      pts: store.positions.carHistory(n, disp - 30000, disp).map((h) => ({ x: (h.t - disp) / 1000, y: h.speed || 0 })),
+    }));
+    $('#teleTrace').innerHTML = speedTrace(series);
   }
 }
+const teamColorOf = (d) => teamColor(d || {});
 
 export function renderStrategy() {
   const v = versionOf(['TimingAppData', 'LapCount', 'DriverList', 'TimingData', '__reset']);
