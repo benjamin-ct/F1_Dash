@@ -70,7 +70,7 @@ function speedTrace(series, width = 600) {
   const Y = (y) => pt + (1 - (y - lo) / (hi - lo)) * (H - pt - pb);
   let grid = '';
   for (const v of [lo, (lo + hi) / 2, hi]) grid += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" class="sz-gl"/><text x="${pl - 4}" y="${Y(v) + 3}" class="sz-ax" text-anchor="end">${Math.round(v)}</text>`;
-  for (const x of [-30, -20, -10, 0]) grid += `<text x="${X(x)}" y="${H - 3}" class="sz-ax" text-anchor="middle">${x ? `${x} s` : 'maint.'}</text>`;
+  for (const x of [-30, -20, -10, 0]) grid += `<text x="${X(x)}" y="${H - 3}" class="sz-ax" text-anchor="${x === -30 ? 'start' : x ? 'middle' : 'end'}">${x ? `${x} s` : 'maint.'}</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg tele-trace">${grid}${series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dash ? 'stroke-dasharray="5 4"' : ''} points="${s.pts.map((p) => `${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join(' ')}"/>`).join('')}</svg>`;
 }
 
