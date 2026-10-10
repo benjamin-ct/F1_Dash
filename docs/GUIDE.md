@@ -39,15 +39,16 @@ Le bouton **Saison** de la barre de gauche (🏆 en haut dans les autres designs
 - **Calendrier** : toutes les manches (sprint, terminé / prochain / à venir), vainqueur et poleman, horaires de chaque séance à l'heure de votre ordinateur.
 - **Classements** : courbe des points cumulés du top 10 et classements pilotes / constructeurs complets avec écart au leader.
 - **Résultats & records** : plus de victoires, podiums, poles, meilleure moyenne, plus belle remontée, victoires les plus larges et les plus serrées, et le podium de chaque Grand Prix.
-- **Coéquipiers** : duel en qualifications et en course, points, victoires, podiums, poles, arrivées dans les points et abandons.
+- **Coéquipiers** : duel en qualifications et en course, points, victoires, podiums, poles, arrivées dans les points et abandons, note face au coéquipier, et **écart en qualification** (médiane et moyenne, manche par manche, dans la dernière partie disputée par les deux : Q3, sinon Q2, sinon Q1).
+- **Notes des pilotes** : une note sur 100 et une lettre (S, A, B, C, D, F) pour chaque pilote. La note de la saison le classe parmi tous les pilotes (points par course, rythme de course, places moyennes à l'arrivée et en qualification, places gagnées, courses terminées). La note face au coéquipier compare les duels, la part des points de l'écurie et l'écart en qualification. Le détail du calcul est affiché sous le tableau.
 
 **Statistiques détaillées** (analyse des archives officielles F1 Live Timing de chaque Grand Prix : la première fois environ 2 s par course, puis conservées sur le PC) :
 
-- **Pilotes** : fiche complète par pilote (victoires, podiums, poles, meilleurs tours, points par course, moyennes au départ et à l'arrivée, places gagnées, duel qualif face au coéquipier, vitesse de pointe, temps d'arrêt moyen, régularité), graphique départ / arrivée course par course et tableau de toutes ses courses.
+- **Pilotes** : fiche complète par pilote (victoires, podiums, poles, meilleurs tours, points par course, moyennes au départ et à l'arrivée, places gagnées, duel qualif face au coéquipier, vitesse de pointe, temps d'arrêt moyen, régularité, tours en tête, plus belle remontée, notes), graphique départ / arrivée course par course, répartition des arrivées (P1 à P20 et abandons), points cumulés comparés à la saison précédente et tableau de toutes ses courses (avec les tours en tête).
 - **Régularité** : écart-type des tours « propres » (hors 1er tour, arrêts, safety car / VSC et tours anormalement lents), classement des plus réguliers, rythme de course (écart au plus rapide), carte thermique par Grand Prix et régularité des résultats.
 - **Arrêts aux stands** : temps d'immobilisation officiels, médiane par écurie, 15 arrêts les plus rapides, arrêts sous 2,5 s, temps dans la voie des stands par Grand Prix.
 - **Vitesses de pointe** : speed trap, ligne d'arrivée ou intermédiaires ; classement des écuries et des pilotes, carte thermique écurie × Grand Prix.
-- **Profil des circuits** : tracé, longueur, virages, tours et distance, meilleur tour et vitesse moyenne, vitesse de pointe, arrêts, voie des stands, dépassements en piste estimés et part des tours neutralisés, avec jauges comparant les circuits (tri au choix).
+- **Profil des circuits** : tracé, longueur, virages, tours et distance, meilleur tour et vitesse moyenne, vitesse de pointe, arrêts, voie des stands, dépassements en piste estimés et part des tours neutralisés, pneus choisis par Pirelli et contrainte sur les pneus (d'après le composé le plus dur), arrêts par pilote, et les trois circuits les plus proches de la saison ; jauges comparant les circuits (tri au choix).
 
 **Technique** (lu dans les documents officiels de la FIA publiés à chaque Grand Prix, conservés sur le PC après la première lecture) :
 

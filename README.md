@@ -20,7 +20,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Direction de course et enquêtes**, avec les documents officiels de la FIA.
 - **Radios d'équipe** retranscrites et traduites en français, sur votre ordinateur.
 - **Commentaires F1 TV Pro** ou radio de votre choix, synchronisés sur le dashboard.
-- **Espace Saison** : calendrier, classements, statistiques par pilote, régularité, arrêts, vitesses, profils des circuits, évolutions techniques et éléments moteur (documents FIA).
+- **Espace Saison** : calendrier, classements, notes des pilotes (S à F), écart en qualification entre coéquipiers, statistiques par pilote, régularité, arrêts, vitesses, profils des circuits, évolutions techniques et éléments moteur (documents FIA).
 - **Replays** de toutes les sessions archivées, disposition libre des panneaux, second écran.
 - **Sur votre téléphone ou tablette** : l'ordinateur affiche un QR code ; scannez-le pour retrouver le dashboard sur le réseau Wi-Fi de la maison, calé sur le même délai TV.
 

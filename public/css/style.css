@@ -963,6 +963,40 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .sz-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #ff8a4d); border-radius: 4px; }
 .sz-meter b { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 900px) { .sz-hbar { grid-template-columns: 110px 1fr 70px; } }
+.sz-stress .sz-dots { height: auto; background: none; display: flex; gap: 4px; overflow: visible; }
+.sz-stress .sz-dots i { width: 14px; height: 7px; border-radius: 3px; background: var(--panel-3); }
+.sz-stress .sz-dots i.on { background: linear-gradient(90deg, #ffd166, var(--accent)); }
+.sz-cpd { font-variant-numeric: tabular-nums; }
+.sz-near { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 2px; }
+.sz-near .muted { margin-right: 4px; }
+.sz-near .sz-tag { text-transform: none; letter-spacing: 0; font-weight: 700; }
+
+/* ---------- Saison : notes des pilotes ---------- */
+.sz-grade { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-weight: 900; font-size: 13px; color: #111; vertical-align: middle; }
+.sz-grade.big { width: 34px; height: 34px; font-size: 20px; border-radius: 8px; }
+.sz-grade-n { margin-left: 6px; font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: middle; }
+.sz-big .sz-grade-n { font-size: 20px; }
+.sz-grade.g-S { background: linear-gradient(135deg, #ffe08a, #f5b52e); }
+.sz-grade.g-A { background: #3ddc84; }
+.sz-grade.g-B { background: #8fd3ff; }
+.sz-grade.g-C { background: #c9ced8; }
+.sz-grade.g-D { background: #ffb36b; }
+.sz-grade.g-F { background: #ff6b6b; }
+.sz-grade-scale { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.sz-grade-scale > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.sz-rate td, .sz-rate th { white-space: nowrap; }
+.sz-rate th { font-size: 11px; }
+.sz-rate .sz-rate-g { min-width: 64px; }
+.sz-how p { margin: 6px 0; font-size: 13px; }
+.sz-how ul { margin: 4px 0 8px; padding-left: 20px; font-size: 13px; columns: 2; }
+.sz-up { color: var(--green); }
+.sz-down { color: var(--red); }
+.sz-h2h-grades > div { flex: 1; }
+.sz-gap-chart { min-width: 620px; }
+.sz-svg .sz-clip { fill: #fff; font-weight: 800; paint-order: stroke; stroke: rgba(0,0,0,.45); stroke-width: 2px; }
+.sz-h2h-grades > span { width: auto; min-width: 34px; }
+.linkish { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
+@media (max-width: 900px) { .sz-how ul { columns: 1; } }
 
 /* ---------- Saison : évolutions techniques et éléments moteur ---------- */
 .sz-upd { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 8px; margin-top: 8px; }

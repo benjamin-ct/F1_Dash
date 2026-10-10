@@ -155,6 +155,18 @@ export function nominationFor(year, m, found = []) {
   return hit ? { hard: hit.c[0], medium: hit.c[1], soft: hit.c[2], url: hit.url } : null;
 }
 
+// Composés choisis pour chaque manche d'une saison (table intégrée et annonces déjà repérées) :
+// { manche: { hard, medium, soft, url } }
+export function seasonNominations(year, races) {
+  const found = readCache('pirelli-nominations.json') || [];
+  const out = {};
+  for (const r of races) {
+    const n = nominationFor(year, { name: r.name, location: r.locality, circuit: r.circuit, start: Date.parse(r.date) || 0 }, found);
+    if (n) out[r.round] = n;
+  }
+  return out;
+}
+
 // ---------- Relais des séances précédentes ----------
 async function sessionStints(ses) {
   const name = `tyres-${ses.path.replace(/[^\w]+/g, '_')}.json`;

@@ -2,6 +2,7 @@
 // (/api/season/stats) et des résultats Jolpica : statistiques par pilote, régularité,
 // arrêts aux stands, vitesses de pointe et profil des circuits.
 import { esc, teamColor, teamMark } from '../util.js';
+import { cleanLaps, lapsLed, similarCircuits, SEASON_CRITERIA, MATE_CRITERIA, GRADES } from '/shared/season-calc.js';
 
 const median = (a) => {
   if (!a.length) return null;
@@ -30,20 +31,62 @@ const short = (name) => String(name || '').replace(/ Grand Prix$/, '');
 const mark = (team, col) => teamMark({ TeamName: team, TeamColour: col?.replace('#', '') });
 const tcol = (team, col) => teamColor({ TeamName: team, TeamColour: col?.replace('#', '') });
 
-// Tours représentatifs d'un pilote dans une course : hors 1er tour, tours aux stands et sous
-// neutralisation, et sans les tours anormalement lents (> 107 % de sa médiane : trafic, incident…).
-export function cleanLaps(d) {
-  const v = d.laps.filter((l) => !(l[2] & 7)).map((l) => l[1]);
-  if (v.length < 8) return null;
-  const med = median(v);
-  return v.filter((t) => t <= med * 1.07 && t >= med * 0.93);
-}
-
 // Pilotes de l'archive, indexés par trigramme pour chaque manche
 function byRound(stats) {
   const m = new Map();
   for (const r of stats?.races || []) m.set(r.round, { race: r, by: new Map(r.drivers.map((d) => [d.tla, d])) });
   return m;
+}
+
+// Note sur 100 avec sa lettre (S, A, B, C, D, F)
+export const gradeBadge = (score, g, big = false) => (score === null || score === undefined ? '<span class="muted">—</span>'
+  : `<span class="sz-grade g-${g}${big ? ' big' : ''}">${g}</span><span class="sz-grade-n">${score}</span>`);
+
+// Répartition des arrivées : nombre de courses terminées à chaque place, et abandons
+function finishHistogram(started, col) {
+  const n = new Array(21).fill(0);
+  for (const x of started) n[isNum(x.res) && x.res.pos <= 20 ? x.res.pos - 1 : 20]++;
+  const hi = Math.max(1, ...n);
+  const W = 440, H = 170, pl = 6, pb = 22, bw = (W - pl * 2) / 21;
+  const bars = n.map((v, i) => {
+    const h = ((H - pb - 16) * v) / hi;
+    const x = pl + i * bw;
+    const c = i === 20 ? 'var(--red)' : i < 3 ? '#ffd166' : col;
+    return `${v ? `<rect x="${x + 2}" y="${H - pb - h}" width="${bw - 4}" height="${h}" rx="2" fill="${c}"><title>${i === 20 ? 'Abandons' : `P${i + 1}`} : ${v}</title></rect><text x="${x + bw / 2}" y="${H - pb - h - 4}" class="sz-ax" text-anchor="middle">${v}</text>` : ''}
+      <text x="${x + bw / 2}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i === 20 ? 'Ab' : i + 1}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${bars}</svg>`;
+}
+
+// Points cumulés manche par manche : saison affichée et saison précédente
+function pointsVsPrev(drv, data, prev, col) {
+  const cum = (d, code) => {
+    let t = 0;
+    return d.races.filter((r) => r.results.length).map((r) => {
+      t += (r.results.find((x) => x.code === code)?.points || 0) + (r.sprintResults.find((x) => x.code === code)?.points || 0);
+      return t;
+    });
+  };
+  if (!prev) return '<div class="note small">Chargement de la saison précédente…</div>';
+  if (prev.error) return `<div class="note small">Saison ${data.year - 1} indisponible.</div>`;
+  const now = cum(data, drv.code);
+  const before = prev.races.some((r) => r.results.some((x) => x.code === drv.code)) ? cum(prev, drv.code) : null;
+  if (!before) return `<div class="note small">${esc(drv.last || drv.name)} n'a pas couru en ${data.year - 1}.</div>`;
+  const W = 440, H = 170, pl = 34, pr = 50, pt = 8, pb = 22;
+  const nMax = Math.max(now.length, before.length);
+  const yMax = Math.max(1, ...now, ...before);
+  const X = (i) => pl + (i / Math.max(1, nMax - 1)) * (W - pl - pr);
+  const Y = (v) => pt + (1 - v / yMax) * (H - pt - pb);
+  const step = Math.max(25, Math.ceil(yMax / 4 / 25) * 25);
+  let grid = '';
+  for (let v = 0; v <= yMax; v += step) grid += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" class="sz-gl"/><text x="${pl - 5}" y="${Y(v) + 4}" class="sz-ax" text-anchor="end">${v}</text>`;
+  for (let i = 0; i < nMax; i += Math.ceil(nMax / 8)) grid += `<text x="${X(i)}" y="${H - 6}" class="sz-ax" text-anchor="middle">${i + 1}</text>`;
+  const line = (a, c, dash) => `<polyline fill="none" stroke="${c}" stroke-width="2.2" ${dash ? 'stroke-dasharray="5 4"' : ''} points="${a.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
+  const lbl = (a, c, txt) => `<text x="${X(a.length - 1) + 5}" y="${Y(a.at(-1)) + 4}" fill="${c}" class="sz-lbl">${txt}</text>`;
+  const same = before[now.length - 1];
+  const diff = same !== undefined ? now.at(-1) - same : null;
+  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(before, 'var(--muted)', true)}${line(now, col)}${lbl(before, 'var(--muted)', data.year - 1)}${now.length ? lbl(now, col, data.year) : ''}</svg>
+    ${diff !== null ? `<div class="small muted">Après ${now.length} courses : <b class="${diff >= 0 ? 'sz-up' : 'sz-down'}">${diff >= 0 ? '+' : ''}${diff} pts</b> par rapport à ${data.year - 1} (${now.at(-1)} contre ${same}).</div>` : ''}`;
 }
 
 function pendingNote(stats) {
@@ -99,6 +142,10 @@ export function renderDrivers(ctx, code) {
   const col = ctx.color(drv.team, drv.teamId);
   const card = (label, v, sub = '') => `<div class="sz-card sz-kpi"><div class="muted small">${label}</div><div class="sz-big">${v}</div>${sub ? `<div class="muted small">${sub}</div>` : ''}</div>`;
   const pts = started.reduce((n, x) => n + x.res.points, 0) + rows.reduce((n, x) => n + (x.spr?.points || 0), 0);
+  const rt = ctx.ratings?.find((e) => e.code === drv.code);
+  const led = rows.map((x) => (x.a ? lapsLed(x.a) : null));
+  const ledTotal = led.reduce((n, v) => n + (v || 0), 0);
+  const climb = started.filter((x) => x.res.grid && isNum(x.res)).sort((a, b) => (b.res.grid - b.res.pos) - (a.res.grid - a.res.pos))[0];
 
   // Graphique : position au départ (pointillés) et à l'arrivée, manche par manche
   const W = 900, H = 230, pl = 30, pr = 12, pt = 10, pb = 24;
@@ -134,14 +181,61 @@ export function renderDrivers(ctx, code) {
       ${card('Vitesse de pointe', tops.length ? `${Math.max(...tops)} km/h` : '—', tops.length ? `moyenne ${fr(mean(tops), 0)} km/h` : '')}
       ${card('Immobilisation moyenne', stops.length ? `${fr(mean(stops))} s` : '—', stops.length ? `${stops.length} arrêts` : '')}
       ${card('Régularité', sig.length ? `${fr(median(sig), 3)} s` : '—', 'écart-type médian des tours')}
+      ${card('Tours en tête', stats?.races ? ledTotal : '—', stats?.races ? `${led.filter((v) => v > 0).length} course(s) menée(s)` : '')}
+      ${card('Plus belle remontée', climb && climb.res.grid > climb.res.pos ? `+${climb.res.grid - climb.res.pos}` : '—', climb && climb.res.grid > climb.res.pos ? `P${climb.res.grid} → P${climb.res.pos} · ${esc(short(climb.r.name))}` : '')}
+      ${card('Note de la saison', rt ? gradeBadge(rt.season, rt.seasonGrade, true) : '—', rt?.season !== null && rt ? '<button class="linkish" data-szgo="ratings">voir le détail →</button>' : 'pas assez de courses')}
+      ${card('Note face au coéquipier', rt ? gradeBadge(rt.mate, rt.mateGrade, true) : '—', rt?.mates?.length ? `face à ${esc(rt.mates.join(', '))}` : '')}
     </div>
     <section class="sz-box"><h3>Départ (pointillés) et arrivée, course par course</h3>${chart}</section>
-    <section class="sz-box"><h3>Courses</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Qualif.</th><th>Grille</th><th>Arrivée</th><th>Points</th><th>Meilleur tour</th><th>V. max</th><th>Arrêts</th><th>Statut</th></tr>
-      ${rows.map((x) => `<tr><td>R${x.r.round}</td><td>${esc(short(x.r.name))}${x.spr ? ` <span class="sz-tag sprint">Sprint P${x.spr.pos ?? '—'}</span>` : ''}</td><td>${x.q?.pos ? `P${x.q.pos}` : '—'}</td>
-        <td>${x.res?.grid ? `P${x.res.grid}` : x.res ? 'Stands' : '—'}</td><td><b>${x.res ? (isNum(x.res) ? `P${x.res.pos}` : 'Abandon') : '—'}</b></td><td>${x.res?.points || ''}</td>
+    <div class="sz-grid2">
+      <section class="sz-box"><h3>Répartition des arrivées</h3>${finishHistogram(started, col)}</section>
+      <section class="sz-box"><h3>Points cumulés : ${data.year} et ${data.year - 1}</h3>${pointsVsPrev(drv, data, ctx.prev, col)}</section>
+    </div>
+    <section class="sz-box"><h3>Courses</h3><table class="sz-table"><tr><th>Manche</th><th>Grand Prix</th><th>Qualif.</th><th>Grille</th><th>Arrivée</th><th>Points</th><th>En tête</th><th>Meilleur tour</th><th>V. max</th><th>Arrêts</th><th>Statut</th></tr>
+      ${rows.map((x, i) => `<tr><td>R${x.r.round}</td><td>${esc(short(x.r.name))}${x.spr ? ` <span class="sz-tag sprint">Sprint P${x.spr.pos ?? '—'}</span>` : ''}</td><td>${x.q?.pos ? `P${x.q.pos}` : '—'}</td>
+        <td>${x.res?.grid ? `P${x.res.grid}` : x.res ? 'Stands' : '—'}</td><td><b>${x.res ? (isNum(x.res) ? `P${x.res.pos}` : 'Abandon') : '—'}</b></td><td>${x.res?.points || ''}</td><td>${led[i] ? `${led[i]} t.` : x.a ? '' : '—'}</td>
         <td>${x.a?.best ? fmtLap(x.a.best) : '—'}${x.res?.fastest ? ' <span class="sz-tag sprint">MT</span>' : ''}</td><td>${x.a?.speeds?.ST ? `${x.a.speeds.ST} km/h` : '—'}</td>
         <td>${x.a ? x.a.stops.map((s) => `${fr(s.stop)} s`).join(' · ') || '0' : '—'}</td><td class="muted small">${esc(statusFr(x.res?.status))}</td></tr>`).join('')}</table></section>
     ${pendingNote(stats)}`;
+}
+
+// ---------------- Notes des pilotes ----------------
+const pctTxt = (p) => (p === null || p === undefined ? '—' : `${Math.round(p * 100)}`);
+const METRIC_SHORT = { ppr: 'Pts / course', pace: 'Rythme', avgFinish: 'Arrivée moy.', avgQuali: 'Qualif moy.', gained: 'Places gagnées', finishRate: 'Arrivées' };
+const METRIC_FMT = {
+  ppr: (v) => fr(v), pace: (v) => (v === null ? '—' : `+${fr(v, 2)} %`), avgFinish: (v) => fr(v), avgQuali: (v) => fr(v),
+  gained: (v) => (v === null ? '—' : `${v >= 0 ? '+' : ''}${fr(v)}`), finishRate: (v) => (v === null ? '—' : `${Math.round(v * 100)} %`),
+};
+
+export function renderRatings(ctx, sortBy = 'season') {
+  const { stats } = ctx;
+  const all = ctx.ratings || [];
+  if (!all.length) return '<div class="note">Pas encore de résultats.</div>';
+  const rows = [...all].sort((a, b) => (b[sortBy] ?? -1) - (a[sortBy] ?? -1) || b.pts - a.pts);
+  const drvCell = (e) => `${ctx.bar(e.team, e.teamId)}<b>${esc(e.name)}</b> <span class="muted small">${esc(e.team)}</span>`;
+  const top = (k) => rows.filter((e) => e[k] !== null).sort((a, b) => b[k] - a[k])[0];
+  const best = top('season'), bestMate = top('mate');
+  const card = (title, e, k, g) => `<div class="sz-card"><div class="muted small">${title}</div><div class="sz-big">${e ? `${ctx.bar(e.team, e.teamId)}${esc(e.last || e.name)}` : '—'}</div><div class="small">${e ? gradeBadge(e[k], e[g]) : ''}</div></div>`;
+  const noPace = !stats?.races?.length;
+  return `${pendingNote(stats)}
+    <div class="sz-cards">${card('Meilleure note de la saison', best, 'season', 'seasonGrade')}${card('Domine le plus son coéquipier', bestMate, 'mate', 'mateGrade')}
+      <div class="sz-card"><div class="muted small">Barème</div><div class="sz-grade-scale">${GRADES.map(([g, min], i) => `<span><span class="sz-grade g-${g}">${g}</span> ${min > -Infinity ? `${min}${i ? `–${GRADES[i - 1][1] - 1}` : '+'}` : `< ${GRADES[i - 1][1]}`}</span>`).join('')}</div></div>
+    </div>
+    <div class="sz-h2h-pick"><label class="small">Trier par <select id="szRateSort"><option value="season" ${sortBy === 'season' ? 'selected' : ''}>Note de la saison</option><option value="mate" ${sortBy === 'mate' ? 'selected' : ''}>Note face au coéquipier</option></select></label></div>
+    <section class="sz-box"><h3>Notes des pilotes</h3><div class="sz-scroll"><table class="sz-table sz-rate"><tr><th>#</th><th>Pilote</th><th>Saison</th><th>Coéquipier</th>
+      ${SEASON_CRITERIA.map(([k, , l]) => `<th title="${esc(l)}">${METRIC_SHORT[k]}</th>`).join('')}<th>Duels Q / C</th><th>Écart qualif</th></tr>
+      ${rows.map((e, i) => `<tr class="${e.season === null ? 'muted' : ''}"><td>${i + 1}</td><td>${drvCell(e)}</td><td class="sz-rate-g">${gradeBadge(e.season, e.seasonGrade)}</td><td class="sz-rate-g">${gradeBadge(e.mate, e.mateGrade)}</td>
+        ${SEASON_CRITERIA.map(([k]) => heat(e.parts[k] === null || e.parts[k] === undefined ? null : 1 - e.parts[k], `${METRIC_FMT[k](e.metrics[k])}`)).join('')}
+        <td>${e.h2h.qa}–${e.h2h.qb} / ${e.h2h.ra}–${e.h2h.rb}</td><td>${e.gapPct === null ? '—' : `${e.gapPct <= 0 ? '−' : '+'}${fr(Math.abs(e.gapPct), 2)} %`}</td></tr>`).join('')}</table></div></section>
+    <section class="sz-box sz-how"><h3>Comment les notes sont calculées</h3>
+      <p><b>Note de la saison (sur 100)</b> : chaque pilote est classé parmi ceux qui ont couru au moins 40 % des Grands Prix, critère par critère. Son rang devient un score de 0 (dernier) à 100 (premier), puis les critères sont pondérés :</p>
+      <ul>${SEASON_CRITERIA.map(([, w, l]) => `<li>${esc(l)} : <b>${w} %</b></li>`).join('')}</ul>
+      <p class="small muted">Rythme de course : écart moyen entre le tour médian « propre » du pilote et celui du plus rapide de chaque course (archives officielles F1${noPace ? ' — pas encore analysées, critère ignoré pour l\'instant' : ''}). Place moyenne à l'arrivée : un abandon compte comme une 20e place. Places gagnées : de la grille à l'arrivée, courses terminées seulement.</p>
+      <p><b>Note face au coéquipier (sur 100, 50 = à égalité)</b> : comparaison avec le coéquipier de chaque course.</p>
+      <ul>${MATE_CRITERIA.map(([, w, l]) => `<li>${esc(l)} : <b>${w} %</b></li>`).join('')}</ul>
+      <p class="small muted">Écart en qualification : médiane des écarts dans la dernière partie disputée par les deux (Q3, sinon Q2, sinon Q1) ; 1 % plus rapide donne le maximum. Les écarts de plus de 3 % (incident, piste qui change) sont ignorés. Ces notes résument des chiffres : elles ne tiennent pas compte de la voiture, des pannes subies ou de la stratégie de l'écurie.</p>
+      <p class="small muted">Notation inspirée des scores SPS / TMS de formula1dashboard.com, calculée ici à partir des résultats officiels.</p>
+    </section>`;
 }
 
 // ---------------- Régularité ----------------
@@ -280,7 +374,9 @@ export function renderSpeeds(ctx, point = 'ST') {
 }
 
 // ---------------- Profil des circuits ----------------
-const SORTS = { round: 'Calendrier', avgSpeed: 'Vitesse moyenne', topSpeed: 'Vitesse de pointe', gains: 'Dépassements', neutral: 'Neutralisations', length: 'Longueur' };
+const SORTS = { round: 'Calendrier', avgSpeed: 'Vitesse moyenne', topSpeed: 'Vitesse de pointe', tyre: 'Contrainte sur les pneus', stopsPerCar: 'Arrêts par pilote', gains: 'Dépassements', neutral: 'Neutralisations', length: 'Longueur' };
+// Sollicitation des pneus d'après le composé le plus dur choisi par Pirelli (C1 = le plus dur)
+const STRESS = { 1: ['Très élevée', 5], 2: ['Élevée', 4], 3: ['Moyenne', 3], 4: ['Faible', 2], 5: ['Très faible', 1] };
 
 export function renderCircuits(ctx, sort = 'round') {
   const { data, stats } = ctx;
@@ -289,11 +385,21 @@ export function renderCircuits(ctx, sort = 'round') {
   const items = [...R.values()].map(({ race }) => {
     const r = data.races.find((x) => x.round === race.round) || {};
     const p = race.profile;
-    return { round: race.round, r, p, avgSpeed: p.fastest?.avgSpeed || 0, topSpeed: p.topSpeed?.kmh || 0, gains: p.gains || 0, neutral: p.neutralPct || 0, length: p.length || 0 };
+    const ty = stats.tyres?.[race.round] || null;
+    const cars = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).length || race.drivers.length || 1;
+    const finStops = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).reduce((n, d) => n + d.stops.length, 0);
+    return {
+      round: race.round, r, p, ty, avgSpeed: p.fastest?.avgSpeed || 0, topSpeed: p.topSpeed?.kmh || 0, gains: p.gains || 0, neutral: p.neutralPct || 0, length: p.length || 0,
+      tyre: ty ? 6 - ty.hard : 0, stopsPerCar: finStops / cars,
+      // Caractéristiques comparées pour trouver les circuits proches
+      key: r.circuit, corners: p.corners, passes: p.laps ? p.gains / p.laps : null, hard: ty?.hard ?? null,
+    };
   });
-  items.sort((a, b) => (sort === 'round' ? a.round - b.round : b[sort] - a[sort]));
+  for (const x of items) { x.avgSpeed ||= null; x.topSpeed ||= null; x.length ||= null; }
+  const near = similarCircuits(items);
+  items.sort((a, b) => (sort === 'round' ? a.round - b.round : (b[sort] || 0) - (a[sort] || 0)));
   const range = (k) => { const v = items.map((x) => x[k]).filter(Boolean); return [Math.min(...v), Math.max(...v)]; };
-  const rg = { avgSpeed: range('avgSpeed'), topSpeed: range('topSpeed'), gains: range('gains'), neutral: range('neutral') };
+  const rg = { avgSpeed: range('avgSpeed'), topSpeed: range('topSpeed'), gains: range('gains'), neutral: range('neutral'), stopsPerCar: range('stopsPerCar') };
   const meter = (label, k, v, txt) => {
     const [a, b] = rg[k];
     const w = b > a ? 8 + (92 * (v - a)) / (b - a) : 50;
@@ -301,7 +407,7 @@ export function renderCircuits(ctx, sort = 'round') {
   };
   return `${pendingNote(stats)}
     <div class="sz-h2h-pick"><label class="small">Trier par <select id="szCircSort">${Object.entries(SORTS).map(([k, l]) => `<option value="${k}" ${k === sort ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
-    <div class="sz-circs">${items.map(({ round, r, p }) => `<article class="sz-circ">
+    <div class="sz-circs">${items.map(({ round, r, p, ty, stopsPerCar, key }) => `<article class="sz-circ">
       <div class="sz-circ-head"><span class="muted">R${round}</span> <b>${esc(short(r.name))}</b><div class="muted small">${esc(r.circuit || '')} · ${esc(r.locality || '')}</div></div>
       <div class="sz-circ-body">
         ${p.outline ? `<svg viewBox="0 0 100 100" class="sz-outline"><polygon points="${p.outline}"/></svg>` : '<div class="sz-outline muted small">Tracé indisponible</div>'}
@@ -312,12 +418,16 @@ export function renderCircuits(ctx, sort = 'round') {
           <dt>Meilleur tour</dt><dd>${p.fastest ? `${fmtLap(p.fastest.time)} · ${esc(p.fastest.tla)}` : '—'}</dd>
           <dt>Arrêts</dt><dd>${p.stops}${p.stopMedian ? ` · ${fr(p.stopMedian, 1)} s` : ''}</dd>
           <dt>Voie des stands</dt><dd>${p.pitLane ? `${fr(p.pitLane, 1)} s` : '—'}</dd>
+          <dt>Pneus Pirelli</dt><dd>${ty ? `<span class="sz-cpd">C${ty.hard} · C${ty.medium} · C${ty.soft}</span>` : '—'}</dd>
         </dl>
       </div>
+      <div class="sz-meter sz-stress"><span>Contrainte pneus</span><div class="sz-dots">${ty ? Array.from({ length: 5 }, (_, i) => `<i class="${i < STRESS[ty.hard][1] ? 'on' : ''}"></i>`).join('') : ''}</div><b>${ty ? STRESS[ty.hard][0] : '—'}</b></div>
+      ${meter('Arrêts par pilote', 'stopsPerCar', stopsPerCar, fr(stopsPerCar))}
       ${meter('Vitesse moyenne', 'avgSpeed', p.fastest?.avgSpeed, p.fastest?.avgSpeed ? `${fr(p.fastest.avgSpeed, 0)} km/h` : '—')}
       ${meter('Vitesse de pointe', 'topSpeed', p.topSpeed?.kmh, p.topSpeed ? `${p.topSpeed.kmh} km/h` : '—')}
       ${meter('Dépassements', 'gains', p.gains, `${p.gains}`)}
       ${meter('Neutralisations', 'neutral', p.neutralPct, `${fr(p.neutralPct, 0)} % des tours`)}
+      ${near.get(key)?.length ? `<div class="sz-near"><span class="muted small">Circuits les plus proches</span>${near.get(key).map((b) => `<span class="sz-tag" title="R${b.round} ${esc(b.r.name || '')}">${esc(b.r.locality || short(b.r.name))}</span>`).join('')}</div>` : ''}
     </article>`).join('')}</div>
-    <p class="muted small">Vitesse moyenne : sur le meilleur tour de la course. Dépassements : places gagnées en piste d'un tour à l'autre (hors 1er tour, arrêts et neutralisations) — une estimation. Neutralisations : tours du leader sous safety car, VSC ou drapeau rouge. Les jauges comparent les circuits de la saison entre eux.</p>`;
+    <p class="muted small">Vitesse moyenne : sur le meilleur tour de la course. Dépassements : places gagnées en piste d'un tour à l'autre (hors 1er tour, arrêts et neutralisations) — une estimation. Neutralisations : tours du leader sous safety car, VSC ou drapeau rouge. Arrêts par pilote : moyenne des pilotes à l'arrivée. Contrainte pneus : d'après le composé le plus dur choisi par Pirelli pour le Grand Prix (C1, le plus dur, pour les circuits les plus exigeants ; C3 pour les moins exigeants). Circuits les plus proches : comparaison de la longueur, du nombre de virages, des vitesses, des dépassements, des arrêts et des pneus. Les jauges comparent les circuits de la saison entre eux.</p>`;
 }
