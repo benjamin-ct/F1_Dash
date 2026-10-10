@@ -133,7 +133,8 @@ const inflate = (s) => JSON.parse(zlib.inflateRawSync(Buffer.from(s.raw, 'base64
 export function zones(key, year) {
   const name = `zones-${key}-${year}.json`;
   const cached = readCache(name);
-  if (cached) return Promise.resolve(cached);
+  // Format 2 : avec la voie des stands (les anciennes estimations sont refaites une fois)
+  if (cached?.v === 2) return Promise.resolve(cached);
   if (zoning.has(name)) return zoning.get(name);
   const job = (async () => {
     const data = await circuit(key, year);
@@ -145,17 +146,17 @@ export function zones(key, year) {
         const positions = arc.stream.filter((s) => s.topic === 'Position').map((s) => ({ data: inflate(s) }));
         const carData = arc.stream.filter((s) => s.topic === 'CarData').map((s) => ({ data: inflate(s) }));
         const res = estimateZones(track, carData, positions);
-        if (res && res.zones.length) {
+        if (res && (res.zones.length || res.pitLane)) {
           res.source = p;
           writeCache(name, res);
-          console.log(`[zones] circuit ${key} : ${res.zones.length} zones ligne droite, détection ${res.detection ? 'trouvée' : 'inconnue'} (${p})`);
+          console.log(`[zones] circuit ${key} : ${res.zones.length} zones ligne droite, détection ${res.detection ? 'trouvée' : 'inconnue'}, voie des stands ${res.pitLane ? `${res.pitLane.length} m` : 'inconnue'} (${p})`);
           return res;
         }
       } catch (err) {
         console.warn(`[zones] ${p} : ${err.message}`);
       }
     }
-    return null;
+    return cached || null;   // ancienne estimation (sans voie des stands) plutôt que rien
   })().finally(() => zoning.delete(name));
   zoning.set(name, job);
   return job;

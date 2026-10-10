@@ -661,15 +661,15 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tele-name .muted { color: var(--text-2); }
 .dial { width: 100%; max-width: 300px; display: block; }
 .dial path { fill: none; stroke-linecap: round; }
-.dl-track { stroke: var(--panel-3); stroke-width: 14; }
-.dl-speed { stroke-width: 14; }
-.dl-in { stroke: var(--panel-3); stroke-width: 10; }
-.dl-thr { stroke: #2fd17a; stroke-width: 10; }
-.dl-brk { stroke: #ff3b30; stroke-width: 10; }
+.dl-track { stroke: var(--panel-3); stroke-width: 12; }
+.dl-speed { stroke-width: 12; }
+.dl-in { stroke: var(--panel-3); stroke-width: 8; }
+.dl-thr { stroke: #2fd17a; stroke-width: 8; }
+.dl-brk { stroke: #ff3b30; stroke-width: 8; }
 .dl-tick { fill: var(--text-2); font-size: 9.5px; font-weight: 700; text-anchor: middle; }
-.dl-arc-lbl { fill: var(--text-2); font-size: 8.5px; font-weight: 800; letter-spacing: 1.2px; text-anchor: middle; }
-.dl-speed-val { fill: var(--text); font-size: 40px; font-weight: 800; text-anchor: middle; font-variant-numeric: tabular-nums; }
-.dl-rpm { fill: var(--text); font-size: 17px; font-weight: 700; text-anchor: middle; font-variant-numeric: tabular-nums; }
+.dl-arc-lbl { fill: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: 1.2px; text-anchor: middle; }
+.dl-speed-val { fill: var(--text); font-size: 36px; font-weight: 800; text-anchor: middle; font-variant-numeric: tabular-nums; }
+.dl-rpm { fill: var(--text); font-size: 15px; font-weight: 700; text-anchor: middle; font-variant-numeric: tabular-nums; }
 .dl-unit { fill: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .8px; text-anchor: middle; }
 .dl-gear { fill: var(--text); font-size: 20px; font-weight: 900; text-anchor: middle; }
 .tele-trace { width: 100%; height: 110px; }
@@ -1577,8 +1577,9 @@ body.solo #muteBtn { display: none; }
 /* Boutons du panneau (déplacer, agrandir, détacher, masquer) toujours en haut à droite : le
    contenu de l'en-tête (onglets, sélecteurs du duel…) passe à la ligne au lieu de les pousser
    hors du panneau ou sur une ligne à part. */
-.grid:not(.mobile) .panel-head { position: relative; flex-wrap: wrap; row-gap: 4px; padding-right: 116px; }
-.grid:not(.mobile) .panel-head > .panel-ctrl { position: absolute; top: 0; right: 8px; height: 100%; max-height: 40px; align-items: center; margin: 0; padding: 0; background: none; }
+.grid:not(.mobile) .panel-head { position: relative; flex-wrap: wrap; row-gap: 4px; padding-right: 116px; justify-content: flex-start; column-gap: 14px; }
+/* Boutons du panneau : centrés sur la première ligne de l'en-tête (position calculée dans layout.js) */
+.grid:not(.mobile) .panel-head > .panel-ctrl { position: absolute; top: var(--ctrl-top, 8px); right: 8px; height: 26px; align-items: center; margin: 0; padding: 0; background: none; }
 .grid:not(.mobile) .panel-head > .panel-tools { flex-wrap: wrap; min-width: 0; row-gap: 4px; }
 body.solo .grid .panel-head { padding-right: 116px; }
 /* Duel : sélecteurs qui se partagent la place */

@@ -47,3 +47,13 @@ test('zones ligne droite et détection estimées depuis la télémétrie', () =>
   // La sortie de piste de la voiture 1 a lieu sur la ligne droite du haut (y = 4000)
   assert.ok(pts[res.detection.idx].y > 3000, `détection en y=${pts[res.detection.idx].y}`);
 });
+
+test('voie des stands : moyenne des passages, passages aberrants écartés', async () => {
+  const { pitLanePath } = await import('../shared/zones.js');
+  const pass = (dy, len = 40) => Array.from({ length: len }, (_, i) => ({ x: i * 100, y: dy }));
+  const res = pitLanePath([pass(0), pass(20), pass(-20), pass(0, 80)], 5);
+  assert.equal(res.samples, 3);
+  assert.deepEqual(res.path.map((p) => p[1]), [0, 0, 0, 0, 0]);
+  assert.equal(res.path.at(-1)[0], 3900);
+  assert.equal(pitLanePath([pass(0)]), null);
+});

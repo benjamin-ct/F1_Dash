@@ -22,9 +22,13 @@ l'application (Réglages → Application → Nouveautés).
 - Nouveau dessin : piste avec trait central coloré par secteur, zones « ligne droite » en hachures vertes, numéros de virage reliés à la piste, pilotes en pastilles rondes avec leur trigramme, fond uni.
 - Les étiquettes des pilotes ne sautent plus d'un côté à l'autre dans les paquets.
 - Bandeau « Drapeau rouge » de la carte décalé pour ne plus être coupé par le cadre rouge.
+- Voie des stands sur la carte, reconstituée à partir des passages des voitures dans les stands (calque « Voie des stands »).
+
+### Panneaux
+- En-têtes : les outils (« Positions estimées », « Suivre », « Calques », « Colonnes ») sont de nouveau à côté du titre, et les boutons ⠿ ⤢ ↗ ✕ sont centrés sur la hauteur de l'en-tête dans tous les panneaux.
 
 ### Télémétrie
-- Deux compteurs côte à côte (pilote suivi et pilote au choix) : vitesse, accélérateur, frein, régime et rapport, et courbe de vitesse des deux pilotes.
+- Deux compteurs côte à côte (pilote suivi et pilote au choix) : vitesse, accélérateur, frein, régime et rapport, et courbe de vitesse des deux pilotes ; textes bien séparés des cercles.
 
 ### Replays
 - Nouvelle barre de lecture : séance en cours en vert, début et fin de chaque partie (Q1, Q2, Q3, départ, reprise), drapeaux jaunes / SC / VSC / rouges, partie lue en bleu, vitesses 1x à 30x, bouton pour revenir au direct.

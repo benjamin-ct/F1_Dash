@@ -101,7 +101,7 @@ export function estimateZones(track, carData, positions) {
         if (!series.has(num)) series.set(num, []);
         const s = series.get(num);
         const r = project(track, p.x, p.y, s.length ? s[s.length - 1].idx : -1);
-        s.push({ t, idx: r.idx, d: r.d, speed });
+        s.push({ t, idx: r.idx, d: r.d, speed, x: p.x, y: p.y });
         if (r.d > 15 * M) continue;
         bins[r.idx].push(speed, throttle >= 98 ? 1 : 0);
         if (++samples >= MAX_SAMPLES) break;
@@ -171,6 +171,7 @@ export function estimateZones(track, carData, positions) {
   // 5. Détection ≈ entrée des stands : là où une voiture qui roule au limiteur hors piste
   //    a quitté le tracé (dernier point encore sur la piste avant la voie des stands).
   const entries = [];
+  const passes = [];    // passages complets dans la voie des stands (points GPS)
   for (const s of series.values()) {
     for (let k = 0; k < s.length; k++) {
       if (!(s[k].d > 12 * M && s[k].speed > 40 && s[k].speed < 90)) continue;
@@ -179,7 +180,13 @@ export function estimateZones(track, carData, positions) {
       if (s[e - 1].t - s[k].t >= 8000) {
         let b = k;
         while (b > 0 && s[b].d > 4 * M && s[k].t - s[b].t < 20000) b--;
-        if (s[b].d <= 4 * M) entries.push(cum[s[b].idx]);
+        if (s[b].d <= 4 * M) {
+          entries.push(cum[s[b].idx]);
+          // Retour sur la piste : premier point de nouveau sur le tracé
+          let f = e;
+          while (f < s.length && s[f].d > 4 * M && s[f].t - s[e - 1].t < 20000) f++;
+          if (f < s.length && s[f].d <= 4 * M) passes.push(s.slice(b, f + 1));
+        }
       }
       k = e;
     }
@@ -193,5 +200,37 @@ export function estimateZones(track, carData, positions) {
     while (idx < n - 1 && cum[idx + 1] <= med) idx++;
     detection = { idx, samples: entries.length };
   }
-  return { zones, detection, samples };
+  return { v: 2, zones, detection, pitLane: pitLanePath(passes), samples };
+}
+
+// Voie des stands : moyenne des passages des voitures (rééchantillonnés le long de leur
+// chemin), en écartant ceux dont la longueur s'éloigne de la médiane (arrêt atypique, GPS).
+export function pitLanePath(passes, n = 80) {
+  const resample = (pts) => {
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+    const L = cum.at(-1);
+    if (!(L > 0)) return null;
+    const out = [];
+    let j = 0;
+    for (let k = 0; k < n; k++) {
+      const target = (L * k) / (n - 1);
+      while (j < pts.length - 2 && cum[j + 1] < target) j++;
+      const u = cum[j + 1] > cum[j] ? (target - cum[j]) / (cum[j + 1] - cum[j]) : 0;
+      out.push([pts[j].x + (pts[j + 1].x - pts[j].x) * u, pts[j].y + (pts[j + 1].y - pts[j].y) * u]);
+    }
+    return { L, out };
+  };
+  const rs = passes.filter((p) => p.length >= 6).map(resample).filter(Boolean);
+  if (rs.length < 2) return null;
+  const lens = rs.map((r) => r.L).sort((a, b) => a - b);
+  const med = lens[lens.length >> 1];
+  const keep = rs.filter((r) => Math.abs(r.L - med) <= med * 0.2);
+  if (keep.length < 2 || med < 150 * M || med > 1500 * M) return null;
+  const path = [];
+  for (let k = 0; k < n; k++) {
+    const xs = keep.map((r) => r.out[k][0]).sort((a, b) => a - b), ys = keep.map((r) => r.out[k][1]).sort((a, b) => a - b);
+    path.push([Math.round(xs[xs.length >> 1]), Math.round(ys[ys.length >> 1])]);
+  }
+  return { path, length: Math.round(med / M), samples: keep.length };
 }

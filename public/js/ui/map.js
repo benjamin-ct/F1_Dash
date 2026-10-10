@@ -187,6 +187,66 @@ function badge(x, y, text, bg, fg) {
 }
 
 // Zones « ligne droite » (straight mode) et ligne de détection du mode dépassement.
+// Voie des stands (estimée à partir des passages des voitures, voir shared/zones.js) : route
+// plus étroite et plus sombre que la piste, pointillés au milieu, étiquette « STANDS »
+function drawPitLane(W) {
+  const pl = zones?.pitLane?.path;
+  if (!pl?.length || !$('#mapPit').checked) return;
+  const raw = pl.map(([x, y]) => xf(x, y));
+  const w = Math.max(4, W * 0.5);
+  // La voie des stands longe souvent la piste à quelques mètres : à l'écran elle serait cachée
+  // sous la piste. On l'écarte juste à côté (toujours du même côté), en douceur à l'entrée et à la sortie.
+  const tr = xf.screen;
+  const near = raw.map(([x, y]) => {
+    let bi = 0, bd = Infinity;
+    for (let i = 0; i < tr.length; i++) { const d = (tr[i][0] - x) ** 2 + (tr[i][1] - y) ** 2; if (d < bd) { bd = d; bi = i; } }
+    const a = tr[(bi - 2 + tr.length) % tr.length], b = tr[(bi + 2) % tr.length];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return { q: tr[bi], nx: -(b[1] - a[1]) / len, ny: (b[0] - a[0]) / len };
+  });
+  const side = Math.sign(near.reduce((t, n, i) => t + (raw[i][0] - n.q[0]) * n.nx + (raw[i][1] - n.q[1]) * n.ny, 0)) || 1;
+  const gap = W / 2 + w / 2 + 3;
+  const pts = raw.map((p, i) => {
+    const n = near[i];
+    const k = Math.min(1, i / 8, (raw.length - 1 - i) / 8);
+    const off = (p[0] - n.q[0]) * n.nx * side + (p[1] - n.q[1]) * n.ny * side;
+    const want = gap * k;
+    return off >= want ? p : [p[0] + n.nx * side * (want - off), p[1] + n.ny * side * (want - off)];
+  });
+  const line = () => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  };
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  line();
+  ctx.strokeStyle = pal().outline;
+  ctx.lineWidth = w + 4;
+  ctx.stroke();
+  ctx.strokeStyle = pal().edge;
+  ctx.lineWidth = w + 2;
+  ctx.stroke();
+  ctx.strokeStyle = '#4a4a55';
+  ctx.lineWidth = w;
+  ctx.stroke();
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = 'rgba(255, 255, 255, .7)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Étiquette au milieu de la voie
+  const m = pts[pts.length >> 1], a = pts[(pts.length >> 1) - 2], b = pts[(pts.length >> 1) + 2];
+  const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  let nx = -(b[1] - a[1]) / len, ny = (b[0] - a[0]) / len;
+  // Du côté opposé à la piste
+  const mn = near[pts.length >> 1];
+  if ((nx * mn.nx + ny * mn.ny) * side < 0) { nx = -nx; ny = -ny; }
+  badge(m[0] + nx * (w / 2 + 14), m[1] + ny * (w / 2 + 14), 'STANDS', '#3a3a44', '#e6e6ee');
+  ctx.restore();
+}
+
 function drawZones() {
   if (!zones || !$('#mapZones').checked) return;
   const pts = xf.screen;
@@ -637,6 +697,7 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
 
   // Tracé : ombre portée, bordure (limites de piste), asphalte
   const W = trackWidth();
+  drawPitLane(W);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   const path = () => {
@@ -952,7 +1013,7 @@ function drawCars(dt) {
 }
 
 // Cases de la carte mémorisées d'une session à l'autre
-const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapTrails', 'mapGrid'];
+const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapPit', 'mapTrails', 'mapGrid'];
 
 function initMapOptions() {
   const saved = storageGet('f1dash.mapOpts', {});

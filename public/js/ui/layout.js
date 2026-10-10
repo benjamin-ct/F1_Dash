@@ -804,6 +804,19 @@ function checkProfile() {
 
 export const currentProfile = () => profile;
 
+// Boutons ⠿ ⤢ ↗ ✕ centrés sur la hauteur de la première ligne de l'en-tête (titre, outils ou
+// onglets), quelle que soit sa hauteur réelle (thème, boutons « Calques », onglets sur 2 lignes)
+function alignCtrl(head) {
+  const items = [...head.children].filter((x) => !x.classList.contains('panel-ctrl') && x.offsetParent);
+  if (!items.length) return;
+  const top = head.getBoundingClientRect().top;
+  const firstTop = Math.min(...items.map((x) => x.getBoundingClientRect().top));
+  const row = items.filter((x) => x.getBoundingClientRect().top < firstTop + 6).map((x) => x.getBoundingClientRect());
+  const mid = (Math.min(...row.map((r) => r.top)) + Math.max(...row.map((r) => r.bottom))) / 2 - top;
+  head.style.setProperty('--ctrl-top', `${Math.max(0, Math.round(mid - 13))}px`);
+}
+const headObserver = 'ResizeObserver' in window ? new ResizeObserver((entries) => { for (const e of entries) alignCtrl(e.target); }) : null;
+
 // ---------------- Initialisation ----------------
 export function initLayout() {
   if (!isMain) {
@@ -821,6 +834,7 @@ export function initLayout() {
       + (isMain ? '<button data-act="hide" title="Masquer ce panneau (réaffichable dans ⚙ Réglages)">✕</button>'
         : '<button data-act="back" title="Remettre ce panneau dans la fenêtre principale">↙</button>');
     head.appendChild(ctrl);
+    headObserver?.observe(head);
     ctrl.querySelector('.lgrip').addEventListener('pointerdown', (e) => {
       if (narrow() || mobile()) return;
       if (layout.free) freeDrag(p.id, e, 'move'); else startDrag(p.id, e);

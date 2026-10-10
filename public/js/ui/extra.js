@@ -26,7 +26,7 @@ function arc(cx, cy, r, a0, a1) {
   return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${large} ${a1 > a0 ? 1 : 0} ${x1.toFixed(1)} ${y1.toFixed(1)}`;
 }
 function dial(c, color, uid) {
-  const cx = 120, cy = 112, R = 92, r = 70;
+  const cx = 130, cy = 128, R = 98, r = 64;
   const sp = Math.max(0, Math.min(SPEED_MAX, c?.speed || 0));
   const thr = Math.max(0, Math.min(100, c?.thr || 0));
   const brk = c?.brk > 0 ? 100 : 0;
@@ -34,13 +34,15 @@ function dial(c, color, uid) {
   let ticks = '';
   for (let v = 0; v <= SPEED_MAX; v += 60) {
     const a = ((-135 + (270 * v) / SPEED_MAX) * Math.PI) / 180;
-    const tx = cx + (R + 14) * Math.sin(a), ty = cy - (R + 14) * Math.cos(a);
+    const tx = cx + (R + 19) * Math.sin(a), ty = cy - (R + 19) * Math.cos(a);
     ticks += `<text x="${tx.toFixed(1)}" y="${(ty + 3).toFixed(1)}" class="dl-tick">${v || ''}</text>`;
   }
   // Arcs intérieurs : accélérateur de -130° à -20° (rempli depuis le bas), frein en miroir
   const thrEnd = -130 + (110 * thr) / 100;
-  return `<svg viewBox="0 0 240 230" class="dial">
-    <defs><path id="thr${uid}" d="${arc(cx, cy, r + 9, -128, -22)}"/><path id="brk${uid}" d="${arc(cx, cy, r + 9, 22, 128)}"/></defs>
+  // Libellés au milieu de l'espace entre l'anneau de vitesse et les arcs intérieurs
+  const mid = (R - 6 + r + 4) / 2 - 3;
+  return `<svg viewBox="0 0 260 248" class="dial">
+    <defs><path id="thr${uid}" d="${arc(cx, cy, mid, -122, -28)}"/><path id="brk${uid}" d="${arc(cx, cy, mid, 28, 122)}"/></defs>
     <path d="${arc(cx, cy, R, -135, 135)}" class="dl-track"/>
     ${sp > 0 ? `<path d="${arc(cx, cy, R, -135, aS)}" class="dl-speed" style="stroke:${color}"/>` : ''}
     ${ticks}
@@ -50,17 +52,17 @@ function dial(c, color, uid) {
     ${brk ? `<path d="${arc(cx, cy, r, 130, 20)}" class="dl-brk"/>` : ''}
     <text class="dl-arc-lbl"><textPath href="#thr${uid}" startOffset="50%">ACCÉLÉRATEUR</textPath></text>
     <text class="dl-arc-lbl"><textPath href="#brk${uid}" startOffset="50%">FREIN</textPath></text>
-    <text x="${cx}" y="${cy - 2}" class="dl-speed-val">${c?.speed ?? '—'}</text>
-    <text x="${cx}" y="${cy + 14}" class="dl-unit">KM/H</text>
-    <text x="${cx}" y="${cy + 38}" class="dl-rpm">${c?.rpm ?? '—'}</text>
-    <text x="${cx}" y="${cy + 51}" class="dl-unit">TR/MIN</text>
-    <text x="${cx}" y="${cy + 92}" class="dl-gear"><tspan class="dl-unit">RAPPORT </tspan>${c?.gear === 0 ? 'N' : c?.gear ?? '—'}</text>
+    <text x="${cx}" y="${cy - 6}" class="dl-speed-val">${c?.speed ?? '—'}</text>
+    <text x="${cx}" y="${cy + 10}" class="dl-unit">KM/H</text>
+    <text x="${cx}" y="${cy + 33}" class="dl-rpm">${c?.rpm ?? '—'}</text>
+    <text x="${cx}" y="${cy + 46}" class="dl-unit">TR/MIN</text>
+    <text x="${cx}" y="${cy + 108}" class="dl-gear"><tspan class="dl-unit">RAPPORT </tspan>${c?.gear === 0 ? 'N' : c?.gear ?? '—'}</text>
   </svg>`;
 }
 
 // Vitesse des 30 dernières secondes, un trait par pilote
-function speedTrace(series) {
-  const W = 600, H = 110, pl = 30, pr = 6, pt = 6, pb = 16;
+function speedTrace(series, width = 600) {
+  const W = Math.max(300, Math.round(width)), H = 110, pl = 30, pr = 6, pt = 6, pb = 16;
   const all = series.flatMap((s) => s.pts.map((p) => p.y));
   if (!all.length) return '<div class="muted small">Pas encore de trace.</div>';
   const lo = Math.max(0, Math.min(...all) - 10), hi = Math.max(lo + 50, Math.max(...all) + 10);
@@ -69,7 +71,7 @@ function speedTrace(series) {
   let grid = '';
   for (const v of [lo, (lo + hi) / 2, hi]) grid += `<line x1="${pl}" x2="${W - pr}" y1="${Y(v)}" y2="${Y(v)}" class="sz-gl"/><text x="${pl - 4}" y="${Y(v) + 3}" class="sz-ax" text-anchor="end">${Math.round(v)}</text>`;
   for (const x of [-30, -20, -10, 0]) grid += `<text x="${X(x)}" y="${H - 3}" class="sz-ax" text-anchor="middle">${x ? `${x} s` : 'maint.'}</text>`;
-  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg tele-trace" preserveAspectRatio="none">${grid}${series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dash ? 'stroke-dasharray="5 4"' : ''} points="${s.pts.map((p) => `${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join(' ')}"/>`).join('')}</svg>`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="sz-svg tele-trace">${grid}${series.map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2" ${s.dash ? 'stroke-dasharray="5 4"' : ''} points="${s.pts.map((p) => `${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join(' ')}"/>`).join('')}</svg>`;
 }
 
 export function renderTelemetry() {
@@ -131,7 +133,7 @@ export function renderTelemetry() {
       dash: i && dl[n]?.TeamName === dl[num]?.TeamName,
       pts: store.positions.carHistory(n, disp - 30000, disp).map((h) => ({ x: (h.t - disp) / 1000, y: h.speed || 0 })),
     }));
-    $('#teleTrace').innerHTML = speedTrace(series);
+    $('#teleTrace').innerHTML = speedTrace(series, $('#teleTrace').clientWidth);
   }
 }
 const teamColorOf = (d) => teamColor(d || {});
