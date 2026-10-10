@@ -81,6 +81,7 @@ function multiChart(canvas, series, o) {
 
   // Séries (la série mise en avant est dessinée en dernier, plus épaisse)
   const order = [...series].sort((a, b) => (a.num === highlight) - (b.num === highlight));
+  const labels = [];
   for (const s of order) {
     if (s.points.length < 1) continue;
     const dim = highlight && s.num !== highlight;
@@ -97,11 +98,24 @@ function multiChart(canvas, series, o) {
     // Marque d'arrêt aux stands
     ctx.fillStyle = s.color;
     for (const p of s.points) if (p.pit) { ctx.beginPath(); ctx.arc(X(p.x), Math.max(padT, Math.min(H - padB, Y(p.y))), 3, 0, Math.PI * 2); ctx.fill(); }
-    // Étiquette en bout de courbe
+    // Étiquette en bout de courbe (placée après, sans chevauchement)
     const last = s.points[s.points.length - 1];
-    ctx.font = '700 10.5px "Titillium Web", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText(s.label, X(last.x) + 4, Math.max(padT + 5, Math.min(H - padB - 5, Y(last.y))));
+    labels.push({ s, x: X(last.x) + 4, y: Math.max(padT + 5, Math.min(H - padB - 5, Y(last.y))), alpha: dim ? 0.25 : 1 });
   }
+  // Étiquettes : écartées verticalement quand elles se touchent (même fin de courbe)
+  const GAP = 11;
+  labels.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++) {
+    const prev = labels[i - 1], cur = labels[i];
+    if (Math.abs(cur.x - prev.x) < 34 && cur.y - prev.y < GAP) cur.y = prev.y + GAP;
+  }
+  for (let i = labels.length - 2; i >= 0; i--) {
+    const next = labels[i + 1], cur = labels[i];
+    if (next.y > H - padB - 5) next.y = H - padB - 5;
+    if (Math.abs(cur.x - next.x) < 34 && next.y - cur.y < GAP) cur.y = next.y - GAP;
+  }
+  ctx.font = '700 10.5px "Titillium Web", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  for (const l of labels) { ctx.globalAlpha = l.alpha; ctx.fillStyle = l.s.color; ctx.fillText(l.s.label, l.x, l.y); }
   ctx.globalAlpha = 1;
 
   // Réticule

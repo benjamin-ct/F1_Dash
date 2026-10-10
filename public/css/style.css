@@ -91,7 +91,7 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .topbar > .spacer { flex-shrink: 1; min-width: 0; }
 
 .brand { display: flex; align-items: center; gap: 6px; font-weight: 900; letter-spacing: .5px; }
-.logo { background: var(--accent); color: #fff; padding: 1px 7px; border-radius: 5px; font-style: italic; }
+.logo { width: 28px; height: 28px; display: block; flex: none; }
 .brand-name { font-size: 16px; }
 .session { min-width: 180px; max-width: 360px; }
 .session-name { font-weight: 700; font-size: 15px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1181,7 +1181,6 @@ body.solo #muteBtn { display: none; }
 [data-theme="f1"] body { border-top: 2px solid var(--accent); }
 [data-theme="f1"] .topbar { background: var(--bg); border-bottom-color: var(--border); }
 [data-theme="f1"] .brand, [data-theme="f1"] .brand-name { font-weight: 700; }
-[data-theme="f1"] .logo { border-radius: 3px; font-weight: 900; }
 [data-theme="f1"] .track-status { border-radius: 999px; font-weight: 600; letter-spacing: .3px; text-transform: none; min-width: 0; padding: 5px 13px; border: 1px solid transparent; }
 [data-theme="f1"] .track-status:not(.yellow):not(.sc):not(.vsc):not(.red):not(.chequered) { background: transparent; border-color: var(--border); color: var(--text); }
 [data-theme="f1"] .track-status.green .ts-dot { background: var(--green); box-shadow: 0 0 0 3px rgba(53, 208, 127, .18); }
@@ -1273,8 +1272,7 @@ body.solo #muteBtn { display: none; }
   [data-theme="pro"] body:not(.solo) .season-view { left: var(--rail-w); }
   [data-theme="pro"] body:not(.solo) .comm-panel { right: auto; left: calc(var(--rail-w) + 10px); }
 }
-.rail-logo { width: 38px; height: 26px; background: var(--accent); color: #fff; border-radius: 4px; display: grid; place-items: center;
-  font-weight: 900; font-style: italic; font-size: 14px; margin-bottom: 14px; flex: none; }
+.rail-logo { width: 38px; height: 38px; display: block; margin-bottom: 12px; flex: none; filter: drop-shadow(0 4px 10px rgba(225, 6, 0, .25)); }
 .rail-btn { width: 46px; height: 46px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); position: relative;
   background: none; border: 0; padding: 0; cursor: pointer; flex: none; transition: color .15s, background-color .15s; }
 .rail-btn:hover { color: var(--text-2); background: var(--panel-2); }
@@ -1449,3 +1447,37 @@ body.solo #muteBtn { display: none; }
 @container (max-width: 520px) { .ty-comps { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .ty-comp { padding: 6px 8px; gap: 7px; } .ty-comp .tyre { width: 22px; height: 22px; } .ty-comp b { font-size: 16px; } }
 .auth-pill { border-color: var(--orange); bottom: 72px; max-width: min(620px, calc(100vw - 36px)); }
+
+/* ================= Correctifs d'interface ================= */
+/* Boutons du panneau (déplacer, agrandir, détacher, masquer) toujours en haut à droite : le
+   contenu de l'en-tête (onglets, sélecteurs du duel…) passe à la ligne au lieu de les pousser
+   hors du panneau ou sur une ligne à part. */
+.grid:not(.mobile) .panel-head { position: relative; flex-wrap: wrap; row-gap: 4px; padding-right: 116px; }
+.grid:not(.mobile) .panel-head > .panel-ctrl { position: absolute; top: 0; right: 8px; height: 100%; max-height: 40px; align-items: center; margin: 0; padding: 0; background: none; }
+.grid:not(.mobile) .panel-head > .panel-tools { flex-wrap: wrap; min-width: 0; row-gap: 4px; }
+body.solo .grid .panel-head { padding-right: 116px; }
+/* Duel : sélecteurs qui se partagent la place */
+.duel-pick { flex: 1 1 auto; justify-content: flex-end; }
+.duel-pick select { flex: 1 1 110px; min-width: 0; max-width: 150px; }
+.grid.mobile .p-duel .duel-pick { flex-wrap: wrap; justify-content: flex-start; }
+
+/* Légendes : jamais plus d'un tiers du panneau (défilent au-delà) */
+.panel-legend { max-height: 33%; overflow-y: auto; flex-shrink: 1; min-height: 0; }
+.grid.mobile .panel-legend { max-height: 26%; }
+/* Réglages : hauteur fixe, la fenêtre ne saute plus d'un onglet à l'autre */
+@media (min-width: 901px) {
+  #settingsModal[open] { height: min(720px, calc(100vh - 60px)); display: flex; flex-direction: column; overflow: hidden; }
+  #settingsModal .modal-body { flex: 1; overflow-y: auto; min-height: 0; }
+}
+/* Écran peu haut (portable 1366×768…) : les panneaux gardent une taille utile et la page défile ;
+   barre du haut et barre de replay restent visibles */
+@media (min-width: 901px) and (max-height: 860px) {
+  body:not(.solo) { overflow-y: auto; }
+  body:not(.solo) .grid:not(.has-max) { flex: none; height: 1000px; }
+  body:not(.solo) .topbar { position: sticky; top: 0; z-index: 60; }
+  [data-theme="pro"] body:not(.solo) .replaybar { position: sticky; bottom: 0; z-index: 60; }
+}
+/* Anciens thèmes : un peu de marge pour la barre de défilement sur portable */
+@media (max-width: 1450px) {
+  :root:not([data-theme="pro"]) .topbar { gap: 7px; }
+}

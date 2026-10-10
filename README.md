@@ -1,3 +1,5 @@
+<img src="public/icon-512.png" alt="F1 Dash" width="84" align="right">
+
 # 🏁 F1 Dash
 
 Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordinateur, **calé sur le délai de votre diffusion TV** (Canal+, myCANAL…). Windows, macOS et Linux.
