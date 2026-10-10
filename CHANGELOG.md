@@ -4,7 +4,7 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.17.0 — à venir
+## v1.17.0 — 2026-10-10
 
 ### Télémétrie
 - Animation ultra fluide : compteurs et courbe de vitesse mis à jour à chaque image de l'écran, avec des valeurs interpolées entre les mesures de la F1 (3 à 4 par seconde) au lieu d'avancer par à-coups.
