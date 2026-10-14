@@ -6,7 +6,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 
 ![F1 Dash pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
 
-<sub>Design « F1 Pro » (par défaut). Les designs précédents restent disponibles dans Réglages → Affichage (voir plus bas).</sub>
+<sub>Design « Pitwall » (par défaut). Les designs précédents restent disponibles dans Réglages → Affichage (voir plus bas).</sub>
 
 ## ✨ En bref
 
@@ -20,6 +20,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Direction de course et enquêtes**, avec les documents officiels de la FIA.
 - **Radios d'équipe** retranscrites et traduites en français, sur votre ordinateur.
 - **Commentaires F1 TV Pro** ou radio de votre choix, synchronisés sur le dashboard.
+- **Espace Actu** : toute l'actualité de la F1 au même endroit (F1, FIA, chaînes officielles des écuries et des pilotes, une trentaine de médias en 8 langues), traduite en français, regroupée par sujet, avec alertes et anti-spoiler.
 - **Espace Saison** : calendrier, classements, notes des pilotes (S à F), écart en qualification entre coéquipiers, statistiques par pilote, régularité, arrêts, vitesses, profils des circuits, évolutions techniques et éléments moteur (documents FIA).
 - **Replays** de toutes les sessions archivées, disposition libre des panneaux, second écran.
 - **Sur votre téléphone ou tablette** : l'ordinateur affiche un QR code ; scannez-le pour retrouver le dashboard sur le réseau Wi-Fi de la maison, calé sur le même délai TV.
@@ -30,9 +31,11 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 | ![Analyse : rythme](docs/screenshots/analyse-rythme.png) | ![Saison : accueil](docs/screenshots/saison-accueil.png) |
 | ![Saison : fiche pilote](docs/screenshots/saison-pilote.png) | ![Saison : évolutions techniques](docs/screenshots/saison-evolutions-techniques.png) |
 
-**Quatre designs au choix** (Réglages → Affichage → Thème) : F1 Pro (par défaut), F1 sobre, Classique et Bleu nuit.
+![Espace Actu : l'actualité de la F1 traduite en français](docs/screenshots/actu.png)
 
-![Les quatre designs : F1 Pro, F1 sobre, Classique, Bleu nuit](docs/screenshots/themes.png)
+**Cinq designs au choix** (Réglages → Affichage → Thème) : Pitwall (par défaut), F1 Pro, F1 sobre, Classique et Bleu nuit.
+
+![Les cinq designs : Pitwall, F1 Pro, F1 sobre, Classique, Bleu nuit](docs/screenshots/themes.png)
 
 ## 🚀 Installation
 
@@ -66,7 +69,7 @@ Tout fonctionne sans compte. Avec F1 TV, connectez-vous dans ⚙ Réglages pour 
 
 Sur l'ordinateur : ⚙ Réglages → Application → **« Autoriser l'accès depuis le réseau local »**, puis scannez le QR code avec le téléphone (même Wi-Fi). Le téléphone reprend le délai TV de l'ordinateur et affiche un panneau à la fois, avec des onglets en bas. Pour l'avoir comme une appli : « Ajouter à l'écran d'accueil ». Détails dans le [guide](docs/GUIDE.md#-sur-téléphone-ou-tablette).
 
-![F1 Dash sur téléphone : classement, carte et analyse](docs/screenshots/telephone.png)
+![F1 Dash sur téléphone : classement, carte et actualités](docs/screenshots/telephone.png)
 
 ## ⌨ Raccourcis
 
