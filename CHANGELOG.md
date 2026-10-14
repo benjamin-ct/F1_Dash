@@ -4,7 +4,21 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.17.2 — à venir
+## v1.18.0 — à venir
+
+### Nouveau design « Pitwall »
+- Nouveau thème par défaut, repensé de zéro en gardant l'esprit mur des stands : fond plus profond, panneaux en cartes arrondies, couleurs de chronométrage plus lisibles (violet, vert, jaune), barre latérale avec libellés sous les icônes. L'ancien thème « F1 Pro » reste disponible dans ⚙ → Affichage → Thème.
+- Nouvelles polices intégrées à l'application (fonctionnent hors ligne) : Saira pour l'interface, Saira Condensed pour les titres et trigrammes, JetBrains Mono pour tous les chiffres (temps, écarts, compte à rebours), qui ne « dansent » plus quand ils changent.
+- Classement : pilote suivi surligné en rouge, pastilles de pneus en anneau, mini-secteurs plus fins.
+- Barre de replay : bouton lecture/pause plus grand.
+
+### Carte
+- Position de chaque pilote affichée sur sa pastille, anneau jaune autour du leader.
+- En course, écarts de moins d'une seconde entre deux voitures affichés directement sur la piste (en vert sous 0,7 s).
+- Bulle de télémétrie du pilote suivi (vitesse, rapport, régime, accélérateur, frein, écart avec la voiture de devant) à côté de sa voiture ; plus compacte sur une petite carte.
+- Bandeau « ordre en piste » en bas de la carte : tout le peloton placé sur le tour, secteurs et drapeaux compris.
+- Thème Pitwall : meilleur temps de chaque secteur (avec le pilote) affiché au début du secteur, zones de ligne droite nommées (« LD A1 »…).
+- Chaque nouveauté se désactive dans le menu Calques (« Positions », « Écarts de moins d'une seconde », « Télémétrie du pilote suivi », « Ordre sur la piste »).
 
 ### Radios
 - Transcription et traduction en haute qualité plus fiables : un échec passager (téléchargement, mémoire de la carte graphique) ne fait plus passer définitivement les deux en qualité légère. Seul le modèle concerné passe en qualité légère, et la haute qualité est retentée automatiquement.

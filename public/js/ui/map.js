@@ -1,5 +1,5 @@
 // Carte du circuit : tracé, secteurs sous drapeau, voitures (GPS ou estimées), virages.
-import { store, displayNow, f1Now, on } from '../store.js';
+import { store, displayNow, f1Now, on, versionOf } from '../store.js';
 import { prefs, setPref } from '../prefs.js';
 import { $, api, drivers, teamColor, storageGet, storageSet } from '../util.js';
 import { loadTrack } from '../track.js';
@@ -22,6 +22,11 @@ const PALETTES = {
     glow: 'rgba(255,255,255,.035)', dots: 'rgba(255,255,255,.07)',
     chip: 'rgba(14,14,17,.94)', chipEdge: '#44444e', chipText: '#d4d4dc', label: 'rgba(8,8,10,.9)', ring: '#000000',
   },
+  pitwall: {
+    outline: '#050608', edge: 'rgba(255,255,255,.09)', track: '#262B34', trackLine: '#4A5260',
+    glow: 'rgba(96,165,250,.035)', dots: 'rgba(255,255,255,.05)',
+    chip: 'rgba(14,17,22,.96)', chipEdge: '#3A414D', chipText: '#B4BAC4', label: 'rgba(7,8,10,.92)', ring: '#07080A',
+  },
   bleu: {
     outline: '#06080c', edge: 'rgba(190,210,255,.18)', track: '#2c3446', trackLine: '#566079',
     glow: 'rgba(90,130,220,.06)', dots: 'rgba(170,195,255,.08)',
@@ -29,6 +34,10 @@ const PALETTES = {
   },
 };
 const pal = () => PALETTES[document.documentElement.dataset.theme] || PALETTES.noir;
+const pitwall = () => document.documentElement.dataset.theme === 'pitwall';
+// Polices de la carte : Saira Condensed (thème Pitwall) ou Titillium Web ; chiffres en chasse fixe
+const FONT = () => (pitwall() ? '"Saira Condensed", "Titillium Web", sans-serif' : '"Titillium Web", sans-serif');
+const MONO = () => (pitwall() ? '"JetBrains Mono", Consolas, monospace' : '"Titillium Web", sans-serif');
 
 // Largeur de la piste à l'écran : proportionnelle à la taille de la carte, élargie au zoom.
 function trackWidth() {
@@ -100,10 +109,12 @@ function makeTransform() {
     if (ry < minY) minY = ry; if (ry > maxY) maxY = ry;
   }
   const pad = 36;
+  // Place laissée en bas pour la bande « ordre sur la piste »
+  const below = $('#mapRibbon2')?.checked ? 44 : 0;
   const bw = maxX - minX || 1, bh = maxY - minY || 1;
-  const scale = Math.min((size.w - pad * 2) / bw, (size.h - pad * 2) / bh);
+  const scale = Math.min((size.w - pad * 2) / bw, (size.h - below - pad * 2) / bh);
   const ox = (size.w - bw * scale) / 2 - minX * scale;
-  const oy = (size.h - bh * scale) / 2 - minY * scale;
+  const oy = (size.h - below - bh * scale) / 2 - minY * scale;
   const f = (x, y) => {
     const [rx, ry] = rot(x, y);
     return [rx * scale + ox, ry * scale + oy];
@@ -173,13 +184,14 @@ function strokeOffset(from, to, off) {
   ctx.stroke();
 }
 
-function badge(x, y, text, bg, fg) {
-  ctx.font = '800 9.5px "Titillium Web", sans-serif';
-  const w = ctx.measureText(text).width + 8;
+function badge(x, y, text, bg, fg, edge) {
+  ctx.font = `800 ${pitwall() ? 10.5 : 9.5}px ${FONT()}`;
+  const w = ctx.measureText(text).width + (pitwall() ? 12 : 8);
   ctx.fillStyle = bg;
   ctx.beginPath();
-  ctx.roundRect(x - w / 2, y - 8, w, 16, 4);
+  ctx.roundRect(x - w / 2, y - 8, w, 16, pitwall() ? 5 : 4);
   ctx.fill();
+  if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke(); }
   ctx.fillStyle = fg;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -264,6 +276,17 @@ function drawZones() {
     strokeOffset(z.from, z.to, W / 2 + 3.5);
     strokeOffset(z.from, z.to, -(W / 2 + 3.5));
     ctx.setLineDash([]);
+  }
+  // Nom de chaque zone (officiel : A1, A2…) au milieu, à l'extérieur de la piste
+  if (pitwall() || zones.official) {
+    zones.zones.forEach((z, k) => {
+      const len = (z.to - z.from + n) % n;
+      const i = (z.from + Math.floor(len / 2)) % n;
+      const p = pts[i], a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
+      const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const nx = -(b[1] - a[1]) / l, ny = (b[0] - a[0]) / l;
+      badge(p[0] + nx * (W / 2 + 22), p[1] + ny * (W / 2 + 22), `LD ${z.name || k + 1}`, '#0E1116', '#34D399', '#34D399');
+    });
   }
   ctx.lineCap = 'round';
   // Mode dépassement : point de détection (rose) et point d'activation (vert), officiels (plan FIA
@@ -358,7 +381,7 @@ function timingLayout() {
   }
   // Distance de chaque virage sur le tracé (pour décrire les zones sous drapeau)
   const corners = track.corners.map((c) => ({ number: c.number, r: track.t[track.nearestIndex(c.x, c.y)] }));
-  layoutCache = { key, sectors, minis, counts, corners };
+  layoutCache = { key, sectors, minis, counts, corners, qb };
   return layoutCache;
 }
 
@@ -462,19 +485,55 @@ function drawSectorLabels(lay) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const W = trackWidth();
+  const best = pitwall() ? bestSectors() : [];
   for (const sec of lay.sectors) {
     const p = screenAt(sec.from + sec.len / 2);
+    const b = best[sec.i];
+    if (b) {
+      // Pastille « S1 · 38.178 · RUS » : meilleur temps du secteur et son auteur
+      const x = p.x - p.nx * (W / 2 + 22), y = p.y - p.ny * (W / 2 + 22);
+      ctx.font = `700 11px ${FONT()}`;
+      const head = `S${sec.i + 1}`;
+      const hw = ctx.measureText(head).width + 10;
+      ctx.font = `600 10.5px ${MONO()}`;
+      const tw = ctx.measureText(b.time).width;
+      ctx.font = `700 11px ${FONT()}`;
+      const nw = ctx.measureText(b.tla).width;
+      const w = hw + tw + nw + 18;
+      ctx.fillStyle = 'rgba(14,17,22,.96)';
+      ctx.beginPath();
+      ctx.roundRect(x - w / 2, y - 10, w, 20, 6);
+      ctx.fill();
+      ctx.strokeStyle = SECTOR_COLORS[sec.i];
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = SECTOR_COLORS[sec.i];
+      ctx.beginPath();
+      ctx.roundRect(x - w / 2, y - 10, hw, 20, [6, 0, 0, 6]);
+      ctx.fill();
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(head, x - w / 2 + 5, y + 0.5);
+      ctx.fillStyle = '#C084FC';
+      ctx.font = `600 10.5px ${MONO()}`;
+      ctx.fillText(b.time, x - w / 2 + hw + 6, y + 0.5);
+      ctx.fillStyle = '#F1F3F6';
+      ctx.font = `700 11px ${FONT()}`;
+      ctx.fillText(b.tla, x - w / 2 + hw + tw + 12, y + 0.5);
+      ctx.textAlign = 'center';
+      continue;
+    }
     const x = p.x - p.nx * (W / 2 + 16), y = p.y - p.ny * (W / 2 + 16);
     ctx.fillStyle = SECTOR_COLORS[sec.i];
     ctx.beginPath();
     ctx.roundRect(x - 13, y - 9, 26, 18, 4);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.font = '800 11px "Titillium Web", sans-serif';
+    ctx.font = `800 11px ${FONT()}`;
     ctx.fillText(`S${sec.i + 1}`, x, y + 0.5);
   }
   if ($('#mapMiniNums').checked && view.z >= 1.5) {
-    ctx.font = '700 9.5px "Titillium Web", sans-serif';
+    ctx.font = `700 9.5px ${FONT()}`;
     for (const sec of lay.sectors) {
       const mins = lay.minis.filter((m) => m.i === sec.i);
       let prev = sec.from;
@@ -487,6 +546,19 @@ function drawSectorLabels(lay) {
       });
     }
   }
+}
+
+// Meilleur temps de chaque secteur dans la séance et son auteur : [{ time, tla }] (S1, S2, S3)
+function bestSectors() {
+  const s = store.state;
+  const dl = drivers(s);
+  const out = [];
+  for (const [num, l] of Object.entries(s.TimingStats?.Lines || {})) {
+    list(l?.BestSectors).slice(0, 3).forEach((b, i) => {
+      if (b?.Position === 1 && b.Value) out[i] = { time: b.Value, tla: dl[num]?.Tla || num };
+    });
+  }
+  return out;
 }
 
 // Position estimée de la voiture de sécurité : juste devant le leader.
@@ -551,7 +623,7 @@ function draw() {
 
   const animated = red || scMode || [...flags.values()].includes('DOUBLE YELLOW');
   const bgKey = [size.w, size.h, size.dpr, view.x.toFixed(1), view.y.toFixed(1), view.z.toFixed(3), ts, [...flags].join(),
-    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.theme].join('|');
+    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.theme, pitwall() ? versionOf(['TimingStats']) : 0].join('|');
   let flagZones;
   if (!animated && bg.key === bgKey && bg.canvas) {
     ctx.drawImage(bg.canvas, 0, 0, size.w, size.h);
@@ -577,6 +649,7 @@ function draw() {
   }
 
   drawCars(dt);
+  drawRibbon(lay, flagZones);
 
   // Voiture de sécurité : position estimée juste devant le leader
   if (sc && !red) {
@@ -591,7 +664,7 @@ function draw() {
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.fillStyle = '#1d1200';
-      ctx.font = '900 11px "Titillium Web", sans-serif';
+      ctx.font = `900 11px ${FONT()}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('SC', p.x, p.y + 0.5);
@@ -770,7 +843,7 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
       ctx.roundRect(x - 14, y - 9, 28, 18, 4);
       ctx.fill();
       ctx.fillStyle = '#1a1500';
-      ctx.font = '800 10.5px "Titillium Web", sans-serif';
+      ctx.font = `800 10.5px ${FONT()}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(`${dbl ? '⚑⚑' : '⚑'}${r.number}`, x, y + 0.5);
@@ -783,7 +856,7 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
   // Numéros de virage (pastilles à l'extérieur de la piste)
   if ($('#mapCorners').checked) {
     const fs = Math.min(13, 10 + (view.z - 1) * 1.2);
-    ctx.font = `700 ${fs}px "Titillium Web", sans-serif`;
+    ctx.font = `700 ${fs}px ${FONT()}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const c of track.corners) {
@@ -814,6 +887,171 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
 
   if (!red && !scMode && $('#mapSectors').checked) drawSectorLabels(lay);
   return flagZones;
+}
+
+// Écarts de moins d'une seconde entre deux voitures qui se suivent (course) : bulle entre les deux
+function drawGaps(cars, lines) {
+  const byPos = new Map(cars.filter((c) => c.pos).map((c) => [c.pos, c]));
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (const c of cars) {
+    if (!c.pos || c.pos < 2 || c.cool) continue;
+    const v = parseFloat(String(lines[c.num]?.IntervalToPositionAhead?.Value || '').replace('+', ''));
+    const a = byPos.get(c.pos - 1);
+    if (!a || !(v >= 0) || v >= 1) continue;
+    const dx = a.p[0] - c.p[0], dy = a.p[1] - c.p[1], d = Math.hypot(dx, dy);
+    if (d > 260) continue;
+    const mx = (a.p[0] + c.p[0]) / 2, my = (a.p[1] + c.p[1]) / 2;
+    // Perpendiculaire, du côté opposé au centre de la carte
+    let nx = d ? -dy / d : 0, ny = d ? dx / d : -1;
+    if ((mx - size.w / 2) * nx + (my - size.h / 2) * ny < 0) { nx = -nx; ny = -ny; }
+    const off = Math.max(c.r, a.r) + 20;
+    const bx = mx + nx * off, by = my + ny * off;
+    const color = v < 0.7 ? '#34D399' : '#FACC15';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(mx, my);
+    ctx.lineTo(bx, by);
+    ctx.stroke();
+    const txt = v.toFixed(2).replace('.', ',');
+    ctx.font = `700 11px ${MONO()}`;
+    const w = ctx.measureText(txt).width + 14;
+    ctx.fillStyle = 'rgba(7,8,10,.94)';
+    ctx.beginPath();
+    ctx.roundRect(bx - w / 2, by - 9, w, 18, 9);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.fillText(txt, bx, by + 0.5);
+  }
+  ctx.restore();
+}
+
+// Pilote suivi : bulle de télémétrie à côté de sa voiture (vitesse, rapport, accélérateur, frein, écart)
+function drawFocusCard(cars, lines, disp) {
+  const c = cars.find((x) => x.isF) || cars.find((x) => x.isA);
+  if (!c) return;
+  if (size.w < 360 || size.h < 260) return;   // carte trop petite : pas de bulle
+  const small = size.w < 560 || size.h < 380;
+  const tel = store.positions.carLerp(c.num, disp);
+  const l = lines[c.num] || {};
+  const W = 176, H = tel && !small ? 82 : tel ? 60 : 46;
+  let x = c.p[0] + c.r + 22, y = c.p[1] - c.r - H - 10;
+  if (x + W > size.w - 8) x = c.p[0] - c.r - 22 - W;
+  if (y < 8) y = c.p[1] + c.r + 10;
+  x = Math.max(8, Math.min(size.w - W - 8, x));
+  y = Math.max(8, Math.min(size.h - H - 8, y));
+  ctx.save();
+  ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = 'rgba(241,243,246,.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(c.p[0], c.p[1]);
+  ctx.lineTo(x + (x > c.p[0] ? 0 : W), y + (y > c.p[1] ? 0 : H));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(14,17,22,.96)';
+  ctx.beginPath();
+  ctx.roundRect(x, y, W, H, 10);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(241,243,246,.35)';
+  ctx.stroke();
+  ctx.fillStyle = c.col;
+  ctx.beginPath();
+  ctx.roundRect(x + 10, y + 11, 4, 22, 2);
+  ctx.fill();
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#F1F3F6';
+  ctx.font = `800 17px ${FONT()}`;
+  const tla = c.d?.Tla || c.num;
+  ctx.fillText(tla, x + 20, y + 23);
+  const tw = ctx.measureText(tla).width;
+  const iv = String(l.IntervalToPositionAhead?.Value || l.TimeDiffToPositionAhead || '');
+  ctx.fillStyle = '#8A919C';
+  ctx.font = `500 11px ${FONT()}`;
+  ctx.fillText(`${c.pos ? `P${c.pos}` : ''}${iv && !/LAP/i.test(iv) ? ` · ${iv} devant` : ''}`, x + 26 + tw, y + 23.5);
+  if (tel) {
+    ctx.fillStyle = '#F1F3F6';
+    ctx.font = `700 20px ${MONO()}`;
+    const sp = Math.round(tel.speed || 0);
+    ctx.fillText(String(sp), x + 12, y + 52);
+    const sw = ctx.measureText(String(sp)).width;
+    ctx.fillStyle = '#8A919C';
+    ctx.font = `600 10.5px ${FONT()}`;
+    ctx.fillText(`KM/H · ${tel.gear === 0 ? 'N' : tel.gear ?? '—'}e · ${Math.round((tel.rpm || 0) / 10) * 10} tr/min`, x + 18 + sw, y + 53);
+    const bw = 96;
+    if (small) { ctx.restore(); return; }
+    ctx.fillStyle = '#1C2028';
+    ctx.beginPath(); ctx.roundRect(x + 12, y + 66, bw, 5, 2.5); ctx.fill();
+    ctx.fillStyle = '#34D399';
+    ctx.beginPath(); ctx.roundRect(x + 12, y + 66, (bw * Math.max(0, Math.min(100, tel.thr || 0))) / 100, 5, 2.5); ctx.fill();
+    ctx.fillStyle = (tel.brk || 0) > 0 ? '#FF453A' : '#1C2028';
+    ctx.beginPath(); ctx.roundRect(x + bw + 20, y + 66, 44, 5, 2.5); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Bande « ordre sur la piste » : chaque voiture le long du tour, de la ligne à la ligne
+let lastCars = [];
+function drawRibbon(lay, flagZones) {
+  const el = $('#mapRibbon');
+  const on = $('#mapRibbon2').checked && track && lay;
+  el.hidden = !on;
+  $('.p-map .map-wrap')?.classList.toggle('with-ribbon', !!on);
+  if (!on) return;
+  const r = el.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  if (!r.width) return;
+  if (el.width !== Math.round(r.width * dpr) || el.height !== Math.round(r.height * dpr)) { el.width = Math.round(r.width * dpr); el.height = Math.round(r.height * dpr); }
+  const g = el.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, r.width, r.height);
+  const pad = 14, w = r.width - pad * 2, mid = r.height / 2;
+  const X = (q) => pad + q * w;
+  const cols = ['#E10600', '#60A5FA', '#FB923C'];
+  for (let i = 0; i < 3; i++) {
+    g.fillStyle = cols[i];
+    g.globalAlpha = 0.55;
+    g.fillRect(X(lay.qb[i]), mid - 2.5, (lay.qb[i + 1] - lay.qb[i]) * w, 5);
+  }
+  g.globalAlpha = 1;
+  const L = track.L, line = store.positions.lineFrac();
+  const disp = displayNow();
+  const gps = store.positions.hasGps(disp);
+  const pts = [];
+  for (const c of lastCars) {
+    const p = gps ? store.positions.progressAt(c.num, disp) : store.positions.estimatedProgress(c.num, disp);
+    if (p === null || p === undefined) continue;
+    pts.push({ c, q: mod(p / L - line, 1) });
+  }
+  pts.sort((a, b) => a.q - b.q);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = `700 10px ${FONT()}`;
+  for (const { c, q } of pts) {
+    const x = X(q);
+    g.beginPath();
+    g.arc(x, mid, c.sp ? 6 : 5, 0, Math.PI * 2);
+    g.fillStyle = c.col;
+    g.fill();
+    g.strokeStyle = c.isF ? '#F1F3F6' : '#07080A';
+    g.lineWidth = c.isF ? 2 : 1.2;
+    g.stroke();
+  }
+  // Noms au-dessus ou en dessous, sans chevauchement (pilotes suivis d'abord, puis ordre de course)
+  const rows = [[], []];
+  const order = [...pts].sort((a, b) => (b.c.sp - a.c.sp) || ((a.c.pos || 99) - (b.c.pos || 99)));
+  for (const { c, q } of order) {
+    const x = X(q), txt = c.d?.Tla || c.num, half = g.measureText(txt).width / 2 + 3;
+    const row = [0, 1].find((k) => rows[k].every(([a, b]) => x + half < a || x - half > b));
+    if (row === undefined) continue;
+    rows[row].push([x - half, x + half]);
+    g.fillStyle = c.isF ? '#F1F3F6' : c.sp ? '#D5D9E0' : '#8A919C';
+    g.fillText(txt, x, row ? mid + 14 : mid - 13);
+  }
 }
 
 // Traînées : dernières positions de chaque voiture (~1 s)
@@ -908,11 +1146,20 @@ function drawCars(dt) {
   }
 
   // Voitures (essais / qualifs, option : celles hors tour lancé sont estompées)
+  const posBadges = $('#mapPosBadges').checked;
   const hot = hotLaps();
   for (const c of cars) c.cool = !!hot && !hot.has(c.num) && !c.sp;
   for (const c of cars) {
     const [x, y] = c.p;
     ctx.globalAlpha = c.cool ? 0.3 : 1;
+    if (!c.sp && posBadges && c.pos === 1) {
+      // Leader : anneau jaune
+      ctx.beginPath();
+      ctx.arc(x, y, c.r + 4, 0, Math.PI * 2);
+      ctx.strokeStyle = '#FACC15';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
     if (c.sp) {
       ctx.beginPath();
       ctx.arc(x, y, c.r + 4, 0, Math.PI * 2);
@@ -935,10 +1182,24 @@ function drawCars(dt) {
     if (labels) {
       // Trigramme dans la pastille
       ctx.fillStyle = inkOn(c.col);
-      ctx.font = `800 ${(c.r * 0.78).toFixed(1)}px "Titillium Web", sans-serif`;
+      ctx.font = `800 ${(c.r * 0.78).toFixed(1)}px ${FONT()}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(c.d?.Tla || c.num, x, y + 0.5);
+      if (posBadges && c.pos) {
+        // Numéro de position dans un petit rond, en haut à droite de la pastille
+        const br = Math.max(6.5, c.r * 0.48), bx = x + c.r * 0.82, by = y - c.r * 0.82;
+        ctx.beginPath();
+        ctx.arc(bx, by, br, 0, Math.PI * 2);
+        ctx.fillStyle = '#07080A';
+        ctx.fill();
+        ctx.strokeStyle = c.pos === 1 ? '#FACC15' : '#3A414D';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.fillStyle = '#F1F3F6';
+        ctx.font = `700 ${(br * 1.2).toFixed(1)}px ${MONO()}`;
+        ctx.fillText(String(c.pos), bx, by + 0.5);
+      }
     } else {
       // Reflet
       ctx.beginPath();
@@ -968,10 +1229,10 @@ function drawCars(dt) {
     const txt = c.d?.Tla || c.num;
     const fs = c.sp ? 12 : 10.5;
     const h = c.sp ? 18 : 16;
-    ctx.font = `800 ${fs}px "Titillium Web", sans-serif`;
+    ctx.font = `800 ${fs}px ${FONT()}`;
     const posTxt = c.pos ? String(c.pos) : '';
     const pw = posTxt ? ctx.measureText(posTxt).width + 8 : 0;
-    ctx.font = `700 ${fs}px "Titillium Web", sans-serif`;
+    ctx.font = `700 ${fs}px ${FONT()}`;
     const w = pw + ctx.measureText(txt).width + 9;
     const [x, y] = c.p;
     const g = c.r + 4;
@@ -1002,7 +1263,7 @@ function drawCars(dt) {
       ctx.roundRect(lx, ly, pw, h, [4, 0, 0, 4]);
       ctx.fill();
       ctx.fillStyle = inkOn(c.col);
-      ctx.font = `800 ${fs}px "Titillium Web", sans-serif`;
+      ctx.font = `800 ${fs}px ${FONT()}`;
       ctx.textAlign = 'center';
       ctx.fillText(posTxt, lx + pw / 2, ly + h / 2 + 0.5);
     } else {
@@ -1010,11 +1271,15 @@ function drawCars(dt) {
       ctx.fillRect(lx, ly, 2.5, h);
     }
     ctx.fillStyle = '#eef0f5';
-    ctx.font = `700 ${fs}px "Titillium Web", sans-serif`;
+    ctx.font = `700 ${fs}px ${FONT()}`;
     ctx.textAlign = 'left';
     ctx.fillText(txt, lx + (pw || 3) + 4, ly + h / 2 + 0.5);
     ctx.globalAlpha = 1;
   }
+
+  if ($('#mapGaps').checked) drawGaps(cars, lines);
+  if ($('#mapFocusCard').checked) drawFocusCard(cars, lines, disp);
+  lastCars = cars;
 
   const legend = $('#mapLegend');
   const txt = !gps && inPit ? `${inPit} voiture(s) aux stands` : '';
@@ -1022,7 +1287,7 @@ function drawCars(dt) {
 }
 
 // Cases de la carte mémorisées d'une session à l'autre
-const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapPit', 'mapFlagText', 'mapShowOut', 'mapTrails', 'mapGrid'];
+const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapPit', 'mapFlagText', 'mapShowOut', 'mapTrails', 'mapGrid', 'mapPosBadges', 'mapGaps', 'mapFocusCard', 'mapRibbon2'];
 
 function initMapOptions() {
   const saved = storageGet('f1dash.mapOpts', {});
@@ -1033,6 +1298,7 @@ function initMapOptions() {
     const el = $(`#${id}`);
     if (typeof saved[id] === 'boolean') el.checked = saved[id];
     el.addEventListener('change', save);
+    if (id === 'mapRibbon2') el.addEventListener('change', () => { xf = null; });
   }
   const hot = $('#hotLapDim');
   hot.checked = prefs.hotLapDim;

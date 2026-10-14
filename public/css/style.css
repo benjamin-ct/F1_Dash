@@ -1392,26 +1392,26 @@ body.solo #muteBtn { display: none; }
 /* ================= Thème « F1 Pro » (par défaut) =================
    Barre de navigation à gauche, barre d'état de la séance, cartes arrondies, onglets segmentés,
    replay en bas façon lecteur vidéo, logos et couleurs officiels des écuries. */
-:root[data-theme="pro"] {
+:root:is([data-theme="pro"], [data-theme="pitwall"]) {
   --bg: #07070a; --panel: #0f0f13; --panel-2: #15151b; --panel-3: #1c1c23;
   --border: #202028; --line: #1a1a21; --line-2: #2b2b34; --hover: #15151b; --deep: #0b0b0e;
   --top-1: #07070a; --top-2: #07070a; --focus: rgba(62, 166, 255, .08);
   --text: #f1f1f5; --text-2: #b4b4bf; --muted: #7c7c88; --radius: 10px;
   --purple: #b65cff; --green: #2fd17a; --rail-w: 60px;
 }
-[data-theme="pro"] body { font-size: 13.5px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) body { font-size: 13.5px; }
 
 /* Barre latérale (fenêtre principale, grand écran) */
 @media (min-width: 901px) {
-  [data-theme="pro"] body:not(.solo) { padding-left: var(--rail-w); }
-  [data-theme="pro"] body:not(.solo) .rail {
+  :is([data-theme="pro"], [data-theme="pitwall"]) body:not(.solo) { padding-left: var(--rail-w); }
+  :is([data-theme="pro"], [data-theme="pitwall"]) body:not(.solo) .rail {
     position: fixed; left: 0; top: 0; bottom: 0; width: var(--rail-w); z-index: 850;
     display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0;
     background: var(--panel); border-right: 1px solid var(--border);
   }
-  [data-theme="pro"] body:not(.solo) .topbar :is(.brand, #seasonBtn, #commBtn, #resetUiBtn, #settingsBtn) { display: none; }
-  [data-theme="pro"] body:not(.solo) .season-view { left: var(--rail-w); }
-  [data-theme="pro"] body:not(.solo) .comm-panel { right: auto; left: calc(var(--rail-w) + 10px); }
+  :is([data-theme="pro"], [data-theme="pitwall"]) body:not(.solo) .topbar :is(.brand, #seasonBtn, #commBtn, #resetUiBtn, #settingsBtn) { display: none; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) body:not(.solo) .season-view { left: var(--rail-w); }
+  :is([data-theme="pro"], [data-theme="pitwall"]) body:not(.solo) .comm-panel { right: auto; left: calc(var(--rail-w) + 10px); }
 }
 .rail-logo { width: 38px; height: 38px; display: block; margin-bottom: 12px; flex: none; filter: drop-shadow(0 4px 10px rgba(225, 6, 0, .25)); }
 .rail-btn { width: 46px; height: 46px; border-radius: 10px; display: grid; place-items: center; color: var(--muted); position: relative;
@@ -1425,131 +1425,131 @@ body.solo #muteBtn { display: none; }
 .rail-sp { flex: 1; }
 
 /* Barre d'état de la séance */
-[data-theme="pro"] .topbar { background: var(--bg); border-bottom: 1px solid var(--border); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar { background: var(--bg); border-bottom: 1px solid var(--border); }
 @media (min-width: 901px) {
-  [data-theme="pro"] .topbar { min-height: 56px; gap: 22px; padding: 6px 18px; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .topbar { min-height: 56px; gap: 22px; padding: 6px 18px; }
   /* Largeur réservée seulement en course (barre d'avancement) : pas de vide après « SQ1 » */
-  [data-theme="pro"] .lap-box:has(.lap-bar:not([hidden])) { min-width: 96px; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .lap-box:has(.lap-bar:not([hidden])) { min-width: 96px; }
 }
 /* Titre « Délai » masqué faute de place : pas de case vide */
 @media (max-width: 1600px) {
-  [data-theme="pro"] .topbar .delay-head:not(:has(.delay-warn:not([hidden]))) { display: none; }
-  [data-theme="pro"] .topbar .delay-controls { border-left: 0; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .delay-head:not(:has(.delay-warn:not([hidden]))) { display: none; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .delay-controls { border-left: 0; }
 }
 @media (max-width: 900px) {
-  [data-theme="pro"] .topbar .lap-box .hstat-value { font-size: 16px; }
-  [data-theme="pro"] .topbar #lapsLeftBox { display: none !important; }
-  [data-theme="pro"] .topbar .delay-input { padding-left: 4px; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .lap-box .hstat-value { font-size: 16px; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .topbar #lapsLeftBox { display: none !important; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .delay-input { padding-left: 4px; }
 }
-[data-theme="pro"] .session-name { font-size: 15px; font-weight: 700; }
-[data-theme="pro"] .session-sub { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
-[data-theme="pro"] .track-status { border-radius: 999px; font-weight: 600; letter-spacing: .2px; text-transform: none; min-width: 0; padding: 5px 12px; border: 1px solid transparent; font-size: 13px; }
-[data-theme="pro"] .track-status:not(.yellow):not(.sc):not(.vsc):not(.red):not(.chequered) { background: transparent; border-color: var(--line-2); color: var(--text); }
-[data-theme="pro"] .ts-dot { width: 8px; height: 8px; }
-[data-theme="pro"] .track-status.green .ts-dot { background: var(--green); box-shadow: 0 0 0 3px rgba(47, 209, 122, .18); }
-[data-theme="pro"] .hstat-label { font-size: 10px; letter-spacing: 1.3px; color: var(--muted); }
-[data-theme="pro"] .hstat-value { font-size: 15px; font-weight: 600; }
-[data-theme="pro"] .lap-box .hstat-value { font-size: 19px; font-weight: 700; }
-[data-theme="pro"] .lap-bar:not([hidden]) { display: block; align-self: stretch; height: 3px; margin-top: 3px; background: var(--panel-3); border-radius: 2px; overflow: hidden; }
-[data-theme="pro"] .lap-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s; }
-[data-theme="pro"] .weather-mini { gap: 16px; }
-[data-theme="pro"] .weather-mini .wm span { font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; }
-[data-theme="pro"] .weather-mini .wm b { font-size: 15px; font-weight: 600; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .session-name { font-size: 15px; font-weight: 700; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .session-sub { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .track-status { border-radius: 999px; font-weight: 600; letter-spacing: .2px; text-transform: none; min-width: 0; padding: 5px 12px; border: 1px solid transparent; font-size: 13px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .track-status:not(.yellow):not(.sc):not(.vsc):not(.red):not(.chequered) { background: transparent; border-color: var(--line-2); color: var(--text); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .ts-dot { width: 8px; height: 8px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .track-status.green .ts-dot { background: var(--green); box-shadow: 0 0 0 3px rgba(47, 209, 122, .18); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .hstat-label { font-size: 10px; letter-spacing: 1.3px; color: var(--muted); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .hstat-value { font-size: 15px; font-weight: 600; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .lap-box .hstat-value { font-size: 19px; font-weight: 700; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .lap-bar:not([hidden]) { display: block; align-self: stretch; height: 3px; margin-top: 3px; background: var(--panel-3); border-radius: 2px; overflow: hidden; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .lap-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .weather-mini { gap: 16px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .weather-mini .wm span { font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .weather-mini .wm b { font-size: 15px; font-weight: 600; }
 
 /* Délai : bloc compact, réglages fins dans un petit menu */
-[data-theme="pro"] .delay { background: transparent; border: 1px solid var(--line-2); border-radius: 8px; padding: 0; gap: 0; }
-[data-theme="pro"] .delay > * { align-self: stretch; display: flex; align-items: center; }
-[data-theme="pro"] .delay-head { flex-direction: row; gap: 4px; padding: 0 10px; }
-[data-theme="pro"] .delay-title { font-size: 12px; text-transform: none; letter-spacing: 0; }
-[data-theme="pro"] .delay-title::after { content: ' TV'; }
-[data-theme="pro"] .delay-controls { border-left: 1px solid var(--line-2); gap: 0; }
-[data-theme="pro"] .delay-input, [data-theme="pro"] .topbar .delay-input { field-sizing: content; min-width: 24px; max-width: 70px; width: auto; font-size: 16px; font-weight: 700; background: transparent; border: 0; border-radius: 0; padding: 4px 1px 4px 6px; text-align: right; }
-[data-theme="pro"] .delay-input:focus { outline: none; background: var(--panel-2); }
-[data-theme="pro"] .delay-controls::after { content: 's'; color: var(--muted); font-size: 13px; padding: 0 4px 0 2px; order: 1; }
-[data-theme="pro"] .dmore { display: grid; place-items: center; order: 2; align-self: stretch; min-width: 28px; padding: 0 6px; background: none; border: 0; border-left: 1px solid var(--line-2);
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay { background: transparent; border: 1px solid var(--line-2); border-radius: 8px; padding: 0; gap: 0; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay > * { align-self: stretch; display: flex; align-items: center; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay-head { flex-direction: row; gap: 4px; padding: 0 10px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay-title { font-size: 12px; text-transform: none; letter-spacing: 0; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay-title::after { content: ' TV'; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay-controls { border-left: 1px solid var(--line-2); gap: 0; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay-input, :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .delay-input { field-sizing: content; min-width: 24px; max-width: 70px; width: auto; font-size: 16px; font-weight: 700; background: transparent; border: 0; border-radius: 0; padding: 4px 1px 4px 6px; text-align: right; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay-input:focus { outline: none; background: var(--panel-2); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay-controls::after { content: 's'; color: var(--muted); font-size: 13px; padding: 0 4px 0 2px; order: 1; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .dmore { display: grid; place-items: center; order: 2; align-self: stretch; min-width: 28px; padding: 0 6px; background: none; border: 0; border-left: 1px solid var(--line-2);
   color: var(--text-2); font-weight: 700; font-size: 14px; cursor: pointer; }
-[data-theme="pro"] .dmore:hover, [data-theme="pro"] .delay.open .dmore { background: var(--panel-2); color: var(--text); }
-[data-theme="pro"] .delay-steps { display: none; }
-[data-theme="pro"] .delay.open .delay-steps {
+:is([data-theme="pro"], [data-theme="pitwall"]) .dmore:hover, :is([data-theme="pro"], [data-theme="pitwall"]) .delay.open .dmore { background: var(--panel-2); color: var(--text); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay-steps { display: none; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay.open .delay-steps {
   display: grid; grid-template-columns: repeat(6, auto); gap: 4px; position: absolute; top: calc(100% + 8px); left: 0; z-index: 960;
   background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 6px; box-shadow: 0 12px 30px rgba(0, 0, 0, .55);
 }
-[data-theme="pro"] .delay-steps .m { order: 0; }
-[data-theme="pro"] .dbtn { background: var(--panel-3); border-color: var(--line-2); border-radius: 6px; min-width: 40px; padding: 5px 8px; }
-[data-theme="pro"] .delay .preset { border: 0 !important; border-left: 1px solid var(--line-2) !important; border-radius: 0; background-color: transparent; max-width: 170px; color: var(--text-2); }
-[data-theme="pro"] .delay #syncBtn { border-radius: 0 7px 7px 0; margin: -1px -1px -1px 0; padding: 0 13px; }
-[data-theme="pro"] .btn { background: transparent; border-color: var(--line-2); border-radius: 7px; }
-[data-theme="pro"] .btn-accent { background: var(--accent); border-color: var(--accent); }
-[data-theme="pro"] .source-badge { background: transparent; border-color: transparent; letter-spacing: 1px; font-size: 12px; color: var(--text-2); }
-[data-theme="pro"] .icon-btn { border-radius: 8px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay-steps .m { order: 0; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .dbtn { background: var(--panel-3); border-color: var(--line-2); border-radius: 6px; min-width: 40px; padding: 5px 8px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay .preset { border: 0 !important; border-left: 1px solid var(--line-2) !important; border-radius: 0; background-color: transparent; max-width: 170px; color: var(--text-2); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .delay #syncBtn { border-radius: 0 7px 7px 0; margin: -1px -1px -1px 0; padding: 0 13px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .btn { background: transparent; border-color: var(--line-2); border-radius: 7px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .btn-accent { background: var(--accent); border-color: var(--accent); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .source-badge { background: transparent; border-color: transparent; letter-spacing: 1px; font-size: 12px; color: var(--text-2); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .icon-btn { border-radius: 8px; }
 
 /* Cartes et onglets segmentés */
-[data-theme="pro"] .grid { padding: 12px; }
-[data-theme="pro"] .lsplit-v, [data-theme="pro"] .lsplit-h { flex-basis: 12px; }
-[data-theme="pro"] .lsplit-v::after { left: 5px; }
-[data-theme="pro"] .lsplit-h::after { top: 5px; }
-[data-theme="pro"] .panel { border-radius: 10px; border-color: var(--border); background: var(--panel); }
-[data-theme="pro"] .panel-head { background: var(--panel); border-bottom: 1px solid var(--line); padding: 9px 14px 8px; }
-[data-theme="pro"] .panel-head h2 { font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: var(--text-2); }
-[data-theme="pro"] .panel-head.tabs { padding: 7px 10px; gap: 2px; }
-[data-theme="pro"] .tab { font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); padding: 5px 10px; border-radius: 6px; }
-[data-theme="pro"] .tab:hover { color: var(--text-2); background: var(--panel-2); }
-[data-theme="pro"] .tab.active { background: var(--panel-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
-[data-theme="pro"] .tabs .panel-ctrl { background: var(--panel); }
-[data-theme="pro"] .panel-legend { background: var(--panel); border-top-color: var(--line); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .grid { padding: 12px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .lsplit-v, :is([data-theme="pro"], [data-theme="pitwall"]) .lsplit-h { flex-basis: 12px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .lsplit-v::after { left: 5px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .lsplit-h::after { top: 5px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .panel { border-radius: 10px; border-color: var(--border); background: var(--panel); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .panel-head { background: var(--panel); border-bottom: 1px solid var(--line); padding: 9px 14px 8px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .panel-head h2 { font-size: 11px; font-weight: 700; letter-spacing: 1.6px; color: var(--text-2); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .panel-head.tabs { padding: 7px 10px; gap: 2px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tab { font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); padding: 5px 10px; border-radius: 6px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tab:hover { color: var(--text-2); background: var(--panel-2); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tab.active { background: var(--panel-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tabs .panel-ctrl { background: var(--panel); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .panel-legend { background: var(--panel); border-top-color: var(--line); }
 
 /* Classement */
-[data-theme="pro"] .tower th { background: var(--panel); font-size: 10px; letter-spacing: 1.1px; font-weight: 600; border-bottom-color: var(--line); }
-[data-theme="pro"] .tower td { border-bottom-color: var(--line); }
-[data-theme="pro"] .tower .pos { font-size: 14px; line-height: 1.05; }
-[data-theme="pro"] .tower .pos-delta { display: block; font-size: 9px; margin: 0; line-height: 1; }
-[data-theme="pro"] .tower .drv { gap: 8px; }
-[data-theme="pro"] .tower .drv-num { display: none; }
-[data-theme="pro"] .tower .drv-tla { font-size: 14.5px; letter-spacing: .6px; min-width: 38px; }
-[data-theme="pro"] .tower .drv-last { display: inline-block; color: var(--muted); font-size: 11.5px; font-weight: 400; max-width: 96px; overflow: hidden; text-overflow: ellipsis; margin-left: -2px; }
-[data-theme="pro"] .grid.mobile .tower .drv-last { display: none; }
-[data-theme="pro"] .tower .drv-bar { width: 3px; height: 18px; }
-[data-theme="pro"] .tower .team-logo { width: 22px; height: 22px; border-radius: 6px; }
-[data-theme="pro"] .tyre { width: 19px; height: 19px; border-width: 2px; background: transparent; font-size: 9.5px; }
-[data-theme="pro"] .tyre-age { color: var(--muted); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tower th { background: var(--panel); font-size: 10px; letter-spacing: 1.1px; font-weight: 600; border-bottom-color: var(--line); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tower td { border-bottom-color: var(--line); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tower .pos { font-size: 14px; line-height: 1.05; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tower .pos-delta { display: block; font-size: 9px; margin: 0; line-height: 1; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tower .drv { gap: 8px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tower .drv-num { display: none; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tower .drv-tla { font-size: 14.5px; letter-spacing: .6px; min-width: 38px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tower .drv-last { display: inline-block; color: var(--muted); font-size: 11.5px; font-weight: 400; max-width: 96px; overflow: hidden; text-overflow: ellipsis; margin-left: -2px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .grid.mobile .tower .drv-last { display: none; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tower .drv-bar { width: 3px; height: 18px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tower .team-logo { width: 22px; height: 22px; border-radius: 6px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tyre { width: 19px; height: 19px; border-width: 2px; background: transparent; font-size: 9.5px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .tyre-age { color: var(--muted); }
 
 /* Autres panneaux */
-[data-theme="pro"] :is(.duel-name, .duel-gap-val, .gauge-val, .battle-gap, .pit-big, .sz-big, .sz-race-name, .sz-drv-name, .mf-banner) { font-weight: 700; }
-[data-theme="pro"] :is(.gauge, .pit-card, .cmp-sector) { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
-[data-theme="pro"] .chart-title { letter-spacing: 1.1px; font-size: 10px; }
-[data-theme="pro"] .rcm li { border-bottom-color: var(--line); }
+:is([data-theme="pro"], [data-theme="pitwall"]) :is(.duel-name, .duel-gap-val, .gauge-val, .battle-gap, .pit-big, .sz-big, .sz-race-name, .sz-drv-name, .mf-banner) { font-weight: 700; }
+:is([data-theme="pro"], [data-theme="pitwall"]) :is(.gauge, .pit-card, .cmp-sector) { background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .chart-title { letter-spacing: 1.1px; font-size: 10px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .rcm li { border-bottom-color: var(--line); }
 
 /* Replay en bas, façon lecteur vidéo */
-[data-theme="pro"] .replaybar { order: 5; background: var(--panel); border-top: 1px solid var(--border); border-bottom: 0; padding: 8px 16px; gap: 10px; }
-[data-theme="pro"] .mob-nav { order: 6; }
-[data-theme="pro"] .replaybar .rp-time { color: var(--text-2); font-size: 12px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .replaybar { order: 5; background: var(--panel); border-top: 1px solid var(--border); border-bottom: 0; padding: 8px 16px; gap: 10px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .mob-nav { order: 6; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .replaybar .rp-time { color: var(--text-2); font-size: 12px; }
 
 /* Espace Saison */
-[data-theme="pro"] .sz-side { background: var(--panel); }
-[data-theme="pro"] #szNav button { position: relative; font-size: 13px; }
-[data-theme="pro"] #szNav button.active::before { content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 2px; background: var(--accent); }
-[data-theme="pro"] :is(.sz-card, .sz-box) { border-radius: 10px; background: var(--panel); border-color: var(--border); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .sz-side { background: var(--panel); }
+:is([data-theme="pro"], [data-theme="pitwall"]) #szNav button { position: relative; font-size: 13px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) #szNav button.active::before { content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 2px; background: var(--accent); }
+:is([data-theme="pro"], [data-theme="pitwall"]) :is(.sz-card, .sz-box) { border-radius: 10px; background: var(--panel); border-color: var(--border); }
 
 /* Téléphone : icônes dessinées dans la barre du bas */
-[data-theme="pro"] .mob-nav .mn-ic { display: none; }
-[data-theme="pro"] .mob-nav .mn-svg { display: block; width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; margin: 1px 0 2px; }
-[data-theme="pro"] .mob-nav button.active { background: none; color: var(--text); }
-[data-theme="pro"] .mob-nav button.active .mn-svg { stroke: var(--accent); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .mob-nav .mn-ic { display: none; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .mob-nav .mn-svg { display: block; width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; margin: 1px 0 2px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .mob-nav button.active { background: none; color: var(--text); }
+:is([data-theme="pro"], [data-theme="pitwall"]) .mob-nav button.active .mn-svg { stroke: var(--accent); }
 @media (min-width: 901px) {
-  [data-theme="pro"] .delay #syncBtn { font-size: 0; }
-  [data-theme="pro"] .delay #syncBtn .sync-label { font-size: 12.5px; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .delay #syncBtn { font-size: 0; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .delay #syncBtn .sync-label { font-size: 12.5px; }
 }
 /* Téléphone : le menu du délai propose tous les pas */
-[data-theme="pro"] .topbar .delay-steps .dbtn { display: block !important; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar .delay-steps .dbtn { display: block !important; }
 /* Barre du haut : place pour l'heure du circuit (tours restants masqués d'abord ; le design F1 Pro
    montre déjà la progression sous le numéro du tour) */
 @media (max-width: 1950px) {
-  :root:not([data-theme="pro"]) .topbar #lapsLeftBox { display: none !important; }
+  :root:not(:is([data-theme="pro"], [data-theme="pitwall"])) .topbar #lapsLeftBox { display: none !important; }
 }
 @media (min-width: 901px) and (max-width: 1500px) {
-  [data-theme="pro"] .topbar { gap: 14px; padding: 6px 12px; }
-  [data-theme="pro"] .topbar #lapsLeftBox { display: none !important; }
-  [data-theme="pro"] .delay .preset { max-width: 120px; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .topbar { gap: 14px; padding: 6px 12px; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .topbar #lapsLeftBox { display: none !important; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .delay .preset { max-width: 120px; }
 }
 
 /* ---------- Onglet Pneus (js/ui/tyres.js) ---------- */
@@ -1616,22 +1616,22 @@ body.solo .grid .panel-head { padding-right: 116px; }
   body:not(.solo) { overflow-y: auto; }
   body:not(.solo) .grid:not(.has-max) { flex: none; height: 1000px; }
   body:not(.solo) .topbar { position: sticky; top: 0; z-index: 60; }
-  [data-theme="pro"] body:not(.solo) .replaybar { position: sticky; bottom: 0; z-index: 60; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) body:not(.solo) .replaybar { position: sticky; bottom: 0; z-index: 60; }
 }
 /* Anciens thèmes : un peu de marge pour la barre de défilement sur portable */
 @media (max-width: 1450px) {
-  :root:not([data-theme="pro"]) .topbar { gap: 7px; }
+  :root:not(:is([data-theme="pro"], [data-theme="pitwall"])) .topbar { gap: 7px; }
 }
 /* Barre du haut : la barre de progression du tour ne décale plus la case « Tour » par rapport
    aux autres (libellés et valeurs alignés) */
-[data-theme="pro"] .topbar .lap-box { position: relative; }
-[data-theme="pro"] .topbar .lap-bar:not([hidden]) { position: absolute; left: 0; right: 0; bottom: -6px; margin: 0; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar .lap-box { position: relative; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar .lap-bar:not([hidden]) { position: absolute; left: 0; right: 0; bottom: -6px; margin: 0; }
 /* Bouton Saison sans cadre, comme les autres icônes de la barre (téléphone, fenêtres secondaires) */
-[data-theme="pro"] .topbar #seasonBtn:not(.on) { background: none; border-color: transparent; }
-[data-theme="pro"] .topbar > .hstat { height: 38px; justify-content: flex-start; align-self: center; }
-[data-theme="pro"] .topbar .hstat-label, [data-theme="pro"] .topbar .weather-mini .wm span { line-height: 14px; }
-[data-theme="pro"] .topbar .hstat-value, [data-theme="pro"] .topbar .weather-mini .wm b { line-height: 22px; }
-[data-theme="pro"] .topbar .surface .hstat-value { line-height: 20px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar #seasonBtn:not(.on) { background: none; border-color: transparent; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar > .hstat { height: 38px; justify-content: flex-start; align-self: center; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar .hstat-label, :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .weather-mini .wm span { line-height: 14px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar .hstat-value, :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .weather-mini .wm b { line-height: 22px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar .surface .hstat-value { line-height: 20px; }
 
 /* Simulateur : cercle de position (js/ui/race-tools.js) */
 .pitsim-cols { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
@@ -1675,16 +1675,16 @@ body.solo .grid .panel-head { padding-right: 116px; }
 .session-flag { width: 30px; height: 20px; border-radius: 3px; object-fit: cover; flex: none; box-shadow: 0 0 0 1px rgba(255, 255, 255, .14); }
 .session-flag[hidden] { display: none; }
 /* Temps restant en grand, comme une horloge */
-[data-theme="pro"] .topbar .clock-box .hstat-value { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .3px; line-height: 22px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar .clock-box .hstat-value { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .3px; line-height: 22px; }
 .weather-mini .wm b small { font-size: 10.5px; color: var(--muted); font-weight: 500; }
 .weather-mini .wind-arrow { font-style: normal; color: var(--blue); font-weight: 800; margin-left: 2px; }
-[data-theme="pro"] .topbar .weather-mini { display: flex; gap: 14px; }
+:is([data-theme="pro"], [data-theme="pitwall"]) .topbar .weather-mini { display: flex; gap: 14px; }
 /* Moins de place : pression, humidité, vent puis air disparaissent (toute la météo reste dans l'onglet Météo) */
-@media (max-width: 2100px) { [data-theme="pro"] .topbar .wm-pres { display: none; } }
-@media (max-width: 1960px) { [data-theme="pro"] .topbar .wm-hum { display: none; } }
-@media (max-width: 1840px) { [data-theme="pro"] .topbar .wm-wind { display: none; } }
-@media (max-width: 1720px) { [data-theme="pro"] .topbar .wm-air { display: none; } }
-@media (max-width: 1660px) { [data-theme="pro"] .topbar .weather-mini { display: none; } }
+@media (max-width: 2100px) { :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .wm-pres { display: none; } }
+@media (max-width: 1960px) { :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .wm-hum { display: none; } }
+@media (max-width: 1840px) { :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .wm-wind { display: none; } }
+@media (max-width: 1720px) { :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .wm-air { display: none; } }
+@media (max-width: 1660px) { :is([data-theme="pro"], [data-theme="pitwall"]) .topbar .weather-mini { display: none; } }
 
 /* Outils : documents FIA, vitesses, meilleurs secteurs */
 .tb-tools { display: flex; gap: 2px; align-items: center; }
@@ -1725,10 +1725,10 @@ body.solo .tb-tools { display: none; }
 .tbp-table td.purple { color: var(--purple, #b06cff); font-weight: 700; }
 .tbp-table .drv { gap: 7px; }
 @media (min-width: 1451px) {
-  [data-theme="pro"] .topbar > .session { flex-shrink: 0; max-width: 300px; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .topbar > .session { flex-shrink: 0; max-width: 300px; }
 }
 @media (min-width: 901px) and (max-width: 2000px) {
-  [data-theme="pro"] .topbar { gap: 17px; }
+  :is([data-theme="pro"], [data-theme="pitwall"]) .topbar { gap: 17px; }
 }
 
 /* ---------- Animations douces (désactivées si le système demande moins d'animations) ---------- */
@@ -1745,3 +1745,109 @@ body.solo .tb-tools { display: none; }
 }
 @keyframes pane-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 @keyframes panel-max { from { opacity: .35; transform: scale(.985); } to { opacity: 1; transform: none; } }
+
+/* =====================================================================================
+   Thème « Pitwall » (par défaut) : la mise en page F1 Pro, avec le style de la refonte
+   « Pitwall moderne » — fond graphite, cartes à filet fin, chiffres en chasse fixe,
+   titres en Saira Condensed, rouge F1 réservé au direct et aux alertes.
+   Polices Saira, Saira Condensed et JetBrains Mono (SIL Open Font License, voir /fonts/OFL-*.txt).
+   ===================================================================================== */
+@font-face { font-family: 'Saira'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/saira-var.woff2') format('woff2'); }
+@font-face { font-family: 'Saira Condensed'; font-style: normal; font-weight: 600; font-display: swap; src: url('/fonts/sairacondensed-600.woff2') format('woff2'); }
+@font-face { font-family: 'Saira Condensed'; font-style: normal; font-weight: 700; font-display: swap; src: url('/fonts/sairacondensed-700.woff2') format('woff2'); }
+@font-face { font-family: 'Saira Condensed'; font-style: normal; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-style: normal; font-weight: 400 700; font-display: swap; src: url('/fonts/jetbrainsmono-var.woff2') format('woff2'); }
+
+:root[data-theme="pitwall"] {
+  --bg: #07080A; --panel: #0E1116; --panel-2: #15191F; --panel-3: #1C2028;
+  --border: #1C2028; --line: #151920; --line-2: #2E3440; --hover: #15191F; --deep: #0B0D11;
+  --top-1: #0B0D11; --top-2: #0B0D11; --focus: rgba(225, 6, 0, .10);
+  --text: #F1F3F6; --text-2: #B4BAC4; --muted: #8A919C;
+  --purple: #C084FC; --green: #34D399; --yellow: #FACC15; --orange: #FB923C; --red: #FF453A; --blue: #60A5FA;
+  --radius: 14px; --rail-w: 76px;
+  --font: 'Saira', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-cond: 'Saira Condensed', 'Saira', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+[data-theme="pitwall"] body { font-size: 13.5px; background: var(--bg); }
+
+/* Chiffres en chasse fixe : temps, écarts, vitesses, horloges */
+[data-theme="pitwall"] :is(.tower td.t-gap, .tower td.t-int, .tower td.t-lap, .tower td.pos, .tower td.c-pits, .tower td.c-speed, .tower td.c-grid, .tower td.c-laps, .tower td.c-gapf, .tower td.c-spd,
+  .tower .sector-val, .tyre-age, .hstat-value, .delay-input, .rp-time, .duel-gap-val, .cmp td, .laps-cmp td, .pit-big, .pit-val, .champ td, .strat-pace, .strat-deg,
+  .tbp-table td, .tbd-time, .rcm-time, .weather-mini .wm b, .dl-speed-val, .dl-rpm) { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
+[data-theme="pitwall"] .tower td.pos { font-weight: 700; }
+
+/* Titres : Saira Condensed en capitales */
+[data-theme="pitwall"] :is(.panel-head h2, .chart-title, .hstat-label, .tbp-head b, .set-block h3) { font-family: var(--font-cond); letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700; }
+[data-theme="pitwall"] .panel-head h2 { font-size: 14.5px; color: var(--text); }
+[data-theme="pitwall"] :is(.drv-tla, .duel-name, .tele-name b, .strat-name, .tbp-table .drv b) { font-family: var(--font-cond); font-weight: 700; letter-spacing: .8px; }
+[data-theme="pitwall"] .tower .drv-tla { font-size: 15.5px; }
+[data-theme="pitwall"] .session-name { font-family: var(--font-cond); font-size: 19px; font-weight: 700; letter-spacing: .2px; }
+
+/* Cartes */
+[data-theme="pitwall"] .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: none; }
+[data-theme="pitwall"] .panel-head { border-bottom: 1px solid var(--border); }
+[data-theme="pitwall"] .tabs [data-tab] { border-radius: 8px; font-size: 13px; }
+[data-theme="pitwall"] .tabs [data-tab].active { background: var(--panel-3); color: var(--text); box-shadow: none; }
+
+/* Barre latérale : icône + libellé */
+@media (min-width: 901px) {
+  [data-theme="pitwall"] body:not(.solo) .rail { background: var(--deep); border-right: 1px solid var(--border); gap: 4px; padding: 14px 0; }
+}
+[data-theme="pitwall"] .rail-btn { width: 64px; height: 54px; border-radius: 12px; }
+[data-theme="pitwall"] .rail-btn svg { width: 22px; height: 22px; margin-top: -12px; }
+[data-theme="pitwall"] .rail-btn small { bottom: 6px; font-family: var(--font-cond); font-size: 10.5px; letter-spacing: .9px; }
+[data-theme="pitwall"] .rail-btn.on { background: var(--panel-3); }
+[data-theme="pitwall"] .rail-btn.on::before { left: -6px; top: 14px; bottom: 14px; }
+
+/* Barre du haut */
+[data-theme="pitwall"] .topbar { background: var(--deep); border-bottom: 1px solid var(--border); }
+[data-theme="pitwall"] .topbar .clock-box .hstat-value { font-size: 26px; font-weight: 700; letter-spacing: -.5px; line-height: 26px; }
+[data-theme="pitwall"] .track-status:not(.yellow):not(.sc):not(.vsc):not(.red):not(.chequered) { border-color: transparent; }
+[data-theme="pitwall"] .track-status.green { background: rgba(52, 211, 153, .12); color: var(--green); }
+[data-theme="pitwall"] .track-status.green .ts-dot { box-shadow: 0 0 0 4px rgba(52, 211, 153, .18); }
+[data-theme="pitwall"] .delay { border-color: var(--line-2); border-radius: 10px; }
+[data-theme="pitwall"] .delay #syncBtn { border-radius: 0 9px 9px 0; font-weight: 600; }
+[data-theme="pitwall"] .source-badge.live { background: rgba(225, 6, 0, .14); color: #FF6B66; border-color: transparent; font-family: var(--font-cond); letter-spacing: 1.4px; }
+[data-theme="pitwall"] .source-badge { font-family: var(--font-cond); letter-spacing: 1.2px; font-weight: 700; }
+
+/* Classement */
+[data-theme="pitwall"] .tower th { font-family: var(--font); font-size: 10.5px; letter-spacing: 1.1px; color: var(--muted); font-weight: 500; }
+[data-theme="pitwall"] .tower td { border-bottom-color: var(--line); }
+[data-theme="pitwall"] .tower tr.focus td { background: rgba(225, 6, 0, .10); }
+[data-theme="pitwall"] .tower tr.focus td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+[data-theme="pitwall"] .seg { height: 9px; border-radius: 2px; min-width: 4px; }
+[data-theme="pitwall"] .seg-yellow { background: #E3B505; }
+[data-theme="pitwall"] .tag { font-family: var(--font); font-size: 10px; font-weight: 700; letter-spacing: .8px; padding: 1px 6px; border-radius: 5px; line-height: 15px; }
+[data-theme="pitwall"] .tag.pit { background: rgba(96, 165, 250, .16); color: #93C5FD; }
+[data-theme="pitwall"] .tag.out { background: rgba(52, 211, 153, .16); color: #6EE7B7; }
+[data-theme="pitwall"] .tag.push { background: rgba(192, 132, 252, .16); color: #D8B4FE; }
+[data-theme="pitwall"] .tag.stop { background: rgba(225, 6, 0, .18); color: #FF8A85; }
+[data-theme="pitwall"] .tag.ret { background: rgba(138, 145, 156, .18); color: #B4BAC4; }
+[data-theme="pitwall"] .tag.drs { background: rgba(52, 211, 153, .16); color: #6EE7B7; }
+[data-theme="pitwall"] .tag.flag-blue { background: rgba(96, 165, 250, .16); color: #93C5FD; }
+/* Pneus : anneau de la couleur du composé, lettre au centre */
+[data-theme="pitwall"] .tyre { background: transparent !important; color: var(--tc) !important; border: 2.5px solid var(--tc); box-shadow: none; font-family: var(--font); font-weight: 700; }
+
+/* Boutons et menus */
+[data-theme="pitwall"] .btn { border-radius: 9px; }
+[data-theme="pitwall"] :is(.lpop-menu, .csel-pop, .map-layers-menu, .tb-pop) { border-radius: 12px; border-color: var(--line-2); }
+
+/* Barre de lecture : gros bouton rond clair */
+[data-theme="pitwall"] .replaybar { background: var(--deep); border-top: 1px solid var(--border); }
+[data-theme="pitwall"] .rp-play { width: 44px; height: 44px; background: #F1F3F6 !important; color: #07080A !important; }
+[data-theme="pitwall"] .rp-played { background: rgba(96, 165, 250, .55); }
+[data-theme="pitwall"] .rp-speed.on, [data-theme="pitwall"] .rp-speed[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* Carte : bande « ordre sur la piste » sous le tracé */
+.map-ribbon { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 44px; display: block; background: linear-gradient(to top, rgba(7,8,10,.92), rgba(7,8,10,.55)); border-top: 1px solid var(--border); pointer-events: none; }
+.map-ribbon[hidden] { display: none; }
+.map-wrap.with-ribbon .map-legend { bottom: 52px; }
+.map-wrap.with-ribbon .map-zoom { bottom: 54px; }
+
+/* Pitwall : espace Saison (chiffres en chasse fixe, titres condensés) */
+[data-theme="pitwall"] :is(.sz-big, .sz-table td, .sz-grade, .sz-meter b) { font-variant-numeric: tabular-nums; }
+[data-theme="pitwall"] .sz-big { font-family: var(--font-cond); letter-spacing: .3px; }
+[data-theme="pitwall"] :is(.sz-card, .sz-box) { border-radius: 14px; border-color: var(--border); background: var(--panel); }
+[data-theme="pitwall"] .sz-table th { font-size: 10.5px; letter-spacing: 1.1px; color: var(--muted); font-weight: 500; }
+[data-theme="pitwall"] .sz-countdown b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
