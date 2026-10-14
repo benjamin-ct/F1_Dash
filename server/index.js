@@ -24,6 +24,7 @@ import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNews
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
 import { osmTile } from './tiles.js';
+import { predictionsView, savePrediction } from './predict.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 
@@ -232,6 +233,20 @@ async function handleApi(req, res, url) {
         'Cache-Control': 'no-store',
       });
       return res.end(body);
+    }
+
+    // Pronostics entre amis (pole et podium de chaque Grand Prix)
+    case 'GET /api/predictions': {
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      return sendJSON(res, 200, await predictionsView(year, url.searchParams.get('me') || ''));
+    }
+    case 'POST /api/predictions': {
+      const body = await readBody(req);
+      try {
+        return sendJSON(res, 200, await savePrediction({ ...body, year: Number(body.year) || new Date().getFullYear() }));
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
     }
 
     // Fond de carte du radar météo (OpenStreetMap, en cache)

@@ -7,6 +7,7 @@ import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircu
 import { driverRatings, qualiGaps } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
+import { renderPredict, initPredict } from './predict-view.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -358,6 +359,7 @@ const HELP = {
   standings: 'Classements officiels des pilotes et des constructeurs, mis à jour après chaque course (sprints compris).',
   drivers: 'Fiche d\'un pilote : ses chiffres clés et ses notes de la saison, sa position au départ et à l\'arrivée de chaque course, la répartition de ses arrivées, ses points comparés à la saison précédente, puis le détail course par course (qualification, grille, arrivée, points, tours en tête, meilleur tour, vitesse, arrêts).',
   ratings: 'Une note sur 100 et une lettre (S, A, B, C, D, F) pour chaque pilote : la note de la saison le compare à tous les pilotes, la note face au coéquipier le compare à son coéquipier dans la même voiture.',
+  predict: 'Avant chaque Grand Prix, chacun pronostique la pole et le podium, sur cet ordinateur ou sur son téléphone (accès réseau). Les choix des autres restent cachés jusqu\'à la fermeture : début des qualifications pour la pole, départ de la course pour le podium.',
   tech: 'Évolutions déclarées par chaque écurie avant chaque Grand Prix (document officiel FIA « Car Presentation Submissions ») : pièce modifiée, raison (performance, spécifique au circuit, fiabilité) et explication de l\'écurie.',
 };
 
@@ -372,7 +374,7 @@ function render() {
     home: renderHome, calendar: renderCalendar, standings: renderStandings, results: renderResults, h2h: renderH2H,
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
-    tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData),
+    tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year),
   }[section]();
   const help = HELP[section] ? `<p class="sz-help">${HELP[section]}</p>` : '';
   $('#szContent').innerHTML = `${data.stale ? '<div class="note small">Hors ligne : dernières données enregistrées.</div>' : ''}${help}${html}`;
@@ -419,6 +421,7 @@ export function closeSeason() {
 }
 
 export function initSeason() {
+  initPredict();
   const sel = $('#szYear');
   const now = new Date().getFullYear();
   sel.innerHTML = Array.from({ length: 8 }, (_, i) => now - i).map((y) => `<option value="${y}">${y}</option>`).join('');

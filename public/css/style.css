@@ -2153,3 +2153,16 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .rd-time { font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; color: var(--text-2); white-space: nowrap; }
 .rd-note { margin: 6px 0 0; }
 .rd-base.dark img { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.5); }
+
+/* Saison : pronostics entre amis */
+.pd-next form { display: flex; flex-direction: column; gap: 10px; }
+.pd-name input { margin-left: 6px; width: 200px; }
+.pd-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.pd-picks label { display: flex; flex-direction: column; gap: 4px; }
+.pd-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.pd-table td, .pd-board td { white-space: nowrap; }
+.pd-table td small { color: var(--muted); }
+.pd-hit { color: var(--green); font-weight: 700; }
+.pd-near { color: var(--yellow); }
+.pd-me td { background: var(--focus); }
+.pd-round summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; }
