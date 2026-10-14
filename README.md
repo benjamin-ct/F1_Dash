@@ -33,6 +33,14 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 | ![Classement](docs/screenshots/classement.png) | ![Carte](docs/screenshots/carte.png) |
 | ![Analyse : rythme](docs/screenshots/analyse-rythme.png) | ![Saison : accueil](docs/screenshots/saison-accueil.png) |
 | ![Saison : fiche pilote](docs/screenshots/saison-pilote.png) | ![Saison : évolutions techniques](docs/screenshots/saison-evolutions-techniques.png) |
+| ![Replay : moments clés](docs/screenshots/moments.png) | ![Résumé automatique de la séance](docs/screenshots/resume.png) |
+| ![Météo : radar de la pluie autour du circuit](docs/screenshots/radar.png) | ![Saison : pronostics entre amis](docs/screenshots/pronostics.png) |
+
+<img src="docs/screenshots/mini-classement.png" alt="Mini-classement flottant, toujours au premier plan" width="380" align="right">
+
+**Mini-classement** (bouton Mini de la barre latérale) : une petite fenêtre toujours au premier plan, à poser sur la vidéo de la course. Positions, intervalle ou écart au leader, pneus, favoris, au rythme de votre délai TV.
+
+<br clear="right">
 
 ![Espace Actu : l'actualité de la F1 traduite en français](docs/screenshots/actu.png)
 

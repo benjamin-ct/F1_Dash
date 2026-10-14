@@ -4,7 +4,7 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.21.0 — à venir
+## v1.21.0 — 2026-10-14
 
 ### Pendant la course
 - **Mini-classement flottant** (bouton Mini de la barre latérale) : petite fenêtre toujours au premier plan, à poser par-dessus la vidéo de la course (F1 TV, Canal+…) : drapeau, tour, classement avec intervalle ou écart au leader, pneus, pilotes suivis et favoris. Même délai TV que la fenêtre principale.
