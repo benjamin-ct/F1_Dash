@@ -130,7 +130,7 @@ function renderReplayBar() {
     segs.dataset.k = mk;
     const pct = (t) => (100 * Math.max(0, Math.min(dur, t))) / dur;
     const seg = (r, cls, title) => `<i class="${cls}" title="${title}" style="left:${pct(r.start)}%;width:${Math.max(0.25, pct(r.end) - pct(r.start))}%"></i>`;
-    segs.innerHTML = phases.map((p, i) => seg(p, 'run', `${labels[i]} : ${fmtDuration(p.start)} → ${fmtDuration(p.end)}`)).join('')
+    segs.innerHTML = phases.map((p, i) => seg(p, 'run', `${labels[i]} : de ${fmtDuration(p.start)} à ${fmtDuration(p.end)}`)).join('')
       + yellows.map((r) => seg(r, 'yellow', 'Drapeau jaune')).join('')
       + neutral.map((r) => seg(r, r.kind, r.kind === 'sc' ? 'Voiture de sécurité' : 'Voiture de sécurité virtuelle')).join('')
       + reds.map((r) => seg(r, 'red', 'Drapeau rouge')).join('');

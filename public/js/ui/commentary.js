@@ -168,7 +168,7 @@ async function start() {
       const tried = stream.tried || [];
       const acc = stream.account || {};
       const who = [acc.product && `offre « ${acc.product} »`, acc.country && `pays ${acc.country}`].filter(Boolean).join(', ');
-      const t = tried.map((x) => `${x.format} → HTTP ${x.status}${x.message ? ` (${x.message})` : ''}`).join('\n');
+      const t = tried.map((x) => `${x.format} : HTTP ${x.status}${x.message ? ` (${x.message})` : ''}`).join('\n');
       if (tried.some((x) => /technical package not available/i.test(x.message || ''))) {
         throw new Error(`F1 TV refuse la vidéo : elle n'est pas incluse dans votre abonnement${who ? ` (${who})` : ''}. Le son et la vidéo des séances font partie de l'offre F1 TV Pro ; l'offre F1 TV Access (la seule proposée dans certains pays, dont la France) ne les inclut pas.\n\nDétail :\n${t}`);
       }

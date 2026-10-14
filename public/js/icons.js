@@ -20,6 +20,10 @@ const P = {
   'arrow-up': '<path d="M12 19V5M6 11l6-6 6 6"/>',
   'arrow-down': '<path d="M12 5v14M6 13l6 6 6-6"/>',
   'chevron-down': '<path d="M6 9l6 6 6-6"/>',
+  'chevron-up': '<path d="M6 15l6-6 6 6"/>',
+  'arrow-right': '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  'tri-up': '<path d="M12 5.5l7 11H5z" fill="currentColor" stroke="none"/>',
+  'tri-down': '<path d="M12 18.5l7-11H5z" fill="currentColor" stroke="none"/>',
   swap: '<path d="M4 8h15l-3.5-3.5M20 16H5l3.5 3.5"/>',
   undo: '<path d="M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3"/>',
   refresh: '<path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.7M20 3.5v5.2h-5.2"/>',
@@ -85,7 +89,13 @@ export const ICON_NAMES = Object.keys(P);
 
 export function icon(name, cls = '') {
   if (!P[name]) return '';
-  return `<svg class="ic${cls ? ` ${cls}` : ''}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+  return `<svg class="ic i-${name}${cls ? ` ${cls}` : ''}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
+
+// Flèches d'un texte déjà échappé (messages, journal des nouveautés) remplacées par les icônes
+const ARROWS = { '→': 'arrow-right', '←': 'arrow-left', '↑': 'arrow-up', '↓': 'arrow-down' };
+export function arrows(html) {
+  return String(html).replace(/[→←↑↓]/g, (a) => icon(ARROWS[a], 'ic-s'));
 }
 
 // Planche d'icônes insérée une fois dans la page : toutes les <use href="#i-…"> y renvoient

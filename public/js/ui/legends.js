@@ -15,7 +15,7 @@ const L = {
     _: [
       txt('Mini-secteurs :'), sw('var(--purple)', 'meilleur de tous'), sw('var(--green)', 'record perso'), sw('var(--yellow)', 'plus lent'), sw('var(--blue)', 'stands'),
       txt('· Temps :'), `<span class="lg-i"><b style="color:var(--purple)">violet</b>&nbsp;meilleur de la séance</span>`, `<span class="lg-i"><b style="color:var(--green)">vert</b>&nbsp;record perso / l'écart se réduit</span>`,
-      txt('· ▲▼ places gagnées/perdues depuis la grille'),
+      txt(`· <span class="lg-delta">${icon('tri-up')}${icon('tri-down')}</span> places gagnées/perdues depuis la grille`),
       tag('pit', 'STAND', 'aux stands'), tag('out', 'SORTIE', 'sort des stands'), tag('push', 'TOUR', 'tour rapide lancé'), tag('ret', 'ABD', 'abandon'),
       tyre('#ff3b30', 'S', 'tendre'), tyre('#f5c518', 'M', 'médium'), tyre('#f1f1f4', 'H', 'dur'), tyre('#35d07f', 'I', 'intermédiaire'), tyre('#3ea6ff', 'W', 'pluie'),
       txt('(chiffre : tours sur ce train) · Arr. : arrêts · V.max : vitesse au speed trap (km/h) · A / B : choisir les pilotes du duel · étoile : favori (alertes)'),
@@ -30,7 +30,7 @@ const L = {
   },
   feed: {
     rcm: [txt('Messages officiels de la direction de course (drapeaux, enquêtes, pénalités, limites de piste), au rythme de votre délai TV. Cases à cocher : masquer drapeaux bleus et temps supprimés.')],
-    stewards: [txt('Incidents examinés par les commissaires : noté → enquête → décision (pénalité ou aucune action). Le badge orange compte les enquêtes en cours.')],
+    stewards: [txt('Incidents examinés par les commissaires : noté, puis enquête, puis décision (pénalité ou aucune action). Le badge orange compte les enquêtes en cours.')],
     tracklimits: [txt('Tours et temps supprimés pour non-respect des limites de piste, par pilote. Les avertissements répétés peuvent entraîner une pénalité.')],
   },
   radio: {
@@ -77,7 +77,7 @@ function update(panel, id) {
     el.className = 'panel-legend';
     panel.appendChild(el);
   }
-  const html = `${items.join('')}<button class="lg-hide" title="Masquer les légendes (réaffichables dans Réglages → Affichage)">${icon('close')} Masquer</button>`;
+  const html = `${items.join('')}<button class="lg-hide" title="Masquer les légendes (réaffichables dans Réglages, onglet Affichage)">${icon('close')} Masquer</button>`;
   if (el.dataset.k !== `${id}|${tab}`) { el.innerHTML = html; el.dataset.k = `${id}|${tab}`; }
 }
 

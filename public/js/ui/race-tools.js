@@ -62,7 +62,7 @@ function circleSvg(gaps, me, projected, dl) {
     <circle cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" r="8" class="cd-ghost"/>
     <text x="${glx.toFixed(1)}" y="${gly.toFixed(1)}" class="cd-ghost-l">sortie ${esc(dl[me]?.Tla || me)}</text>
     ${dots}
-    <text x="${C}" y="${C - 18}" class="cd-mid2">▲ leader en haut</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', ',')} s</text>
+    <text x="${C}" y="${C - 18}" class="cd-mid2">leader en haut</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', ',')} s</text>
   </svg>`;
 }
 

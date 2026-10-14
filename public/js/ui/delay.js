@@ -2,7 +2,7 @@
 import { store, setDelay, serverNow, on } from '../store.js';
 import { $, esc, fmtDelay, storageGet, storageSet, drivers } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
-import { icon } from '../icons.js';
+import { icon, arrows } from '../icons.js';
 
 // Valeurs de départ indicatives : chaque installation (box, satellite, appli, TNT...) a son
 // propre retard. Utilisez la synchro TV puis enregistrez votre propre préréglage.
@@ -23,7 +23,7 @@ function allPresets() {
 // ic : icône facultative devant le message (voir icons.js)
 export function toast(msg, ms = 2500, ic = null) {
   const t = $('#toast');
-  t.innerHTML = `${ic ? icon(ic) : ''}<span>${esc(msg)}</span>`;
+  t.innerHTML = `${ic ? icon(ic) : ''}<span>${arrows(esc(msg))}</span>`;
   t.hidden = false;
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => { t.hidden = true; }, ms);

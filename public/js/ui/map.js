@@ -5,6 +5,7 @@ import { $, api, drivers, teamColor, storageGet, storageSet } from '../util.js';
 import { loadTrack } from '../track.js';
 import { parseUtc } from '/shared/f1.js';
 import { hotLaps } from './tower.js';
+import { icon } from '../icons.js';
 
 const canvas = () => $('#mapCanvas');
 let ctx = null;
@@ -447,7 +448,7 @@ function describeZone(lay, r0, r1) {
   if (turns.length) parts.push(turns.length > 1 ? `virages ${turns[0]}–${turns[turns.length - 1]}` : `virage ${turns[0]}`);
   if (a.sector) {
     if (a.sector === b.sector) parts.push(`S${a.sector}${a.mini ? ` · micro-secteur${a.mini !== b.mini ? `s ${a.mini}–${b.mini}` : ` ${a.mini}`}` : ''}`);
-    else parts.push(`S${a.sector}${a.mini ? `.${a.mini}` : ''} → S${b.sector}${b.mini ? `.${b.mini}` : ''}`);
+    else parts.push(`S${a.sector}${a.mini ? `.${a.mini}` : ''} ${icon('arrow-right', 'ic-s')} S${b.sector}${b.mini ? `.${b.mini}` : ''}`);
   }
   return parts.join(' · ');
 }

@@ -63,7 +63,7 @@ function table(tool, cols, rows, defaultDir) {
     return (va - vb) * st.dir;
   });
   const dl = drivers(store.state);
-  return `<table class="tbp-table"><thead><tr><th>Pilote</th>${cols.map(([k, label, title]) => `<th data-sort="${k}" data-dir="${defaultDir(k)}" class="${st.k === k ? 'sorted' : ''}" title="${esc(title || '')}">${esc(label)}${st.k === k ? (st.dir > 0 ? ' ▴' : ' ▾') : ''}</th>`).join('')}</tr></thead>
+  return `<table class="tbp-table"><thead><tr><th>Pilote</th>${cols.map(([k, label, title]) => `<th data-sort="${k}" data-dir="${defaultDir(k)}" class="${st.k === k ? 'sorted' : ''}" title="${esc(title || '')}">${esc(label)}${st.k === k ? icon(st.dir > 0 ? 'chevron-up' : 'chevron-down', 'ic-s') : ''}</th>`).join('')}</tr></thead>
     <tbody>${rows.map((r) => {
       const d = dl[r.num] || {};
       return `<tr><td><span class="drv">${teamMark(d)}<b>${esc(d.Tla || r.num)}</b></span></td>${cols.map(([k]) => {

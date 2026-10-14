@@ -258,15 +258,15 @@ export function renderPits() {
         if (prev && prev.Compound === st.Compound && Number(st.StartLaps) > 0 && Number(st.StartLaps) === Number(prev.TotalLaps)) merged[merged.length - 1] = { ...prev, TotalLaps: st.TotalLaps };
         else merged.push(st);
       }
-      const seq = merged.map((st, i) => `${i ? '<span class="muted">→</span>' : ''}${tyreBadge(st.Compound, st.TotalLaps, st.New)}`).join(' ');
+      const seq = merged.map((st, i) => `${i ? `<span class="muted">${icon('arrow-right', 'ic-s')}</span>` : ''}${tyreBadge(st.Compound, st.TotalLaps, st.New)}`).join(' ');
       return `<tr><td>${chip(num)}</td><td class="pit-n">${mine.length}</td><td class="pit-seq">${seq || '<span class="muted">—</span>'}</td>
         <td>${mine.map((p) => `<span class="pit-pill ${stClass(p.st)}" title="Tour ${esc(p.lap ?? '—')} · voie ${p.duration ? sec(p.duration) : '—'}">T${esc(p.lap ?? '—')} · ${p.st ? `${p.est ? '≈' : ''}${sec(p.st)}` : '—'}</span>`).join(' ') || '<span class="muted">—</span>'}</td></tr>`;
     }).join('')}</table>`;
   } else {
-    body = `<table class="pits"><tr><th>Tour</th><th>Pilote</th><th title="Pneus retirés (tours effectués) → pneus montés">Pneus</th><th>Voie des stands</th><th>Immobilisation</th></tr>${stops.slice().sort((a, b) => b.t - a.t).map((p) => `<tr>
+    body = `<table class="pits"><tr><th>Tour</th><th>Pilote</th><th title="Pneus retirés (tours effectués), puis pneus montés">Pneus</th><th>Voie des stands</th><th>Immobilisation</th></tr>${stops.slice().sort((a, b) => b.t - a.t).map((p) => `<tr>
       <td><span class="lap-pill">T${esc(p.lap ?? '—')}</span></td>
       <td>${chip(p.num)} <span class="muted small">${p.k ? `${p.k}${p.k === 1 ? 'er' : 'e'} arrêt` : 'passage'}</span></td>
-      <td class="pit-tyres">${sameTyres(p) ? `${tyre(p.from)} <span class="muted small">mêmes pneus</span>` : p.from || p.to ? `${tyre(p.from)} <span class="muted">→</span> ${fitted(p.to)}` : '<span class="muted">—</span>'}</td>
+      <td class="pit-tyres">${sameTyres(p) ? `${tyre(p.from)} <span class="muted small">mêmes pneus</span>` : p.from || p.to ? `${tyre(p.from)} <span class="muted">${icon('arrow-right', 'ic-s')}</span> ${fitted(p.to)}` : '<span class="muted">—</span>'}</td>
       <td>${p.duration ? `<div class="pit-cell">${bar(p.duration, laneMin, laneMax, 'lane')}<span class="pit-val">${sec(p.duration)}</span>${laneNote(p)}</div>` : '—'}</td>
       <td>${p.st ? `<div class="pit-cell">${bar(p.st, stMin, stMax, stClass(p.st))}<span class="pit-val ${stClass(p.st)}"${p.est ? ' title="Estimé par la télémétrie (vitesse nulle) : la F1 ne fournit pas le temps officiel pour cette séance"' : ''}>${p.est ? '≈' : ''}${sec(p.st)}</span></div>` : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>`;
   }
@@ -478,7 +478,7 @@ export function renderStewards() {
         ${inc.reason ? `<div class="inc-reason" title="${esc(inc.reason)}">${esc(reasonFr(inc.reason))}</div>` : ''}
         ${inc.decisions.map(decision).join('')}
         ${inc.docs.map((d) => docLink(d, dl)).join('')}
-        <ul class="inc-steps">${inc.history.map((h) => `<li title="${esc(h.text)}">${fmtClock(h.t)}${h.lap ? ` (T${h.lap})` : ''} · <b>${esc(h.label)}</b>${h.cars?.length ? ` → ${esc(h.cars.map((c) => dl[c.num]?.Tla || c.tla).join(', '))}` : ''}</li>`).join('')}</ul>
+        <ul class="inc-steps">${inc.history.map((h) => `<li title="${esc(h.text)}">${fmtClock(h.t)}${h.lap ? ` (T${h.lap})` : ''} · <b>${esc(h.label)}</b>${h.cars?.length ? ` ${icon('arrow-right', 'ic-s')} ${esc(h.cars.map((c) => dl[c.num]?.Tla || c.tla).join(', '))}` : ''}</li>`).join('')}</ul>
       </div>`).join('') + loose.map((d) => `<div class="inc"><div class="inc-head"><span class="inc-status ${d.kind}">${esc(d.label)}</span>
         <span class="inc-cars">${d.cars.map(car).join('')}</span><span class="inc-where">${fmtClock(d.t)}${d.lap ? ` · tour ${d.lap}` : ''}</span></div>
         ${decision(d)}</div>`).join('')

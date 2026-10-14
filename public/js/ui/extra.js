@@ -142,7 +142,7 @@ export function renderWeather() {
   $('#weather').innerHTML = `<div class="wx">
     ${g('Air', esc(w.AirTemp), '°C')}${g('Piste', esc(w.TrackTemp), '°C')}${g('Humidité', esc(w.Humidity), '%')}
     ${g('Pression', esc(w.Pressure), 'hPa')}
-    ${g('Vent', Number.isFinite(wind) ? (wind * 3.6).toFixed(0) : '—', `km/h <span class="wind-arrow" style="transform:rotate(${dir + 180}deg)" title="Direction ${dir}°">↑</span>`)}
+    ${g('Vent', Number.isFinite(wind) ? (wind * 3.6).toFixed(0) : '—', `km/h <span class="wind-arrow" style="transform:rotate(${dir + 180}deg)" title="Direction ${dir}°">${icon('arrow-up')}</span>`)}
     ${g('Pluie', w.Rainfall === '1' || w.Rainfall === 1 ? `${icon('rain')} Oui` : 'Non', '')}
   </div><p class="note">Direction du vent : ${dir}° (d'où il vient). Données de la station météo du circuit.</p>`;
 }
@@ -166,7 +166,7 @@ export function renderChampionship() {
   };
   const mv = (cur, pred) => {
     const d = (cur || 0) - (pred || 0);
-    return d ? `<span class="${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'}${Math.abs(d)}</span>` : '';
+    return d ? `<span class="${d > 0 ? 'up' : 'down'}">${icon(d > 0 ? 'tri-up' : 'tri-down')}${Math.abs(d)}</span>` : '';
   };
   $('#champ').innerHTML = `<table class="champ"><tr><th>Proj.</th><th>Pilote</th><th>Pts actuels</th><th>Gagnés</th><th>Pts projetés</th><th></th></tr>
     ${rows.map((r) => {

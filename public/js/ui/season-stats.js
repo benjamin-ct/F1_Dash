@@ -176,15 +176,15 @@ export function renderDrivers(ctx, code) {
       ${card('Dans les points', `${started.filter((x) => x.res.points > 0).length}/${started.length}`)}
       ${card('Moyenne au départ', fr(mean(started.map((x) => x.res.grid).filter(Boolean))))}
       ${card('Moyenne à l\'arrivée', fr(mean(fin.map((x) => x.res.pos))), fin.length ? `meilleur : P${Math.min(...fin.map((x) => x.res.pos))}` : '')}
-      ${card('Places gagnées', `${gained >= 0 ? '+' : ''}${gained}`, 'grille → arrivée, cumul')}
+      ${card('Places gagnées', `${gained >= 0 ? '+' : ''}${gained}`, 'de la grille à l\'arrivée, cumul')}
       ${card('Abandons', started.length - fin.length)}
       ${card('Duel qualif', `${qd[0]} – ${qd[1]}`, mateName ? `face à ${esc(mateName)}` : '')}
       ${card('Vitesse de pointe', tops.length ? `${Math.max(...tops)} km/h` : '—', tops.length ? `moyenne ${fr(mean(tops), 0)} km/h` : '')}
       ${card('Immobilisation moyenne', stops.length ? `${fr(mean(stops))} s` : '—', stops.length ? `${stops.length} arrêts` : '')}
       ${card('Régularité', sig.length ? `${fr(median(sig), 3)} s` : '—', 'écart-type médian des tours')}
       ${card('Tours en tête', stats?.races ? ledTotal : '—', stats?.races ? `${led.filter((v) => v > 0).length} course(s) menée(s)` : '')}
-      ${card('Plus belle remontée', climb && climb.res.grid > climb.res.pos ? `+${climb.res.grid - climb.res.pos}` : '—', climb && climb.res.grid > climb.res.pos ? `P${climb.res.grid} → P${climb.res.pos} · ${esc(short(climb.r.name))}` : '')}
-      ${card('Note de la saison', rt ? gradeBadge(rt.season, rt.seasonGrade, true) : '—', rt?.season !== null && rt ? '<button class="linkish" data-szgo="ratings">voir le détail →</button>' : 'pas assez de courses')}
+      ${card('Plus belle remontée', climb && climb.res.grid > climb.res.pos ? `+${climb.res.grid - climb.res.pos}` : '—', climb && climb.res.grid > climb.res.pos ? `P${climb.res.grid} ${icon('arrow-right', 'ic-s')} P${climb.res.pos} · ${esc(short(climb.r.name))}` : '')}
+      ${card('Note de la saison', rt ? gradeBadge(rt.season, rt.seasonGrade, true) : '—', rt?.season !== null && rt ? `<button class="linkish" data-szgo="ratings">voir le détail ${icon('arrow-right', 'ic-s')}</button>` : 'pas assez de courses')}
       ${card('Note face au coéquipier', rt ? gradeBadge(rt.mate, rt.mateGrade, true) : '—', rt?.mates?.length ? `face à ${esc(rt.mates.join(', '))}` : '')}
     </div>
     <section class="sz-box"><h3>Départ (pointillés) et arrivée, course par course</h3>${chart}</section>

@@ -16,7 +16,7 @@ l'application (Réglages → Application → Nouveautés).
 - Colonne de droite : sujets à la une (48 h), pilotes et écuries qui font l'actu (24 h, un clic pour ne voir que leurs sujets) et dernières vidéos.
 
 ### Design
-- Plus aucun emoji dans l'application : toutes les icônes (menus, boutons, réglages, alertes, carte, téléphone…) sont dessinées pour F1 Dash, dans le même style que la barre latérale.
+- Plus aucun emoji ni symbole de police dans l'application : toutes les icônes (menus, boutons, réglages, alertes, carte, téléphone…), les flèches et les triangles des places gagnées ou perdues sont dessinés pour F1 Dash, dans le même style que la barre latérale.
 - Nouvelles cases à cocher : interrupteurs aux couleurs du thème pour les options, cases et boutons radio redessinés.
 - Téléphone : boutons du haut resserrés pour tenir sur une ligne.
 
