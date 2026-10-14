@@ -259,6 +259,13 @@ async function start() {
     matches: [], lastFetch: -Infinity, reqId: 0, pending: new Map(), ticking: false,
   };
   worker.onmessage = ({ data }) => { const fn = run?.pending.get(data.id); if (fn) { run.pending.delete(data.id); fn(data); } };
+  // Fil de calcul en échec (chargement impossible…) : les recherches en attente ne doivent pas
+  // bloquer l'écoute indéfiniment
+  worker.onerror = (e) => {
+    e.preventDefault?.();
+    for (const fn of run?.pending.values() || []) fn({ ok: false, error: 'worker' });
+    run?.pending.clear();
+  };
   tap.port.onmessage = ({ data }) => onAudio(data);
   run.shownTimer = setInterval(sampleShown, 250);
   run.timer = setInterval(tick, 3000);

@@ -46,8 +46,9 @@ export function addTranslations(lang, items) {
     const en = typeof it?.en === 'string' ? it.en.trim() : '';
     const t = typeof it?.t === 'string' ? it.t.trim() : '';
     const q = it?.q === 'high' ? 'high' : 'light';
-    if (!en || !t || en.length > MAX_LEN || t.length > MAX_LEN) continue;
-    const old = data[en];
+    // « __proto__ », « constructor »… : noms réservés des objets JavaScript, jamais enregistrés
+    if (!en || !t || en.length > MAX_LEN || t.length > MAX_LEN || en in Object.prototype) continue;
+    const old = Object.hasOwn(data, en) ? data[en] : null;
     if (old && (old.q === 'high' || q === 'light')) continue;
     if (!old && Object.keys(data).length >= MAX_ENTRIES) break;
     data[en] = { t, q };

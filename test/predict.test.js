@@ -35,4 +35,6 @@ test('pronostics : classement de la saison et noms de joueurs', () => {
   assert.equal(playerKey('  Léa '), 'léa');
   assert.equal(playerKey('<script>'), 'script');
   assert.equal(playerKey('   '), null);
+  assert.equal(playerKey('__proto__'), null, 'nom réservé des objets JavaScript');
+  assert.equal(playerKey('Constructor'), null);
 });

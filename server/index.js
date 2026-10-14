@@ -71,10 +71,20 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
 };
 
+// Saison demandée : un nombre entier plausible, sinon la saison en cours (une année farfelue
+// renverrait une erreur des serveurs de résultats, ou créerait un cache vide)
+function yearOf(v) {
+  const now = new Date().getFullYear(), y = Number(v);
+  return Number.isInteger(y) && y >= 1950 && y <= now + 1 ? y : now;
+}
+
 function sendJSON(res, status, obj) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(obj));
 }
+
+// Requête mal formée : erreur 400 (et non 500)
+class BadRequest extends Error {}
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -82,12 +92,15 @@ function readBody(req) {
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
-      if (size > 1e6) { reject(new Error('Requête trop volumineuse')); req.destroy(); return; }
+      if (size > 1e6) { reject(new BadRequest('Requête trop volumineuse')); req.destroy(); return; }
       chunks.push(c);
     });
     req.on('end', () => {
       const text = Buffer.concat(chunks).toString('utf8');
-      try { resolve(text ? JSON.parse(text) : {}); } catch { reject(new Error('JSON invalide')); }
+      let body;
+      try { body = text ? JSON.parse(text) : {}; } catch { reject(new BadRequest('JSON invalide')); return; }
+      // Les routes attendent un objet : « null », un nombre ou une liste valent un corps vide
+      resolve(body && typeof body === 'object' && !Array.isArray(body) ? body : {});
     });
     req.on('error', reject);
   });
@@ -158,14 +171,14 @@ async function handleApi(req, res, url) {
     // Pole et meilleur tour en course des éditions précédentes sur ce circuit
     case 'GET /api/records': {
       const key = Number(url.searchParams.get('key'));
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
       return sendJSON(res, 200, await circuitRecords(key, year));
     }
 
     case 'GET /api/circuit': {
       const key = Number(url.searchParams.get('key'));
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
       const data = await circuit(key, year);
       return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Tracé indisponible' });
@@ -173,7 +186,7 @@ async function handleApi(req, res, url) {
 
     case 'GET /api/zones': {
       const key = Number(url.searchParams.get('key'));
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
       const data = await zones(key, year);
       return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Zones indisponibles' });
@@ -181,7 +194,7 @@ async function handleApi(req, res, url) {
 
     case 'GET /api/loops': {
       const key = Number(url.searchParams.get('key'));
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       if (!key) return sendJSON(res, 400, { error: 'Paramètre key manquant' });
       const data = await loops(key, year);
       return data ? sendJSON(res, 200, data) : sendJSON(res, 404, { error: 'Calibration indisponible' });
@@ -212,18 +225,18 @@ async function handleApi(req, res, url) {
     }
 
     case 'GET /api/season': {
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       return sendJSON(res, 200, await season(year));
     }
 
     // Horaires des séances (rappels de l'interface) et calendrier .ics à importer dans un agenda
     case 'GET /api/schedule': {
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       const d = await season(year);
       return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
     }
     case 'GET /api/calendar.ics': {
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       const round = Number(url.searchParams.get('round')) || null;
       const alarm = Math.max(0, Math.min(120, Number(url.searchParams.get('alarm') ?? 15) || 0));
       const d = await season(year);
@@ -259,13 +272,13 @@ async function handleApi(req, res, url) {
 
     // Pronostics entre amis (pole et podium de chaque Grand Prix)
     case 'GET /api/predictions': {
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       return sendJSON(res, 200, await predictionsView(year, url.searchParams.get('me') || ''));
     }
     case 'POST /api/predictions': {
       const body = await readBody(req);
       try {
-        return sendJSON(res, 200, await savePrediction({ ...body, year: Number(body.year) || new Date().getFullYear() }));
+        return sendJSON(res, 200, await savePrediction({ ...body, year: yearOf(body.year) }));
       } catch (err) {
         return sendJSON(res, 400, { error: err.message });
       }
@@ -284,12 +297,12 @@ async function handleApi(req, res, url) {
     }
 
     case 'GET /api/season/stats': {
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       return sendJSON(res, 200, await seasonStats(year));
     }
 
     case 'GET /api/season/fia': {
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       return sendJSON(res, 200, await seasonTech(year));
     }
 
@@ -330,6 +343,7 @@ async function handleApi(req, res, url) {
 
     case 'GET /api/radio/resolve': {
       const target = url.searchParams.get('u') || '';
+      if (!URL.canParse(target)) return sendJSON(res, 400, { error: 'Adresse invalide' });
       const stream = await resolvePlaylist(target);
       allowHost(new URL(stream).host);
       return sendJSON(res, 200, { url: stream });
@@ -351,7 +365,7 @@ async function handleApi(req, res, url) {
     }
 
     case 'GET /api/archive': {
-      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const year = yearOf(url.searchParams.get('year'));
       try {
         return sendJSON(res, 200, await seasonIndex(year));
       } catch (err) {
@@ -455,7 +469,7 @@ async function handler(req, res) {
     try {
       await handleApi(req, res, url);
     } catch (err) {
-      sendJSON(res, err instanceof HttpError ? 502 : 500, { error: err.message });
+      sendJSON(res, err instanceof BadRequest ? 400 : err instanceof HttpError ? 502 : 500, { error: err.message });
     }
     return;
   }

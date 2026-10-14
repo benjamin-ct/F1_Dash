@@ -26,6 +26,13 @@ test('merge : ne modifie pas la source lors d\'une copie', () => {
   assert.equal(src.a.b[0], 1);
 });
 
+test('merge : une clé « __proto__ » du flux ne touche pas au modèle des objets', () => {
+  const state = merge({}, JSON.parse('{"__proto__": {"pollue": 1}, "Lines": {"__proto__": {"x": 2}}}'));
+  assert.equal({}.pollue, undefined);
+  assert.equal(state.pollue, undefined);
+  assert.equal(state.Lines.x, undefined);
+});
+
 test('parseGap / parseLapTime / parseUtc', () => {
   assert.deepEqual(parseGap('+1.234'), { s: 1.234 });
   assert.deepEqual(parseGap('1L'), { laps: 1 });
