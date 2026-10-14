@@ -23,6 +23,7 @@ import { circuitRecords } from './records.js';
 import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
+import { localHost, sameSiteRequest, decodePath } from './guard.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -105,16 +106,11 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-// Les routes qui modifient l'état n'acceptent que des requêtes provenant de l'interface elle-même.
-function sameOrigin(req) {
-  const origin = req.headers.origin;
-  if (!origin) return true;
-  try { return new URL(origin).host === req.headers.host; } catch { return false; }
-}
-
 async function handleApi(req, res, url) {
   const route = `${req.method} ${url.pathname}`;
-  if (req.method !== 'GET' && !sameOrigin(req)) return sendJSON(res, 403, { error: 'Origine refusée' });
+  // L'API ne répond qu'à l'interface elle-même : un autre site ouvert dans le navigateur ne peut
+  // ni la lire ni déclencher d'action (relais F1 TV avec le jeton, réglages, enregistrements…)
+  if (!sameSiteRequest(req.headers)) return sendJSON(res, 403, { error: 'Origine refusée' });
 
   switch (route) {
     case 'GET /api/lan':
@@ -365,7 +361,17 @@ async function handleApi(req, res, url) {
   }
 }
 
+// Serveur principal, qui n'écoute que sur cet ordinateur : seules les adresses locales sont
+// acceptées (un nom de domaine extérieur pointant vers 127.0.0.1 = attaque « DNS rebinding »).
+// L'accès depuis le réseau local passe par son propre serveur, protégé par une clé.
+const loopbackOnly = ['127.0.0.1', 'localhost', '::1'].includes(settings.host);
+
 async function handler(req, res) {
+  if (loopbackOnly && req.socket.server === server && !localHost(req.headers.host)) {
+    res.writeHead(421, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Hôte non autorisé');
+    return;
+  }
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname.startsWith('/api/')) {
     try {
@@ -376,11 +382,17 @@ async function handler(req, res) {
     return;
   }
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
-  serveStatic(req, res, decodeURIComponent(url.pathname));
+  const pathname = decodePath(url.pathname);
+  if (pathname === null) { res.writeHead(400); res.end('Adresse invalide'); return; }
+  serveStatic(req, res, pathname);
 }
 
 const server = http.createServer(handler);
-const wss = new WebSocketServer({ server, path: '/ws', perMessageDeflate: { threshold: 4096 } });
+const wss = new WebSocketServer({
+  server, path: '/ws', perMessageDeflate: { threshold: 4096 },
+  // Connexion depuis l'interface uniquement (pas depuis la page d'un autre site)
+  verifyClient: ({ req }) => (!loopbackOnly || localHost(req.headers.host)) && sameSiteRequest({ origin: req.headers.origin, host: req.headers.host }),
+});
 wss.on('connection', (ws, req) => hub.addClient(ws, { host: isLoopback(req.socket.remoteAddress) }));
 lan = createLan({ handler, onSocket: (ws) => hub.addClient(ws, { host: false }) });
 
@@ -409,6 +421,11 @@ onNews((list) => {
   const str = JSON.stringify({ type: 'news', items: list });
   for (const c of hub.clients) hub.send(c, str);
 });
+
+// Une erreur imprévue (réponse d'un site mal formée…) ne doit pas arrêter le dashboard en pleine
+// séance : elle est consignée et le serveur continue
+process.on('unhandledRejection', (err) => console.error('[erreur]', err));
+process.on('uncaughtException', (err) => console.error('[erreur]', err));
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {

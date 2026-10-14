@@ -157,6 +157,8 @@ async function control(body) {
 
 // Accès depuis un téléphone / une tablette du réseau local (réglage disponible sur l'ordinateur uniquement)
 async function renderLan(change) {
+  // Ouvert depuis un téléphone : réglage réservé à l'ordinateur (inutile de le demander au serveur)
+  if (!['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) { $('#lanBlock').hidden = true; return; }
   let info;
   try {
     info = await api('/api/lan', change ? { method: 'POST', body: change } : undefined);

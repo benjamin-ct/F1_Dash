@@ -3,7 +3,10 @@
 import { $, $$, esc, api, storageGet, storageSet, drivers, teamColor } from '../util.js';
 import { store, on } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
-import { NEWS_TEAMS, newsTags } from '/shared/news.js';
+import { NEWS_TEAMS, newsTags, webLink } from '/shared/news.js';
+
+// Lien ou image d'une nouvelle : adresse web uniquement (jamais « javascript: »), échappée
+const safeUrl = (u) => esc(webLink(u) || '#');
 import { translateText } from './transcribe.js';
 import { notifyNews } from './alerts.js';
 import { toast } from './delay.js';
@@ -212,15 +215,15 @@ function card(g, favs) {
   const fav = (it.tags || []).some((t) => favs.has(t));
   const level = g.imp >= 3 ? '<span class="nw-imp major">Majeur</span>' : g.imp >= 2 ? '<span class="nw-imp">Important</span>' : '';
   const hot = g.sources >= 3 ? `<span class="nw-hot" title="Sujet repris par ${g.sources} sources">${icon('fire')} ${g.sources} sources</span>` : '';
-  const img = it.img ? `<img class="nw-img" src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.nw-thumb').remove()">` : '';
+  const img = it.img ? `<img class="nw-img" src="${safeUrl(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.nw-thumb').remove()">` : '';
   const others = g.others.length ? `<details class="nw-others"><summary>Repris par ${g.others.length} autre${g.others.length > 1 ? 's' : ''} source${g.others.length > 1 ? 's' : ''}</summary>
-    ${g.others.map((o) => `<a href="${esc(o.link)}" target="_blank" rel="noopener"><b>${esc(srcById[o.src]?.name || o.src)}</b> <span class="nw-lang">${esc(o.lang.toUpperCase())}</span> ${esc(titleOf(o).text)} <span class="muted">· ${ago(o.t)}</span></a>`).join('')}</details>` : '';
+    ${g.others.map((o) => `<a href="${safeUrl(o.link)}" target="_blank" rel="noopener"><b>${esc(srcById[o.src]?.name || o.src)}</b> <span class="nw-lang">${esc(o.lang.toUpperCase())}</span> ${esc(titleOf(o).text)} <span class="muted">· ${ago(o.t)}</span></a>`).join('')}</details>` : '';
   return `<article class="nw-card${justArrived.has(it.id) ? ' arrived' : ''}${unread ? ' unread' : ''}${g.imp >= 2 ? ' imp' : ''}${fav ? ' fav' : ''}${it.kind === 'video' ? ' video' : ''}">
-    ${img ? `<a class="nw-thumb" href="${esc(it.link)}" target="_blank" rel="noopener">${img}${it.kind === 'video' ? `<span class="nw-play">${icon('play')}</span>` : ''}</a>` : ''}
+    ${img ? `<a class="nw-thumb" href="${safeUrl(it.link)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">${img}${it.kind === 'video' ? `<span class="nw-play">${icon('play')}</span>` : ''}</a>` : ''}
     <div class="nw-body">
       <div class="nw-meta"><span class="nw-src nw-c-${esc(it.cat)}">${esc(src.name)}</span><span class="nw-cat">${CAT_LABEL[it.cat] || ''}</span>
         <span class="nw-lang" title="Langue d'origine : ${esc(LANG_LABEL[it.lang] || it.lang)}">${esc(it.lang.toUpperCase())}</span><span class="nw-time" title="${esc(new Date(it.t).toLocaleString('fr-FR'))}">${ago(it.t)}</span>${level}${hot}${fav ? `<span class="nw-favmark" title="Concerne un de vos favoris">${icon('star-fill')}</span>` : ''}</div>
-      <a class="nw-title" href="${esc(it.link)}" target="_blank" rel="noopener" ${title.translated ? `title="${esc(it.title)}"` : ''}>${esc(title.text)}</a>
+      <a class="nw-title" href="${safeUrl(it.link)}" target="_blank" rel="noopener" ${title.translated ? `title="${esc(it.title)}"` : ''}>${esc(title.text)}</a>
       ${title.pending ? '<div class="nw-trans muted">Traduction en cours…</div>' : title.translated ? '<div class="nw-trans muted" title="Traduit automatiquement sur cet ordinateur">Traduit · <button class="nw-vo" data-vo>VO</button></div>' : ''}
       <div class="nw-vo-text" hidden>${esc(it.title)}</div>
       ${it.summary ? `<p class="nw-sum">${esc(sum || it.summary)}</p>` : ''}
@@ -276,15 +279,15 @@ function asideView(all) {
   const videos = all.filter((it) => it.kind === 'video' && it.img).slice(0, 4);
   // Titres de la colonne traduits comme ceux du fil
   for (const it of [...top.map((g) => g.lead), ...videos]) translate(it.title, it.lang);
-  const topHtml = top.length ? top.map((g, i) => `<a class="nwa-top" href="${esc(g.lead.link)}" target="_blank" rel="noopener">
+  const topHtml = top.length ? top.map((g, i) => `<a class="nwa-top" href="${safeUrl(g.lead.link)}" target="_blank" rel="noopener">
       <span class="nwa-rank">${i + 1}</span><span class="nwa-txt"><b>${esc(titleOf(g.lead).text)}</b>
       <span class="muted small">${g.sources} source${g.sources > 1 ? 's' : ''} · ${ago(g.t)}</span></span></a>`).join('')
     : '<div class="muted small">Pas encore de sujet repris par plusieurs sources.</div>';
   const whoHtml = who.length ? who.map(([t, n]) => `<button class="nwa-who${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}" style="--tc:${tagColor(t)}" title="Afficher seulement les sujets qui citent ${esc(tagName(t))}">
       <span class="nwa-who-name">${esc(tagName(t))}</span><span class="nwa-bar"><i style="width:${Math.round((n / max) * 100)}%"></i></span><span class="nwa-n">${n}</span></button>`).join('')
     : '<div class="muted small">Rien sur les dernières 24 heures.</div>';
-  const vidHtml = videos.length ? `<div class="nwa-vids">${videos.map((v) => `<a href="${esc(v.link)}" target="_blank" rel="noopener" title="${esc(v.title)}">
-      <span class="nwa-vthumb"><img src="${esc(v.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">${icon('play')}</span>
+  const vidHtml = videos.length ? `<div class="nwa-vids">${videos.map((v) => `<a href="${safeUrl(v.link)}" target="_blank" rel="noopener" title="${esc(v.title)}">
+      <span class="nwa-vthumb"><img src="${safeUrl(v.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">${icon('play')}</span>
       <span class="nwa-vtitle">${esc(titleOf(v).text)}</span><span class="muted small">${esc(srcById[v.src]?.name || '')}</span></a>`).join('')}</div>` : '<div class="muted small">Aucune vidéo récente.</div>';
   return `<aside class="nw-aside">
     <section class="nwa-box"><h3>${icon('fire')} À la une <span class="muted small">48 h</span></h3>${topHtml}</section>

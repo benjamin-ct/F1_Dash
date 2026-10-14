@@ -1165,8 +1165,10 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
     padding: 4px 4px calc(4px + env(safe-area-inset-bottom)); gap: 2px; }
   .mob-nav[hidden] { display: none; }
   .mob-nav::-webkit-scrollbar { display: none; }
-  .mob-nav button { flex: 1 0 auto; min-width: 64px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 6px 4px;
-    background: none; border: 0; border-radius: 8px; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; }
+  /* Tous les onglets tiennent sur la largeur du téléphone (« Stratégie » n'est plus coupé) */
+  .mob-nav button { flex: 1 1 0; min-width: 48px; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 1px 4px;
+    background: none; border: 0; border-radius: 8px; color: var(--muted); font-size: 10.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  @media (max-width: 380px) { .mob-nav button { font-size: 9.5px; } }
   .mob-nav button.active { color: var(--text); background: var(--panel-3); }
   /* Espace Saison : menu en bandeau horizontal */
   .season-view { flex-direction: column; }
@@ -2065,3 +2067,5 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
 :root[data-scheme="light"] .panel, :root[data-scheme="light"] .nwa-box, :root[data-scheme="light"] .nw-card, :root[data-scheme="light"] .sz-card, :root[data-scheme="light"] .sz-box { box-shadow: 0 1px 2px rgba(16, 24, 40, .04); }
 :root[data-scheme="light"] .toast { background: #0E1116; color: #F1F3F6; border-color: #0E1116; }
 :root[data-scheme="light"] ::-webkit-scrollbar-thumb { background: #CDD3DC; }
+/* Mode clair : « Replay » lisible sur fond blanc */
+:root[data-scheme="light"] .rp-title { color: var(--blue); }
