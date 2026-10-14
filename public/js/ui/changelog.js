@@ -1,10 +1,11 @@
 // Journal des modifications (CHANGELOG.md) dans les réglages, et nouveautés d'une version
 // en attente d'installation.
 import { $, esc, api } from '../util.js';
+import { arrows } from '../icons.js';
 
 // Mise en forme du texte du journal : titres « ### », listes « - », gras « **…** »
 export function changelogHtml(md) {
-  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
+  const inline = (s) => arrows(esc(s)).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
   let html = '', list = false;
   for (const raw of String(md || '').split(/\r?\n/)) {
     const line = raw.trim();

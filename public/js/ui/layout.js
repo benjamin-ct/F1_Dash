@@ -4,6 +4,7 @@ import { $, $$, esc, storageGet, storageSet, sessionKind } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
 import { store, on } from '../store.js';
 import { toast } from './delay.js';
+import { icon } from '../icons.js';
 
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
@@ -243,10 +244,10 @@ function narrow() {
 
 // Téléphone (et tablette en portrait) : un seul panneau à la fois, choisi dans la barre du bas.
 const MOB_TABS = [
-  ['tower', '🏁', 'Classement'], ['map', '🗺', 'Carte'], ['feed', '📢', 'Course'], ['duel', '⚔', 'Duel'],
-  ['analysis', '📈', 'Analyse'], ['extra', '🔧', 'Stratégie'], ['radio', '📻', 'Radios'],
+  ['tower', 'Classement'], ['map', 'Carte'], ['feed', 'Course'], ['duel', 'Duel'],
+  ['analysis', 'Analyse'], ['extra', 'Stratégie'], ['radio', 'Radios'],
 ];
-// Icônes dessinées (design « F1 Pro ») ; les autres thèmes gardent les émojis
+// Icônes dessinées, dans tous les thèmes
 const MOB_SVG = {
   tower: '<path d="M4 6h16M4 12h16M4 18h10"/>',
   map: '<path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3z"/><path d="M9 4v13M15 7v13"/>',
@@ -285,7 +286,7 @@ function renderMobile(grid) {
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v, .lstash')) el.remove();
   const nav = $('#mobNav');
   nav.hidden = false;
-  nav.innerHTML = tabs.map(([id, ic, label]) => `<button data-mob="${id}" class="${id === mobTab ? 'active' : ''}"><span class="mn-ic">${ic}</span><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${MOB_SVG[id] || ''}</svg><span class="mn-l">${label}</span></button>`).join('');
+  nav.innerHTML = tabs.map(([id, label]) => `<button data-mob="${id}" class="${id === mobTab ? 'active' : ''}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${MOB_SVG[id] || ''}</svg><span class="mn-l">${label}</span></button>`).join('');
   nav.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
@@ -357,7 +358,7 @@ function render(force = false) {
 
 // ---------------- Disposition libre ----------------
 // Chaque panneau a sa position et sa taille (en fractions de la zone des panneaux) : on le
-// déplace avec ⠿ et on le redimensionne par son coin, n'importe où ; il s'aimante aux bords
+// déplace avec la poignée et on le redimensionne par son coin, n'importe où ; il s'aimante aux bords
 // de la zone et des autres panneaux. Clic sur un panneau = il passe au premier plan.
 const FREE_GAP = 6;     // écart laissé entre deux panneaux aimantés (px)
 const SNAP = 12;        // distance d'aimantation (px)
@@ -695,8 +696,8 @@ function popMenu(id, anchor) {
   const m = document.createElement('div');
   m.className = 'lpop-menu';
   m.innerHTML = `<div class="muted small">Envoyer « ${esc(SHORT[id])} » vers…</div>
-    ${targets.map(([w, o], i) => `<button data-to="${esc(w)}">🗗 Fenêtre ${i + 1} : ${esc(winTitle(o.panels))} <span class="muted small">(ajouter)</span></button>`).join('')}
-    <button data-to="new">＋ Nouvelle fenêtre</button>`;
+    ${targets.map(([w, o], i) => `<button data-to="${esc(w)}">${icon('window')} Fenêtre ${i + 1} : ${esc(winTitle(o.panels))} <span class="muted small">(ajouter)</span></button>`).join('')}
+    <button data-to="new">${icon('plus')} Nouvelle fenêtre</button>`;
   document.body.appendChild(m);
   const r = anchor.getBoundingClientRect();
   m.style.left = `${Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, r.right - m.offsetWidth))}px`;
@@ -825,7 +826,7 @@ function switchProfile(next, quiet = false) {
   save();
   applyTabs();
   renderLayoutOptions();
-  if (isMain && !quiet) toast(`Disposition « ${PROFILES[next]} » (⚙ Réglages → Affichage)`, 3500);
+  if (isMain && !quiet) toast(`Disposition « ${PROFILES[next]} » (Réglages → Affichage)`, 3500);
 }
 
 function checkProfile() {
@@ -836,7 +837,7 @@ function checkProfile() {
 
 export const currentProfile = () => profile;
 
-// Boutons ⠿ ⤢ ↗ ✕ centrés sur la hauteur de la première ligne de l'en-tête (titre, outils ou
+// Boutons de panneau (poignée, agrandir, envoyer, masquer) centrés sur la hauteur de la première ligne de l'en-tête (titre, outils ou
 // onglets), quelle que soit sa hauteur réelle (thème, boutons « Calques », onglets sur 2 lignes)
 function alignCtrl(head) {
   const items = [...head.children].filter((x) => !x.classList.contains('panel-ctrl') && x.offsetParent);
@@ -858,8 +859,8 @@ export function initLayout() {
     const fb = $('#soloFreeBtn');
     if (fb) {
       fb.hidden = false;
-      const sync = () => { fb.classList.toggle('on', !!layout.free); fb.title = layout.free ? 'Disposition libre (cliquer pour ranger les panneaux en colonnes)' : 'Panneaux en colonnes (cliquer pour les placer librement : ⠿ pour déplacer, coin pour redimensionner)'; };
-      fb.addEventListener('click', () => { unmaximize(); setFreeLayout(!layout.free); sync(); toast(layout.free ? 'Disposition libre : glissez ⠿ pour déplacer un panneau, son coin pour le redimensionner' : 'Panneaux rangés en colonnes'); });
+      const sync = () => { fb.classList.toggle('on', !!layout.free); fb.title = layout.free ? 'Disposition libre (cliquer pour ranger les panneaux en colonnes)' : 'Panneaux en colonnes (cliquer pour les placer librement : poignée pour déplacer, coin pour redimensionner)'; };
+      fb.addEventListener('click', () => { unmaximize(); setFreeLayout(!layout.free); sync(); toast(layout.free ? 'Disposition libre : glissez la poignée pour déplacer un panneau, son coin pour le redimensionner' : 'Panneaux rangés en colonnes', 2500, layout.free ? 'move' : 'columns'); });
       sync();
     }
   }
@@ -868,11 +869,11 @@ export function initLayout() {
     const head = panelEl(p.id).querySelector('.panel-head');
     const ctrl = document.createElement('div');
     ctrl.className = 'panel-ctrl';
-    ctrl.innerHTML = `<button data-act="drag" class="lgrip" title="Glisser pour déplacer ce panneau (colonnes : à côté, au-dessus, en dessous d'un autre ou échange ; disposition libre : n'importe où)">⠿</button>`
-      + '<button data-act="max" title="Agrandir / réduire (Échap)">⤢</button>'
-      + '<button data-act="pop" title="Envoyer vers une autre fenêtre (second écran) : nouvelle fenêtre ou fenêtre déjà ouverte">↗</button>'
-      + (isMain ? '<button data-act="hide" title="Masquer ce panneau (réaffichable dans ⚙ Réglages)">✕</button>'
-        : '<button data-act="back" title="Remettre ce panneau dans la fenêtre principale">↙</button>');
+    ctrl.innerHTML = `<button data-act="drag" class="lgrip" title="Glisser pour déplacer ce panneau (colonnes : à côté, au-dessus, en dessous d'un autre ou échange ; disposition libre : n'importe où)">${icon('grip')}</button>`
+      + `<button data-act="max" title="Agrandir / réduire (Échap)">${icon('maximize')}</button>`
+      + `<button data-act="pop" title="Envoyer vers une autre fenêtre (second écran) : nouvelle fenêtre ou fenêtre déjà ouverte">${icon('external')}</button>`
+      + (isMain ? `<button data-act="hide" title="Masquer ce panneau (réaffichable dans Réglages)">${icon('close')}</button>`
+        : `<button data-act="back" title="Remettre ce panneau dans la fenêtre principale">${icon('window-in')}</button>`);
     head.appendChild(ctrl);
     headObserver?.observe(head);
     ctrl.querySelector('.lgrip').addEventListener('pointerdown', (e) => {

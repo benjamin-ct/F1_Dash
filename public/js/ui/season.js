@@ -6,6 +6,7 @@ import { $, esc, api, teamColor } from '../util.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge } from './season-stats.js';
 import { driverRatings, qualiGaps } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
+import { icon } from '../icons.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -190,8 +191,8 @@ function renderHome() {
       ${last ? `<div class="sz-card"><div class="muted small">Dernier vainqueur · R${last.round}</div><div class="sz-big">${bar(last.results[0].team, last.results[0].teamId)}${esc(last.results[0].last)}</div><div class="muted small">${esc(last.name)}</div></div>` : ''}
     </div>
     <div class="sz-grid2">
-      <section class="sz-box"><h3>Classement pilotes</h3>${standingsTable(data.drivers, 'd', 10)}<button class="btn small" data-szgo="standings">Classement complet →</button></section>
-      <section class="sz-box"><h3>Classement constructeurs</h3>${standingsTable(data.constructors, 'c', 10)}<button class="btn small" data-szgo="standings">Classement complet →</button></section>
+      <section class="sz-box"><h3>Classement pilotes</h3>${standingsTable(data.drivers, 'd', 10)}<button class="btn small" data-szgo="standings">Classement complet ${icon('arrow-right', 'ic-s')}</button></section>
+      <section class="sz-box"><h3>Classement constructeurs</h3>${standingsTable(data.constructors, 'c', 10)}<button class="btn small" data-szgo="standings">Classement complet ${icon('arrow-right', 'ic-s')}</button></section>
     </div>`;
 }
 
@@ -205,7 +206,7 @@ function renderCalendar() {
       <summary><div class="sz-race-top"><span class="muted">R${r.round}</span> ${r.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''} ${status}</div>
         <div class="sz-race-name">${esc(r.name.replace(' Grand Prix', ''))}</div>
         <div class="muted small">${esc(r.circuit || '')} · ${fmtDate(first)} – ${fmtDate(r.date)}</div>
-        ${w ? `<div class="small">🏆 ${chip(w)} ${r.quali[0] ? `· pole ${chip(r.quali.find((q) => q.pos === 1) || r.quali[0])}` : ''}</div>` : ''}</summary>
+        ${w ? `<div class="small">${icon('trophy')} ${chip(w)} ${r.quali[0] ? `· pole ${chip(r.quali.find((q) => q.pos === 1) || r.quali[0])}` : ''}</div>` : ''}</summary>
       <ul class="sz-sessions">${r.sessions.map((s) => `<li><span>${esc(s.label)}</span><span>${s.t ? `${fmtDate(s.t, { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(s.t)}` : '—'}</span></li>`).join('')}</ul>
     </details>`;
   }).join('')}</div><p class="muted small">Horaires affichés à l'heure de cet ordinateur.</p>`;
@@ -258,7 +259,7 @@ function renderResults() {
       ${card('Plus de poles', st.poles ? `${st.poles.n} <small>poles</small>` : '—', who(st.poles))}
       ${card('Meilleure moyenne à l\'arrivée', st.avg ? st.avg.v.toFixed(1).replace('.', ',') : '—', who(st.avg))}
       ${card('Plus de places gagnées', st.mostGained ? `+${st.mostGained.v} <small>places</small>` : '—', who(st.mostGained))}
-      ${card('Plus belle remontée', st.comeback ? `+${st.comeback.v} <small>places</small>` : '—', st.comeback ? `${who(st.comeback)} · P${st.comeback.from} → P${st.comeback.to} · R${st.comeback.r.round}` : '')}
+      ${card('Plus belle remontée', st.comeback ? `+${st.comeback.v} <small>places</small>` : '—', st.comeback ? `${who(st.comeback)} · P${st.comeback.from} ${icon('arrow-right', 'ic-s')} P${st.comeback.to} · R${st.comeback.r.round}` : '')}
       ${card('Plus large victoire', st.largest ? `+${st.largest.v.toFixed(3).replace('.', ',')} s` : '—', st.largest ? `${esc(st.largest.d.last)} · R${st.largest.r.round} ${esc(st.largest.r.locality || '')}` : '')}
       ${card('Victoire la plus serrée', st.closest ? `+${st.closest.v.toFixed(3).replace('.', ',')} s` : '—', st.closest ? `${esc(st.closest.d.last)} · R${st.closest.r.round} ${esc(st.closest.r.locality || '')}` : '')}
     </div>
@@ -387,10 +388,22 @@ function tick() {
   el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([v, l]) => `<span><b>${p(v)}</b><small>${l}</small></span>`).join('');
 }
 
+// Changement de rubrique : le contenu apparaît en cascade (une seule fois, pas à chaque mise à jour)
+function animate() {
+  const el = $('#szContent');
+  el.classList.remove('sz-anim');
+  void el.offsetWidth;
+  el.classList.add('sz-anim');
+  clearTimeout(animate.t);
+  animate.t = setTimeout(() => el.classList.remove('sz-anim'), 500);
+}
+
 export function openSeason(sec) {
   if (sec) section = sec;
+  import('./news.js').then((m) => m.closeNews());
   $('#seasonView').style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
   $('#seasonView').hidden = false;
+  animate();
   $('#seasonBtn').classList.add('on');
   load();
   render();
@@ -411,8 +424,8 @@ export function initSeason() {
   sel.addEventListener('change', () => { year = Number(sel.value); data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
-  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; render(); } });
-  $('#szContent').addEventListener('click', (e) => { const b = e.target.closest('[data-szgo]'); if (b) { section = b.dataset.szgo; render(); } });
+  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; animate(); render(); } });
+  $('#szContent').addEventListener('click', (e) => { const b = e.target.closest('[data-szgo]'); if (b) { section = b.dataset.szgo; animate(); render(); } });
   $('#szContent').addEventListener('change', (e) => {
     const id = e.target.id;
     if (id === 'szTeam') h2hTeam = e.target.value;

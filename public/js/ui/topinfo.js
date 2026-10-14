@@ -5,6 +5,7 @@ import { $, esc, drivers, orderedNumbers, teamMark, lapSeconds, fmtLap, storageG
 import { docSummaryFr } from '/shared/fia-docs-fr.js';
 import { parseFiaDoc } from '/shared/stewards.js';
 import { fiaState } from './feed.js';
+import { icon } from '../icons.js';
 
 let open = null;      // outil ouvert : 'docs' | 'speeds' | 'sectors'
 let pop = null;
@@ -46,7 +47,7 @@ function docsHtml() {
       <a class="tbd-dl" href="${esc(d.url)}" target="_blank" rel="noopener" title="Ouvrir / télécharger le PDF">⤓</a></div>`).join('')
     : `<div class="note">${f.loading && !f.docs?.length ? 'Chargement des documents…' : f.error ? `Documents indisponibles : ${esc(f.error)}` : q ? 'Aucun document ne correspond.' : 'Aucun document publié pour l\'instant.'}</div>`;
   return `<div class="tbp-head"><b>Documents FIA</b><span class="muted small">${esc(event)} · ${docs.length} document${docs.length > 1 ? 's' : ''}</span>
-      ${f.page ? `<a class="small" href="${esc(f.page)}" target="_blank" rel="noopener">fia.com ↗</a>` : ''}</div>
+      ${f.page ? `<a class="small" href="${esc(f.page)}" target="_blank" rel="noopener">fia.com ${icon('external', 'ic-s')}</a>` : ''}</div>
     <input class="tbp-filter" id="tbDocFilter" type="search" placeholder="Filtrer (pilote, convocation, classement…)" value="${esc(filter)}">
     <div class="tbp-scroll">${body}</div>`;
 }
@@ -62,7 +63,7 @@ function table(tool, cols, rows, defaultDir) {
     return (va - vb) * st.dir;
   });
   const dl = drivers(store.state);
-  return `<table class="tbp-table"><thead><tr><th>Pilote</th>${cols.map(([k, label, title]) => `<th data-sort="${k}" data-dir="${defaultDir(k)}" class="${st.k === k ? 'sorted' : ''}" title="${esc(title || '')}">${esc(label)}${st.k === k ? (st.dir > 0 ? ' ▴' : ' ▾') : ''}</th>`).join('')}</tr></thead>
+  return `<table class="tbp-table"><thead><tr><th>Pilote</th>${cols.map(([k, label, title]) => `<th data-sort="${k}" data-dir="${defaultDir(k)}" class="${st.k === k ? 'sorted' : ''}" title="${esc(title || '')}">${esc(label)}${st.k === k ? icon(st.dir > 0 ? 'chevron-up' : 'chevron-down', 'ic-s') : ''}</th>`).join('')}</tr></thead>
     <tbody>${rows.map((r) => {
       const d = dl[r.num] || {};
       return `<tr><td><span class="drv">${teamMark(d)}<b>${esc(d.Tla || r.num)}</b></span></td>${cols.map(([k]) => {

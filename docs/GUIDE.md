@@ -55,6 +55,18 @@ Le bouton **Saison** de la barre de gauche (🏆 en haut dans les autres designs
 - **Évolutions techniques** : toutes les pièces nouvelles déclarées par les écuries (« Car Presentation Submissions ») — total et classement par écurie, zones de la voiture, type (performance, spécifique au circuit, fiabilité) et raison (appui local, flux, refroidissement, traînée…), composants les plus modifiés, courbe cumulée, tableau écurie × Grand Prix et détail de chaque évolution (modification et description d'origine, lien vers le PDF FIA).
 - **Éléments moteur** : éléments du groupe propulseur utilisés par chaque pilote (ICE, turbo, échappement, MGU-K, batterie, électronique, auxiliaires ; MGU-H avant 2026) face aux limites de la saison, limites atteintes ou dépassées, totaux par pilote et par écurie, pénalités sur la grille (éléments, sanction, document FIA) et éléments neufs montés à chaque Grand Prix.
 
+## 📰 Espace Actu
+
+Toute l'actualité de la F1 au même endroit, sans aller la chercher partout (bouton **Actu** de la barre latérale ou du haut de l'écran sur téléphone ; pastille rouge = nombre de nouveautés) :
+
+- **Sources** : officielles (site de la F1, communiqués et actualités F1 de la FIA, chaîne YouTube de la F1), chaînes YouTube officielles des écuries et des pilotes, et médias reconnus en 8 langues (anglais, français, espagnol, italien, allemand, néerlandais, portugais, japonais). Le PC relit chaque source toutes les 3 à 10 minutes. L'onglet **⚙ Sources** montre l'état de chacune, permet d'en couper et d'en **ajouter** (site ou flux RSS, chaîne YouTube, compte Bluesky). X, Instagram et TikTok ne sont pas proposés : ces réseaux n'offrent pas d'accès gratuit à leurs publications.
+- **Traduction en français** des titres et résumés, faite sur l'ordinateur par le moteur des radios (modèle de langage sur la carte graphique, sinon modèles légers), gardée par le PC et servie aussi au téléphone. Bouton **VO** pour voir le texte d'origine.
+- **Un sujet = une carte** : les articles qui parlent de la même chose sont regroupés (« repris par N sources », pastille flamme quand au moins 3 sources en parlent). Pilotes et écuries cités sont repérés (étiquettes de couleur).
+- **Colonne de droite** : sujets à la une (48 h), pilotes et écuries qui font l'actu (24 h ; un clic pour ne garder que leurs sujets), dernières vidéos.
+- **Filtres** : important, mes favoris (pilotes marqués ★ et leurs écuries), officiel, écuries, pilotes, médias, vidéos, langue d'origine, recherche.
+- **Alertes** (son, message, notification du système) : actualités importantes (annonces officielles, contrats, pénalités, accidents… ou sujet repris par au moins 4 sources) et celles de vos favoris, ou toutes, ou aucune. Une seule alerte par sujet.
+- **Anti-spoiler** : pendant une séance en cours ou un replay, les titres sont floutés et les alertes d'actualité suspendues (bouton « Afficher quand même », case à décocher pour le désactiver).
+
 ## 🔔 Alertes
 
 Son, message et notification du système en option pour : SC, VSC, drapeau rouge, reprise, meilleur tour, arrêt ou message de la direction de course concernant **vos pilotes favoris**, abandons, arrivée. Elles sont déclenchées **au rythme de votre délai**, donc au moment où l'image passe à la TV et jamais avant. Réglages dans ⚙ ; touche `M` pour couper le son.
@@ -173,6 +185,8 @@ Chaque session suivie en live est **enregistrée automatiquement** sur votre PC 
 ⚙ Réglages → *Replay* : choisissez une saison, un Grand Prix et une session (essais, qualifs, sprint, course). Les archives officielles contiennent **toujours le GPS et la télémétrie**. La **barre de lecture** (en bas) montre toute la séance : en vert quand la séance est en cours, en sombre quand elle est arrêtée, avec des **points blancs au début et à la fin de chaque partie** (Q1, Q2, Q3 en qualifs ; départ et reprise en course — cliquer sur un point pour y aller), la partie déjà lue en bleu, et les drapeaux rouges. Case **Drapeaux** : drapeaux jaunes, safety car et VSC sur la barre (ils révèlent les neutralisations à venir). Pause (`Espace`), ±10 s, **vitesse 1x à 30x**, retour au départ et **✕** pour revenir au direct. Le délai et la synchro TV fonctionnent aussi en replay, ce qui est pratique pour suivre une rediffusion.
 
 ## ⚙ Options
+
+- **Animations de l'interface** (⚙ → Affichage) : apparitions en douceur des panneaux, fenêtres, menus et listes ; à décocher pour une interface sans animation (elles sont aussi coupées si le système demande moins d'animations).
 
 | Variable | Défaut | Rôle |
 |---|---|---|

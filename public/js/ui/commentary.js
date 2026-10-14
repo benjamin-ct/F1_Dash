@@ -5,6 +5,7 @@
 import { store, f1Now, on } from '../store.js';
 import { prefs, setPref } from '../prefs.js';
 import { $, esc, api } from '../util.js';
+import { icon } from '../icons.js';
 
 const LANG_NAMES = { ENG: 'Anglais', FRA: 'Français', DEU: 'Allemand', NLD: 'Néerlandais', SPA: 'Espagnol', POR: 'Portugais', JPN: 'Japonais', ITA: 'Italien' };
 const TO_ISO = { ENG: 'en', FRA: 'fr', DEU: 'de', NLD: 'nl', SPA: 'es', POR: 'pt', JPN: 'ja', ITA: 'it' };
@@ -167,7 +168,7 @@ async function start() {
       const tried = stream.tried || [];
       const acc = stream.account || {};
       const who = [acc.product && `offre « ${acc.product} »`, acc.country && `pays ${acc.country}`].filter(Boolean).join(', ');
-      const t = tried.map((x) => `${x.format} → HTTP ${x.status}${x.message ? ` (${x.message})` : ''}`).join('\n');
+      const t = tried.map((x) => `${x.format} : HTTP ${x.status}${x.message ? ` (${x.message})` : ''}`).join('\n');
       if (tried.some((x) => /technical package not available/i.test(x.message || ''))) {
         throw new Error(`F1 TV refuse la vidéo : elle n'est pas incluse dans votre abonnement${who ? ` (${who})` : ''}. Le son et la vidéo des séances font partie de l'offre F1 TV Pro ; l'offre F1 TV Access (la seule proposée dans certains pays, dont la France) ne les inclut pas.\n\nDétail :\n${t}`);
       }
@@ -227,7 +228,7 @@ async function getPlayer() {
 // ---------- Radio / flux audio ----------
 async function startRadio() {
   const st = currentStation();
-  if (!st) { status('Ajoutez d\'abord une station avec « ＋ Ajouter ».', 'err'); return; }
+  if (!st) { status('Ajoutez d\'abord une station avec « Ajouter ».', 'err'); return; }
   playing = true;
   renderButtons();
   status(`Connexion à « ${st.name} »…`);
@@ -325,9 +326,9 @@ function applyVolume() {
 }
 
 function renderButtons() {
-  $('#commPlay').textContent = playing ? '⏹ Arrêter' : '▶ Écouter';
+  $('#commPlay').innerHTML = playing ? `${icon('stop')} Arrêter` : `${icon('play')} Écouter`;
   $('#commPlay').classList.toggle('btn-accent', !playing);
-  $('#commMute').textContent = prefs.commMuted ? '🔇' : '🔊';
+  $('#commMute').innerHTML = icon(prefs.commMuted ? 'volume-off' : 'volume');
   $('#commBtn').classList.toggle('on', playing);
   $('#commBtn').classList.toggle('muted', playing && prefs.commMuted);
   $('#commOffset').textContent = `${prefs.commOffset >= 0 ? '+' : ''}${prefs.commOffset.toFixed(1).replace('.', ',')} s`;

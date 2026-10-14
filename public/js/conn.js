@@ -42,6 +42,7 @@ export function connect() {
         if (msg.hostDelay != null) followHost(msg.hostDelay);
         break;
       case 'hostDelay': followHost(msg.ms); break;
+      case 'news': emit('news', msg.items); break;
       case 'pong': {
         const sent = pending.get(msg.id);
         pending.delete(msg.id);
@@ -68,7 +69,7 @@ export function connect() {
 function followHost(ms) {
   if (store.isHost || !storageGet('f1dash.followHost', true) || ms === store.delay) return;
   setDelay(ms);
-  toast(`⏱ Délai calé sur l'ordinateur : ${fmtDelay(store.delay)}`, 3500);
+  toast(`Délai calé sur l'ordinateur : ${fmtDelay(store.delay)}`, 3500);
 }
 
 function ping() {

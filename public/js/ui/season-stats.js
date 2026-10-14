@@ -3,6 +3,7 @@
 // arrêts aux stands, vitesses de pointe et profil des circuits.
 import { esc, teamColor, teamMark } from '../util.js';
 import { cleanLaps, lapsLed, similarCircuits, SEASON_CRITERIA, MATE_CRITERIA, GRADES } from '/shared/season-calc.js';
+import { icon } from '../icons.js';
 
 const median = (a) => {
   if (!a.length) return null;
@@ -93,7 +94,7 @@ function pendingNote(stats) {
   if (!stats) return '<div class="note">Chargement des statistiques détaillées…</div>';
   if (stats.error) return `<div class="note">Statistiques détaillées indisponibles (${esc(stats.error)}).</div>`;
   if (stats.pending || stats.done < stats.total) {
-    return `<div class="note">${stats.pending ? '⏳ Analyse des courses de la saison' : 'Courses analysées'} : <b>${stats.done} / ${stats.total}</b>${stats.pending ? ' — la première fois, les archives officielles de chaque Grand Prix sont téléchargées et analysées (environ 2 s par course), ensuite tout est conservé sur ce PC.' : ''}</div>`;
+    return `<div class="note">${stats.pending ? `${icon('hourglass')} Analyse des courses de la saison` : 'Courses analysées'} : <b>${stats.done} / ${stats.total}</b>${stats.pending ? ' — la première fois, les archives officielles de chaque Grand Prix sont téléchargées et analysées (environ 2 s par course), ensuite tout est conservé sur ce PC.' : ''}</div>`;
   }
   return '';
 }
@@ -160,7 +161,7 @@ export function renderDrivers(ctx, code) {
   for (const rd of rounds) grid += `<text x="${X(rd)}" y="${H - 6}" class="sz-ax" text-anchor="middle">R${rd}</text>`;
   const dots = started.map((x) => (isNum(x.res)
     ? `<circle cx="${X(x.r.round)}" cy="${Y(x.res.pos)}" r="${x.res.pos <= 3 ? 5 : 3.5}" fill="${x.res.pos === 1 ? '#ffd166' : col}" stroke="var(--panel)" stroke-width="1.5"><title>R${x.r.round} ${esc(short(x.r.name))} : P${x.res.pos}</title></circle>`
-    : `<text x="${X(x.r.round)}" y="${H - pb - 2}" class="sz-ax sz-dnf" text-anchor="middle">✕</text>`)).join('');
+    : `<path d="M${X(x.r.round) - 3.5} ${H - pb - 9}l7 7m0 -7l-7 7" class="sz-dnf-x"/>`)).join('');
   const chart = `<svg viewBox="0 0 ${W} ${H}" class="sz-svg">${grid}${line(gridPts, true)}${line(finPts)}${dots}</svg>`;
 
   return `<div class="sz-h2h-pick"><label class="small">Pilote <select id="szDriver">${data.drivers.map((d) => `<option value="${d.code}" ${d.code === drv.code ? 'selected' : ''}>${d.pos}. ${esc(d.name)}</option>`).join('')}</select></label></div>
@@ -175,15 +176,15 @@ export function renderDrivers(ctx, code) {
       ${card('Dans les points', `${started.filter((x) => x.res.points > 0).length}/${started.length}`)}
       ${card('Moyenne au départ', fr(mean(started.map((x) => x.res.grid).filter(Boolean))))}
       ${card('Moyenne à l\'arrivée', fr(mean(fin.map((x) => x.res.pos))), fin.length ? `meilleur : P${Math.min(...fin.map((x) => x.res.pos))}` : '')}
-      ${card('Places gagnées', `${gained >= 0 ? '+' : ''}${gained}`, 'grille → arrivée, cumul')}
+      ${card('Places gagnées', `${gained >= 0 ? '+' : ''}${gained}`, 'de la grille à l\'arrivée, cumul')}
       ${card('Abandons', started.length - fin.length)}
       ${card('Duel qualif', `${qd[0]} – ${qd[1]}`, mateName ? `face à ${esc(mateName)}` : '')}
       ${card('Vitesse de pointe', tops.length ? `${Math.max(...tops)} km/h` : '—', tops.length ? `moyenne ${fr(mean(tops), 0)} km/h` : '')}
       ${card('Immobilisation moyenne', stops.length ? `${fr(mean(stops))} s` : '—', stops.length ? `${stops.length} arrêts` : '')}
       ${card('Régularité', sig.length ? `${fr(median(sig), 3)} s` : '—', 'écart-type médian des tours')}
       ${card('Tours en tête', stats?.races ? ledTotal : '—', stats?.races ? `${led.filter((v) => v > 0).length} course(s) menée(s)` : '')}
-      ${card('Plus belle remontée', climb && climb.res.grid > climb.res.pos ? `+${climb.res.grid - climb.res.pos}` : '—', climb && climb.res.grid > climb.res.pos ? `P${climb.res.grid} → P${climb.res.pos} · ${esc(short(climb.r.name))}` : '')}
-      ${card('Note de la saison', rt ? gradeBadge(rt.season, rt.seasonGrade, true) : '—', rt?.season !== null && rt ? '<button class="linkish" data-szgo="ratings">voir le détail →</button>' : 'pas assez de courses')}
+      ${card('Plus belle remontée', climb && climb.res.grid > climb.res.pos ? `+${climb.res.grid - climb.res.pos}` : '—', climb && climb.res.grid > climb.res.pos ? `P${climb.res.grid} ${icon('arrow-right', 'ic-s')} P${climb.res.pos} · ${esc(short(climb.r.name))}` : '')}
+      ${card('Note de la saison', rt ? gradeBadge(rt.season, rt.seasonGrade, true) : '—', rt?.season !== null && rt ? `<button class="linkish" data-szgo="ratings">voir le détail ${icon('arrow-right', 'ic-s')}</button>` : 'pas assez de courses')}
       ${card('Note face au coéquipier', rt ? gradeBadge(rt.mate, rt.mateGrade, true) : '—', rt?.mates?.length ? `face à ${esc(rt.mates.join(', '))}` : '')}
     </div>
     <section class="sz-box"><h3>Départ (pointillés) et arrivée, course par course</h3>${chart}</section>

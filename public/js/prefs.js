@@ -13,7 +13,8 @@ const DEFAULTS = {
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
   teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
-  keepAwake: true,        // écran toujours allumé pendant une séance
+  keepAwake: true,
+  motion: true,           // animations de l'interface (désactivées aussi si le système le demande)        // écran toujours allumé pendant une séance
   legends: true,          // légendes sous les panneaux (couleurs, colonnes, graphiques)
   replayMarks: true,
   hotLapDim: false,       // essais / qualifs : voitures hors tour lancé estompées (carte, classement)      // replay : périodes de safety car / VSC sur la barre de lecture
@@ -37,6 +38,9 @@ const DEFAULTS = {
   rcmDeleted: true,       // direction de course : temps supprimés affichés
   rcmType: 'all',         // direction de course : type de messages affichés
   spoilers: false,
+  newsAlerts: 'important', // actualités : 'important' | 'favs' | 'all' | 'off'
+  newsTranslate: true,     // actualités traduites en français (sur l'ordinateur)
+  newsSpoilers: true,      // actualités : titres masqués et alertes suspendues pendant une séance / un replay
   mapFollow: false,
   muted: false,
 };
@@ -59,6 +63,7 @@ if ((saved.themeV || 0) < 4) {
   storageSet('f1dash.prefs', { ...storageGet('f1dash.prefs', {}), theme: prefs.theme, themeV: 4 });
 }
 prefs.themeV = 4;   // gardé dans chaque enregistrement des préférences
+document.documentElement.dataset.motion = prefs.motion === false ? 'off' : 'on';
 setVividTeams(prefs.vividTeams);
 setTeamLogos(prefs.teamLogos);
 setLogoColor(prefs.logoColor);
@@ -75,6 +80,7 @@ export function setPref(key, value) {
   prefs[key] = value;
   if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
   if (key === 'theme') document.documentElement.dataset.theme = value;
+  if (key === 'motion') document.documentElement.dataset.motion = value ? 'on' : 'off';
   storageSet('f1dash.prefs', prefs);
   emit('prefs', key);
 }

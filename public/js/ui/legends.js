@@ -1,8 +1,9 @@
 // Légendes affichées sous chaque panneau : à quoi correspondent les couleurs, les colonnes et
-// les graphiques. Elles changent avec l'onglet actif et se masquent dans ⚙ → Affichage.
+// les graphiques. Elles changent avec l'onglet actif et se masquent dans Réglages → Affichage.
 import { prefs, setPref } from '../prefs.js';
 import { on } from '../store.js';
 import { toast } from './delay.js';
+import { icon } from '../icons.js';
 
 const sw = (color, label, shape = 'bar') => `<span class="lg-i"><i class="lg-${shape}" style="--c:${color}"></i>${label}</span>`;
 const tag = (cls, text, label) => `<span class="lg-i"><span class="tag ${cls}">${text}</span>${label}</span>`;
@@ -14,10 +15,10 @@ const L = {
     _: [
       txt('Mini-secteurs :'), sw('var(--purple)', 'meilleur de tous'), sw('var(--green)', 'record perso'), sw('var(--yellow)', 'plus lent'), sw('var(--blue)', 'stands'),
       txt('· Temps :'), `<span class="lg-i"><b style="color:var(--purple)">violet</b>&nbsp;meilleur de la séance</span>`, `<span class="lg-i"><b style="color:var(--green)">vert</b>&nbsp;record perso / l'écart se réduit</span>`,
-      txt('· ▲▼ places gagnées/perdues depuis la grille'),
+      txt(`· <span class="lg-delta">${icon('tri-up')}${icon('tri-down')}</span> places gagnées/perdues depuis la grille`),
       tag('pit', 'STAND', 'aux stands'), tag('out', 'SORTIE', 'sort des stands'), tag('push', 'TOUR', 'tour rapide lancé'), tag('ret', 'ABD', 'abandon'),
       tyre('#ff3b30', 'S', 'tendre'), tyre('#f5c518', 'M', 'médium'), tyre('#f1f1f4', 'H', 'dur'), tyre('#35d07f', 'I', 'intermédiaire'), tyre('#3ea6ff', 'W', 'pluie'),
-      txt('(chiffre : tours sur ce train) · Arr. : arrêts · V.max : vitesse au speed trap (km/h) · A / B : choisir les pilotes du duel · ☆ favori (alertes)'),
+      txt('(chiffre : tours sur ce train) · Arr. : arrêts · V.max : vitesse au speed trap (km/h) · A / B : choisir les pilotes du duel · étoile : favori (alertes)'),
     ],
   },
   map: {
@@ -29,12 +30,12 @@ const L = {
   },
   feed: {
     rcm: [txt('Messages officiels de la direction de course (drapeaux, enquêtes, pénalités, limites de piste), au rythme de votre délai TV. Cases à cocher : masquer drapeaux bleus et temps supprimés.')],
-    stewards: [txt('Incidents examinés par les commissaires : noté → enquête → décision (pénalité ou aucune action). Le badge orange compte les enquêtes en cours.')],
+    stewards: [txt('Incidents examinés par les commissaires : noté, puis enquête, puis décision (pénalité ou aucune action). Le badge orange compte les enquêtes en cours.')],
     tracklimits: [txt('Tours et temps supprimés pour non-respect des limites de piste, par pilote. Les avertissements répétés peuvent entraîner une pénalité.')],
   },
   radio: {
-    transcripts: [txt('Radios d\'équipe retranscrites en texte (en grand : la traduction, en petit : l\'anglais d\'origine). Tout est fait sur cet ordinateur ; ▶ réécouter la radio.')],
-    radio: [txt('Radios d\'équipe audio, des plus récentes aux plus anciennes · ▶ écouter.')],
+    transcripts: [txt('Radios d\'équipe retranscrites en texte (en grand : la traduction, en petit : l\'anglais d\'origine). Tout est fait sur cet ordinateur ; bouton lecture : réécouter la radio.')],
+    radio: [txt('Radios d\'équipe audio, des plus récentes aux plus anciennes · bouton lecture : écouter.')],
   },
   duel: {
     _: [
@@ -76,7 +77,7 @@ function update(panel, id) {
     el.className = 'panel-legend';
     panel.appendChild(el);
   }
-  const html = `${items.join('')}<button class="lg-hide" title="Masquer les légendes (réaffichables dans ⚙ Réglages → Affichage)">✕ Masquer</button>`;
+  const html = `${items.join('')}<button class="lg-hide" title="Masquer les légendes (réaffichables dans Réglages, onglet Affichage)">${icon('close')} Masquer</button>`;
   if (el.dataset.k !== `${id}|${tab}`) { el.innerHTML = html; el.dataset.k = `${id}|${tab}`; }
 }
 
@@ -96,7 +97,7 @@ export function initLegends() {
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.lg-hide')) return;
     setPref('legends', false);
-    toast('Légendes masquées — pour les réafficher : ⚙ Réglages → Affichage → « Légendes sous les panneaux »', 6000);
+    toast('Légendes masquées — pour les réafficher : Réglages → Affichage → « Légendes sous les panneaux »', 6000);
   });
   updateAll();
 }

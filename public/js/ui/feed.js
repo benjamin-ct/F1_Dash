@@ -5,6 +5,7 @@ import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge,
 import { parseUtc, parseLapTime } from '/shared/f1.js';
 import { radioEntry, requestTranscripts, setTranscribe, transcribeStatus } from './transcribe.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
+import { icon } from '../icons.js';
 
 function list(obj) {
   if (!obj) return [];
@@ -103,7 +104,7 @@ export function renderTranscripts() {
       : `<div class="t-main">« ${esc(e.en)} »</div><div class="t-orig pending">traduction…</div>`;
     return `<li><div class="t-head"><span class="drv"><span class="drv-bar" style="background:${teamColor(d)}"></span><b>${esc(d.Tla || c.RacingNumber)}</b></span>
       <span class="muted small">${esc(d.LastName || '')} · ${fmtClock(parseUtc(c.Utc))}</span>
-      <button class="t-play" data-src="${esc(base + c.Path)}" title="Écouter">▶</button></div>${body}</li>`;
+      <button class="t-play" data-src="${esc(base + c.Path)}" title="Écouter">${icon('play')}</button></div>${body}</li>`;
   }).join('');
 }
 
@@ -257,15 +258,15 @@ export function renderPits() {
         if (prev && prev.Compound === st.Compound && Number(st.StartLaps) > 0 && Number(st.StartLaps) === Number(prev.TotalLaps)) merged[merged.length - 1] = { ...prev, TotalLaps: st.TotalLaps };
         else merged.push(st);
       }
-      const seq = merged.map((st, i) => `${i ? '<span class="muted">→</span>' : ''}${tyreBadge(st.Compound, st.TotalLaps, st.New)}`).join(' ');
+      const seq = merged.map((st, i) => `${i ? `<span class="muted">${icon('arrow-right', 'ic-s')}</span>` : ''}${tyreBadge(st.Compound, st.TotalLaps, st.New)}`).join(' ');
       return `<tr><td>${chip(num)}</td><td class="pit-n">${mine.length}</td><td class="pit-seq">${seq || '<span class="muted">—</span>'}</td>
         <td>${mine.map((p) => `<span class="pit-pill ${stClass(p.st)}" title="Tour ${esc(p.lap ?? '—')} · voie ${p.duration ? sec(p.duration) : '—'}">T${esc(p.lap ?? '—')} · ${p.st ? `${p.est ? '≈' : ''}${sec(p.st)}` : '—'}</span>`).join(' ') || '<span class="muted">—</span>'}</td></tr>`;
     }).join('')}</table>`;
   } else {
-    body = `<table class="pits"><tr><th>Tour</th><th>Pilote</th><th title="Pneus retirés (tours effectués) → pneus montés">Pneus</th><th>Voie des stands</th><th>Immobilisation</th></tr>${stops.slice().sort((a, b) => b.t - a.t).map((p) => `<tr>
+    body = `<table class="pits"><tr><th>Tour</th><th>Pilote</th><th title="Pneus retirés (tours effectués), puis pneus montés">Pneus</th><th>Voie des stands</th><th>Immobilisation</th></tr>${stops.slice().sort((a, b) => b.t - a.t).map((p) => `<tr>
       <td><span class="lap-pill">T${esc(p.lap ?? '—')}</span></td>
       <td>${chip(p.num)} <span class="muted small">${p.k ? `${p.k}${p.k === 1 ? 'er' : 'e'} arrêt` : 'passage'}</span></td>
-      <td class="pit-tyres">${sameTyres(p) ? `${tyre(p.from)} <span class="muted small">mêmes pneus</span>` : p.from || p.to ? `${tyre(p.from)} <span class="muted">→</span> ${fitted(p.to)}` : '<span class="muted">—</span>'}</td>
+      <td class="pit-tyres">${sameTyres(p) ? `${tyre(p.from)} <span class="muted small">mêmes pneus</span>` : p.from || p.to ? `${tyre(p.from)} <span class="muted">${icon('arrow-right', 'ic-s')}</span> ${fitted(p.to)}` : '<span class="muted">—</span>'}</td>
       <td>${p.duration ? `<div class="pit-cell">${bar(p.duration, laneMin, laneMax, 'lane')}<span class="pit-val">${sec(p.duration)}</span>${laneNote(p)}</div>` : '—'}</td>
       <td>${p.st ? `<div class="pit-cell">${bar(p.st, stMin, stMax, stClass(p.st))}<span class="pit-val ${stClass(p.st)}"${p.est ? ' title="Estimé par la télémétrie (vitesse nulle) : la F1 ne fournit pas le temps officiel pour cette séance"' : ''}>${p.est ? '≈' : ''}${sec(p.st)}</span></div>` : '<span class="muted">—</span>'}</td></tr>`).join('')}</table>`;
   }
@@ -422,7 +423,7 @@ function docLink(doc, dl) {
   if (!doc) return '';
   const info = parseFiaDoc(doc);
   const who = info.cars[0] ? ` — ${esc(dl[info.cars[0]]?.Tla || `voiture ${info.cars[0]}`)}` : '';
-  return `<a class="fia-doc" href="${esc(doc.url)}" target="_blank" rel="noopener" title="${esc(doc.title)}">📄 ${esc(DOC_KIND[info.type] || 'Document')} FIA${info.num ? ` n° ${info.num}` : ''}${who}<span class="muted"> · ${esc(info.subject.replace(/^Cars?\s+[\d\s,&and]+-\s*/i, ''))}</span> ↗</a>`;
+  return `<a class="fia-doc" href="${esc(doc.url)}" target="_blank" rel="noopener" title="${esc(doc.title)}">${icon('doc')} ${esc(DOC_KIND[info.type] || 'Document')} FIA${info.num ? ` n° ${info.num}` : ''}${who}<span class="muted"> · ${esc(info.subject.replace(/^Cars?\s+[\d\s,&and]+-\s*/i, ''))}</span> ${icon('external', 'ic-s')}</a>`;
 }
 
 let stwRenderKey = '';
@@ -460,12 +461,12 @@ export function renderStewards() {
 
   const car = (c) => `<span><span class="drv-bar" style="background:${teamColor(dl[c.num])}"></span>${esc(dl[c.num]?.Tla || c.tla)}</span>`;
   const who = (cars) => cars.map((c) => `<span class="inc-who"><span class="drv-bar" style="background:${teamColor(dl[c.num])}"></span>${esc(dl[c.num]?.Tla || c.tla)}${dl[c.num]?.LastName ? ` <span class="muted">${esc(dl[c.num].LastName)}</span>` : ''}</span>`).join(' ');
-  const decision = (d) => `<div class="inc-dec ${d.kind}"><div class="inc-dec-line"><span class="inc-dec-label">⚖ ${esc(d.label)}</span> pour ${who(d.cars) || '—'}
+  const decision = (d) => `<div class="inc-dec ${d.kind}"><div class="inc-dec-line"><span class="inc-dec-label">${icon('scales')} ${esc(d.label)}</span> pour ${who(d.cars) || '—'}
       ${d.servedAt ? `<span class="inc-served">purgée à ${fmtClock(d.servedAt)}</span>` : penaltyState(d)}</div>
       ${d.reason ? `<div class="muted small">${esc(reasonFr(d.reason))}</div>` : ''}
       ${docLink(d.doc, dl)}</div>`;
   const penalties = data.decisions.filter((d) => d.kind === 'penalty').length;
-  const docsNote = docs.page ? ` · <a href="${esc(docs.page)}" target="_blank" rel="noopener">documents FIA ↗</a>` : docs.error ? ' · <span title="' + esc(docs.error) + '">documents FIA indisponibles</span>' : '';
+  const docsNote = docs.page ? ` · <a href="${esc(docs.page)}" target="_blank" rel="noopener">documents FIA ${icon('external', 'ic-s')}</a>` : docs.error ? ' · <span title="' + esc(docs.error) + '">documents FIA indisponibles</span>' : '';
   $('#stewardsSummary').innerHTML = `${open.length} en cours · ${data.incidents.length} au total · ${penalties} pénalité(s)${docsNote}`;
   const shown = (filter === 'open' ? open : data.incidents).slice().sort((a, b) => (isOpen(b) - isOpen(a)) || b.updated - a.updated);
   const loose = filter === 'all' ? data.decisions.filter((d) => !d.incident) : [];
@@ -477,7 +478,7 @@ export function renderStewards() {
         ${inc.reason ? `<div class="inc-reason" title="${esc(inc.reason)}">${esc(reasonFr(inc.reason))}</div>` : ''}
         ${inc.decisions.map(decision).join('')}
         ${inc.docs.map((d) => docLink(d, dl)).join('')}
-        <ul class="inc-steps">${inc.history.map((h) => `<li title="${esc(h.text)}">${fmtClock(h.t)}${h.lap ? ` (T${h.lap})` : ''} · <b>${esc(h.label)}</b>${h.cars?.length ? ` → ${esc(h.cars.map((c) => dl[c.num]?.Tla || c.tla).join(', '))}` : ''}</li>`).join('')}</ul>
+        <ul class="inc-steps">${inc.history.map((h) => `<li title="${esc(h.text)}">${fmtClock(h.t)}${h.lap ? ` (T${h.lap})` : ''} · <b>${esc(h.label)}</b>${h.cars?.length ? ` ${icon('arrow-right', 'ic-s')} ${esc(h.cars.map((c) => dl[c.num]?.Tla || c.tla).join(', '))}` : ''}</li>`).join('')}</ul>
       </div>`).join('') + loose.map((d) => `<div class="inc"><div class="inc-head"><span class="inc-status ${d.kind}">${esc(d.label)}</span>
         <span class="inc-cars">${d.cars.map(car).join('')}</span><span class="inc-where">${fmtClock(d.t)}${d.lap ? ` · tour ${d.lap}` : ''}</span></div>
         ${decision(d)}</div>`).join('')
@@ -507,7 +508,7 @@ export function renderStewards() {
           <td><span class="pips">${pips}</span> ${n}${other}</td><td>${esc(turns) || '—'}</td>
           <td>${last ? `T${last.lap}${last.time ? ` (${esc(last.time)})` : ''}` : '—'}</td><td>${status}</td></tr>`;
       }).join('')}</table>
-      ${tlDoc ? `<p class="note"><a class="fia-doc" href="${esc(tlDoc.url)}" target="_blank" rel="noopener">📄 Document FIA : ${esc(tlDoc.title.replace(/^Doc \d+ - /, ''))} ↗</a></p>` : ''}
+      ${tlDoc ? `<p class="note"><a class="fia-doc" href="${esc(tlDoc.url)}" target="_blank" rel="noopener">${icon('doc')} Document FIA : ${esc(tlDoc.title.replace(/^Doc \d+ - /, ''))} ${icon('external', 'ic-s')}</a></p>` : ''}
       <p class="note">${race ? 'En course, la direction de course montre en général le drapeau noir et blanc après la 3e infraction ; les suivantes sont transmises aux commissaires (pénalité possible). ' : 'Hors course, un temps supprimé ne compte pas pour le classement. '}« Tour supprimé (PIT) » : infraction pendant un tour qui se termine aux stands.</p>`
     : '<div class="note">Aucun temps supprimé pour limites de piste.</div>';
 }

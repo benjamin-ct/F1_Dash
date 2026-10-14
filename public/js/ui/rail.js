@@ -2,8 +2,10 @@
 // Réglages). Elle reprend les actions des boutons du haut, masqués dans ce design.
 import { $, $$ } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
+import { openNews, closeNews } from './news.js';
 import { unmaximize, showPanelLarge, setFreeLayout, isFreeLayout, saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { toast } from './delay.js';
+import { icon } from '../icons.js';
 
 function openSettings(group) {
   $('#settingsBtn').click();
@@ -11,12 +13,14 @@ function openSettings(group) {
 }
 
 const ACTIONS = {
-  live: () => { closeSeason(); unmaximize(); },
+  live: () => { closeSeason(); closeNews(); unmaximize(); },
   ana: () => {
     closeSeason();
+    closeNews();
     if (showPanelLarge('analysis') === 'elsewhere') toast('Analyse affichée en grand dans l\'autre fenêtre (second écran)');
   },
-  season: () => ($('#seasonView').hidden ? openSeason() : closeSeason()),
+  season: () => { closeNews(); if ($('#seasonView').hidden) openSeason(); else closeSeason(); },
+  news: () => ($('#newsView').hidden ? openNews() : closeNews()),
   replay: () => openSettings('source'),
   radio: () => $('#commBtn').click(),
   reset: (btn) => layoutMenu(btn),
@@ -29,13 +33,13 @@ function layoutMenu(btn) {
   const free = isFreeLayout();
   const menu = document.createElement('div');
   menu.className = 'lpop-menu rail-menu';
-  menu.innerHTML = `<button data-l="cols">${free ? '' : '✔ '}▦ Panneaux rangés en colonnes</button>
-    <button data-l="free">${free ? '✔ ' : ''}✥ Disposition libre : panneaux n'importe où (⠿ pour déplacer, coin pour redimensionner)</button>
+  menu.innerHTML = `<button data-l="cols">${icon('columns')} Panneaux rangés en colonnes${free ? '' : icon('check', 'ic-on')}</button>
+    <button data-l="free">${icon('move')} Disposition libre : panneaux n'importe où (poignée pour déplacer, coin pour redimensionner)${free ? icon('check', 'ic-on') : ''}</button>
     <div class="rail-sep"></div>
-    <button data-l="save">💾 Enregistrer l'emplacement des fenêtres (panneaux, tailles, second écran)</button>
-    <button data-l="restore" ${hasWindowsSnapshot() ? '' : 'disabled'}>↩ Revenir à l'emplacement enregistré</button>
+    <button data-l="save">${icon('save')} Enregistrer l'emplacement des fenêtres (panneaux, tailles, second écran)</button>
+    <button data-l="restore" ${hasWindowsSnapshot() ? '' : 'disabled'}>${icon('undo')} Revenir à l'emplacement enregistré</button>
     <div class="rail-sep"></div>
-    <button data-l="reset">⟲ Réinitialiser l'interface</button>`;
+    <button data-l="reset">${icon('refresh')} Réinitialiser l'interface</button>`;
   const r = btn.getBoundingClientRect();
   menu.style.left = `${r.right + 8}px`;
   document.body.appendChild(menu);
@@ -50,7 +54,7 @@ function layoutMenu(btn) {
     else {
       unmaximize();
       setFreeLayout(k === 'free');
-      toast(k === 'free' ? 'Disposition libre : glissez ⠿ pour déplacer un panneau, son coin pour le redimensionner' : 'Panneaux rangés en colonnes');
+      toast(k === 'free' ? 'Disposition libre : glissez la poignée pour déplacer un panneau, son coin pour le redimensionner' : 'Panneaux rangés en colonnes', 2500, k === 'free' ? 'move' : 'columns');
     }
   });
   setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
@@ -59,8 +63,9 @@ function layoutMenu(btn) {
 // Élément actif : Saison ouverte, Analyse en grand, sinon Direct
 function sync() {
   const season = !$('#seasonView').hidden;
+  const news = !$('#newsView').hidden;
   const ana = $('.p-analysis')?.classList.contains('maximized');
-  const cur = season ? 'season' : ana ? 'ana' : 'live';
+  const cur = news ? 'news' : season ? 'season' : ana ? 'ana' : 'live';
   for (const b of $$('#rail [data-rail]')) {
     const k = b.dataset.rail;
     b.classList.toggle('on', k === cur);
@@ -79,6 +84,7 @@ export function initRail() {
   });
   const mo = new MutationObserver(sync);
   mo.observe($('#seasonView'), { attributes: true, attributeFilter: ['hidden'] });
+  mo.observe($('#newsView'), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('.grid'), { attributes: true, attributeFilter: ['class'] });
   mo.observe($('#commBtn'), { attributes: true, attributeFilter: ['class'] });
   sync();

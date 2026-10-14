@@ -4,6 +4,7 @@ import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, fmtSigned } fr
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { currentTrack } from './map.js';
 import { lapGapSeries } from './duel.js';
+import { icon } from '../icons.js';
 
 // Écart au leader en secondes (les retardataires sont convertis avec le dernier tour du leader).
 function gapsToLeader(state) {
@@ -61,7 +62,7 @@ function circleSvg(gaps, me, projected, dl) {
     <circle cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" r="8" class="cd-ghost"/>
     <text x="${glx.toFixed(1)}" y="${gly.toFixed(1)}" class="cd-ghost-l">sortie ${esc(dl[me]?.Tla || me)}</text>
     ${dots}
-    <text x="${C}" y="${C - 18}" class="cd-mid2">▲ leader en haut</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', ',')} s</text>
+    <text x="${C}" y="${C - 18}" class="cd-mid2">leader en haut</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', ',')} s</text>
   </svg>`;
 }
 
@@ -153,7 +154,7 @@ export function renderPitSim(force = false) {
       <div class="small muted">Si <b>${esc(dl[me]?.Tla || me)}</b> s'arrête maintenant (actuellement P${curPos}) :</div>
       <div class="big">P${newPos}</div>
       <div class="small">${ahead ? `à <b>${(projected - ahead.gap).toFixed(1).replace('.', ',')} s</b> derrière ${esc(dl[ahead.num]?.Tla || ahead.num)}` : 'en tête'}${behind ? ` · <b>${(behind.gap - projected).toFixed(1).replace('.', ',')} s</b> devant ${esc(dl[behind.num]?.Tla || behind.num)}` : ''}</div>
-      ${behind && behind.gap - projected < 1.5 ? '<div class="small" style="color:var(--orange)">⚠ Sortie des stands très serrée : risque de ressortir derrière.</div>' : ''}
+      ${behind && behind.gap - projected < 1.5 ? `<div class="small" style="color:var(--orange)">${icon('warning')} Sortie des stands très serrée : risque de ressortir derrière.</div>` : ''}
     </div>
     <table class="pit-order">${slice.map((o) => `<tr class="${o.me ? 'me' : ''}"><td>P${order.indexOf(o) + 1}</td>
       <td><span class="drv"><span class="drv-bar" style="background:${teamColor(dl[o.num])}"></span>${esc(dl[o.num]?.Tla || o.num)}${o.me ? ' (après arrêt)' : ''}</span></td>

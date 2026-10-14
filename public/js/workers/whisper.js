@@ -20,7 +20,12 @@ const MODELS = {
   llm: 'onnx-community/Qwen3-4B-Instruct-2507-ONNX',
   mt: { fr: 'Xenova/opus-mt-en-fr', es: 'Xenova/opus-mt-en-es', de: 'Xenova/opus-mt-en-de', it: 'Xenova/opus-mt-en-it' },
 };
-const LANG_NAME = { fr: 'French', es: 'Spanish', de: 'German', it: 'Italian' };
+const LANG_NAME = { fr: 'French', es: 'Spanish', de: 'German', it: 'Italian', en: 'English', nl: 'Dutch', pt: 'Portuguese', ja: 'Japanese', zh: 'Chinese' };
+const LANG_FR = { en: "l'anglais", es: "l'espagnol", de: "l'allemand", it: "l'italien", nl: 'le néerlandais', pt: 'le portugais', ja: 'le japonais', zh: 'le chinois' };
+// Actualités dans d'autres langues (petit modèle) : traduction directe vers le français quand le
+// modèle existe, sinon en passant par l'anglais
+const MT_DIRECT = { 'de-fr': 'Xenova/opus-mt-de-fr', 'es-fr': 'Xenova/opus-mt-es-fr', 'it-fr': 'Xenova/opus-mt-it-fr', 'nl-fr': 'Xenova/opus-mt-nl-fr' };
+const MT_TO_EN = { de: 'Xenova/opus-mt-de-en', es: 'Xenova/opus-mt-es-en', it: 'Xenova/opus-mt-it-en', nl: 'Xenova/opus-mt-nl-en', fr: 'Xenova/opus-mt-fr-en', ja: 'Xenova/opus-mt-ja-en', zh: 'Xenova/opus-mt-zh-en', pt: 'Xenova/opus-mt-ROMANCE-en' };
 const loaded = {};
 
 // Progression globale du téléchargement (somme de tous les fichiers en cours)
@@ -67,6 +72,8 @@ const mt = (lang) => load(`mt-${lang}`, () => {
   if (!MODELS.mt[lang]) throw new Error(`langue non prise en charge : ${lang}`);
   return pipeline('translation', MODELS.mt[lang], { device: 'wasm', dtype: 'q8', progress_callback: progress('mt') });
 });
+
+const mtPair = (model) => load(`mt-${model}`, () => pipeline('translation', model, { device: 'wasm', dtype: 'q8', progress_callback: progress('mt') }));
 
 const clean = (t) => String(t || '').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
 const words = (t) => (t.match(/[A-Za-z']+/g) || []).length;
@@ -129,14 +136,51 @@ const fixJargon = (t, lang) => {
   return out.charAt(0).toUpperCase() + out.slice(1);
 };
 
-async function translate(text, lang, quality, who, domain) {
+// Actualités de la F1 (titres et résumés), depuis n'importe quelle langue
+function newsPrompt(lang, from) {
+  if (lang === 'fr') {
+    return `Tu traduis en français des titres et résumés d'actualité de la Formule 1, rédigés en ${LANG_FR[from] || 'langue étrangère'}.
+- Style d'un journaliste sportif français : clair, naturel, fidèle.
+- Ne traduis pas les noms propres (pilotes, écuries, circuits, sponsors) ; garde les chiffres, positions et dates.
+- Vocabulaire : "grid penalty" = "pénalité sur la grille", "pole" = "pole position", "team principal" = "directeur d'équipe", "stewards" = "commissaires", "upgrade" = "évolution", "power unit" = "unité de puissance", "rookie" = "débutant".
+- Réponds uniquement par la traduction, sans guillemets ni commentaire.`;
+  }
+  return `Translate this Formula 1 news headline or summary from ${LANG_NAME[from] || 'its language'} into ${LANG_NAME[lang]}, as a sports journalist would. Keep proper names, numbers and dates. Answer with the translation only.`;
+}
+
+// Petit modèle pour les actualités : modèle direct, ou deux étapes par l'anglais
+async function newsLight(text, lang, from) {
+  const steps = [];
+  if (from === 'en') steps.push(() => mt(lang));
+  else if (MT_DIRECT[`${from}-${lang}`]) steps.push(() => mtPair(MT_DIRECT[`${from}-${lang}`]));
+  else if (MT_TO_EN[from]) {
+    steps.push(() => mtPair(MT_TO_EN[from]));
+    if (lang !== 'en') steps.push(() => mt(lang));
+  } else throw new Error(`langue non prise en charge : ${from}`);
+  let parts = String(text).split(/(?<=[.!?。！？])\s*/).map((x) => x.trim()).filter(Boolean);
+  for (const step of steps) {
+    const run = await step();
+    const out = [];
+    for (const part of parts) {
+      const r = await run(part, { max_new_tokens: Math.min(200, 32 + part.length) });
+      out.push(String(r?.[0]?.translation_text || '').trim());
+    }
+    parts = out;
+  }
+  return parts.join(' ');
+}
+
+async function translate(text, lang, quality, who, domain, from = 'en') {
+  if (domain === 'news' && from === lang) return text;
   if (quality === 'high') {
     const gen = await llm();
-    const out = await gen([{ role: 'system', content: domain === 'tech' ? techPrompt(lang) : systemPrompt(lang, who) }, { role: 'user', content: text }],
+    const sys = domain === 'tech' ? techPrompt(lang) : domain === 'news' ? newsPrompt(lang, from) : systemPrompt(lang, who);
+    const out = await gen([{ role: 'system', content: sys }, { role: 'user', content: text }],
       { max_new_tokens: Math.min(600, 60 + words(text) * 4), do_sample: false });
     const reply = out?.[0]?.generated_text?.at?.(-1)?.content ?? '';
     return String(reply).replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^["«»\s]+|["«»\s]+$/g, '').trim();
   }
+  if (domain === 'news') return newsLight(text, lang, from);
   // Phrase par phrase : plus rapide et plus fidèle (le petit modèle s'égare sur les textes longs)
   const run = await mt(lang);
   const parts = String(text).split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
@@ -152,7 +196,7 @@ self.onmessage = async (e) => {
   const { id, kind, quality } = e.data;
   try {
     const text = kind === 'translate'
-      ? await translate(e.data.text, e.data.lang, quality, e.data.who, e.data.domain)
+      ? await translate(e.data.text, e.data.lang, quality, e.data.who, e.data.domain, e.data.from)
       : await transcribe(e.data.audio, quality);
     if (kind !== 'translate') self.postMessage({ type: 'ready', device: quality === 'high' ? 'webgpu' : 'wasm' });
     self.postMessage({ type: 'result', id, text });

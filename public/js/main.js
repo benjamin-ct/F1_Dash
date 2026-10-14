@@ -1,4 +1,9 @@
 // Point d'entrée de l'interface.
+import './icons.js';
+
+// Démarrage : les panneaux apparaissent l'un après l'autre (animation CSS), une seule fois
+document.body.classList.add('booting');
+setTimeout(() => document.body.classList.remove('booting'), 1600);
 import { store, on } from './store.js';
 import { $$ } from './util.js';
 import { connect } from './conn.js';
@@ -22,6 +27,7 @@ import { initChangelog } from './ui/changelog.js';
 import { initCommentary } from './ui/commentary.js';
 import { initAnalysis, renderAnalysis } from './ui/analysis.js';
 import { initSeason } from './ui/season.js';
+import { initNews } from './ui/news.js';
 import { initRail } from './ui/rail.js';
 import { initTyres, renderTyres } from './ui/tyres.js';
 import { initTopInfo } from './ui/topinfo.js';
@@ -94,6 +100,7 @@ initChangelog();
 initCommentary();
 initAnalysis();
 initSeason();
+initNews();
 initRail();
 initTyres();
 initTopInfo();

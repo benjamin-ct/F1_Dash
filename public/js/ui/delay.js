@@ -2,6 +2,7 @@
 import { store, setDelay, serverNow, on } from '../store.js';
 import { $, esc, fmtDelay, storageGet, storageSet, drivers } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
+import { icon, arrows } from '../icons.js';
 
 // Valeurs de départ indicatives : chaque installation (box, satellite, appli, TNT...) a son
 // propre retard. Utilisez la synchro TV puis enregistrez votre propre préréglage.
@@ -19,9 +20,10 @@ function allPresets() {
   return [...DEFAULT_PRESETS, ...customPresets()];
 }
 
-export function toast(msg, ms = 2500) {
+// ic : icône facultative devant le message (voir icons.js)
+export function toast(msg, ms = 2500, ic = null) {
   const t = $('#toast');
-  t.textContent = msg;
+  t.innerHTML = `${ic ? icon(ic) : ''}<span>${arrows(esc(msg))}</span>`;
   t.hidden = false;
   clearTimeout(toast.timer);
   toast.timer = setTimeout(() => { t.hidden = true; }, ms);
@@ -36,7 +38,7 @@ function renderPresets() {
 
   const custom = customPresets();
   $('#presetManage').innerHTML = custom.length
-    ? `<span class="muted small">Mes préréglages :</span>` + custom.map((p, i) => `<span class="chip">${esc(p.name)} · ${fmtDelay(p.ms)}<button data-del="${i}" title="Supprimer">✕</button></span>`).join('')
+    ? `<span class="muted small">Mes préréglages :</span>` + custom.map((p, i) => `<span class="chip">${esc(p.name)} · ${fmtDelay(p.ms)}<button data-del="${i}" title="Supprimer">${icon('close')}</button></span>`).join('')
     : '';
 }
 
@@ -150,7 +152,7 @@ export function initDelay() {
     if (!b || e.button !== 0) return;
     const ms = serverNow() - Number(b.dataset.t);
     setDelay(ms);
-    toast(`✅ Délai calé sur la TV : ${fmtDelay(store.delay)}`);
+    toast(`Délai calé sur la TV : ${fmtDelay(store.delay)}`, 2500, 'check');
     renderSyncList();
   });
 

@@ -4,10 +4,27 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.19.0 — 2026-10-14
+
+### Actualités
+- Nouvel espace **Actu** (barre latérale, bouton Actu sur téléphone) : toute l'actualité de la F1 au même endroit — site officiel de la F1, communiqués de la FIA, chaînes officielles des écuries et des pilotes, et une trentaine de médias reconnus en 8 langues (Autosport, The Race, BBC, L'Équipe, Marca, La Gazzetta, Motorsport-Total, auto sport web…).
+- Titres et résumés traduits en français sur l'ordinateur (même moteur que les radios), texte d'origine en un clic (VO).
+- Les articles d'un même sujet sont regroupés (« repris par N sources », pastille quand le sujet fait l'actualité), avec les pilotes et écuries cités en étiquettes.
+- Filtres : important, vos favoris, officiel, écuries, pilotes, médias, vidéos, langue, recherche. Pastille rouge du nombre de nouveautés.
+- Alertes (son, message, notification) pour les actualités importantes et celles de vos favoris, réglables. Anti-spoiler : titres masqués et alertes suspendues pendant une séance ou un replay.
+- Ajout de vos propres sources (site, flux RSS, chaîne YouTube, compte Bluesky) et activation source par source.
+- Colonne de droite : sujets à la une (48 h), pilotes et écuries qui font l'actu (24 h, un clic pour ne voir que leurs sujets) et dernières vidéos.
+
+### Design
+- Plus aucun emoji ni symbole de police dans l'application : toutes les icônes (menus, boutons, réglages, alertes, carte, téléphone…), les flèches et les triangles des places gagnées ou perdues sont dessinés pour F1 Dash, dans le même style que la barre latérale.
+- Nouvelles cases à cocher : interrupteurs aux couleurs du thème pour les options, cases et boutons radio redessinés.
+- Téléphone : boutons du haut resserrés pour tenir sur une ligne.
+- Animations légères pour une interface plus moderne : panneaux qui apparaissent en cascade au démarrage, fenêtres et menus qui s'ouvrent en douceur, cartes de l'Actu et de la Saison en cascade, cartes qui se soulèvent au survol, boutons qui s'enfoncent au clic, nouvelles actualités surlignées, pastille qui rebondit, onde autour du point du direct. Désactivables dans Réglages, onglet Affichage (« Animations de l'interface »), et coupées automatiquement si le système demande moins d'animations.
+
 ## v1.18.0 — 2026-10-14
 
 ### Nouveau design « Pitwall »
-- Nouveau thème par défaut, repensé de zéro en gardant l'esprit mur des stands : fond plus profond, panneaux en cartes arrondies, couleurs de chronométrage plus lisibles (violet, vert, jaune), barre latérale avec libellés sous les icônes. L'ancien thème « F1 Pro » reste disponible dans ⚙ → Affichage → Thème.
+- Nouveau thème par défaut, repensé de zéro en gardant l'esprit mur des stands : fond plus profond, panneaux en cartes arrondies, couleurs de chronométrage plus lisibles (violet, vert, jaune), barre latérale avec libellés sous les icônes. L'ancien thème « F1 Pro » reste disponible dans Réglages → Affichage → Thème.
 - Nouvelles polices intégrées à l'application (fonctionnent hors ligne) : Saira pour l'interface, Saira Condensed pour les titres et trigrammes, JetBrains Mono pour tous les chiffres (temps, écarts, compte à rebours), qui ne « dansent » plus quand ils changent.
 - Classement : pilote suivi surligné en rouge, pastilles de pneus en anneau, mini-secteurs plus fins.
 - Barre de replay : bouton lecture/pause plus grand.
@@ -36,7 +53,7 @@ l'application (Réglages → Application → Nouveautés).
 ### Télémétrie
 - Animation ultra fluide : compteurs et courbe de vitesse mis à jour à chaque image de l'écran, avec des valeurs interpolées entre les mesures de la F1 (3 à 4 par seconde) au lieu d'avancer par à-coups.
 - Les compteurs remplacent les anciennes jauges dans le panneau Duel.
-- Choix des pilotes : puces ajustées au trigramme (plus de grand vide après « + Comparer… »), flèche et ✕ bien alignés.
+- Choix des pilotes : puces ajustées au trigramme (plus de grand vide après « + Comparer… »), flèche et croix de fermeture bien alignées.
 
 ### Barre du haut
 - Façon MultiViewer : drapeau du pays, nom court du Grand Prix (« Azerbaijan GP — Race »), temps restant en grand, météo détaillée (vent et direction, piste, air, humidité, pression, pluie) selon la place disponible.
@@ -51,7 +68,7 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Fenêtres et second écran
 - Enregistrer l'emplacement des fenêtres (menu « Dispo. » ou Réglages → Affichage) et y revenir en un clic ; dans l'application de bureau, choix au lancement : comme à la fermeture, emplacement enregistré ou sans les fenêtres détachées.
-- Disposition libre aussi dans les fenêtres du second écran (bouton ✥ en haut) : panneaux placés n'importe où.
+- Disposition libre aussi dans les fenêtres du second écran (bouton de disposition en haut) : panneaux placés n'importe où.
 - Le bouton « Analyse » de la barre latérale fonctionne quand le panneau est sur le second écran : il s'y affiche en grand et sa fenêtre passe devant.
 - En disposition libre, un panneau ne peut plus passer sous la barre de replay.
 
@@ -83,7 +100,7 @@ l'application (Réglages → Application → Nouveautés).
 - Zones « ligne droite » et points de détection / d'activation du mode dépassement à leur position officielle, lue dans le plan du circuit publié par la FIA pour chaque Grand Prix (avant : estimations).
 
 ### Panneaux
-- En-têtes : les outils (« Positions estimées », « Suivre », « Calques », « Colonnes ») sont de nouveau à côté du titre, et les boutons ⠿ ⤢ ↗ ✕ sont centrés sur la hauteur de l'en-tête dans tous les panneaux.
+- En-têtes : les outils (« Positions estimées », « Suivre », « Calques », « Colonnes ») sont de nouveau à côté du titre, et les boutons de panneau (déplacer, agrandir, envoyer, masquer) sont centrés sur la hauteur de l'en-tête dans tous les panneaux.
 
 ### Télémétrie
 - Deux compteurs côte à côte (pilote suivi et pilote au choix) : vitesse, accélérateur, frein, régime et rapport, et courbe de vitesse des deux pilotes ; textes bien séparés des cercles.

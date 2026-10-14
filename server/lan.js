@@ -66,7 +66,7 @@ export function qrSvg(text) {
 
 const DENIED = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>F1 Dash</title>
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#000;color:#ddd;font:16px system-ui,sans-serif;text-align:center;padding:24px}b{color:#fff}</style></head>
-<body><div><p style="font-size:42px;margin:0">🔒</p><p><b>Accès protégé</b></p><p>Scannez le QR code affiché sur l'ordinateur dans F1 Dash :<br>⚙ Réglages → Application → « Sur votre téléphone ou tablette ».</p><p style="color:#999;font-size:14px">Appli déjà ajoutée à l'écran d'accueil (la clé a peut-être été changée) : supprimez-la, rescannez le QR code, puis ajoutez-la de nouveau.</p></div></body></html>`;
+<body><div><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2"/></svg><p><b>Accès protégé</b></p><p>Scannez le QR code affiché sur l'ordinateur dans F1 Dash :<br>Réglages, onglet Application, rubrique « Sur votre téléphone ou tablette ».</p><p style="color:#999;font-size:14px">Appli déjà ajoutée à l'écran d'accueil (la clé a peut-être été changée) : supprimez-la, rescannez le QR code, puis ajoutez-la de nouveau.</p></div></body></html>`;
 
 // handler(req, res) : le même que le serveur principal ; onSocket(ws) : client WebSocket
 export function createLan({ handler, onSocket }) {
@@ -135,7 +135,7 @@ export function createLan({ handler, onSocket }) {
     });
     server.listen(port, '0.0.0.0', () => {
       state = { running: true, port, error: null };
-      console.log(`  📱 Accès réseau local actif sur le port ${port}`);
+      console.log(`  Accès réseau local actif sur le port ${port}`);
     });
   }
 

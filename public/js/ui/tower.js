@@ -3,6 +3,7 @@ import { store, setDuel, setFocus, versionOf, displayNow, f1Now, on } from '../s
 import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, currentStint, lapSeconds, fmtLap } from '../util.js';
 import { prefs, isFav, toggleFav } from '../prefs.js';
 import { segmentClass, parseUtc } from '/shared/f1.js';
+import { icon } from '../icons.js';
 
 let lastKey = '';
 let lastRender = 0;
@@ -119,10 +120,10 @@ export function renderTower(force = false) {
     let posDelta = '';
     if (kind === 'race' && a.GridPos && pos) {
       const dlt = Number(a.GridPos) - Number(pos);
-      if (dlt) posDelta = `<span class="pos-delta ${dlt > 0 ? 'up' : 'down'}">${dlt > 0 ? '▲' : '▼'}${Math.abs(dlt)}</span>`;
+      if (dlt) posDelta = `<span class="pos-delta ${dlt > 0 ? 'up' : 'down'}">${icon(dlt > 0 ? 'tri-up' : 'tri-down')}${Math.abs(dlt)}</span>`;
     }
 
-    const drv = `<td><div class="drv">${teamMark(d)}<span class="drv-num">${esc(d.RacingNumber || num)}</span><span class="drv-tla" title="${esc(d.FullName || '')} — ${esc(d.TeamName || '')}">${esc(d.Tla || num)}</span><span class="drv-last">${esc(d.LastName || '')}</span><button class="fav-btn ${isFav(num) ? 'on' : ''}" data-fav="${num}" title="${isFav(num) ? 'Retirer des favoris' : 'Ajouter aux favoris (alertes, radios…)'}">${isFav(num) ? '★' : '☆'}</button></div></td><td class="c-tags"><div class="drv-tags">${tags.join('')}</div></td>`;
+    const drv = `<td><div class="drv">${teamMark(d)}<span class="drv-num">${esc(d.RacingNumber || num)}</span><span class="drv-tla" title="${esc(d.FullName || '')} — ${esc(d.TeamName || '')}">${esc(d.Tla || num)}</span><span class="drv-last">${esc(d.LastName || '')}</span><button class="fav-btn ${isFav(num) ? 'on' : ''}" data-fav="${num}" title="${isFav(num) ? 'Retirer des favoris' : 'Ajouter aux favoris (alertes, radios…)'}">${icon(isFav(num) ? 'star-fill' : 'star')}</button></div></td><td class="c-tags"><div class="drv-tags">${tags.join('')}</div></td>`;
     const sectors = list(l.Sectors);
     const secCells = [0, 1, 2].map((i) => sectorCell(sectors[i])).join('');
     const tyre = `<td class="c-tyre">${stint ? tyreBadge(stint.Compound, stint.TotalLaps, stint.New) : '<span class="dim">—</span>'}</td>`;
@@ -133,7 +134,7 @@ export function renderTower(force = false) {
       const own = bestOf(l);
       const rank = bests.filter((x) => x.n !== num && x.t < pred.time).length + 1;
       const cls = rank === 1 ? 'purple' : own === null || pred.time < own ? 'green' : 'yellow';
-      predCell = `<td class="t-lap c-pred"><span class="pred ${cls}" title="${pred.done} secteur(s) réalisé(s)">${fmtLap(pred.time)} <small>→ P${rank}</small></span></td>`;
+      predCell = `<td class="t-lap c-pred"><span class="pred ${cls}" title="${pred.done} secteur(s) réalisé(s)">${fmtLap(pred.time)} <small>${icon('arrow-right', 'ic-s')} P${rank}</small></span></td>`;
     }
 
     const g = focusGap !== null && store.focus !== num ? gapSec(num) : null;
