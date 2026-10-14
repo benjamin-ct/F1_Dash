@@ -17,6 +17,8 @@ const DEFAULTS = {
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
   keepAwake: true,
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)        // écran toujours allumé pendant une séance
+  momentsSpoil: false,    // replay : détail des moments clés à venir affiché
+  remindMin: 15,          // rappel avant chaque séance (minutes, 0 : désactivé)
   legends: true,          // légendes sous les panneaux (couleurs, colonnes, graphiques)
   replayMarks: true,
   hotLapDim: false,       // essais / qualifs : voitures hors tour lancé estompées (carte, classement)      // replay : périodes de safety car / VSC sur la barre de lecture

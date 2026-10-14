@@ -31,6 +31,10 @@ import { initNews } from './ui/news.js';
 import { initRail } from './ui/rail.js';
 import { initTyres, renderTyres } from './ui/tyres.js';
 import { initTopInfo } from './ui/topinfo.js';
+import { initMiniOpen } from './ui/mini-open.js';
+import { initReminders } from './ui/reminders.js';
+import { initMoments } from './ui/moments.js';
+import { initSummary } from './ui/summary-view.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -104,6 +108,10 @@ initNews();
 initRail();
 initTyres();
 initTopInfo();
+initMiniOpen();
+initReminders();
+initMoments();
+initSummary();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));

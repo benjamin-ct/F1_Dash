@@ -221,6 +221,9 @@ export function initSettings() {
   $('#lanEnabled').addEventListener('change', (e) => renderLan({ enabled: e.target.checked }));
   $('#lanRegen').addEventListener('click', () => { if (confirm('Changer la clé ? Les téléphones et tablettes déjà autorisés devront rescanner le QR code.')) renderLan({ regenerate: true }); });
   // Application de bureau : fenêtres détachées rouvertes au lancement
+  $('#remindSel').value = String(prefs.remindMin ?? 15);
+  $('#remindSel').addEventListener('change', (e) => setPref('remindMin', Number(e.target.value)));
+  $('#icsSeason').href = `/api/calendar.ics?year=${new Date().getFullYear()}`;
   $('#schemeSel').value = prefs.scheme || 'auto';
   $('#schemeSel').addEventListener('change', (e) => setPref('scheme', e.target.value));
   on('prefs', (k) => { if (k === 'scheme') $('#schemeSel').value = prefs.scheme; });

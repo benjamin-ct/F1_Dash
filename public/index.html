@@ -50,6 +50,8 @@
     <div class="hstat weather-mini" id="weatherMini" title="Météo"></div>
     <div class="hstat surface" id="surfaceBox" hidden><div class="hstat-label">État piste</div><div class="hstat-value" id="surfaceValue">—</div></div>
     <div class="tb-tools" id="tbTools">
+      <button class="tb-tool" id="summaryBtn" title="Résumé de la séance : rédigé automatiquement (podium, remontées, stratégies, incidents), au rythme de votre délai TV"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 12h6M10 15h6M10 18h4"/></svg></button>
+      <button class="tb-tool" id="miniBtn" title="Mini-classement : petite fenêtre toujours au premier plan, à poser par-dessus la vidéo de la course"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="11" width="7" height="7" rx="1"/></svg></button>
       <button class="tb-tool" data-tool="docs" title="Documents officiels de la FIA (Grand Prix en cours)"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg><i class="tb-dot" hidden></i></button>
       <button class="tb-tool" data-tool="speeds" title="Vitesses : intermédiaires 1 et 2, ligne d'arrivée et speed trap de chaque pilote"><svg viewBox="0 0 24 24"><path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5"/><circle cx="12" cy="17" r="1.3"/></svg></button>
       <button class="tb-tool" data-tool="sectors" title="Meilleurs secteurs de chaque pilote et tour idéal"><svg viewBox="0 0 24 24"><path d="M5 20V11M10 20V5M15 20v-7M20 20V9"/></svg></button>
@@ -527,6 +529,8 @@
       <section class="set-block" data-sgroup="alerts">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Alertes (synchronisées avec votre délai TV)</h4>
         <div class="row" id="alertOpts"></div>
+        <div class="row"><label class="small" title="Message, son et notification avant le début de chaque séance (essais, qualifications, sprint, course), quand F1 Dash est ouvert">Rappel avant chaque séance <select id="remindSel"><option value="0">Désactivé</option><option value="5">5 min avant</option><option value="15">15 min avant</option><option value="30">30 min avant</option><option value="60">1 h avant</option></select></label>
+          <a class="btn small" id="icsSeason" href="/api/calendar.ics" download title="Fichier à ouvrir avec Google Agenda, Apple Calendrier ou Outlook : toutes les séances de la saison, avec une alarme 15 min avant (même F1 Dash fermé)"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg> Ajouter la saison à mon agenda</a></div>
         <div class="row"><span class="small">Pilotes favoris (cliquez pour ajouter/retirer — ou sur l'étoile à côté du nom dans le classement) :</span><div id="favList" class="fav-list"></div></div>
       </section>
 

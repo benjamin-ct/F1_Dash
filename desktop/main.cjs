@@ -212,6 +212,16 @@ async function widevineReady() {
 // navigateur pour les flux DRM) s'ouvre dans le navigateur.
 function setupContents(wc, url) {
   wc.setWindowOpenHandler(({ url: target }) => {
+    // Mini-classement : petite fenêtre toujours au premier plan (par-dessus la vidéo)
+    if (target.startsWith(url) && new URL(target).pathname === '/mini.html') {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 300, height: 540, minWidth: 220, minHeight: 200, alwaysOnTop: true, autoHideMenuBar: true,
+          icon: APP_ICON, backgroundColor: winBg(), title: 'F1 Dash — mini-classement', webPreferences: childPrefs(),
+        },
+      };
+    }
     if (target.startsWith(url) && isPanelUrl(target)) {
       const other = otherDisplay();
       const area = other ? other.workArea : null;
@@ -231,8 +241,14 @@ function setupContents(wc, url) {
     if (/^https?:\/\//i.test(target)) shell.openExternal(target);
     return { action: 'deny' };
   });
-  wc.on('did-create-window', (win) => {
+  wc.on('did-create-window', (win, { url: target }) => {
     setupContents(win.webContents, url);
+    if (/\/mini\.html(\?|$)/.test(target || '')) {
+      // Au-dessus de tout, y compris d'une vidéo en plein écran
+      win.setAlwaysOnTop(true, 'screen-saver');
+      win.setVisibleOnAllWorkspaces?.(true, { visibleOnFullScreen: true });
+      return;
+    }
     if (otherDisplay()) win.maximize();
   });
 }

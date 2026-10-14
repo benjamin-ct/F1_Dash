@@ -1,0 +1,40 @@
+// Rappels avant chaque séance du week-end (essais, qualifications, sprint, course), dans
+// l'application ouverte. Pour être prévenu application fermée : calendrier .ics (Saison →
+// Calendrier ou Réglages → Alertes), qui contient la même alarme.
+import { api, storageGet, storageSet } from '../util.js';
+import { prefs } from '../prefs.js';
+import { notifyReminder } from './alerts.js';
+import { dueReminders } from '/shared/ics.js';
+
+let schedule = [];   // [{ name, label, t }]
+let loadedAt = 0;
+
+async function load() {
+  const year = new Date().getFullYear();
+  try {
+    const d = await api(`/api/schedule?year=${year}`);
+    schedule = d.races.flatMap((r) => r.sessions.filter((s) => s.t).map((s) => ({ name: r.name, label: s.label, t: Date.parse(s.t) })));
+    loadedAt = Date.now();
+  } catch { /* hors ligne : nouvel essai plus tard */ }
+}
+
+
+function check() {
+  if (Date.now() - loadedAt > 6 * 3600e3) load();
+  const done = storageGet('f1dash.reminded', []);
+  const due = dueReminders(schedule, Date.now(), Number(prefs.remindMin) || 0, done);
+  if (!due.length) return;
+  // Mémorisé avant d'alerter : une seule alerte même avec plusieurs fenêtres ouvertes
+  storageSet('f1dash.reminded', [...done, ...due.map((s) => `${s.t}|${s.label}`)].slice(-60));
+  for (const s of due) {
+    const min = Math.max(1, Math.round((s.t - Date.now()) / 60e3));
+    notifyReminder(`${s.name.replace(' Grand Prix', ' GP')} — ${s.label}`, `début dans ${min} min (${new Date(s.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})`);
+  }
+}
+
+export function initReminders() {
+  // Fenêtre principale uniquement (pas les panneaux détachés)
+  if (new URLSearchParams(location.search).has('win')) return;
+  load().then(check);
+  setInterval(check, 30000);
+}

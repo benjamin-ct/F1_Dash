@@ -2069,3 +2069,71 @@ kbd .ic { width: 12px; height: 12px; opacity: 1; }
 :root[data-scheme="light"] ::-webkit-scrollbar-thumb { background: #CDD3DC; }
 /* Mode clair : « Replay » lisible sur fond blanc */
 :root[data-scheme="light"] .rp-title { color: var(--blue); }
+
+/* Mini-classement : petite fenêtre toujours au premier plan */
+body.mini-body { display: block; min-height: 0; height: 100vh; overflow: hidden; padding-bottom: 20px; box-sizing: border-box; background: var(--bg); color: var(--text); font-family: "Saira Condensed", "Titillium Web", sans-serif; }
+.mini-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--panel); border-bottom: 1px solid var(--border); }
+.mini-flag { min-width: 10px; height: 18px; padding: 0 6px; border-radius: 4px; font-size: 11px; font-weight: 800; letter-spacing: .5px; line-height: 18px; color: #fff; background: var(--green); }
+.mini-flag.f-yellow { background: var(--yellow); color: #1d1500; }
+.mini-flag.f-sc, .mini-flag.f-vsc { background: var(--sc); color: #1d1200; }
+.mini-flag.f-red { background: var(--red); }
+.mini-lap { flex: 1; font-weight: 700; font-size: 14px; font-family: "JetBrains Mono", Consolas, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-mode { border: 1px solid var(--border); background: var(--panel-2); color: var(--text-2); border-radius: 5px; font: 700 10.5px "Saira Condensed", sans-serif; letter-spacing: .6px; padding: 2px 7px; cursor: pointer; }
+.mini-banner { padding: 4px 8px; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #fff; background: var(--red); }
+.mini-banner.f-sc, .mini-banner.f-vsc { background: var(--sc); color: #1d1200; }
+.mini-table { width: 100%; border-collapse: collapse; }
+.mini-table td { padding: 2px 6px; height: 22px; font-size: 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.mini-table .m-pos { width: 22px; text-align: right; color: var(--muted); font-family: "JetBrains Mono", Consolas, monospace; font-size: 12.5px; }
+.mini-table .m-drv { font-weight: 700; letter-spacing: .4px; }
+.mini-table .m-drv i { display: inline-block; width: 3px; height: 13px; margin-right: 6px; vertical-align: -2px; border-radius: 2px; }
+.mini-table .m-val { text-align: right; font-family: "JetBrains Mono", Consolas, monospace; font-size: 12.5px; color: var(--text-2); }
+.mini-table .m-tyre { width: 24px; text-align: center; }
+.mini-table .m-tag { font: 700 10px "Saira Condensed", sans-serif; letter-spacing: .5px; color: var(--blue); }
+.mini-table tr.focus td { background: var(--focus); }
+.mini-table tr.duel-a .m-drv { color: var(--blue); }
+.mini-table tr.duel-b .m-drv { color: var(--orange); }
+.mini-table tr.out td { opacity: .45; }
+.mini-table .m-empty { color: var(--muted); font-size: 12px; white-space: normal; padding: 10px 8px; }
+.mini-foot { position: fixed; bottom: 0; left: 0; right: 0; padding: 3px 8px; font-size: 10.5px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--border); }
+.mini-table .m-drv .ic { width: 10px; height: 10px; margin-left: 4px; vertical-align: 0; color: var(--yellow); fill: currentColor; }
+@media (max-width: 900px), (pointer: coarse) { #miniBtn { display: none; } }
+a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+
+/* Replay : moments clés (liste et repères sur la barre de lecture) */
+.rp-marks { position: absolute; inset: 0; pointer-events: none; }
+.rp-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--blue); opacity: .85; }
+.rp-mark.k-race { background: var(--purple); }
+.rp-mark.k-pit { background: var(--muted); }
+.rp-mark.k-inc { background: var(--orange); }
+.rp-mark.k-flag { background: var(--sc); }
+#rpMoments.on { background: var(--panel-3); color: var(--text); }
+.moments-pop { position: fixed; right: 16px; bottom: 86px; z-index: 60; width: min(440px, calc(100vw - 32px)); max-height: min(560px, 62vh); display: flex; flex-direction: column;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 18px 50px rgba(0, 0, 0, .45); }
+.moments-pop[hidden] { display: none; }
+.mo-head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 8px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.mo-head b { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; margin-right: auto; }
+.mo-filters { display: flex; gap: 4px; order: 3; width: 100%; }
+.mo-filters button { border: 1px solid var(--border); background: var(--panel-2); color: var(--text-2); border-radius: 999px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
+.mo-filters button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.mo-list { overflow-y: auto; padding: 4px 0; }
+.mo-row { display: grid; grid-template-columns: 22px 54px 1fr; align-items: center; gap: 6px; width: 100%; padding: 6px 14px; border: 0; background: none; color: var(--text); text-align: left; font-size: 13px; cursor: pointer; }
+.mo-row:hover { background: var(--hover); }
+.mo-row .mo-ic { color: var(--blue); display: inline-flex; }
+.mo-row.k-race .mo-ic { color: var(--purple); }
+.mo-row.k-inc .mo-ic { color: var(--orange); }
+.mo-row.k-flag .mo-ic { color: var(--sc); }
+.mo-row.k-pit .mo-ic { color: var(--muted); }
+.mo-row .mo-when { color: var(--muted); font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; }
+.mo-row.future .mo-txt { color: var(--text-2); }
+.mo-empty { padding: 12px 14px; }
+.mo-spoil { padding: 8px 14px 10px; border-top: 1px solid var(--line); }
+@media (max-width: 900px) { .moments-pop { right: 8px; left: 8px; width: auto; bottom: 150px; } }
+
+/* Résumé automatique de la séance */
+.summary-dlg { width: min(620px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); color: var(--text); }
+.summary-dlg::backdrop { background: rgba(0, 0, 0, .5); }
+.sum-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 10px 18px; border-bottom: 1px solid var(--line); }
+.sum-head b { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; margin-right: auto; }
+.sum-body { padding: 8px 18px; max-height: 60vh; overflow-y: auto; }
+.sum-body p { margin: 8px 0; line-height: 1.5; font-size: 14.5px; }
+.sum-foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 10px 14px 14px 18px; border-top: 1px solid var(--line); }

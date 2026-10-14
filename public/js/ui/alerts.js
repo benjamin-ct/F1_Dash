@@ -57,6 +57,17 @@ function notify(title, body, kind) {
   }
 }
 
+// Rappel avant une séance (voir reminders.js) : son, vibration, message et notification système
+// (même quand la fenêtre est au premier plan : c'est souvent le moment de lancer la télé)
+export function notifyReminder(title, body) {
+  beep('info');
+  buzz('info');
+  toast(`${title} — ${body}`, 10000, 'bell');
+  if (prefs.alerts.notify && 'Notification' in window && Notification.permission === 'granted') {
+    try { new Notification(title, { body, silent: true }); } catch { /* ignore */ }
+  }
+}
+
 // Actualités (voir news.js) : même son, vibration et notification que les alertes de course ; un
 // clic sur la notification ouvre l'espace Actu
 export function notifyNews(title, body, kind, onClick) {

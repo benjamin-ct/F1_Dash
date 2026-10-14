@@ -22,6 +22,7 @@ import { weekendTyres } from './tyres.js';
 import { circuitRecords } from './records.js';
 import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
+import { buildIcs } from '../shared/ics.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 
@@ -212,6 +213,26 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, await season(year));
     }
 
+    // Horaires des séances (rappels de l'interface) et calendrier .ics à importer dans un agenda
+    case 'GET /api/schedule': {
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const d = await season(year);
+      return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, sessions: r.sessions })) });
+    }
+    case 'GET /api/calendar.ics': {
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const round = Number(url.searchParams.get('round')) || null;
+      const alarm = Math.max(0, Math.min(120, Number(url.searchParams.get('alarm') ?? 15) || 0));
+      const d = await season(year);
+      const body = buildIcs(d.races, { year, round, alarmMin: alarm });
+      res.writeHead(200, {
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': `attachment; filename="f1-${year}${round ? `-manche-${round}` : ''}.ics"`,
+        'Cache-Control': 'no-store',
+      });
+      return res.end(body);
+    }
+
     case 'GET /api/season/stats': {
       const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
       return sendJSON(res, 200, await seasonStats(year));
@@ -304,6 +325,10 @@ async function handleApi(req, res, url) {
       replay.start(source, body.startOffsetMs).catch((err) => console.warn('[replay]', err.message));
       return sendJSON(res, 202, { ok: true });
     }
+
+    // Moments clés du replay en cours (départ, drapeaux, leaders, arrêts, incidents, pénalités…)
+    case 'GET /api/replay/moments':
+      return sendJSON(res, 200, { path: hub.source.path || null, moments: hub.source.mode === 'replay' ? replay.moments || [] : [] });
 
     case 'POST /api/replay/control': {
       const body = await readBody(req);

@@ -1,0 +1,142 @@
+// Résumé automatique d'une séance, rédigé en français à partir de l'état affiché (donc au rythme
+// du délai TV, sans rien dévoiler d'avance) : podium, écart, remontées, stratégies, voitures de
+// sécurité, abandons, pénalités, meilleur tour. Course, qualifications et essais.
+
+const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
+const COMP = { SOFT: 'tendres', MEDIUM: 'médiums', HARD: 'durs', INTERMEDIATE: 'intermédiaires', WET: 'pluie' };
+const LETTER = { SOFT: 'T', MEDIUM: 'M', HARD: 'D', INTERMEDIATE: 'I', WET: 'P' };
+
+// Nom du Grand Prix en français (« Azerbaijan Grand Prix » -> « Grand Prix d'Azerbaïdjan »)
+const GP_FR = {
+  Australian: "d'Australie", Chinese: 'de Chine', Japanese: 'du Japon', Bahrain: 'de Bahreïn', 'Saudi Arabian': "d'Arabie saoudite",
+  Miami: 'de Miami', 'Emilia Romagna': "d'Émilie-Romagne", Monaco: 'de Monaco', Spanish: "d'Espagne", 'Barcelona-Catalunya': 'de Barcelone-Catalogne',
+  Canadian: 'du Canada', Austrian: "d'Autriche", British: 'de Grande-Bretagne', Belgian: 'de Belgique', Hungarian: 'de Hongrie',
+  Dutch: 'des Pays-Bas', Italian: "d'Italie", Madrid: 'de Madrid', Azerbaijan: "d'Azerbaïdjan", Singapore: 'de Singapour',
+  'United States': 'des États-Unis', 'Mexico City': 'de Mexico', 'São Paulo': 'de São Paulo', 'Las Vegas': 'de Las Vegas',
+  Qatar: 'du Qatar', 'Abu Dhabi': "d'Abou Dhabi",
+};
+export function gpNameFr(name) {
+  const base = String(name || '').replace(/ Grand Prix$/i, '').trim();
+  if (!base) return 'ce Grand Prix';
+  return `le Grand Prix ${GP_FR[base] || `${/^[AEIOUÉÂ]/i.test(base) ? "d'" : 'de '}${base}`}`;
+}
+const num = (v) => String(v).replace('+', '').replace('.', ',');
+
+function ordinal(n) { return n === 1 ? '1er' : `${n}e`; }
+function joinFr(arr) { return arr.length <= 1 ? arr.join('') : `${arr.slice(0, -1).join(', ')} et ${arr.at(-1)}`; }
+
+export function sessionKindOf(state) {
+  const info = state?.SessionInfo || {};
+  if (info.Type === 'Race') return 'race';
+  if (info.Type === 'Qualifying' || /qualif|shootout/i.test(info.Name || '')) return 'quali';
+  return 'practice';
+}
+
+// Pénalités annoncées par les commissaires (messages de la direction de course)
+function penalties(msgs, name) {
+  const out = [];
+  for (const m of msgs) {
+    const t = String(m?.Message || '');
+    if (!/^FIA STEWARDS:.*PENALTY FOR/.test(t) || /NO FURTHER|REVIEWED/.test(t)) continue;
+    const who = [...t.matchAll(/CAR (\d+) \((\w{3})\)/g)].map((x) => name(x[1]) || x[2]);
+    const sec = t.match(/(\d+) SECOND TIME PENALTY/);
+    const what = sec ? `${sec[1]} s` : /DRIVE THROUGH/.test(t) ? 'drive-through' : /STOP\/GO/.test(t) ? 'stop & go' : /GRID/.test(t) ? 'pénalité sur la grille' : 'pénalité';
+    if (who.length) out.push(`${joinFr(who)} (${what})`);
+  }
+  return out;
+}
+
+export function buildSummary(state) {
+  const kind = sessionKindOf(state);
+  const info = state?.SessionInfo || {};
+  const gp = String(info.Meeting?.Name || '').trim() || 'ce Grand Prix';
+  const dl = state?.DriverList || {};
+  const lines = state?.TimingData?.Lines || {};
+  const app = state?.TimingAppData?.Lines || {};
+  const stats = state?.TimingStats?.Lines || {};
+  const msgs = list(state?.RaceControlMessages?.Messages);
+  const name = (n) => dl[n]?.LastName || dl[n]?.Tla || null;
+  const tla = (n) => dl[n]?.Tla || n;
+  const ranked = Object.keys(lines).filter((n) => Number(lines[n]?.Position) > 0).sort((a, b) => Number(lines[a].Position) - Number(lines[b].Position));
+  const finished = ['Finished', 'Finalised', 'Ends'].includes(state?.SessionStatus?.Status);
+  const lap = state?.LapCount;
+  const out = { kind, final: finished, title: '', paragraphs: [] };
+  if (!ranked.length) { out.title = 'Résumé indisponible'; out.paragraphs.push('Pas encore de classement pour cette séance.'); return out; }
+  const [p1, p2, p3] = ranked;
+  const team = (n) => dl[n]?.TeamName ? ` (${dl[n].TeamName})` : '';
+
+  if (kind === 'race') {
+    const label = /sprint/i.test(info.Name || '') ? 'le sprint' : gpNameFr(gp);
+    out.title = finished ? `${name(p1)} remporte ${label}` : `${name(p1)} en tête (tour ${lap?.CurrentLap || '?'}${lap?.TotalLaps ? ` / ${lap.TotalLaps}` : ''})`;
+    const gap2 = lines[p2]?.GapToLeader;
+    let para = finished
+      ? `${name(p1)}${team(p1)} s'impose devant ${name(p2)}${p3 ? ` et ${name(p3)}` : ''}`
+      : `${name(p1)}${team(p1)} mène devant ${name(p2)}${p3 ? ` et ${name(p3)}` : ''}`;
+    if (gap2 && /^\+?\d/.test(gap2)) para += `, avec ${num(gap2)} s d'avance sur son dauphin`;
+    const grid1 = Number(app[p1]?.GridPos);
+    if (grid1 > 1) para += `, après être parti ${ordinal(grid1)}`;
+    else if (grid1 === 1) para += ', depuis la pole position';
+    out.paragraphs.push(`${para}.`);
+
+    // Abandons : retirés, ou arrêtés en piste. Course terminée : une voiture arrêtée qui a couvert
+    // 90 % de la distance du vainqueur est classée (règle de la F1 ; garée après l'arrivée)
+    const leaderLaps = Number(lines[p1]?.NumberOfLaps) || 0;
+    const isOut = (n) => lines[n].Retired || (lines[n].Stopped && (!finished || (Number(lines[n].NumberOfLaps) || 0) < 0.9 * leaderLaps));
+    // Remontées et reculs (grille -> position actuelle, pilotes encore en course)
+    const moves = ranked.filter((n) => !isOut(n) && Number(app[n]?.GridPos) > 0)
+      .map((n) => ({ n, d: Number(app[n].GridPos) - Number(lines[n].Position) }));
+    const up = moves.filter((m) => m.d >= 4).sort((a, b) => b.d - a.d).slice(0, 3);
+    const down = moves.filter((m) => m.d <= -4).sort((a, b) => a.d - b.d).slice(0, 2);
+    if (up.length) out.paragraphs.push(`Belles remontées : ${joinFr(up.map((m) => `${name(m.n)} (${ordinal(Number(app[m.n].GridPos))} → ${ordinal(Number(lines[m.n].Position))}, +${m.d})`))}.`);
+    if (down.length) out.paragraphs.push(`Course difficile pour ${joinFr(down.map((m) => `${name(m.n)} (${ordinal(Number(app[m.n].GridPos))} → ${ordinal(Number(lines[m.n].Position))})`))}.`);
+
+    // Stratégies : celle du vainqueur et la plus courante
+    const strat = (n) => list(app[n]?.Stints).map((s) => s?.Compound).filter((c) => LETTER[c]);
+    const s1 = strat(p1);
+    if (s1.length) {
+      const stops = s1.length - 1;
+      out.paragraphs.push(`Stratégie de ${name(p1)} : ${stops === 0 ? 'aucun arrêt' : `${stops} arrêt${stops > 1 ? 's' : ''}`} (${s1.map((c) => COMP[c]).join(' → ')}).`);
+    }
+    const counts = new Map();
+    for (const n of ranked) { const st = strat(n); if (st.length) { const k = st.map((c) => LETTER[c]).join('-'); counts.set(k, (counts.get(k) || 0) + 1); } }
+    const common = [...counts].sort((a, b) => b[1] - a[1])[0];
+    if (common && common[1] >= 4) out.paragraphs.push(`Stratégie la plus courante : ${common[0]} (${common[1]} pilotes).`);
+
+    // Neutralisations, abandons, pénalités, meilleur tour
+    const sc = msgs.filter((m) => /^SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
+    const vsc = msgs.filter((m) => /^VIRTUAL SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
+    const red = msgs.filter((m) => m?.Flag === 'RED').map((m) => m.Lap).filter(Boolean);
+    const neut = [];
+    if (sc.length) neut.push(`${sc.length === 1 ? 'une voiture de sécurité' : `${sc.length} voitures de sécurité`} (tour${sc.length > 1 ? 's' : ''} ${joinFr(sc.map(String))})`);
+    if (vsc.length) neut.push(`${vsc.length === 1 ? 'une VSC' : `${vsc.length} VSC`} (tour${vsc.length > 1 ? 's' : ''} ${joinFr(vsc.map(String))})`);
+    if (red.length) neut.push(`${red.length === 1 ? 'un drapeau rouge' : `${red.length} drapeaux rouges`} (tour${red.length > 1 ? 's' : ''} ${joinFr(red.map(String))})`);
+    out.paragraphs.push(neut.length ? `Course marquée par ${joinFr(neut)}.` : finished ? 'Aucune neutralisation : course disputée sous drapeau vert de bout en bout.' : 'Pas de neutralisation jusqu\'ici.');
+    const out_ = ranked.filter(isOut).map(name);
+    if (out_.length) out.paragraphs.push(`Abandon${out_.length > 1 ? 's' : ''} : ${joinFr(out_)}.`);
+    const pen = penalties(msgs, name);
+    if (pen.length) out.paragraphs.push(`Pénalités : ${joinFr(pen)}.`);
+    const fl = Object.keys(stats).find((n) => stats[n]?.PersonalBestLapTime?.Position === 1);
+    if (fl && stats[fl].PersonalBestLapTime.Value) out.paragraphs.push(`Meilleur tour : ${name(fl)} en ${stats[fl].PersonalBestLapTime.Value}${stats[fl].PersonalBestLapTime.Lap ? ` (tour ${stats[fl].PersonalBestLapTime.Lap})` : ''}.`);
+  } else if (kind === 'quali') {
+    const part = Number(state?.TimingData?.SessionPart) || 1;
+    const best = (n) => list(lines[n]?.BestLapTimes)[part - 1]?.Value || lines[n]?.BestLapTime?.Value || '';
+    const gap = (n) => list(lines[n]?.Stats)[part - 1]?.TimeDiffToFastest || '';
+    out.title = finished && part >= 3 ? `Pole position pour ${name(p1)}` : `${name(p1)} en tête de la Q${part}`;
+    out.paragraphs.push(`${name(p1)}${team(p1)} ${finished && part >= 3 ? 'signe la pole' : 'est en tête'}${best(p1) ? ` en ${best(p1)}` : ''}, devant ${name(p2)}${gap(p2) ? ` (${gap(p2)})` : ''}${p3 ? ` et ${name(p3)}${gap(p3) ? ` (${gap(p3)})` : ''}` : ''}.`);
+    const ko = ranked.filter((n) => lines[n].KnockedOut).map(tla);
+    if (ko.length) out.paragraphs.push(`Éliminés : ${joinFr(ko)}.`);
+    const red = msgs.filter((m) => m?.Flag === 'RED').length;
+    if (red) out.paragraphs.push(`Séance interrompue ${red === 1 ? 'une fois' : `${red} fois`} par le drapeau rouge.`);
+    const pen = penalties(msgs, name);
+    if (pen.length) out.paragraphs.push(`Pénalités : ${joinFr(pen)}.`);
+  } else {
+    out.title = `${name(p1)} ${finished ? 'termine' : 'est'} en tête de la séance`;
+    out.paragraphs.push(`Meilleur temps pour ${name(p1)}${team(p1)}${lines[p1]?.BestLapTime?.Value ? ` en ${lines[p1].BestLapTime.Value}` : ''}, devant ${name(p2)}${lines[p2]?.TimeDiffToFastest ? ` (${lines[p2].TimeDiffToFastest})` : ''}${p3 ? ` et ${name(p3)}${lines[p3]?.TimeDiffToFastest ? ` (${lines[p3].TimeDiffToFastest})` : ''}` : ''}.`);
+    const laps = ranked.map((n) => [n, Number(lines[n]?.NumberOfLaps) || 0]).sort((a, b) => b[1] - a[1]);
+    if (laps[0]?.[1]) out.paragraphs.push(`Le plus de tours : ${name(laps[0][0])} (${laps[0][1]}).`);
+    const red = msgs.filter((m) => m?.Flag === 'RED').length;
+    if (red) out.paragraphs.push(`Séance interrompue ${red === 1 ? 'une fois' : `${red} fois`} par le drapeau rouge.`);
+  }
+  if (!finished) out.paragraphs.push('Résumé provisoire : la séance n\'est pas terminée (au rythme de votre délai TV).');
+  return out;
+}

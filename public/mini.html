@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>F1 Dash — mini-classement</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <script>/* Apparence (sombre / clair / système) posée avant l'affichage */ try { const p = JSON.parse(localStorage.getItem('f1dash.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall';</script>
+</head>
+<body class="mini-body">
+  <!-- Mini-classement : petite fenêtre toujours au premier plan, par-dessus la vidéo -->
+  <header class="mini-head" id="miniHead">
+    <span class="mini-flag" id="miniFlag"></span>
+    <span class="mini-lap" id="miniLap">—</span>
+    <button class="mini-mode" id="miniMode" title="Changer la colonne : intervalle avec la voiture de devant / écart au leader">INT</button>
+  </header>
+  <div class="mini-banner" id="miniBanner" hidden></div>
+  <table class="mini-table"><tbody id="miniRows"></tbody></table>
+  <div class="mini-foot" id="miniFoot">Connexion…</div>
+  <div class="toast" id="toast" hidden></div>
+  <script type="module" src="/js/mini.js"></script>
+</body>
+</html>
