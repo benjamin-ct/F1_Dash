@@ -388,11 +388,22 @@ function tick() {
   el.innerHTML = [[d, 'jours'], [h, 'h'], [m, 'min'], [s, 's']].map(([v, l]) => `<span><b>${p(v)}</b><small>${l}</small></span>`).join('');
 }
 
+// Changement de rubrique : le contenu apparaît en cascade (une seule fois, pas à chaque mise à jour)
+function animate() {
+  const el = $('#szContent');
+  el.classList.remove('sz-anim');
+  void el.offsetWidth;
+  el.classList.add('sz-anim');
+  clearTimeout(animate.t);
+  animate.t = setTimeout(() => el.classList.remove('sz-anim'), 500);
+}
+
 export function openSeason(sec) {
   if (sec) section = sec;
   import('./news.js').then((m) => m.closeNews());
   $('#seasonView').style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
   $('#seasonView').hidden = false;
+  animate();
   $('#seasonBtn').classList.add('on');
   load();
   render();
@@ -413,8 +424,8 @@ export function initSeason() {
   sel.addEventListener('change', () => { year = Number(sel.value); data = null; stats = null; fia = null; clearTimeout(statsTimer); clearTimeout(fiaTimer); setTechFilter(null, 'all'); load(); });
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
-  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; render(); } });
-  $('#szContent').addEventListener('click', (e) => { const b = e.target.closest('[data-szgo]'); if (b) { section = b.dataset.szgo; render(); } });
+  $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; animate(); render(); } });
+  $('#szContent').addEventListener('click', (e) => { const b = e.target.closest('[data-szgo]'); if (b) { section = b.dataset.szgo; animate(); render(); } });
   $('#szContent').addEventListener('change', (e) => {
     const id = e.target.id;
     if (id === 'szTeam') h2hTeam = e.target.value;

@@ -29,6 +29,8 @@ let loaded = null;
 // Première ouverture : tout ce qui existe déjà est considéré comme lu
 let lastSeen = storageGet(SEEN_KEY, null) ?? (storageSet(SEEN_KEY, Date.now()), Date.now());
 let revealSpoilers = false;
+let cascadeUntil = 0;          // cartes en cascade juste après l'ouverture ou un changement de rubrique
+const justArrived = new Set();  // nouvelles reçues pendant que l'espace est ouvert
 let alertOwner = !navigator.locks;   // une seule fenêtre par appareil donne les alertes
 const open = () => !$('#newsView').hidden;
 
@@ -213,7 +215,7 @@ function card(g, favs) {
   const img = it.img ? `<img class="nw-img" src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.nw-thumb').remove()">` : '';
   const others = g.others.length ? `<details class="nw-others"><summary>Repris par ${g.others.length} autre${g.others.length > 1 ? 's' : ''} source${g.others.length > 1 ? 's' : ''}</summary>
     ${g.others.map((o) => `<a href="${esc(o.link)}" target="_blank" rel="noopener"><b>${esc(srcById[o.src]?.name || o.src)}</b> <span class="nw-lang">${esc(o.lang.toUpperCase())}</span> ${esc(titleOf(o).text)} <span class="muted">· ${ago(o.t)}</span></a>`).join('')}</details>` : '';
-  return `<article class="nw-card${unread ? ' unread' : ''}${g.imp >= 2 ? ' imp' : ''}${fav ? ' fav' : ''}${it.kind === 'video' ? ' video' : ''}">
+  return `<article class="nw-card${justArrived.has(it.id) ? ' arrived' : ''}${unread ? ' unread' : ''}${g.imp >= 2 ? ' imp' : ''}${fav ? ' fav' : ''}${it.kind === 'video' ? ' video' : ''}">
     ${img ? `<a class="nw-thumb" href="${esc(it.link)}" target="_blank" rel="noopener">${img}${it.kind === 'video' ? `<span class="nw-play">${icon('play')}</span>` : ''}</a>` : ''}
     <div class="nw-body">
       <div class="nw-meta"><span class="nw-src nw-c-${esc(it.cat)}">${esc(src.name)}</span><span class="nw-cat">${CAT_LABEL[it.cat] || ''}</span>
@@ -314,12 +316,13 @@ function render() {
   const banner = guard ? `<div class="nw-guard">${icon('eye-off')} <b>Anti-spoiler</b> : ${store.status?.source?.mode === 'replay' ? 'replay' : 'séance'} en cours, les titres sont masqués et les alertes d'actualité suspendues.
       <button class="btn small" id="nwReveal">Afficher quand même</button></div>` : '';
   const body = shown.length
-    ? `<div class="nw-list${guard ? ' guarded' : ''}">${shown.map((g) => card(g, favs)).join('')}</div>${list.length > limit ? '<button class="btn nw-more" id="nwMore">Voir plus</button>' : ''}`
+    ? `<div class="nw-list${guard ? ' guarded' : ''}${Date.now() < cascadeUntil ? ' cascade' : ''}">${shown.map((g) => card(g, favs)).join('')}</div>${list.length > limit ? '<button class="btn nw-more" id="nwMore">Voir plus</button>' : ''}`
     : `<div class="sz-box muted">${loaded ? 'Aucune actualité pour ces filtres.' : 'Chargement des actualités…'}</div>`;
   const keep = el.scrollTop;
   const visible = items.filter((it) => srcById[it.src]?.enabled !== false);
   el.innerHTML = `<div class="nw-layout${guard ? ' guarded' : ''}"><div class="nw-feed">${head}${banner}${body}</div>${asideView(visible)}</div>`;
   el.scrollTop = keep;
+  justArrived.clear();
   // Titres affichés traduits en priorité, puis les résumés des premiers sujets
   for (const g of shown.slice(0, 40)) translate(g.lead.title, g.lead.lang);
   for (const g of shown.slice(0, 12)) if (g.lead.summary) translate(g.lead.summary, g.lead.lang);
@@ -329,8 +332,11 @@ function updateBadge() {
   const n = items.filter((it) => isUnread(it) && srcById[it.src]?.enabled !== false).length;
   for (const b of [$('#newsBtn'), $('#rail [data-rail="news"]')]) {
     if (!b) continue;
-    if (n) b.dataset.count = n > 99 ? '99+' : String(n);
-    else delete b.dataset.count;
+    const v = n > 99 ? '99+' : String(n);
+    if (n && b.dataset.count !== v) {
+      if (Number(v) > Number(b.dataset.count || 0) || v === '99+') { b.classList.remove('count-pop'); void b.offsetWidth; b.classList.add('count-pop'); }
+      b.dataset.count = v;
+    } else if (!n) delete b.dataset.count;
   }
 }
 
@@ -383,6 +389,7 @@ on('news', (list) => {
   for (const it of items) if (sizes[it.cluster]) it.sources = sizes[it.cluster];
   const fresh = list.filter((x) => !known.has(x.id));
   items = [...fresh.map(({ fresh: f, ...x }) => x), ...items].sort((a, b) => b.t - a.t);
+  for (const it of fresh) justArrived.add(it.id);
   // L'ordinateur traduit tout de suite les titres des nouvelles (servent aussi au téléphone)
   if (store.isHost !== false && alertOwner) for (const it of fresh) translate(it.title, it.lang);
   onFresh(fresh);
@@ -407,6 +414,7 @@ export function openNews(sec) {
   $('#newsView').hidden = false;
   $('#newsBtn')?.classList.add('on');
   limit = PAGE;
+  cascadeUntil = Date.now() + 400;
   load().then(render);
   render();
   clearInterval(openNews.timer);
@@ -442,6 +450,7 @@ export function initNews() {
     if (!b) return;
     section = b.dataset.nw;
     limit = PAGE;
+    cascadeUntil = Date.now() + 400;
     if (section === 'sources') reloadSources();
     render();
     $('#nwContent').scrollTop = 0;

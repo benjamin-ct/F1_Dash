@@ -186,6 +186,8 @@ Chaque session suivie en live est **enregistrée automatiquement** sur votre PC 
 
 ## ⚙ Options
 
+- **Animations de l'interface** (⚙ → Affichage) : apparitions en douceur des panneaux, fenêtres, menus et listes ; à décocher pour une interface sans animation (elles sont aussi coupées si le système demande moins d'animations).
+
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `PORT` | `3000` | Port de l'interface |

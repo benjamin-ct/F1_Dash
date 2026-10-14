@@ -1,5 +1,9 @@
 // Point d'entrée de l'interface.
 import './icons.js';
+
+// Démarrage : les panneaux apparaissent l'un après l'autre (animation CSS), une seule fois
+document.body.classList.add('booting');
+setTimeout(() => document.body.classList.remove('booting'), 1600);
 import { store, on } from './store.js';
 import { $$ } from './util.js';
 import { connect } from './conn.js';

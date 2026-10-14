@@ -19,6 +19,7 @@ l'application (Réglages → Application → Nouveautés).
 - Plus aucun emoji ni symbole de police dans l'application : toutes les icônes (menus, boutons, réglages, alertes, carte, téléphone…), les flèches et les triangles des places gagnées ou perdues sont dessinés pour F1 Dash, dans le même style que la barre latérale.
 - Nouvelles cases à cocher : interrupteurs aux couleurs du thème pour les options, cases et boutons radio redessinés.
 - Téléphone : boutons du haut resserrés pour tenir sur une ligne.
+- Animations légères pour une interface plus moderne : panneaux qui apparaissent en cascade au démarrage, fenêtres et menus qui s'ouvrent en douceur, cartes de l'Actu et de la Saison en cascade, cartes qui se soulèvent au survol, boutons qui s'enfoncent au clic, nouvelles actualités surlignées, pastille qui rebondit, onde autour du point du direct. Désactivables dans Réglages, onglet Affichage (« Animations de l'interface »), et coupées automatiquement si le système demande moins d'animations.
 
 ## v1.18.0 — 2026-10-14
 

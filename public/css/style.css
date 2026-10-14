@@ -2012,3 +2012,81 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .45; cu
 .wind-arrow .ic { width: 1em; height: 1em; vertical-align: -0.12em; stroke-width: 2.4; }
 kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 4px; border: 1px solid var(--line-2, var(--border)); border-bottom-width: 2px; border-radius: 4px; background: var(--panel-2, var(--panel)); color: var(--text); font: inherit; font-size: 11px; vertical-align: -3px; }
 kbd .ic { width: 12px; height: 12px; opacity: 1; }
+
+/* ---------- Animations de l'interface (légères : opacité et déplacements uniquement) ----------
+   Désactivées si le système demande moins d'animations ou si « Animations de l'interface » est
+   décoché dans Réglages, onglet Affichage. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="off"]) {
+    --ease-out: cubic-bezier(.2, .8, .25, 1);
+    --ease-spring: cubic-bezier(.3, 1.35, .5, 1);
+  }
+  /* Démarrage : les panneaux arrivent l'un après l'autre */
+  :root:not([data-motion="off"]) body.booting .grid .panel { animation: rise-in .5s var(--ease-out) both; animation-delay: calc(var(--boot-c, 0) * .07s + var(--boot-r, 0) * .05s); }
+  :root:not([data-motion="off"]) body.booting .grid > :nth-child(2) { --boot-c: 1; }
+  :root:not([data-motion="off"]) body.booting .grid > :nth-child(3) { --boot-c: 2; }
+  :root:not([data-motion="off"]) body.booting .grid > :nth-child(n+4) { --boot-c: 3; }
+  :root:not([data-motion="off"]) body.booting .lcol > .panel:nth-child(2) { --boot-r: 1; }
+  :root:not([data-motion="off"]) body.booting .lcol > .panel:nth-child(n+3) { --boot-r: 2; }
+  :root:not([data-motion="off"]) body.booting :is(.topbar, .rail) { animation: fade-in .45s ease-out both; }
+
+  /* Boutons : léger enfoncement au clic */
+  :root:not([data-motion="off"]) :is(.btn, .icon-btn, .tb-tool, .rail-btn, .set-tab, .tabs [data-tab], #szNav button, #nwNav button, .nwa-who, .panel-ctrl button) { transition: background-color .15s, color .15s, border-color .15s, opacity .15s, transform .12s var(--ease-out); }
+  :root:not([data-motion="off"]) :is(.btn, .icon-btn, .tb-tool, .set-tab, .tabs [data-tab], #szNav button, #nwNav button, .panel-ctrl button):active { transform: scale(.95); }
+  /* Barre latérale : icône qui se soulève au survol, repère rouge qui s'étire */
+  :root:not([data-motion="off"]) .rail-btn svg { transition: transform .2s var(--ease-out); }
+  :root:not([data-motion="off"]) .rail-btn:hover svg { transform: translateY(-2px); }
+  :root:not([data-motion="off"]) .rail-btn:active { transform: scale(.93); }
+  :root:not([data-motion="off"]) .rail-btn.on::before { animation: rail-mark .35s var(--ease-spring); transform-origin: center; }
+  /* Menus de navigation : l'icône active glisse un peu */
+  :root:not([data-motion="off"]) :is(#szNav, #nwNav) button .ic { transition: transform .2s var(--ease-out), color .2s; }
+  :root:not([data-motion="off"]) :is(#szNav, #nwNav) button:hover .ic { transform: translateX(2px); }
+
+  /* Fenêtres (Réglages, synchro TV…) : arrivée en douceur */
+  :root:not([data-motion="off"]) dialog[open] { animation: modal-in .26s var(--ease-out); }
+  :root:not([data-motion="off"]) dialog[open]::backdrop { animation: fade-in .25s ease-out; }
+  :root:not([data-motion="off"]) .modal .tabpane.active, :root:not([data-motion="off"]) .set-block:not(.set-hidden) { animation: pane-in .22s ease-out; }
+  /* Messages : glissent depuis le bas */
+  :root:not([data-motion="off"]) .toast:not([hidden]) { animation: toast-in .32s var(--ease-spring); }
+  /* Espaces Saison et Actu */
+  :root:not([data-motion="off"]) .season-view:not([hidden]) { animation: view-in .3s var(--ease-out); }
+  :root:not([data-motion="off"]) .sz-main.sz-anim > * { animation: rise-in .3s var(--ease-out) both; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim > :nth-child(2) { animation-delay: .04s; }
+  :root:not([data-motion="off"]) .sz-main.sz-anim > :nth-child(n+3) { animation-delay: .08s; }
+  /* Actu : cartes en cascade à l'ouverture et au changement de rubrique, nouvelles arrivées surlignées */
+  :root:not([data-motion="off"]) .nw-list.cascade > .nw-card { animation: rise-in .4s var(--ease-out) both; }
+  :root:not([data-motion="off"]) .nw-list.cascade > .nw-card:nth-child(2) { animation-delay: .03s; }
+  :root:not([data-motion="off"]) .nw-list.cascade > .nw-card:nth-child(3) { animation-delay: .06s; }
+  :root:not([data-motion="off"]) .nw-list.cascade > .nw-card:nth-child(4) { animation-delay: .09s; }
+  :root:not([data-motion="off"]) .nw-list.cascade > .nw-card:nth-child(5) { animation-delay: .12s; }
+  :root:not([data-motion="off"]) .nw-list.cascade > .nw-card:nth-child(6) { animation-delay: .15s; }
+  :root:not([data-motion="off"]) .nw-list.cascade > .nw-card:nth-child(n+7) { animation-delay: .18s; }
+  :root:not([data-motion="off"]) .nw-card.arrived { animation: card-arrive 1.6s var(--ease-out); }
+  :root:not([data-motion="off"]) :is(.nw-card, .sz-card, .sz-race, .nwa-top, .nwa-vids a) { transition: transform .2s var(--ease-out), border-color .2s, background-color .2s, box-shadow .2s; }
+  :root:not([data-motion="off"]) :is(.nw-card, .sz-card, .sz-race):hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0, 0, 0, .35); }
+  :root:not([data-motion="off"]) .nwa-vthumb img { transition: transform .4s var(--ease-out); }
+  :root:not([data-motion="off"]) .nwa-vids a:hover .nwa-vthumb img, :root:not([data-motion="off"]) .nw-thumb:hover .nw-img { transform: scale(1.05); }
+  :root:not([data-motion="off"]) .nw-img { transition: transform .4s var(--ease-out); }
+  :root:not([data-motion="off"]) .nwa-bar i { animation: bar-grow .6s var(--ease-out) both; transform-origin: left; }
+  /* Pastille du nombre de nouveautés : petit rebond quand il augmente */
+  :root:not([data-motion="off"]) .count-pop::after { animation: badge-pop .45s var(--ease-spring); }
+  /* Point du direct : onde qui s'élargit */
+  :root:not([data-motion="off"]) .source-badge.live .src-dot { position: relative; }
+  :root:not([data-motion="off"]) .source-badge.live .src-dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--red); animation: ripple 1.8s ease-out infinite; }
+  /* Interrupteurs : la pastille rebondit un peu */
+  :root:not([data-motion="off"]) .toggle input[type="checkbox"]::after { transition: transform .22s var(--ease-spring), background .16s; }
+  /* Triangles des places gagnées / perdues */
+  :root:not([data-motion="off"]) .tower tr:is(.flash-up, .flash-down) .ic:is(.i-tri-up, .i-tri-down) { animation: tri-bump .6s var(--ease-spring); }
+}
+:root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after { animation-duration: 0s !important; animation-delay: 0s !important; transition-duration: 0s !important; }
+@keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes view-in { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+@keyframes modal-in { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 14px) scale(.96); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes rail-mark { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes card-arrive { 0% { box-shadow: inset 3px 0 0 var(--accent), 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent); background-color: color-mix(in srgb, var(--accent) 10%, var(--panel)); } 100% { box-shadow: none; background-color: var(--panel); } }
+@keyframes bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes badge-pop { 0% { transform: scale(.6); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes ripple { from { transform: scale(1); opacity: .8; } to { transform: scale(2.8); opacity: 0; } }
+@keyframes tri-bump { 0% { transform: translateY(0); } 40% { transform: translateY(-3px); } 100% { transform: none; } }

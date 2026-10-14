@@ -237,6 +237,8 @@ export function initSettings() {
   on('role', (host) => { $('#followHostBlock').hidden = host; });
   $('#followHost').checked = storageGet('f1dash.followHost', true);
   $('#followHost').addEventListener('change', (e) => storageSet('f1dash.followHost', e.target.checked));
+  $('#motionOpt').checked = prefs.motion !== false;
+  $('#motionOpt').addEventListener('change', (e) => setPref('motion', e.target.checked));
   $('#keepAwake').checked = prefs.keepAwake;
   $('#keepAwake').addEventListener('change', (e) => setPref('keepAwake', e.target.checked));
   on('prefs', (k) => { if (k === 'keepAwake') $('#keepAwake').checked = prefs.keepAwake; });
