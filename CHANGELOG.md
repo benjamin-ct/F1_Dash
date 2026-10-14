@@ -4,7 +4,7 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.23.1 — à venir
+## v1.23.1 — 2026-10-14
 
 ### Corrections
 - **Synchro TV par le son** : si le calcul de reconnaissance ne peut pas démarrer (fichier bloqué, mémoire…), l'écoute ne reste plus figée indéfiniment sur « En écoute ».
