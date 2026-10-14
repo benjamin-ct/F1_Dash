@@ -26,6 +26,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Mini-classement flottant** toujours au premier plan, à poser par-dessus la vidéo de la course.
 - **Résumé automatique** de la séance en français, **radar de la pluie** autour du circuit, **rappels** avant chaque séance et **calendrier** à ajouter à votre agenda.
 - **Pronostics entre amis** (pole et podium) avec classement de la saison, et **lumières connectées** (Philips Hue, Home Assistant) aux couleurs des drapeaux, en expérimental.
+- **En français ou en anglais** (Réglages → Affichage → Langue / Language).
 - **Sur votre téléphone ou tablette** : l'ordinateur affiche un QR code ; scannez-le pour retrouver le dashboard sur le réseau Wi-Fi de la maison, calé sur le même délai TV.
 
 | | |

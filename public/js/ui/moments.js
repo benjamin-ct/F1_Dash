@@ -6,6 +6,7 @@ import { $, esc, api, fmtDuration } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
 import { icon } from '../icons.js';
 import { MOMENT_LABEL } from '/shared/moments.js';
+import { EN } from '../i18n.js';
 
 const KIND = {
   start: ['flag', 'flag'], part: ['flag', 'flag'], finish: ['checkered', 'flag'],
@@ -34,7 +35,7 @@ async function load() {
   loadedFor = key;
   moments = [];
   if (key) {
-    try { moments = (await api('/api/replay/moments')).moments || []; } catch { moments = []; }
+    try { moments = (await api(`/api/replay/moments${EN ? '?lang=en' : ''}`)).moments || []; } catch { moments = []; }
   }
   lastKey = '';
   renderMarks();

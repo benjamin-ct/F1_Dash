@@ -6,6 +6,7 @@ import { store, f1Now, on } from '../store.js';
 import { prefs, setPref } from '../prefs.js';
 import { $, esc, api } from '../util.js';
 import { icon } from '../icons.js';
+import { DEC } from '../i18n.js';
 
 const LANG_NAMES = { ENG: 'Anglais', FRA: 'Français', DEU: 'Allemand', NLD: 'Néerlandais', SPA: 'Espagnol', POR: 'Portugais', JPN: 'Japonais', ITA: 'Italien' };
 const TO_ISO = { ENG: 'en', FRA: 'fr', DEU: 'de', NLD: 'nl', SPA: 'es', POR: 'pt', JPN: 'ja', ITA: 'it' };
@@ -262,8 +263,8 @@ function radioSyncStep() {
   const applied = setAudioDelay(want);
   const since = (performance.now() - radioStarted) / 1000;
   const st = currentStation();
-  let msg = `« ${st?.name || 'Radio'} » · retard appliqué ${applied.toFixed(1).replace('.', ',')} s`;
-  if (prefs.commSync) msg += ` (délai TV ${(store.delay / 1000).toFixed(1).replace('.', ',')} s ${prefs.commOffset >= 0 ? '+' : '−'} ${Math.abs(prefs.commOffset).toFixed(1).replace('.', ',')} s)`;
+  let msg = `« ${st?.name || 'Radio'} » · retard appliqué ${applied.toFixed(1).replace('.', DEC)} s`;
+  if (prefs.commSync) msg += ` (délai TV ${(store.delay / 1000).toFixed(1).replace('.', DEC)} s ${prefs.commOffset >= 0 ? '+' : '−'} ${Math.abs(prefs.commOffset).toFixed(1).replace('.', DEC)} s)`;
   if (want > MAX_DELAY) status(`${msg}\nRetard limité à ${MAX_DELAY} s.`, 'err');
   else if (since < applied) status(`${msg}\nLe son arrive dans ${Math.ceil(applied - since)} s…`, 'ok');
   else status(msg, 'ok');
@@ -331,7 +332,7 @@ function renderButtons() {
   $('#commMute').innerHTML = icon(prefs.commMuted ? 'volume-off' : 'volume');
   $('#commBtn').classList.toggle('on', playing);
   $('#commBtn').classList.toggle('muted', playing && prefs.commMuted);
-  $('#commOffset').textContent = `${prefs.commOffset >= 0 ? '+' : ''}${prefs.commOffset.toFixed(1).replace('.', ',')} s`;
+  $('#commOffset').textContent = `${prefs.commOffset >= 0 ? '+' : ''}${prefs.commOffset.toFixed(1).replace('.', DEC)} s`;
   $('#commSync').checked = prefs.commSync;
   const radio = prefs.commSource === 'radio';
   $('#commSyncLbl').textContent = radio ? 'Retarder du délai du dashboard (délai TV)' : 'Caler sur le dashboard (délai TV)';

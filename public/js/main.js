@@ -1,5 +1,8 @@
 // Point d'entrée de l'interface.
+import { translatePage } from './i18n.js';
 import './icons.js';
+
+translatePage();
 
 // Démarrage : les panneaux apparaissent l'un après l'autre (animation CSS), une seule fois
 document.body.classList.add('booting');

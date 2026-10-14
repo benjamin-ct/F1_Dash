@@ -5,6 +5,7 @@ import { parseGap, parseLapTime } from '/shared/f1.js';
 import { currentTrack } from './map.js';
 import { lapGapSeries } from './duel.js';
 import { icon } from '../icons.js';
+import { DEC, t } from '../i18n.js';
 
 // Écart au leader en secondes (les retardataires sont convertis avec le dernier tour du leader).
 function gapsToLeader(state) {
@@ -62,7 +63,7 @@ function circleSvg(gaps, me, projected, dl) {
     <circle cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" r="8" class="cd-ghost"/>
     <text x="${glx.toFixed(1)}" y="${gly.toFixed(1)}" class="cd-ghost-l">sortie ${esc(dl[me]?.Tla || me)}</text>
     ${dots}
-    <text x="${C}" y="${C - 18}" class="cd-mid2">leader en haut</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', ',')} s</text>
+    <text x="${C}" y="${C - 18}" class="cd-mid2">leader en haut</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', DEC)} s</text>
   </svg>`;
 }
 
@@ -146,14 +147,14 @@ export function renderPitSim(force = false) {
   const opts = gaps.map((g) => `<option value="${g.num}">${esc(dl[g.num]?.Tla || g.num)}</option>`).join('');
   if (sel._opts !== opts) { sel.innerHTML = opts; sel._opts = opts; }
   if (document.activeElement !== sel) sel.value = me;
-  $('#simLossVal').textContent = `${lossVal.toFixed(1).replace('.', ',')} s`;
+  $('#simLossVal').textContent = `${lossVal.toFixed(1).replace('.', DEC)} s`;
   $('#simLossSrc').textContent = `(${lossOverride !== null ? 'réglage manuel' : loss.label})`;
   if (document.activeElement !== $('#simLoss')) $('#simLoss').value = lossVal;
   $('#simLossReset').hidden = lossOverride === null;
   $('#simOut').innerHTML = `<div class="pitsim-cols"><div class="cd-wrap">${circleSvg(gaps, me, projected, dl)}</div><div class="pitsim-res"><div class="pit-result">
       <div class="small muted">Si <b>${esc(dl[me]?.Tla || me)}</b> s'arrête maintenant (actuellement P${curPos}) :</div>
       <div class="big">P${newPos}</div>
-      <div class="small">${ahead ? `à <b>${(projected - ahead.gap).toFixed(1).replace('.', ',')} s</b> derrière ${esc(dl[ahead.num]?.Tla || ahead.num)}` : 'en tête'}${behind ? ` · <b>${(behind.gap - projected).toFixed(1).replace('.', ',')} s</b> devant ${esc(dl[behind.num]?.Tla || behind.num)}` : ''}</div>
+      <div class="small">${ahead ? t('à {} derrière {}', `<b>${(projected - ahead.gap).toFixed(1).replace('.', DEC)} s</b>`, esc(dl[ahead.num]?.Tla || ahead.num)) : t('en tête')}${behind ? ` ${t('· {} devant {}', `<b>${(behind.gap - projected).toFixed(1).replace('.', DEC)} s</b>`, esc(dl[behind.num]?.Tla || behind.num))}` : ''}</div>
       ${behind && behind.gap - projected < 1.5 ? `<div class="small" style="color:var(--orange)">${icon('warning')} Sortie des stands très serrée : risque de ressortir derrière.</div>` : ''}
     </div>
     <table class="pit-order">${slice.map((o) => `<tr class="${o.me ? 'me' : ''}"><td>P${order.indexOf(o) + 1}</td>
@@ -202,7 +203,7 @@ export function battleList(s, max = 20) {
       <span class="muted">vs</span><span class="drv-bar" style="background:${teamColor(dl[b.back])}"></span>${esc(dl[b.back]?.Tla || b.back)}
       <span class="muted small">P${Number(b.pos) - 1}–P${b.pos}</span></div>
       <div class="battle-sub">${b.gap < 1 ? 'Dans la seconde · ' : ''}${esc(b.trend)}</div></div>
-    <div style="display:flex;align-items:center;gap:10px"><span class="battle-gap">${b.gap.toFixed(3).replace('.', ',')}</span>
+    <div style="display:flex;align-items:center;gap:10px"><span class="battle-gap">${b.gap.toFixed(3).replace('.', DEC)}</span>
       <button class="btn small" data-battle="${b.front},${b.back}">Duel</button></div></div>`).join('');
 }
 

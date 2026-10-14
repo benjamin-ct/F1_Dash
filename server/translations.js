@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CACHE_DIR } from './circuits.js';
 
-const LANGS = new Set(['fr', 'es', 'de', 'it']);
+const LANGS = new Set(['fr', 'es', 'de', 'it', 'en']);
 const MAX_ENTRIES = 20000;
 const MAX_LEN = 4000;
 const stores = new Map();

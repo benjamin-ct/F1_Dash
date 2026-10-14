@@ -6,6 +6,7 @@ import { parseUtc, parseLapTime } from '/shared/f1.js';
 import { radioEntry, requestTranscripts, setTranscribe, transcribeStatus } from './transcribe.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 import { icon } from '../icons.js';
+import { DEC } from '../i18n.js';
 
 function list(obj) {
   if (!obj) return [];
@@ -219,7 +220,7 @@ export function renderPits() {
   const fSt = fastest('st'), fLane = fastest('duration');
   const tla = (num) => esc(dl[num]?.Tla || num);
   const chip = (num) => `<span class="drv"><span class="drv-bar" style="background:${teamColor(dl[num])}"></span><b>${tla(num)}</b></span>`;
-  const sec = (x) => `${x.toFixed(1).replace('.', ',')} s`;
+  const sec = (x) => `${x.toFixed(1).replace('.', DEC)} s`;
   const tyre = (s) => (s ? tyreBadge(s.Compound, s.TotalLaps, s.New) : '<span class="muted">?</span>');
   // Pneus montés : neufs ou d'occasion (avec leur nombre de tours au montage)
   const fitted = (s) => {

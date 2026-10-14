@@ -10,6 +10,7 @@ import { icon } from '../icons.js';
 import { toast } from './delay.js';
 import { RATE, Resampler, commonNoise, removeNoise, delayFromMatch } from '/shared/audio-sync.js';
 import { parseUtc } from '/shared/f1.js';
+import { DEC, LOCALE } from '../i18n.js';
 
 const KEEP_S = 150;             // son du micro gardé en mémoire (s)
 const MAX_LISTEN_MS = 15 * 60e3; // l'écoute s'arrête d'elle-même au bout de 15 min
@@ -23,7 +24,7 @@ export function autoSyncSupported() {
   return !!(window.isSecureContext && navigator.mediaDevices?.getUserMedia && window.AudioWorkletNode);
 }
 
-const fmtS = (ms) => `${(ms / 1000).toFixed(1).replace('.', ',')} s`;
+const fmtS = (ms) => `${(ms / 1000).toFixed(1).replace('.', DEC)} s`;
 const fmtDur = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')}`; };
 
 function setStatus(text, kind = '') {
@@ -304,7 +305,7 @@ function render() {
   const matches = run ? run.matches : lastMatches;
   $('#asResults').innerHTML = matches.slice(0, 5).map((m) => `<li class="${m.ok ? '' : 'muted'}">${icon(m.ok ? 'check' : 'warning')}
     <span>Radio de <b>${esc(m.who)}</b> ${m.ok ? `reconnue · délai réglé sur <b>${esc(fmtDelay(m.delay))}</b>` : 'ignorée (délai impossible)'}</span>
-    <span class="muted">${new Date(m.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span></li>`).join('');
+    <span class="muted">${new Date(m.at).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span></li>`).join('');
   $('#asAdj').textContent = `${prefs.autoSyncAdj > 0 ? '+' : ''}${fmtS(prefs.autoSyncAdj * 1000)}`;
 }
 

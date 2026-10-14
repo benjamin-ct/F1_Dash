@@ -11,8 +11,9 @@ import { translateText } from './transcribe.js';
 import { notifyNews } from './alerts.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
+import { LOCALE, EN } from '../i18n.js';
 
-const LANG = 'fr';
+const LANG = EN ? 'en' : 'fr';   // langue cible des traductions = langue de l'interface
 const CAT_LABEL = { official: 'Officiel', team: 'Écurie', driver: 'Pilote', media: 'Média' };
 const LANG_LABEL = { en: 'Anglais', fr: 'Français', es: 'Espagnol', it: 'Italien', de: 'Allemand', nl: 'Néerlandais', pt: 'Portugais', ja: 'Japonais', zh: 'Chinois' };
 const TEAM_NAME = Object.fromEntries(NEWS_TEAMS.map(([k, name]) => [k, name]));
@@ -189,7 +190,7 @@ const ago = (t) => {
   if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
   if (s < 86400) return `il y a ${Math.round(s / 3600)} h`;
   const d = new Date(t);
-  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + ` ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  return d.toLocaleDateString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short' }) + ` ${d.toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' })}`;
 };
 
 function tagChips(tags) {
@@ -217,16 +218,16 @@ function card(g, favs) {
   const hot = g.sources >= 3 ? `<span class="nw-hot" title="Sujet repris par ${g.sources} sources">${icon('fire')} ${g.sources} sources</span>` : '';
   const img = it.img ? `<img class="nw-img" src="${safeUrl(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.nw-thumb').remove()">` : '';
   const others = g.others.length ? `<details class="nw-others"><summary>Repris par ${g.others.length} autre${g.others.length > 1 ? 's' : ''} source${g.others.length > 1 ? 's' : ''}</summary>
-    ${g.others.map((o) => `<a href="${safeUrl(o.link)}" target="_blank" rel="noopener"><b>${esc(srcById[o.src]?.name || o.src)}</b> <span class="nw-lang">${esc(o.lang.toUpperCase())}</span> ${esc(titleOf(o).text)} <span class="muted">· ${ago(o.t)}</span></a>`).join('')}</details>` : '';
+    ${g.others.map((o) => `<a href="${safeUrl(o.link)}" target="_blank" rel="noopener"><b>${esc(srcById[o.src]?.name || o.src)}</b> <span class="nw-lang">${esc(o.lang.toUpperCase())}</span> <span data-no-i18n>${esc(titleOf(o).text)}</span> <span class="muted">· ${ago(o.t)}</span></a>`).join('')}</details>` : '';
   return `<article class="nw-card${justArrived.has(it.id) ? ' arrived' : ''}${unread ? ' unread' : ''}${g.imp >= 2 ? ' imp' : ''}${fav ? ' fav' : ''}${it.kind === 'video' ? ' video' : ''}">
     ${img ? `<a class="nw-thumb" href="${safeUrl(it.link)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">${img}${it.kind === 'video' ? `<span class="nw-play">${icon('play')}</span>` : ''}</a>` : ''}
     <div class="nw-body">
       <div class="nw-meta"><span class="nw-src nw-c-${esc(it.cat)}">${esc(src.name)}</span><span class="nw-cat">${CAT_LABEL[it.cat] || ''}</span>
-        <span class="nw-lang" title="Langue d'origine : ${esc(LANG_LABEL[it.lang] || it.lang)}">${esc(it.lang.toUpperCase())}</span><span class="nw-time" title="${esc(new Date(it.t).toLocaleString('fr-FR'))}">${ago(it.t)}</span>${level}${hot}${fav ? `<span class="nw-favmark" title="Concerne un de vos favoris">${icon('star-fill')}</span>` : ''}</div>
-      <a class="nw-title" href="${safeUrl(it.link)}" target="_blank" rel="noopener" ${title.translated ? `title="${esc(it.title)}"` : ''}>${esc(title.text)}</a>
+        <span class="nw-lang" title="Langue d'origine : ${esc(LANG_LABEL[it.lang] || it.lang)}">${esc(it.lang.toUpperCase())}</span><span class="nw-time" title="${esc(new Date(it.t).toLocaleString(LOCALE))}">${ago(it.t)}</span>${level}${hot}${fav ? `<span class="nw-favmark" title="Concerne un de vos favoris">${icon('star-fill')}</span>` : ''}</div>
+      <a class="nw-title" data-no-i18n href="${safeUrl(it.link)}" target="_blank" rel="noopener" ${title.translated ? `title="${esc(it.title)}"` : ''}>${esc(title.text)}</a>
       ${title.pending ? '<div class="nw-trans muted">Traduction en cours…</div>' : title.translated ? '<div class="nw-trans muted" title="Traduit automatiquement sur cet ordinateur">Traduit · <button class="nw-vo" data-vo>VO</button></div>' : ''}
       <div class="nw-vo-text" hidden>${esc(it.title)}</div>
-      ${it.summary ? `<p class="nw-sum">${esc(sum || it.summary)}</p>` : ''}
+      ${it.summary ? `<p class="nw-sum" data-no-i18n>${esc(sum || it.summary)}</p>` : ''}
       <div class="nw-tags">${tagChips(it.tags)}</div>
       ${others}
     </div>
@@ -280,7 +281,7 @@ function asideView(all) {
   // Titres de la colonne traduits comme ceux du fil
   for (const it of [...top.map((g) => g.lead), ...videos]) translate(it.title, it.lang);
   const topHtml = top.length ? top.map((g, i) => `<a class="nwa-top" href="${safeUrl(g.lead.link)}" target="_blank" rel="noopener">
-      <span class="nwa-rank">${i + 1}</span><span class="nwa-txt"><b>${esc(titleOf(g.lead).text)}</b>
+      <span class="nwa-rank">${i + 1}</span><span class="nwa-txt"><b data-no-i18n>${esc(titleOf(g.lead).text)}</b>
       <span class="muted small">${g.sources} source${g.sources > 1 ? 's' : ''} · ${ago(g.t)}</span></span></a>`).join('')
     : '<div class="muted small">Pas encore de sujet repris par plusieurs sources.</div>';
   const whoHtml = who.length ? who.map(([t, n]) => `<button class="nwa-who${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}" style="--tc:${tagColor(t)}" title="Afficher seulement les sujets qui citent ${esc(tagName(t))}">
@@ -288,7 +289,7 @@ function asideView(all) {
     : '<div class="muted small">Rien sur les dernières 24 heures.</div>';
   const vidHtml = videos.length ? `<div class="nwa-vids">${videos.map((v) => `<a href="${safeUrl(v.link)}" target="_blank" rel="noopener" title="${esc(v.title)}">
       <span class="nwa-vthumb"><img src="${safeUrl(v.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">${icon('play')}</span>
-      <span class="nwa-vtitle">${esc(titleOf(v).text)}</span><span class="muted small">${esc(srcById[v.src]?.name || '')}</span></a>`).join('')}</div>` : '<div class="muted small">Aucune vidéo récente.</div>';
+      <span class="nwa-vtitle" data-no-i18n>${esc(titleOf(v).text)}</span><span class="muted small">${esc(srcById[v.src]?.name || '')}</span></a>`).join('')}</div>` : '<div class="muted small">Aucune vidéo récente.</div>';
   return `<aside class="nw-aside">
     <section class="nwa-box"><h3>${icon('fire')} À la une <span class="muted small">48 h</span></h3>${topHtml}</section>
     <section class="nwa-box"><h3>${icon('chart')} Qui fait l'actu <span class="muted small">24 h</span></h3>${whoHtml}</section>

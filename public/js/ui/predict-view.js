@@ -4,13 +4,14 @@ import { $, esc, api, storageGet, storageSet } from '../util.js';
 import { icon, arrows } from '../icons.js';
 import { toast } from './delay.js';
 import { POINTS } from '/shared/predict.js';
+import { LOCALE } from '../i18n.js';
 
 let view = null;
 let viewYear = null;
 let loading = false;
 
 const me = () => storageGet('f1dash.player', '');
-const fmt = (t) => (t ? new Date(t).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
+const fmt = (t) => (t ? new Date(t).toLocaleString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
 
 async function load(year, force = false) {
   if (loading || (!force && view && viewYear === year)) return;

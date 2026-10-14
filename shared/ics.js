@@ -29,9 +29,13 @@ function fold(line) {
 }
 
 // races : [{ round, name, circuit, locality, country, sessions: [{ label, t }] }]
-export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.now() } = {}) {
+// Noms des séances en anglais (le calendrier suit la langue de l'interface)
+const LABEL_EN = { EL1: 'FP1', EL2: 'FP2', EL3: 'FP3', 'Qualif. sprint': 'Sprint qualifying', Sprint: 'Sprint', Qualifications: 'Qualifying', Course: 'Race' };
+
+export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.now(), lang = 'fr' } = {}) {
+  const en = lang === 'en';
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//F1 Dash//Calendrier F1//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    `X-WR-CALNAME:${text(round ? `F1 ${year} — manche ${round}` : `F1 ${year}`)}`];
+    `X-WR-CALNAME:${text(round ? `F1 ${year} — ${en ? 'round' : 'manche'} ${round}` : `F1 ${year}`)}`];
   for (const r of races) {
     if (round && r.round !== round) continue;
     for (const s of r.sessions || []) {
@@ -39,16 +43,17 @@ export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.
       if (!Number.isFinite(start)) continue;
       const end = start + sessionMinutes(s.label) * 60e3;
       const gp = String(r.name || '').replace(/ Grand Prix$/, '');
+      const label = en ? LABEL_EN[s.label] || s.label : s.label;
       const slug = String(s.label).toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-');
       lines.push('BEGIN:VEVENT',
         `UID:f1dash-${year}-${r.round}-${slug}@f1dash`,
         `DTSTAMP:${stamp(now)}`,
         `DTSTART:${stamp(start)}`,
         `DTEND:${stamp(end)}`,
-        `SUMMARY:${text(`F1 ${gp} GP — ${s.label}`)}`,
+        `SUMMARY:${text(`F1 ${gp} GP — ${label}`)}`,
         `LOCATION:${text([r.circuit, r.locality, r.country].filter(Boolean).join(', '))}`,
-        `DESCRIPTION:${text(`${r.name} (manche ${r.round}). Suivez la séance en direct dans F1 Dash.`)}`);
-      if (alarmMin > 0) lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(`${gp} — ${s.label} dans ${alarmMin} min`)}`, `TRIGGER:-PT${alarmMin}M`, 'END:VALARM');
+        `DESCRIPTION:${text(en ? `${r.name} (round ${r.round}). Follow the session live in F1 Dash.` : `${r.name} (manche ${r.round}). Suivez la séance en direct dans F1 Dash.`)}`);
+      if (alarmMin > 0) lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(en ? `${gp} — ${label} in ${alarmMin} min` : `${gp} — ${label} dans ${alarmMin} min`)}`, `TRIGGER:-PT${alarmMin}M`, 'END:VALARM');
       lines.push('END:VEVENT');
     }
   }

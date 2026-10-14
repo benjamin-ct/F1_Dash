@@ -10,3 +10,5 @@
   du journal (`scripts/release-notes.mjs`) ; le workflow échoue si elle manque.
 - Ne fusionner et publier que lorsque l'utilisateur le demande (« merge et publie »).
 - Avant de pousser : `npm test`.
+- **Version anglaise** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js` (clé = texte
+  français, `{}` pour les valeurs) ; `node scripts/i18n-missing.mjs` liste ceux qui manquent.

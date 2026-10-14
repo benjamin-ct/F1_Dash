@@ -4,6 +4,14 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.23.0 — à venir
+
+### Interface en anglais
+- **F1 Dash existe maintenant en anglais** : Réglages → Affichage → **Langue / Language** (Français ou English). Toute l'interface suit : menus, panneaux, légendes, infobulles, graphiques, carte, Saison, Actu, réglages, messages et alertes, mini-classement, téléphone, écran de démarrage de l'application.
+- En anglais, les textes rédigés par F1 Dash le sont directement en anglais : résumé de la séance, moments clés du replay, calendrier à ajouter à l'agenda. Les actualités sont traduites en anglais, les radios restent en version originale (anglais) par défaut, et les documents de la FIA et les communiqués de Pirelli s'affichent tels quels.
+- Nombres et dates au format anglais (0.5 s, 14 Oct).
+- Première ouverture : l'interface prend la langue de l'ordinateur ou du téléphone (français, sinon anglais). Les installations existantes restent en français.
+
 ## v1.22.0 — 2026-10-14
 
 ### Synchro TV par le son (expérimental)

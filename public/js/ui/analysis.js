@@ -5,6 +5,7 @@ import { store, versionOf, on, setFocus } from '../store.js';
 import { $, esc, api, drivers, orderedNumbers, sessionKind, teamColor, compoundInfo, fmtLap, lapSeconds, storageGet, storageSet } from '../util.js';
 import { prefs, isFav } from '../prefs.js';
 import { renderCompare, initCompare, openCompareLap } from './compare.js';
+import { tx } from '../i18n.js';
 
 const OPTS_KEY = 'f1dash.analysis';
 const opts = { trace: 'leader', ref: null, scope: 'top10', clamp: 60, lapsSlow: true, cutoff: 107, sort: 'ideal', ...storageGet(OPTS_KEY, {}) };
@@ -58,7 +59,7 @@ function multiChart(canvas, series, o) {
   const pts = series.flatMap((s) => s.points);
   if (!pts.length) {
     ctx.fillStyle = '#8b95a8'; ctx.font = '13px "Titillium Web", sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(o.empty || 'Pas encore de données (il faut quelques tours).', W / 2, H / 2);
+    ctx.fillText(tx(o.empty || 'Pas encore de données (il faut quelques tours).'), W / 2, H / 2);
     canvas._map = null;
     return;
   }
@@ -75,9 +76,9 @@ function multiChart(canvas, series, o) {
   ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-2').trim() || '#2a2a31'; ctx.lineWidth = 1; ctx.fillStyle = '#7a8396'; ctx.font = '11px "Titillium Web", sans-serif';
   const yTicks = o.yTicks || ticks(yMin, yMax, 5);
   ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-  for (const v of yTicks) { const y = Y(v); ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.fillText(o.yFmt ? o.yFmt(v) : String(v), padL - 6, y); }
+  for (const v of yTicks) { const y = Y(v); ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke(); ctx.fillText(tx(o.yFmt ? o.yFmt(v) : String(v)), padL - 6, y); }
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  for (const v of ticks(xMin, xMax, 8).filter((v) => Number.isInteger(v))) ctx.fillText(String(v), X(v), H - padB + 5);
+  for (const v of ticks(xMin, xMax, 8).filter((v) => Number.isInteger(v))) ctx.fillText(tx(String(v)), X(v), H - padB + 5);
 
   // Périodes neutralisées (safety car, VSC, drapeau rouge), en tours
   for (const b of o.bands || []) {
@@ -88,7 +89,7 @@ function multiChart(canvas, series, o) {
     ctx.fillRect(x1, padT, w, H - padT - padB);
     ctx.fillStyle = b.kind === 'red' ? '#ff6b61' : '#ffb020';
     ctx.font = '700 10px "Titillium Web", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText(b.kind === 'red' ? 'DRAPEAU ROUGE' : b.kind === 'vsc' ? 'VSC' : 'SC', x1 + 3, padT + 2);
+    ctx.fillText(tx(b.kind === 'red' ? 'DRAPEAU ROUGE' : b.kind === 'vsc' ? 'VSC' : 'SC'), x1 + 3, padT + 2);
   }
 
   // Séries (la série mise en avant est dessinée en dernier, plus épaisse)
@@ -127,7 +128,7 @@ function multiChart(canvas, series, o) {
     if (Math.abs(cur.x - next.x) < 34 && next.y - cur.y < GAP) cur.y = next.y - GAP;
   }
   ctx.font = '700 10.5px "Titillium Web", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  for (const l of labels) { ctx.globalAlpha = l.alpha; ctx.fillStyle = l.s.color; ctx.fillText(l.s.label, l.x, l.y); }
+  for (const l of labels) { ctx.globalAlpha = l.alpha; ctx.fillStyle = l.s.color; ctx.fillText(tx(l.s.label), l.x, l.y); }
   ctx.globalAlpha = 1;
 
   // Réticule
@@ -314,7 +315,7 @@ function renderPace() {
   ctx.clearRect(0, 0, W, H);
   ctx.font = '11px "Titillium Web", sans-serif';
   if (!rows.length) {
-    ctx.fillStyle = '#8b95a8'; ctx.textAlign = 'center'; ctx.fillText('Pas encore assez de tours propres (3 par pilote minimum).', W / 2, H / 2);
+    ctx.fillStyle = '#8b95a8'; ctx.textAlign = 'center'; ctx.fillText(tx('Pas encore assez de tours propres (3 par pilote minimum).'), W / 2, H / 2);
   } else {
     const padL = 54, padR = 8, padT = 10, padB = 34;
     const yMin = Math.min(...rows.map((r) => r.min)), yMax = Math.max(...rows.map((r) => r.max));
@@ -322,7 +323,7 @@ function renderPace() {
     const step = (W - padL - padR) / rows.length;
     ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-2').trim() || '#2a2a31';
     ctx.fillStyle = '#7a8396'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-    for (const v of ticks(yMin, yMax, 5)) { ctx.beginPath(); ctx.moveTo(padL, Y(v)); ctx.lineTo(W - padR, Y(v)); ctx.stroke(); ctx.fillText(fmtLap(v), padL - 6, Y(v)); }
+    for (const v of ticks(yMin, yMax, 5)) { ctx.beginPath(); ctx.moveTo(padL, Y(v)); ctx.lineTo(W - padR, Y(v)); ctx.stroke(); ctx.fillText(tx(fmtLap(v)), padL - 6, Y(v)); }
     rows.forEach((r, i) => {
       const cx = padL + step * (i + 0.5), bw = Math.min(26, step * 0.6);
       const c = teamColor(r.d);
@@ -334,7 +335,7 @@ function renderPace() {
       ctx.globalAlpha = 1;
       ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - bw / 2, Y(r.med)); ctx.lineTo(cx + bw / 2, Y(r.med)); ctx.stroke();
       ctx.save(); ctx.translate(cx, H - padB + 6); ctx.rotate(-Math.PI / 4); ctx.fillStyle = c; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-      ctx.font = '700 10.5px "Titillium Web", sans-serif'; ctx.fillText(r.d?.Tla || r.n, 0, 0); ctx.restore();
+      ctx.font = '700 10.5px "Titillium Web", sans-serif'; ctx.fillText(tx(r.d?.Tla || r.n), 0, 0); ctx.restore();
     });
     canvas._pace = { rows, padL, step };
   }

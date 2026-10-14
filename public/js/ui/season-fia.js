@@ -3,6 +3,7 @@
 import { $, esc, teamColor, teamMark, storageGet, storageSet } from '../util.js';
 import { translated, requestTranslations, onTranslation, translationState } from './fia-translate.js';
 import { icon } from '../icons.js';
+import { DEC, EN } from '../i18n.js';
 
 const TYPES_FR = { Performance: 'Performance', 'Circuit specific': 'Spécifique au circuit', Reliability: 'Fiabilité', 'Structural Improvement': 'Structure' };
 const REASONS_FR = {
@@ -46,7 +47,8 @@ const compKey = (c) => String(c || '').toLowerCase().replace(/\s+/g, ' ').trim()
 const compFr = (c) => COMP_FR[compKey(c)] || null;
 
 // Texte traduit (ou original en attendant), mis à jour sur place quand la traduction arrive
-const showOriginal = () => storageGet('f1dash.techOriginal', false);
+// Interface en anglais : les textes de la FIA sont déjà dans la langue de l'interface
+const showOriginal = () => EN || storageGet('f1dash.techOriginal', false);
 const trSpan = (en) => {
   if (!en) return '';
   const fr = showOriginal() ? null : translated(en);
@@ -141,7 +143,7 @@ export function renderTech(ctx, fia) {
   // Regroupés par nom français (« Floor » et « Floor Body » = « Fond plat »)
   const comps = count(all.filter((u) => u.component), (u) => compFr(u.component) || u.component.replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())).slice(0, 15);
   const tot = all.length;
-  const pct = (n) => `${Math.round((n / tot) * 1000) / 10} %`.replace('.', ',');
+  const pct = (n) => `${Math.round((n / tot) * 1000) / 10} %`.replace('.', DEC);
 
   // Cumul par écurie (SVG)
   const W = 900, H = 260, pl = 34, pr = 96, pt = 10, pb = 22;
@@ -191,7 +193,7 @@ export function renderTech(ctx, fia) {
         <label class="small">Écurie <select id="szTechTeam"><option value="all">Toutes</option>${teamsGp.map((t) => `<option ${t === techTeam ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
         ${gp.docs?.tech ? `<a class="small" href="${esc(gp.docs.tech)}" target="_blank" rel="noopener">Document FIA (PDF) ${icon('external', 'ic-s')}</a>` : ''}</div>
       ${gp.noUpdates.length ? `<p class="muted small">Sans nouveauté : ${gp.noUpdates.map(esc).join(', ')}.</p>` : ''}
-      <div class="sz-tr-bar small"><label class="toggle small"><input type="checkbox" id="szTechOrig" ${showOriginal() ? 'checked' : ''}> Texte d'origine (anglais)</label><span class="muted" id="szTrStatus">${trStatusHtml()}</span></div>
+      <div class="sz-tr-bar small">${EN ? '' : `<label class="toggle small"><input type="checkbox" id="szTechOrig" ${showOriginal() ? 'checked' : ''}> Texte d'origine (anglais)</label>`}<span class="muted" id="szTrStatus">${trStatusHtml()}</span></div>
       <div class="sz-upd">${list.map((u) => `<article class="sz-upd-item" style="--tc:${tcol(u.team, ctx, u.teamId)}">
         <div class="sz-upd-head">${mark(u.team, ctx, u.teamId)}<b>${showOriginal() ? esc(u.component || '—') : compFr(u.component) ? `<span title="${esc(u.component)}">${esc(compFr(u.component))}</span>` : trSpan(u.component) || '—'}</b><span class="sz-tag" title="Type d'évolution déclaré par l'écurie">${esc(TYPES_FR[u.type] || u.type)}</span>${(REASONS_FR[u.reason] || u.reason) !== (TYPES_FR[u.type] || u.type) ? `<span class="sz-tag sprint" title="Raison principale déclarée">${esc(REASONS_FR[u.reason] || u.reason)}</span>` : ''}<span class="muted small">${esc(u.team)} · n° ${u.n}</span></div>
         ${u.geometry ? `<div class="small"><span class="muted">Ce qui change :</span> ${trSpan(u.geometry)}</div>` : ''}

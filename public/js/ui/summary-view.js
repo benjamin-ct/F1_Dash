@@ -5,6 +5,7 @@ import { $, esc } from '../util.js';
 import { icon, arrows } from '../icons.js';
 import { toast } from './delay.js';
 import { buildSummary } from '/shared/summary.js';
+import { LANG, t } from '../i18n.js';
 
 function text(s) { return `${s.title}\n\n${s.paragraphs.join('\n')}`; }
 
@@ -18,14 +19,14 @@ function open() {
     dlg.addEventListener('click', (e) => {
       if (e.target === dlg || e.target.closest('[data-sum-close]')) dlg.close();
       if (e.target.closest('[data-sum-copy]')) {
-        navigator.clipboard?.writeText(dlg.dataset.text || '').then(() => toast('Résumé copié', 2500, 'check'), () => toast('Copie impossible : sélectionnez le texte', 4000));
+        navigator.clipboard?.writeText(dlg.dataset.text || '').then(() => toast(t('Résumé copié'), 2500, 'check'), () => toast(t('Copie impossible : sélectionnez le texte'), 4000));
       }
     });
   }
-  const s = buildSummary(store.state);
+  const s = buildSummary(store.state, { lang: LANG });
   dlg.dataset.text = text(s);
-  dlg.innerHTML = `<div class="sum-head"><b>${icon('doc')} ${esc(s.title)}</b><button class="icon-btn" data-sum-close title="Fermer">${icon('close')}</button></div>
-    <div class="sum-body">${s.paragraphs.map((p) => `<p>${arrows(esc(p))}</p>`).join('')}</div>
+  dlg.innerHTML = `<div class="sum-head"><b data-no-i18n>${icon('doc')} ${esc(s.title)}</b><button class="icon-btn" data-sum-close title="Fermer">${icon('close')}</button></div>
+    <div class="sum-body" data-no-i18n>${s.paragraphs.map((p) => `<p>${arrows(esc(p))}</p>`).join('')}</div>
     <div class="sum-foot"><span class="muted small">Rédigé automatiquement à partir des données de la séance${s.final ? '' : ', au rythme de votre délai TV'}.</span>
       <button class="btn small" data-sum-copy>${icon('save')} Copier le texte</button></div>`;
   dlg.showModal();

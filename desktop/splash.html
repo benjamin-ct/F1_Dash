@@ -51,6 +51,13 @@
   }
   function setVersion(v) { document.getElementById('ver').textContent = `Version ${v}`; }
   function ask(show) { document.getElementById('btns').hidden = !show; }
+  // Interface en anglais
+  if (new URLSearchParams(location.search).get('lang') === 'en') {
+    document.documentElement.lang = 'en';
+    document.getElementById('title').textContent = 'Checking for updates…';
+    document.querySelector('.btn.main').textContent = 'Download the new version';
+    document.querySelector('.btn:not(.main)').textContent = 'Continue';
+  }
 </script>
 </body>
 </html>

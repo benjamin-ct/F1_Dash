@@ -4,6 +4,7 @@
 import { store } from '../store.js';
 import { $, esc, api } from '../util.js';
 import { icon } from '../icons.js';
+import { LOCALE } from '../i18n.js';
 
 const BASE_Z = 8;      // zoom du fond de carte
 const RAIN_Z = 7;      // zoom maximal des images radar gratuites (agrandies × 2)
@@ -94,7 +95,7 @@ function show(el) {
   const f = frames[idx];
   if (!f) return;
   const ago = Math.round((Date.now() / 1000 - f.time) / 60);
-  el.querySelector('[data-rd-time]').textContent = `${new Date(f.time * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}${ago > 5 ? ` (il y a ${ago} min)` : ' (dernière image)'}`;
+  el.querySelector('[data-rd-time]').textContent = `${new Date(f.time * 1000).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' })}${ago > 5 ? ` (il y a ${ago} min)` : ' (dernière image)'}`;
   el.querySelector('[data-rd-range]').value = String(idx);
 }
 
