@@ -7,6 +7,10 @@ const net = require('node:net');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
 
+// Portables à deux cartes graphiques : la plus puissante, pour la transcription et la traduction
+// des radios en haute qualité (grands modèles qui tournent sur la carte graphique)
+app.commandLine.appendSwitch('force_high_performance_gpu');
+
 function portFree(port) {
   return new Promise((resolve) => {
     const srv = net.createServer();

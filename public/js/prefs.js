@@ -9,7 +9,7 @@ const DEFAULTS = {
   hiddenCols: [],
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
-  theme: 'pro',           // 'pro' (F1 Pro) | 'f1' (F1 sobre) | 'noir' (classique) | 'bleu' (bleu nuit)
+  theme: 'pitwall',       // 'pitwall' (Pitwall) | 'pro' (F1 Pro) | 'f1' (F1 sobre) | 'noir' (classique) | 'bleu' (bleu nuit)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
   teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
@@ -52,7 +52,13 @@ if ((saved.themeV || 0) < 3) {
   prefs.vividTeams = false;
   storageSet('f1dash.prefs', { ...saved, theme: prefs.theme, vividTeams: false, themeV: 3 });
 }
-prefs.themeV = 3;   // gardé dans chaque enregistrement des préférences
+// Passage au design « Pitwall » (une seule fois) : F1 Pro, le thème par défaut précédent, devient
+// Pitwall ; un autre thème choisi exprès est conservé.
+if ((saved.themeV || 0) < 4) {
+  if (prefs.theme === 'pro') prefs.theme = 'pitwall';
+  storageSet('f1dash.prefs', { ...storageGet('f1dash.prefs', {}), theme: prefs.theme, themeV: 4 });
+}
+prefs.themeV = 4;   // gardé dans chaque enregistrement des préférences
 setVividTeams(prefs.vividTeams);
 setTeamLogos(prefs.teamLogos);
 setLogoColor(prefs.logoColor);

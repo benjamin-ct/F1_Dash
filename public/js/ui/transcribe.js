@@ -14,8 +14,15 @@ let busy = false;
 let enabled = false;
 let lang = 'fr';
 let qualityPref = 'auto';     // 'auto' | 'high' | 'light'
-let quality = null;           // niveau effectif (résolu au premier usage)
-let highFailed = false;
+// Haute qualité : carte graphique (WebGPU avec calcul FP16). Un échec d'un des deux modèles
+// (reconnaissance vocale ou traduction) ne fait passer que celui-là en qualité légère, et pour
+// un temps seulement : nouvel essai après quelques minutes (téléchargement interrompu, mémoire
+// de la carte graphique pleine…). Avant, le premier échec faisait tout passer en qualité légère
+// jusqu'au redémarrage de l'application.
+let gpuInfo = null;                           // { ok, name, why }
+const highFail = { asr: null, mt: null };     // { msg, at, wait }
+const effective = { asr: null, mt: null };    // niveau utilisé en dernier ('high' | 'light')
+const RETRY_MS = { pref: 2 * 60000, auto: 10 * 60000 };
 let isTranscriber = !navigator.locks;
 let status = { state: 'idle', msg: '' };
 let retryAt = 0;
@@ -57,23 +64,80 @@ function save() {
 export function setTranscribe(on, language, q = 'auto') {
   enabled = !!on;
   lang = language || 'none';
-  if (q !== qualityPref) { qualityPref = q; quality = null; }
-  if (enabled) pump();
+  if (q !== qualityPref) {
+    qualityPref = q;
+    // Nouveau choix : on retente la haute qualité tout de suite
+    highFail.asr = highFail.mt = null;
+  }
+  if (enabled) {
+    // Niveau de chaque modèle connu dès le départ (pour refaire en haute qualité les radios
+    // traduites en qualité légère), puis revu chaque minute (fin d'attente après un échec)
+    refreshEffective();
+    refreshTimer ||= setInterval(() => { if (enabled && (highFail.asr || highFail.mt)) refreshEffective(); }, 60000);
+    pump();
+  }
+}
+let refreshTimer = 0;
+
+// Carte graphique utilisable pour les grands modèles ? (WebGPU + calcul en demi-précision)
+async function gpu() {
+  if (gpuInfo) return gpuInfo;
+  if (!navigator.gpu) return (gpuInfo = { ok: false, why: 'WebGPU indisponible sur cet appareil' });
+  const a = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }).catch(() => null);
+  if (!a) return (gpuInfo = { ok: false, why: 'aucune carte graphique utilisable (WebGPU)' });
+  const name = [a.info?.vendor, a.info?.description || a.info?.architecture].filter(Boolean).join(' ');
+  const f16 = a.features?.has?.('shader-f16');
+  return (gpuInfo = { ok: !!f16, name, why: f16 ? '' : `carte graphique${name ? ` (${name})` : ''} sans calcul FP16, nécessaire aux grands modèles` });
 }
 
-// Niveau de qualité effectif : « high » si une carte graphique est utilisable (WebGPU).
-async function resolveQuality() {
-  if (quality) return quality;
-  if (qualityPref === 'light' || highFailed) quality = 'light';
-  else {
-    const adapter = await navigator.gpu?.requestAdapter?.().catch(() => null);
-    quality = adapter ? 'high' : 'light';
-  }
-  return quality;
+// Niveau à utiliser pour la reconnaissance vocale ('asr') ou la traduction ('mt')
+async function qualityFor(use) {
+  if (qualityPref === 'light') return 'light';
+  if (!(await gpu()).ok) return 'light';
+  const f = highFail[use];
+  if (f && Date.now() - f.at < f.wait) return 'light';
+  return 'high';
+}
+
+async function refreshEffective() {
+  effective.asr = await qualityFor('asr');
+  effective.mt = await qualityFor('mt');
+  if (status.state !== 'loading') setStatus(status.state === 'idle' ? 'idle' : 'ready', describe());
+  else emit('radioText');
+}
+
+// Échec d'un grand modèle : qualité légère pour ce modèle, nouvel essai plus tard
+function markHighFailed(use, err) {
+  highFail[use] = { msg: err.message, at: Date.now(), wait: qualityPref === 'high' ? RETRY_MS.pref : RETRY_MS.auto };
+  effective[use] = 'light';
+  console.warn(`[transcription] ${use === 'asr' ? 'reconnaissance vocale' : 'traduction'} en haute qualité impossible :`, err.message);
+}
+
+// Texte d'état : niveau de chaque modèle et, s'il est léger, pourquoi
+function describe() {
+  const why = (use) => {
+    if (qualityPref === 'light') return 'choisie dans les réglages';
+    if (gpuInfo && !gpuInfo.ok) return gpuInfo.why;
+    const f = highFail[use];
+    if (f) {
+      const min = Math.max(1, Math.ceil((f.at + f.wait - Date.now()) / 60000));
+      return `haute qualité en échec (${f.msg}) · nouvel essai dans ${min} min`;
+    }
+    return '';
+  };
+  const part = (label, use, hi) => {
+    const q = effective[use];
+    if (!q) return '';
+    if (q === 'high') return `${label} : haute qualité (${hi})`;
+    const w = why(use);
+    return `${label} : qualité légère${w ? ` — ${w}` : ''}`;
+  };
+  const txt = [part('Transcription', 'asr', 'Whisper large'), lang === 'none' ? '' : part('Traduction', 'mt', 'modèle de langage F1')].filter(Boolean).join(' · ');
+  return txt ? `Actif · ${txt}` : 'Actif';
 }
 
 export function currentQuality() {
-  return quality;
+  return effective.asr;
 }
 
 // Radios à transcrire / traduire (les plus récentes d'abord) : [{ url, who }]
@@ -81,9 +145,11 @@ export function requestTranscripts(items) {
   if (!enabled) return;
   for (const { url, who } of items) {
     const t = texts[url];
-    // En qualité haute, les radios déjà faites en qualité légère sont refaites
-    const redo = t && quality === 'high' && t.q !== 'high';
-    const kind = !t || redo ? 'asr' : (lang !== 'none' && t.en && t.tr?.[lang] === undefined ? 'mt' : null);
+    // Haute qualité disponible : les radios faites en qualité légère sont refaites (transcription,
+    // ou seulement la traduction si la transcription est déjà en haute qualité)
+    const redoAsr = t && effective.asr === 'high' && t.q !== 'high';
+    const redoMt = t && t.en && lang !== 'none' && effective.mt === 'high' && t.tr?.[lang] !== undefined && t.tq?.[lang] !== 'high';
+    const kind = !t || redoAsr ? 'asr' : (lang !== 'none' && t.en && (t.tr?.[lang] === undefined || redoMt) ? 'mt' : null);
     if (!kind) continue;
     const k = `${kind}|${url}|${lang}`;
     if (queued.has(k)) continue;
@@ -110,7 +176,7 @@ function getWorker() {
       setStatus('loading', `Téléchargement du modèle de ${what} (première fois) : ${mb(m.loaded)} / ${mb(m.total)} Mo`);
       return;
     }
-    if (m.type === 'ready') { setStatus('ready', m.device === 'webgpu' ? 'Actif · haute qualité (carte graphique)' : 'Actif · qualité légère (processeur)'); return; }
+    if (m.type === 'ready') { setStatus('ready', describe()); return; }
     if (!current || m.id !== current.id) return;
     if (m.type === 'result') current.resolve(m.text); else current.reject(new Error(m.error));
   };
@@ -150,14 +216,12 @@ export function translateText(text, language, domain) {
 }
 
 async function textQuality() {
-  if (qualityPref === 'light' || highFailed) return 'light';
-  if (!navigator.gpu) return 'light';
+  if ((await qualityFor('mt')) !== 'high') return 'light';
   try {
     const keys = await (await caches.open('transformers-cache')).keys();
     if (!keys.some((r) => r.url.includes('Qwen3-4B'))) return 'light';
   } catch { return 'light'; }
-  const adapter = await navigator.gpu.requestAdapter().catch(() => null);
-  return adapter ? 'high' : 'light';
+  return 'high';
 }
 
 async function runText(task) {
@@ -166,7 +230,7 @@ async function runText(task) {
     task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: q, domain: task.domain }), q });
   } catch (err) {
     if (q === 'high') {
-      highFailed = true;
+      markHighFailed('mt', err);
       task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: 'light', domain: task.domain }), q: 'light' });
     } else throw err;
   }
@@ -188,11 +252,12 @@ async function pump() {
   }
   try {
     if (task.kind === 'asr') {
-      const q = await resolveQuality();
+      const q = task.q = await qualityFor('asr');
+      effective.asr = q;
       const audio = await decode(task.url);
       if (status.state !== 'ready') setStatus('loading', 'Préparation de la transcription…');
       const en = await run({ kind: 'asr', audio, quality: q }, [audio.buffer]);
-      texts[task.url] = { en, tr: {}, q };
+      texts[task.url] = { en, tr: {}, tq: {}, q };
       // Traduction juste après, avant les radios plus anciennes
       if (en && task.lang !== 'none') {
         const k = `mt|${task.url}|${task.lang}`;
@@ -201,13 +266,15 @@ async function pump() {
     } else {
       const t = texts[task.url];
       if (t?.en) {
-        const q = await resolveQuality();
+        const q = task.q = await qualityFor('mt');
+        effective.mt = q;
         const tr = await run({ kind: 'translate', text: t.en, lang: task.lang, quality: q, who: task.who });
         t.tr = { ...(t.tr || {}), [task.lang]: tr };
+        t.tq = { ...(t.tq || {}), [task.lang]: q };
       }
     }
     save();
-    if (status.state !== 'ready') setStatus('ready', 'Actif');
+    setStatus('ready', describe());
     emit('radioText');
     queued.delete(task.k);
   } catch (err) {
@@ -215,10 +282,10 @@ async function pump() {
     if (/^audio/.test(err.message)) {
       texts[task.url] = { en: '', tr: {} };
       queued.delete(task.k);
-    } else if (quality === 'high' && !highFailed) {
-      // Carte graphique inutilisable (pilote, mémoire…) : bascule sur les modèles légers
-      highFailed = true;
-      quality = null;
+    } else if (task.q === 'high') {
+      // Grand modèle inutilisable pour l'instant (téléchargement, mémoire de la carte graphique…) :
+      // ce modèle seul passe en qualité légère, nouvel essai plus tard
+      markHighFailed(task.kind === 'asr' ? 'asr' : 'mt', err);
       queue.unshift(task);
     } else {
       // Moteur ou modèle indisponible : nouvel essai dans une minute (la tâche reste en file)
@@ -226,7 +293,7 @@ async function pump() {
       retryAt = Date.now() + 60000;
       setTimeout(pump, 60500);
     }
-    setStatus('error', `Impossible : ${err.message}`);
+    setStatus(task.q === 'high' ? 'ready' : 'error', task.q === 'high' ? describe() : `Impossible : ${err.message}`);
   } finally {
     busy = false;
     setTimeout(pump, 50);

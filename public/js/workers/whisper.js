@@ -10,6 +10,9 @@ import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transfo
 import { prefetch } from './hf-download.js';
 
 env.allowLocalModels = false;
+// Ordinateur portable avec deux cartes graphiques : la plus puissante (mémoire suffisante pour
+// Whisper large et le modèle de langage)
+try { env.backends.onnx.webgpu.powerPreference = 'high-performance'; } catch { /* version sans ce réglage */ }
 
 const MODELS = {
   asrHigh: 'onnx-community/whisper-large-v3-turbo',
