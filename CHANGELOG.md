@@ -4,6 +4,11 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.19.1 — à venir
+
+### Actualités
+- Les titres de la colonne de droite (À la une, dernières vidéos) sont eux aussi traduits en français.
+
 ## v1.19.0 — 2026-10-14
 
 ### Actualités
