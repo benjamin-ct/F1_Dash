@@ -219,7 +219,7 @@ export function initSettings() {
   $('#lanEnabled').addEventListener('change', (e) => renderLan({ enabled: e.target.checked }));
   $('#lanRegen').addEventListener('click', () => { if (confirm('Changer la clé ? Les téléphones et tablettes déjà autorisés devront rescanner le QR code.')) renderLan({ regenerate: true }); });
   // Application de bureau : fenêtres détachées rouvertes au lancement
-  $('#schemeSel').value = prefs.scheme || 'dark';
+  $('#schemeSel').value = prefs.scheme || 'auto';
   $('#schemeSel').addEventListener('change', (e) => setPref('scheme', e.target.value));
   on('prefs', (k) => { if (k === 'scheme') $('#schemeSel').value = prefs.scheme; });
   $('#vividTeams').checked = prefs.vividTeams;

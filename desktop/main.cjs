@@ -1,6 +1,8 @@
 // Application de bureau F1 Dash : lance le serveur local dans le processus Electron
 // et affiche le dashboard dans une fenêtre, sans installer Node.js.
-const { app, BrowserWindow, shell, Menu, screen, ipcMain, session, components } = require('electron');
+const { app, BrowserWindow, shell, Menu, screen, ipcMain, session, components, nativeTheme } = require('electron');
+// Fond des fenêtres avant l'affichage de la page : clair ou sombre comme le système (apparence automatique)
+const winBg = () => (nativeTheme.shouldUseDarkColors ? '#07080A' : '#F4F5F7');
 const path = require('node:path');
 const APP_ICON = path.join(__dirname, 'icon.png');
 const net = require('node:net');
@@ -93,7 +95,7 @@ function openChild(baseUrl, c) {
   const win = new BrowserWindow({
     autoHideMenuBar: true,
     icon: APP_ICON,
-    backgroundColor: '#000000',
+    backgroundColor: winBg(),
     ...(boundsVisible(c.bounds) ? c.bounds : { width: 1200, height: 800 }),
     webPreferences: childPrefs(),
   });
@@ -218,7 +220,7 @@ function setupContents(wc, url) {
         overrideBrowserWindowOptions: {
           autoHideMenuBar: true,
           icon: APP_ICON,
-          backgroundColor: '#000000',
+          backgroundColor: winBg(),
           ...(area ? { x: area.x + 40, y: area.y + 40, width: Math.min(1400, area.width - 80), height: Math.min(900, area.height - 80) } : {}),
           webPreferences: childPrefs(),
         },
@@ -376,7 +378,7 @@ async function start() {
     show: false,
     minWidth: 900,
     minHeight: 600,
-    backgroundColor: '#000000',
+    backgroundColor: winBg(),
     title: 'F1 Dash',
     autoHideMenuBar: true,
     icon: APP_ICON,

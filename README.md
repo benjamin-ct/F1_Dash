@@ -6,7 +6,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 
 ![F1 Dash pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
 
-<sub>Design « Pitwall » en mode sombre (par défaut). Un mode clair est disponible dans Réglages → Affichage → Apparence (voir plus bas).</sub>
+<sub>Design « Pitwall » en mode sombre. L'application suit par défaut le mode clair ou sombre de l'ordinateur ou du téléphone (voir plus bas).</sub>
 
 ## ✨ En bref
 
@@ -33,7 +33,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 
 ![Espace Actu : l'actualité de la F1 traduite en français](docs/screenshots/actu.png)
 
-**Mode sombre ou clair** (Réglages → Affichage → Apparence) : sombre par défaut, clair pour le plein jour, ou automatique pour suivre le réglage de l'ordinateur ou du téléphone.
+**Mode sombre ou clair** (Réglages → Affichage → Apparence) : automatique par défaut (suit le réglage de l'ordinateur ou du téléphone), ou toujours sombre, ou toujours clair.
 
 ![Le design Pitwall en mode sombre et en mode clair](docs/screenshots/apparence.png)
 

@@ -10,7 +10,8 @@ const DEFAULTS = {
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
   theme: 'pitwall',       // thème unique de l'application
-  scheme: 'dark',         // apparence : 'dark' (sombre) | 'light' (clair) | 'auto' (comme le système)
+  scheme: 'auto',         // apparence : 'auto' (comme le système) | 'dark' (sombre) | 'light' (clair)
+  schemeSet: false,       // apparence choisie par l'utilisateur (sinon : automatique)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
   teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
@@ -53,6 +54,9 @@ export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(
 prefs.theme = 'pitwall';
 if ((saved.themeV || 0) < 5) storageSet('f1dash.prefs', { ...storageGet('f1dash.prefs', {}), theme: 'pitwall', themeV: 5 });
 prefs.themeV = 5;   // gardé dans chaque enregistrement des préférences
+// Apparence automatique par défaut depuis la v1.20.1. En v1.20.0, « sombre » était enregistré par
+// défaut avec les autres réglages : seul un choix fait dans les réglages (ou le clair) est conservé.
+if (!saved.schemeSet && saved.scheme !== 'light') prefs.scheme = 'auto';
 document.documentElement.dataset.motion = prefs.motion === false ? 'off' : 'on';
 setVividTeams(prefs.vividTeams);
 setTeamLogos(prefs.teamLogos);
@@ -87,7 +91,7 @@ function applyTeamColors() {
 export function setPref(key, value) {
   prefs[key] = value;
   if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
-  if (key === 'scheme') applyScheme();
+  if (key === 'scheme') { prefs.schemeSet = true; applyScheme(); }
   if (key === 'motion') document.documentElement.dataset.motion = value ? 'on' : 'off';
   storageSet('f1dash.prefs', prefs);
   emit('prefs', key);
