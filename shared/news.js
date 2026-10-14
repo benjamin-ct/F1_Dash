@@ -21,7 +21,10 @@ export function cleanText(s) {
   // Les flux encodent souvent le HTML (&lt;p&gt;) : on décode une fois avant de retirer les balises
   if (/&lt;\/?[a-z]/i.test(t)) t = decodeEntities(t);
   t = t.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<br\s*\/?>/gi, ' ').replace(/<\/p>/gi, ' ').replace(/<[^>]+>/g, ' ');
-  return decodeEntities(t).replace(/\s+/g, ' ').trim();
+  t = decodeEntities(t);
+  // Entités encodées deux fois (« &amp;#8211; ») : encore un décodage
+  if (/&(#\d+|#x[0-9a-f]+|[a-z]+);/i.test(t)) t = decodeEntities(t);
+  return t.replace(/\s+/g, ' ').trim();
 }
 
 function tagContent(xml, tag) {
