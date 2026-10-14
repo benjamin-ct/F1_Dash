@@ -2,6 +2,7 @@
 // en attente d'installation.
 import { $, esc, api } from '../util.js';
 import { arrows } from '../icons.js';
+import { LOCALE } from '../i18n.js';
 
 // Mise en forme du texte du journal : titres « ### », listes « - », gras « **…** »
 export function changelogHtml(md) {
@@ -19,7 +20,7 @@ export function changelogHtml(md) {
   return list ? `${html}</ul>` : html;
 }
 
-const fmtDate = (d) => (d ? new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'à venir');
+const fmtDate = (d) => (d ? new Date(`${d}T12:00:00Z`).toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' }) : 'à venir');
 
 export async function initChangelog() {
   const box = $('#changelog');
@@ -29,7 +30,7 @@ export async function initChangelog() {
     if (!versions?.length) { box.innerHTML = '<p class="muted">Journal indisponible.</p>'; return; }
     box.innerHTML = versions.map((v, i) => `<details class="cl-ver" ${i === 0 ? 'open' : ''}>
       <summary><b>v${esc(v.version)}</b> <span class="muted">${fmtDate(v.date)}</span></summary>
-      <div class="cl-body">${changelogHtml(v.body)}</div></details>`).join('');
+      <div class="cl-body" data-no-i18n>${changelogHtml(v.body)}</div></details>`).join('');
   } catch {
     box.innerHTML = '<p class="muted">Journal indisponible.</p>';
   }

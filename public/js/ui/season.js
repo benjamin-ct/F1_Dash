@@ -8,6 +8,7 @@ import { driverRatings, qualiGaps } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
+import { DEC, LOCALE, EN } from '../i18n.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -84,8 +85,8 @@ async function loadStats() {
   if (STATS_SECTIONS.has(section) && !$('#seasonView').hidden) render();
 }
 
-const fmtDate = (t, o) => new Date(t).toLocaleDateString('fr-FR', o || { day: '2-digit', month: 'short' });
-const fmtTime = (t) => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+const fmtDate = (t, o) => new Date(t).toLocaleDateString(LOCALE, o || { day: '2-digit', month: 'short' });
+const fmtTime = (t) => new Date(t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' });
 const done = (r) => r.results.length > 0;
 
 async function load(force = false) {
@@ -184,7 +185,7 @@ function renderHome() {
         <div class="sz-countdown" id="szCountdown" data-t="${esc(nx.s.t)}"></div>
         <div class="small sz-when">${fmtDate(nx.s.t, { weekday: 'long', day: 'numeric', month: 'long' })} à ${fmtTime(nx.s.t)}</div>` : '<div class="sz-kicker">Saison terminée</div>'}</div>
       <div class="sz-card"><div class="muted small">Calendrier ${data.year}</div><div class="sz-big">${esc(nx?.race.locality || nx?.race.country || '—')}</div>
-        <div class="sz-progress"><i style="width:${pct}%"></i></div><div class="muted small">${pct.toString().replace('.', ',')} % de la saison · ${doneRaces.length}/${data.races.length} courses</div></div>
+        <div class="sz-progress"><i style="width:${pct}%"></i></div><div class="muted small">${pct.toString().replace('.', DEC)} % de la saison · ${doneRaces.length}/${data.races.length} courses</div></div>
       <div class="sz-card"><div class="muted small">Leader pilotes</div><div class="sz-big">${p1 ? `${bar(p1.team, p1.teamId)}${esc(p1.last)}` : '—'}</div>
         <div class="muted small">${p1 ? `${p1.points} pts${p2 ? ` · +${p1.points - p2.points} sur ${esc(p2.last)}` : ''}` : ''}</div></div>
       <div class="sz-card"><div class="muted small">Leader constructeurs</div><div class="sz-big">${c1 ? `${bar(c1.name, c1.id)}${esc(c1.name)}` : '—'}</div>
@@ -209,9 +210,9 @@ function renderCalendar() {
         <div class="muted small">${esc(r.circuit || '')} · ${fmtDate(first)} – ${fmtDate(r.date)}</div>
         ${w ? `<div class="small">${icon('trophy')} ${chip(w)} ${r.quali[0] ? `· pole ${chip(r.quali.find((q) => q.pos === 1) || r.quali[0])}` : ''}</div>` : ''}</summary>
       <ul class="sz-sessions">${r.sessions.map((s) => `<li><span>${esc(s.label)}</span><span>${s.t ? `${fmtDate(s.t, { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(s.t)}` : '—'}</span></li>`).join('')}</ul>
-      ${done(r) ? '' : `<a class="btn small sz-ics" href="/api/calendar.ics?year=${year}&round=${r.round}" download title="Séances de ce week-end dans votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`}
+      ${done(r) ? '' : `<a class="btn small sz-ics" href="/api/calendar.ics?year=${year}&round=${r.round}${EN ? '&lang=en' : ''}" download title="Séances de ce week-end dans votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant">${icon('calendar')} Ajouter ce week-end à mon agenda</a>`}
     </details>`;
-  }).join('')}</div><p class="muted small">Horaires affichés à l'heure de cet ordinateur. <a class="btn small" href="/api/calendar.ics?year=${year}" download title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant chaque séance, même F1 Dash fermé">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p>`;
+  }).join('')}</div><p class="muted small">Horaires affichés à l'heure de cet ordinateur. <a class="btn small" href="/api/calendar.ics?year=${year}${EN ? '&lang=en' : ''}" download title="Toutes les séances de la saison dans votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant chaque séance, même F1 Dash fermé">${icon('calendar')} Ajouter toute la saison à mon agenda</a></p>`;
 }
 
 function lineChartSvg(series, { w = 900, h = 300 } = {}) {
@@ -259,11 +260,11 @@ function renderResults() {
       ${card('Plus de victoires', st.wins ? `${st.wins.n} <small>victoires</small>` : '—', who(st.wins))}
       ${card('Plus de podiums', st.podiums ? `${st.podiums.n} <small>podiums</small>` : '—', who(st.podiums))}
       ${card('Plus de poles', st.poles ? `${st.poles.n} <small>poles</small>` : '—', who(st.poles))}
-      ${card('Meilleure moyenne à l\'arrivée', st.avg ? st.avg.v.toFixed(1).replace('.', ',') : '—', who(st.avg))}
+      ${card('Meilleure moyenne à l\'arrivée', st.avg ? st.avg.v.toFixed(1).replace('.', DEC) : '—', who(st.avg))}
       ${card('Plus de places gagnées', st.mostGained ? `+${st.mostGained.v} <small>places</small>` : '—', who(st.mostGained))}
       ${card('Plus belle remontée', st.comeback ? `+${st.comeback.v} <small>places</small>` : '—', st.comeback ? `${who(st.comeback)} · P${st.comeback.from} ${icon('arrow-right', 'ic-s')} P${st.comeback.to} · R${st.comeback.r.round}` : '')}
-      ${card('Plus large victoire', st.largest ? `+${st.largest.v.toFixed(3).replace('.', ',')} s` : '—', st.largest ? `${esc(st.largest.d.last)} · R${st.largest.r.round} ${esc(st.largest.r.locality || '')}` : '')}
-      ${card('Victoire la plus serrée', st.closest ? `+${st.closest.v.toFixed(3).replace('.', ',')} s` : '—', st.closest ? `${esc(st.closest.d.last)} · R${st.closest.r.round} ${esc(st.closest.r.locality || '')}` : '')}
+      ${card('Plus large victoire', st.largest ? `+${st.largest.v.toFixed(3).replace('.', DEC)} s` : '—', st.largest ? `${esc(st.largest.d.last)} · R${st.largest.r.round} ${esc(st.largest.r.locality || '')}` : '')}
+      ${card('Victoire la plus serrée', st.closest ? `+${st.closest.v.toFixed(3).replace('.', DEC)} s` : '—', st.closest ? `${esc(st.closest.d.last)} · R${st.closest.r.round} ${esc(st.closest.r.locality || '')}` : '')}
     </div>
     <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur sprint</th><th>Pole</th><th>Vainqueur</th><th>2e</th><th>3e</th></tr>
       ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${esc(r.name.replace(' Grand Prix', ''))}</td><td>${fmtDate(r.date)}</td>
@@ -276,7 +277,7 @@ let h2hTeam = null;
 // Écart en qualification entre les deux coéquipiers, manche par manche
 function qualiGapBox(g, A, B, ca) {
   if (!g.rounds.length) return '<section class="sz-box"><h3>Écart en qualification</h3><div class="note small">Temps de qualification indisponibles pour cette saison.</div></section>';
-  const f3 = (v) => `${Math.abs(v).toFixed(3).replace('.', ',')} s`;
+  const f3 = (v) => `${Math.abs(v).toFixed(3).replace('.', DEC)} s`;
   const lead = g.median <= 0 ? A : B;
   const W = 900, H = 200, pl = 44, pr = 10, pt = 14, pb = 34, mid = (H - pb + pt) / 2;
   // Échelle calée sur le 2e plus grand écart : un écart isolé est coupé (sa valeur est écrite)
@@ -288,14 +289,14 @@ function qualiGapBox(g, A, B, ca) {
     const y = Y(-x.s), x0 = pl + i * bw + bw * 0.18;
     const c = x.s <= 0 ? ca : 'var(--muted)';
     return `<rect x="${x0}" y="${Math.min(y, mid)}" width="${bw * 0.64}" height="${Math.max(1, Math.abs(y - mid))}" rx="2" fill="${c}" ${x.outlier ? 'opacity=".35"' : ''}><title>R${x.round} ${esc(x.name.replace(' Grand Prix', ''))} (Q${x.part}) : ${esc(x.s <= 0 ? A.last : B.last)} devant de ${f3(x.s)}</title></rect>
-      ${Math.abs(x.s) > cap ? `<text x="${pl + i * bw + bw / 2}" y="${x.s < 0 ? y + 12 : y - 4}" class="sz-ax sz-clip" text-anchor="middle">${Math.abs(x.s).toFixed(2).replace('.', ',')} s</text>` : ''}
+      ${Math.abs(x.s) > cap ? `<text x="${pl + i * bw + bw / 2}" y="${x.s < 0 ? y + 12 : y - 4}" class="sz-ax sz-clip" text-anchor="middle">${Math.abs(x.s).toFixed(2).replace('.', DEC)} s</text>` : ''}
       <text x="${pl + i * bw + bw / 2}" y="${H - 18}" class="sz-ax" text-anchor="middle">R${x.round}</text><text x="${pl + i * bw + bw / 2}" y="${H - 5}" class="sz-ax" text-anchor="middle">Q${x.part}</text>`;
   }).join('');
   const axis = `<line x1="${pl}" x2="${W - pr}" y1="${mid}" y2="${mid}" class="sz-gl"/>
     <text x="${pl - 6}" y="${pt + 8}" class="sz-ax" text-anchor="end">${esc(A.code)}</text><text x="${pl - 6}" y="${H - pb}" class="sz-ax" text-anchor="end">${esc(B.code)}</text>`;
   return `<section class="sz-box"><h3>Écart en qualification</h3>
     <div class="sz-cards sz-kpis">
-      <div class="sz-card sz-kpi"><div class="muted small">Écart médian</div><div class="sz-big">${g.median === null ? '—' : f3(g.median)}</div><div class="muted small">${g.median ? `en faveur de ${esc(lead.last)} · ${Math.abs(g.medianPct).toFixed(2).replace('.', ',')} %` : ''}</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Écart médian</div><div class="sz-big">${g.median === null ? '—' : f3(g.median)}</div><div class="muted small">${g.median ? `en faveur de ${esc(lead.last)} · ${Math.abs(g.medianPct).toFixed(2).replace('.', DEC)} %` : ''}</div></div>
       <div class="sz-card sz-kpi"><div class="muted small">Écart moyen</div><div class="sz-big">${g.mean === null ? '—' : f3(g.mean)}</div><div class="muted small">${g.mean ? `en faveur de ${esc((g.mean <= 0 ? A : B).last)}` : ''}</div></div>
       <div class="sz-card sz-kpi"><div class="muted small">Plus devant</div><div class="sz-big">${esc(A.code)} ${g.rounds.filter((x) => x.s < 0).length} – ${g.rounds.filter((x) => x.s > 0).length} ${esc(B.code)}</div><div class="muted small">séances où l'un a battu l'autre au temps</div></div>
     </div>

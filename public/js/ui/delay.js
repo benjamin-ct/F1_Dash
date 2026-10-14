@@ -3,6 +3,7 @@ import { store, setDelay, serverNow, on } from '../store.js';
 import { $, esc, fmtDelay, storageGet, storageSet, drivers } from '../util.js';
 import { prefs, setPref } from '../prefs.js';
 import { icon, arrows } from '../icons.js';
+import { DEC } from '../i18n.js';
 
 // Valeurs de départ indicatives : chaque installation (box, satellite, appli, TNT...) a son
 // propre retard. Utilisez la synchro TV puis enregistrez votre propre préréglage.
@@ -44,7 +45,7 @@ function renderPresets() {
 
 function renderValue() {
   const input = $('#delayInput');
-  if (document.activeElement !== input) input.value = (store.delay / 1000).toFixed(1).replace('.', ',');
+  if (document.activeElement !== input) input.value = (store.delay / 1000).toFixed(1).replace('.', DEC);
   $('#syncCurrent').textContent = fmtDelay(store.delay);
   renderPresets();
   renderWarning();
@@ -95,7 +96,7 @@ function renderSyncList() {
       const text = hidden ? MASKED[e.kind] || 'Événement (masqué)' : e.text;
       return `<li class="${e.kind}">
         <div><div class="se-text"><span class="se-kind">${KIND_LABEL[e.kind] || e.kind}</span>${esc(who + text)}</div>
-        <div class="se-meta">Il y a ${ago.toFixed(1).replace('.', ',')} s en live${e.hint ? ' · ' + esc(e.hint) : ''}</div></div>
+        <div class="se-meta">Il y a ${ago.toFixed(1).replace('.', DEC)} s en live${e.hint ? ' · ' + esc(e.hint) : ''}</div></div>
         <button class="btn btn-accent" data-t="${e.t}">Je le vois !</button></li>`;
     }).join('');
   }

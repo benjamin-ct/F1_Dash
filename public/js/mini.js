@@ -1,12 +1,15 @@
 // Mini-classement : petite fenêtre toujours au premier plan (image dans l'image du navigateur ou
 // fenêtre de l'appli de bureau), à poser par-dessus la vidéo de la course. Même délai TV que la
 // fenêtre principale.
+import { translatePage } from './i18n.js';
 import { icon } from './icons.js';
 import { store, versionOf, setDelay, on } from './store.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, currentStint, compoundInfo, storageGet, storageSet, fmtDelay } from './util.js';
 import { prefs, isFav } from './prefs.js';
 import { trackStatusInfo } from '/shared/f1.js';
 import { connect } from './conn.js';
+
+translatePage();
 
 let mode = storageGet('f1dash.miniMode', 'int');   // 'int' (intervalle) | 'gap' (écart au leader)
 let lastKey = '';

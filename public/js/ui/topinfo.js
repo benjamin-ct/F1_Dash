@@ -6,6 +6,7 @@ import { docSummaryFr } from '/shared/fia-docs-fr.js';
 import { parseFiaDoc } from '/shared/stewards.js';
 import { fiaState } from './feed.js';
 import { icon } from '../icons.js';
+import { LOCALE } from '../i18n.js';
 
 let open = null;      // outil ouvert : 'docs' | 'speeds' | 'sectors'
 let pop = null;
@@ -37,7 +38,7 @@ function docsHtml() {
   const time = (ms) => {
     if (!ms) return '';
     const t = new Date(ms);
-    return t.toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    return t.toLocaleString(LOCALE, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
   };
   const event = store.state.SessionInfo?.Meeting?.Name || 'Grand Prix';
   const body = rows.length ? rows.map(({ d, sum, cars }) => `<div class="tbd-doc">

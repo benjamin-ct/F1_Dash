@@ -1,6 +1,7 @@
 // Préférences de l'utilisateur (conservées dans le navigateur).
 import { storageGet, storageSet, setVividTeams, setTeamLogos, setLogoColor } from './util.js';
 import { emit, touch } from './store.js';
+import { LANG } from './i18n.js';
 
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
@@ -18,6 +19,7 @@ const DEFAULTS = {
   keepAwake: true,        // écran toujours allumé pendant une séance
   motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
+  lang: LANG,             // langue de l'interface : 'fr' | 'en' (voir i18n.js)
   autoSyncAdj: 0,         // synchro TV par le son : correction ajoutée au délai trouvé (s)
   remindMin: 15,          // rappel avant chaque séance (minutes, 0 : désactivé)
   legends: true,          // légendes sous les panneaux (couleurs, colonnes, graphiques)
@@ -26,7 +28,7 @@ const DEFAULTS = {
   layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
-  radioLang: 'fr',        // langue de traduction des transcriptions ('none' : anglais)
+  radioLang: LANG === 'en' ? 'none' : 'fr',        // langue de traduction des transcriptions ('none' : anglais)
   radioQuality: 'auto',   // modèles de transcription : 'auto' | 'high' (carte graphique) | 'light'
   radioFilter: 'all',
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'
@@ -57,6 +59,8 @@ export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(
 prefs.theme = 'pitwall';
 if ((saved.themeV || 0) < 5) storageSet('f1dash.prefs', { ...storageGet('f1dash.prefs', {}), theme: 'pitwall', themeV: 5 });
 prefs.themeV = 5;   // gardé dans chaque enregistrement des préférences
+// Langue retenue dès la première ouverture (sinon une autre fenêtre la redéduirait autrement)
+if (saved.lang !== LANG) storageSet('f1dash.prefs', { ...storageGet('f1dash.prefs', {}), lang: LANG });
 // Apparence automatique par défaut depuis la v1.20.1. En v1.20.0, « sombre » était enregistré par
 // défaut avec les autres réglages : seul un choix fait dans les réglages (ou le clair) est conservé.
 if (!saved.schemeSet && saved.scheme !== 'light') prefs.scheme = 'auto';

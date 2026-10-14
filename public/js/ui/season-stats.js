@@ -4,6 +4,7 @@
 import { esc, teamColor, teamMark } from '../util.js';
 import { cleanLaps, lapsLed, similarCircuits, SEASON_CRITERIA, MATE_CRITERIA, GRADES } from '/shared/season-calc.js';
 import { icon } from '../icons.js';
+import { DEC } from '../i18n.js';
 
 const median = (a) => {
   if (!a.length) return null;
@@ -16,11 +17,11 @@ const sd = (a) => {
   const m = mean(a);
   return a.length > 1 ? Math.sqrt(a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1)) : null;
 };
-const fr = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : v.toFixed(d).replace('.', ','));
+const fr = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? '—' : v.toFixed(d).replace('.', DEC));
 const fmtLap = (s) => {
   if (!s) return '—';
   const m = Math.floor(s / 60);
-  return `${m ? `${m}:` : ''}${(s - m * 60).toFixed(3).padStart(m ? 6 : 5, '0')}`.replace('.', ',');
+  return `${m ? `${m}:` : ''}${(s - m * 60).toFixed(3).padStart(m ? 6 : 5, '0')}`.replace('.', DEC);
 };
 const isNum = (x) => /^\d+$/.test(x?.posText || '');
 const STATUS_FR = { Finished: 'Arrivé', Retired: 'Abandon', Disqualified: 'Disqualifié', 'Did not start': 'Non partant', Withdrew: 'Forfait', Accident: 'Accident', Collision: 'Accrochage', Engine: 'Moteur', Gearbox: 'Boîte de vitesses', Hydraulics: 'Hydraulique', Brakes: 'Freins', Lapped: 'À un tour ou plus' };
@@ -388,7 +389,7 @@ export function renderCircuits(ctx, sort = 'round') {
     const p = race.profile;
     const ty = stats.tyres?.[race.round] || null;
     const cars = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).length || race.drivers.length || 1;
-    const finStops = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).reduce((n, d) => n + d.stops.length, 0);
+    const finStops = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).reduce((n, d) => n + (d.stopCount ?? d.stops.length), 0);
     return {
       round: race.round, r, p, ty, avgSpeed: p.fastest?.avgSpeed || 0, topSpeed: p.topSpeed?.kmh || 0, gains: p.gains || 0, neutral: p.neutralPct || 0, length: p.length || 0,
       tyre: ty ? 6 - ty.hard : 0, stopsPerCar: finStops / cars,

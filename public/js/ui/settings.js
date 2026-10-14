@@ -5,6 +5,7 @@ import { toast } from './delay.js';
 import { prefs, setPref, toggleFav } from '../prefs.js';
 import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { icon } from '../icons.js';
+import { LANG, LOCALE } from '../i18n.js';
 
 let archive = [];
 let dragging = false;
@@ -32,7 +33,7 @@ function fillSessions() {
   $('#rpSession').value = String(Math.max(0, sessions.length - 1));
 }
 
-const fmtWhen = (ms) => new Date(ms).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const fmtWhen = (ms) => new Date(ms).toLocaleString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const SESSION_WARN = 3 * 86400000;   // rappel 3 jours avant la fin de la session formula1.com
 
 async function refreshAuth() {
@@ -223,7 +224,10 @@ export function initSettings() {
   // Application de bureau : fenêtres détachées rouvertes au lancement
   $('#remindSel').value = String(prefs.remindMin ?? 15);
   $('#remindSel').addEventListener('change', (e) => setPref('remindMin', Number(e.target.value)));
-  $('#icsSeason').href = `/api/calendar.ics?year=${new Date().getFullYear()}`;
+  $('#icsSeason').href = `/api/calendar.ics?year=${new Date().getFullYear()}${LANG === 'en' ? '&lang=en' : ''}`;
+  // Langue : l'interface est rechargée pour s'afficher dans la nouvelle langue
+  $('#langSel').value = LANG;
+  $('#langSel').addEventListener('change', (e) => { setPref('lang', e.target.value); location.reload(); });
   $('#schemeSel').value = prefs.scheme || 'auto';
   $('#schemeSel').addEventListener('change', (e) => setPref('scheme', e.target.value));
   on('prefs', (k) => { if (k === 'scheme') $('#schemeSel').value = prefs.scheme; });

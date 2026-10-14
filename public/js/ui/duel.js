@@ -4,6 +4,8 @@ import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, tyreBadge, cur
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { lineChart } from './charts.js';
 import { Dial, animate, carNow } from './gauge.js';
+import { DEC } from '../i18n.js';
+import { realStopCount } from '/shared/pits.js';
 
 let skeletonFor = null;
 let lastSlowKey = '';
@@ -78,7 +80,7 @@ function trendText(series, tlaA, tlaB, gapNow) {
   if (Math.abs(rate) < 0.03) return `Écart <b>stable</b> (${fmtSigned(rate, 2)} s/tour sur les ${pts.length} derniers tours).`;
   const front = gap >= 0 ? tlaA : tlaB, back = gap >= 0 ? tlaB : tlaA;
   const closing = (gap >= 0 && rate < 0) || (gap < 0 && rate > 0);
-  const r = Math.abs(rate).toFixed(2).replace('.', ',');
+  const r = Math.abs(rate).toFixed(2).replace('.', DEC);
   if (!closing) return `<b>${esc(front)}</b> creuse l'écart : <b>+${r} s/tour</b> sur ${esc(back)}.`;
   const lapsToCatch = Math.abs(gap) / Math.abs(rate);
   const lc = store.state.LapCount;
@@ -123,13 +125,13 @@ function renderHero(a, b) {
 
   let main = '—', lbl = '', src = '';
   if (live && !live.laps) {
-    main = live.gap.toFixed(live.gap < 10 ? 2 : 1).replace('.', ',');
+    main = live.gap.toFixed(live.gap < 10 ? 2 : 1).replace('.', DEC);
     lbl = `${esc(dl[live.ahead]?.Tla || live.ahead)} devant`;
-    src = off?.gap !== null && off?.gap !== undefined ? `Officiel : ${off.gap.toFixed(3).replace('.', ',')} s · GPS temps réel` : 'GPS temps réel';
+    src = off?.gap !== null && off?.gap !== undefined ? `Officiel : ${off.gap.toFixed(3).replace('.', DEC)} s · GPS temps réel` : 'GPS temps réel';
   } else if (off) {
     const aheadNum = off.ahead === 'a' ? a : b;
     if (off.laps) { main = `+${off.laps} T`; lbl = `${esc(dl[aheadNum]?.Tla || aheadNum)} a un tour d'avance`; }
-    else if (off.gap !== null) { main = off.gap.toFixed(3).replace('.', ','); lbl = `${esc(dl[aheadNum]?.Tla || aheadNum)} devant`; }
+    else if (off.gap !== null) { main = off.gap.toFixed(3).replace('.', DEC); lbl = `${esc(dl[aheadNum]?.Tla || aheadNum)} devant`; }
     src = sessionKind(s) === 'race' ? 'Chronométrage officiel' : 'Écart sur le meilleur tour';
   }
 
@@ -238,7 +240,8 @@ function renderSlow(a, b) {
   for (let i = 0; i < 3; i++) rows += cmpRow(`Secteur ${i + 1}`, lap(sec(la, i)), lap(sec(lb, i)), 'low');
   rows += cmpRow('Pneus', tyre(stA), tyre(stB));
   if (kind === 'race') {
-    rows += cmpRow('Arrêts', num(la.NumberOfPitStops ?? 0), num(lb.NumberOfPitStops ?? 0));
+    // Vrais arrêts (changements de pneus), sans les passages par les stands sous voiture de sécurité
+    rows += cmpRow('Arrêts', realStopCount(app[a], la), realStopCount(app[b], lb));
     rows += cmpRow('Écart leader', num(/^LAP/i.test(la.GapToLeader || '') ? 'Leader' : la.GapToLeader), num(/^LAP/i.test(lb.GapToLeader || '') ? 'Leader' : lb.GapToLeader));
   } else {
     rows += cmpRow('Tours', num(la.NumberOfLaps), num(lb.NumberOfLaps));

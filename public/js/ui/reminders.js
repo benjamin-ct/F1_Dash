@@ -5,6 +5,7 @@ import { api, storageGet, storageSet } from '../util.js';
 import { prefs } from '../prefs.js';
 import { notifyReminder } from './alerts.js';
 import { dueReminders } from '/shared/ics.js';
+import { LOCALE } from '../i18n.js';
 
 let schedule = [];   // [{ name, label, t }]
 let loadedAt = 0;
@@ -28,7 +29,7 @@ function check() {
   storageSet('f1dash.reminded', [...done, ...due.map((s) => `${s.t}|${s.label}`)].slice(-60));
   for (const s of due) {
     const min = Math.max(1, Math.round((s.t - Date.now()) / 60e3));
-    notifyReminder(`${s.name.replace(' Grand Prix', ' GP')} — ${s.label}`, `début dans ${min} min (${new Date(s.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})`);
+    notifyReminder(`${s.name.replace(' Grand Prix', ' GP')} — ${s.label}`, `début dans ${min} min (${new Date(s.t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' })})`);
   }
 }
 

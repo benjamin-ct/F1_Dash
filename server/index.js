@@ -227,7 +227,7 @@ async function handleApi(req, res, url) {
       const round = Number(url.searchParams.get('round')) || null;
       const alarm = Math.max(0, Math.min(120, Number(url.searchParams.get('alarm') ?? 15) || 0));
       const d = await season(year);
-      const body = buildIcs(d.races, { year, round, alarmMin: alarm });
+      const body = buildIcs(d.races, { year, round, alarmMin: alarm, lang: url.searchParams.get('lang') === 'en' ? 'en' : 'fr' });
       res.writeHead(200, {
         'Content-Type': 'text/calendar; charset=utf-8',
         'Content-Disposition': `attachment; filename="f1-${year}${round ? `-manche-${round}` : ''}.ics"`,
@@ -381,7 +381,7 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, hub.radioCaptures());
 
     case 'GET /api/replay/moments':
-      return sendJSON(res, 200, { path: hub.source.path || null, moments: hub.source.mode === 'replay' ? replay.moments || [] : [] });
+      return sendJSON(res, 200, { path: hub.source.path || null, moments: hub.source.mode === 'replay' ? (url.searchParams.get('lang') === 'en' ? replay.momentsEn : replay.moments) || [] : [] });
 
     case 'POST /api/replay/control': {
       const body = await readBody(req);

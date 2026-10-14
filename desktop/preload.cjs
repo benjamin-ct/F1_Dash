@@ -20,4 +20,5 @@ contextBridge.exposeInMainWorld('f1desktop', {
   // Dispositions enregistrées à appliquer au lancement (une seule fois, fenêtre principale)
   startupLayouts: () => ipcRenderer.sendSync('windows-startup-layouts'),
   focusWindow: () => ipcRenderer.invoke('window-focus'),
+  setLang: (l) => ipcRenderer.send('ui-lang', l),
 });

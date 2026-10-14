@@ -1,9 +1,12 @@
-// Résumé automatique d'une séance, rédigé en français à partir de l'état affiché (donc au rythme
-// du délai TV, sans rien dévoiler d'avance) : podium, écart, remontées, stratégies, voitures de
-// sécurité, abandons, pénalités, meilleur tour. Course, qualifications et essais.
+// Résumé automatique d'une séance, rédigé en français (ou en anglais) à partir de l'état affiché
+// (donc au rythme du délai TV, sans rien dévoiler d'avance) : podium, écart, remontées, stratégies,
+// voitures de sécurité, abandons, pénalités, meilleur tour. Course, qualifications et essais.
+
+import { realStints } from './pits.js';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 const COMP = { SOFT: 'tendres', MEDIUM: 'médiums', HARD: 'durs', INTERMEDIATE: 'intermédiaires', WET: 'pluie' };
+const COMP_EN = { SOFT: 'soft', MEDIUM: 'medium', HARD: 'hard', INTERMEDIATE: 'intermediate', WET: 'wet' };
 const LETTER = { SOFT: 'T', MEDIUM: 'M', HARD: 'D', INTERMEDIATE: 'I', WET: 'P' };
 
 // Nom du Grand Prix en français (« Azerbaijan Grand Prix » -> « Grand Prix d'Azerbaïdjan »)
@@ -24,6 +27,8 @@ const num = (v) => String(v).replace('+', '').replace('.', ',');
 
 function ordinal(n) { return n === 1 ? '1er' : `${n}e`; }
 function joinFr(arr) { return arr.length <= 1 ? arr.join('') : `${arr.slice(0, -1).join(', ')} et ${arr.at(-1)}`; }
+function ordinalEn(n) { const t = n % 100; return `${n}${t >= 11 && t <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`; }
+function joinEn(arr) { return arr.length <= 1 ? arr.join('') : `${arr.slice(0, -1).join(', ')} and ${arr.at(-1)}`; }
 
 export function sessionKindOf(state) {
   const info = state?.SessionInfo || {};
@@ -33,20 +38,21 @@ export function sessionKindOf(state) {
 }
 
 // Pénalités annoncées par les commissaires (messages de la direction de course)
-function penalties(msgs, name) {
+function penalties(msgs, name, en = false) {
   const out = [];
   for (const m of msgs) {
     const t = String(m?.Message || '');
     if (!/^FIA STEWARDS:.*PENALTY FOR/.test(t) || /NO FURTHER|REVIEWED/.test(t)) continue;
     const who = [...t.matchAll(/CAR (\d+) \((\w{3})\)/g)].map((x) => name(x[1]) || x[2]);
     const sec = t.match(/(\d+) SECOND TIME PENALTY/);
-    const what = sec ? `${sec[1]} s` : /DRIVE THROUGH/.test(t) ? 'drive-through' : /STOP\/GO/.test(t) ? 'stop & go' : /GRID/.test(t) ? 'pénalité sur la grille' : 'pénalité';
-    if (who.length) out.push(`${joinFr(who)} (${what})`);
+    const what = sec ? `${sec[1]} s` : /DRIVE THROUGH/.test(t) ? 'drive-through' : /STOP\/GO/.test(t) ? 'stop & go' : /GRID/.test(t) ? (en ? 'grid penalty' : 'pénalité sur la grille') : (en ? 'penalty' : 'pénalité');
+    if (who.length) out.push(`${(en ? joinEn : joinFr)(who)} (${what})`);
   }
   return out;
 }
 
-export function buildSummary(state) {
+export function buildSummary(state, { lang = 'fr' } = {}) {
+  if (lang === 'en') return buildSummaryEn(state);
   const kind = sessionKindOf(state);
   const info = state?.SessionInfo || {};
   const gp = String(info.Meeting?.Name || '').trim() || 'ce Grand Prix';
@@ -91,7 +97,7 @@ export function buildSummary(state) {
     if (down.length) out.paragraphs.push(`Course difficile pour ${joinFr(down.map((m) => `${name(m.n)} (${ordinal(Number(app[m.n].GridPos))} → ${ordinal(Number(lines[m.n].Position))})`))}.`);
 
     // Stratégies : celle du vainqueur et la plus courante
-    const strat = (n) => list(app[n]?.Stints).map((s) => s?.Compound).filter((c) => LETTER[c]);
+    const strat = (n) => realStints(list(app[n]?.Stints)).map((s) => s?.Compound).filter((c) => LETTER[c]);
     const s1 = strat(p1);
     if (s1.length) {
       const stops = s1.length - 1;
@@ -138,5 +144,96 @@ export function buildSummary(state) {
     if (red) out.paragraphs.push(`Séance interrompue ${red === 1 ? 'une fois' : `${red} fois`} par le drapeau rouge.`);
   }
   if (!finished) out.paragraphs.push('Résumé provisoire : la séance n\'est pas terminée (au rythme de votre délai TV).');
+  return out;
+}
+
+// Même résumé, rédigé en anglais
+function buildSummaryEn(state) {
+  const kind = sessionKindOf(state);
+  const info = state?.SessionInfo || {};
+  const gp = String(info.Meeting?.Name || '').trim() || 'this Grand Prix';
+  const dl = state?.DriverList || {};
+  const lines = state?.TimingData?.Lines || {};
+  const app = state?.TimingAppData?.Lines || {};
+  const stats = state?.TimingStats?.Lines || {};
+  const msgs = list(state?.RaceControlMessages?.Messages);
+  const name = (n) => dl[n]?.LastName || dl[n]?.Tla || null;
+  const tla = (n) => dl[n]?.Tla || n;
+  const ranked = Object.keys(lines).filter((n) => Number(lines[n]?.Position) > 0).sort((a, b) => Number(lines[a].Position) - Number(lines[b].Position));
+  const finished = ['Finished', 'Finalised', 'Ends'].includes(state?.SessionStatus?.Status);
+  const lap = state?.LapCount;
+  const out = { kind, final: finished, title: '', paragraphs: [] };
+  if (!ranked.length) { out.title = 'Summary unavailable'; out.paragraphs.push('No classification for this session yet.'); return out; }
+  const [p1, p2, p3] = ranked;
+  const team = (n) => dl[n]?.TeamName ? ` (${dl[n].TeamName})` : '';
+  const times = (k) => (k === 1 ? 'once' : k === 2 ? 'twice' : `${k} times`);
+
+  if (kind === 'race') {
+    const label = /sprint/i.test(info.Name || '') ? 'the sprint' : `the ${gp}`;
+    out.title = finished ? `${name(p1)} wins ${label}` : `${name(p1)} leads (lap ${lap?.CurrentLap || '?'}${lap?.TotalLaps ? ` / ${lap.TotalLaps}` : ''})`;
+    const gap2 = lines[p2]?.GapToLeader;
+    let para = `${name(p1)}${team(p1)} ${finished ? 'wins ahead of' : 'leads'} ${name(p2)}${p3 ? ` and ${name(p3)}` : ''}`;
+    if (gap2 && /^\+?\d/.test(gap2)) para += `, ${String(gap2).replace('+', '')} s clear of second place`;
+    const grid1 = Number(app[p1]?.GridPos);
+    if (grid1 > 1) para += `, having started ${ordinalEn(grid1)}`;
+    else if (grid1 === 1) para += ', from pole position';
+    out.paragraphs.push(`${para}.`);
+
+    const leaderLaps = Number(lines[p1]?.NumberOfLaps) || 0;
+    const isOut = (n) => lines[n].Retired || (lines[n].Stopped && (!finished || (Number(lines[n].NumberOfLaps) || 0) < 0.9 * leaderLaps));
+    const moves = ranked.filter((n) => !isOut(n) && Number(app[n]?.GridPos) > 0)
+      .map((n) => ({ n, d: Number(app[n].GridPos) - Number(lines[n].Position) }));
+    const up = moves.filter((m) => m.d >= 4).sort((a, b) => b.d - a.d).slice(0, 3);
+    const down = moves.filter((m) => m.d <= -4).sort((a, b) => a.d - b.d).slice(0, 2);
+    if (up.length) out.paragraphs.push(`Great comebacks: ${joinEn(up.map((m) => `${name(m.n)} (${ordinalEn(Number(app[m.n].GridPos))} → ${ordinalEn(Number(lines[m.n].Position))}, +${m.d})`))}.`);
+    if (down.length) out.paragraphs.push(`A difficult race for ${joinEn(down.map((m) => `${name(m.n)} (${ordinalEn(Number(app[m.n].GridPos))} → ${ordinalEn(Number(lines[m.n].Position))})`))}.`);
+
+    const strat = (n) => realStints(list(app[n]?.Stints)).map((s) => s?.Compound).filter((c) => LETTER[c]);
+    const s1 = strat(p1);
+    if (s1.length) {
+      const stops = s1.length - 1;
+      out.paragraphs.push(`${name(p1)}'s strategy: ${stops === 0 ? 'no stops' : `${stops} stop${stops > 1 ? 's' : ''}`} (${s1.map((c) => COMP_EN[c]).join(' → ')}).`);
+    }
+    const counts = new Map();
+    for (const n of ranked) { const st = strat(n); if (st.length) { const k = st.map((c) => c[0]).join('-'); counts.set(k, (counts.get(k) || 0) + 1); } }
+    const common = [...counts].sort((a, b) => b[1] - a[1])[0];
+    if (common && common[1] >= 4) out.paragraphs.push(`Most common strategy: ${common[0]} (${common[1]} drivers).`);
+
+    const sc = msgs.filter((m) => /^SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
+    const vsc = msgs.filter((m) => /^VIRTUAL SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
+    const red = msgs.filter((m) => m?.Flag === 'RED').map((m) => m.Lap).filter(Boolean);
+    const neut = [];
+    const laps = (a) => `(lap${a.length > 1 ? 's' : ''} ${joinEn(a.map(String))})`;
+    if (sc.length) neut.push(`${sc.length === 1 ? 'a safety car' : `${sc.length} safety cars`} ${laps(sc)}`);
+    if (vsc.length) neut.push(`${vsc.length === 1 ? 'a VSC' : `${vsc.length} VSCs`} ${laps(vsc)}`);
+    if (red.length) neut.push(`${red.length === 1 ? 'a red flag' : `${red.length} red flags`} ${laps(red)}`);
+    out.paragraphs.push(neut.length ? `A race marked by ${joinEn(neut)}.` : finished ? 'No neutralisation: green flag from start to finish.' : 'No neutralisation so far.');
+    const out_ = ranked.filter(isOut).map(name);
+    if (out_.length) out.paragraphs.push(`Retirement${out_.length > 1 ? 's' : ''}: ${joinEn(out_)}.`);
+    const pen = penalties(msgs, name, true);
+    if (pen.length) out.paragraphs.push(`Penalties: ${joinEn(pen)}.`);
+    const fl = Object.keys(stats).find((n) => stats[n]?.PersonalBestLapTime?.Position === 1);
+    if (fl && stats[fl].PersonalBestLapTime.Value) out.paragraphs.push(`Fastest lap: ${name(fl)} in ${stats[fl].PersonalBestLapTime.Value}${stats[fl].PersonalBestLapTime.Lap ? ` (lap ${stats[fl].PersonalBestLapTime.Lap})` : ''}.`);
+  } else if (kind === 'quali') {
+    const part = Number(state?.TimingData?.SessionPart) || 1;
+    const best = (n) => list(lines[n]?.BestLapTimes)[part - 1]?.Value || lines[n]?.BestLapTime?.Value || '';
+    const gap = (n) => list(lines[n]?.Stats)[part - 1]?.TimeDiffToFastest || '';
+    out.title = finished && part >= 3 ? `Pole position for ${name(p1)}` : `${name(p1)} tops Q${part}`;
+    out.paragraphs.push(`${name(p1)}${team(p1)} ${finished && part >= 3 ? 'takes pole' : 'is on top'}${best(p1) ? ` with ${best(p1)}` : ''}, ahead of ${name(p2)}${gap(p2) ? ` (${gap(p2)})` : ''}${p3 ? ` and ${name(p3)}${gap(p3) ? ` (${gap(p3)})` : ''}` : ''}.`);
+    const ko = ranked.filter((n) => lines[n].KnockedOut).map(tla);
+    if (ko.length) out.paragraphs.push(`Knocked out: ${joinEn(ko)}.`);
+    const red = msgs.filter((m) => m?.Flag === 'RED').length;
+    if (red) out.paragraphs.push(`Session stopped ${times(red)} by a red flag.`);
+    const pen = penalties(msgs, name, true);
+    if (pen.length) out.paragraphs.push(`Penalties: ${joinEn(pen)}.`);
+  } else {
+    out.title = `${name(p1)} ${finished ? 'ends the session on top' : 'tops the session'}`;
+    out.paragraphs.push(`Fastest time for ${name(p1)}${team(p1)}${lines[p1]?.BestLapTime?.Value ? ` with ${lines[p1].BestLapTime.Value}` : ''}, ahead of ${name(p2)}${lines[p2]?.TimeDiffToFastest ? ` (${lines[p2].TimeDiffToFastest})` : ''}${p3 ? ` and ${name(p3)}${lines[p3]?.TimeDiffToFastest ? ` (${lines[p3].TimeDiffToFastest})` : ''}` : ''}.`);
+    const laps = ranked.map((n) => [n, Number(lines[n]?.NumberOfLaps) || 0]).sort((a, b) => b[1] - a[1]);
+    if (laps[0]?.[1]) out.paragraphs.push(`Most laps: ${name(laps[0][0])} (${laps[0][1]}).`);
+    const red = msgs.filter((m) => m?.Flag === 'RED').length;
+    if (red) out.paragraphs.push(`Session stopped ${times(red)} by a red flag.`);
+  }
+  if (!finished) out.paragraphs.push('Provisional summary: the session isn\'t over (in step with your TV delay).');
   return out;
 }

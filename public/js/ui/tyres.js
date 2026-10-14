@@ -5,6 +5,7 @@ import { $, esc, api, drivers, orderedNumbers, teamColor, compoundInfo } from '.
 import { buildSets, setSummary, DRY, WET } from '/shared/tyres.js';
 import { translated, requestTranslations, onTranslation } from './fia-translate.js';
 import { icon } from '../icons.js';
+import { LOCALE, EN } from '../i18n.js';
 
 let data = null;          // réponse de /api/tyres
 let dataKey = '';
@@ -36,7 +37,7 @@ async function load(path) {
   }
 }
 
-const fmtDate = (ms) => new Date(ms).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+const fmtDate = (ms) => new Date(ms).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short' });
 const tr = (en) => (showFr && translated(en)) || en;
 
 function pirelliCard(d) {
@@ -59,12 +60,12 @@ function adviceCard(d) {
   const arts = (d.articles || []).filter((a) => a.advice?.length || a.paras?.length);
   if (!arts.length) return '';
   const texts = arts.flatMap((a) => a.advice.length ? a.advice : a.paras.slice(0, 1));
-  const missing = texts.some((t) => !translated(t));
+  const missing = !EN && texts.some((t) => !translated(t));   // en anglais : communiqués tels quels
   const host = store.isHost !== false;
   return `<div class="ty-card">
     <div class="ty-card-head"><b>Ce que préconise Pirelli</b><span class="muted small">communiqués du week-end</span>
       ${missing && host ? '<button class="btn small" id="tyTranslate" title="Traduction faite sur cet ordinateur (même moteur que les radios)">Traduire</button>' : ''}
-      ${!missing ? `<label class="toggle small"><input type="checkbox" id="tyFr" ${showFr ? 'checked' : ''}> Français</label>` : ''}</div>
+      ${!missing && !EN ? `<label class="toggle small"><input type="checkbox" id="tyFr" ${showFr ? 'checked' : ''}> Français</label>` : ''}</div>
     ${arts.map((a) => `<div class="ty-art">
       <div class="ty-art-head"><a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><span class="muted small">${fmtDate(a.date)}</span></div>
       <ul>${(a.advice.length ? a.advice : a.paras.slice(0, 1)).map((t) => `<li>${esc(tr(t))}</li>`).join('')}</ul>

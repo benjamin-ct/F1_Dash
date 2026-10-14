@@ -6,6 +6,7 @@ import { loadTrack } from '../track.js';
 import { parseUtc } from '/shared/f1.js';
 import { hotLaps } from './tower.js';
 import { icon } from '../icons.js';
+import { DEC, tx } from '../i18n.js';
 
 const canvas = () => $('#mapCanvas');
 let ctx = null;
@@ -199,7 +200,7 @@ function badge(x, y, text, bg, fg, edge) {
   ctx.fillStyle = fg;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, x, y + 0.5);
+  ctx.fillText(tx(text), x, y + 0.5);
 }
 
 // Zones « ligne droite » (straight mode) et ligne de détection du mode dépassement.
@@ -516,13 +517,13 @@ function drawSectorLabels(lay) {
       ctx.fill();
       ctx.textAlign = 'left';
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(head, x - w / 2 + 5, y + 0.5);
+      ctx.fillText(tx(head), x - w / 2 + 5, y + 0.5);
       ctx.fillStyle = '#C084FC';
       ctx.font = `600 10.5px ${MONO()}`;
-      ctx.fillText(b.time, x - w / 2 + hw + 6, y + 0.5);
+      ctx.fillText(tx(b.time), x - w / 2 + hw + 6, y + 0.5);
       ctx.fillStyle = '#F1F3F6';
       ctx.font = `700 11px ${FONT()}`;
-      ctx.fillText(b.tla, x - w / 2 + hw + tw + 12, y + 0.5);
+      ctx.fillText(tx(b.tla), x - w / 2 + hw + tw + 12, y + 0.5);
       ctx.textAlign = 'center';
       continue;
     }
@@ -533,7 +534,7 @@ function drawSectorLabels(lay) {
     ctx.fill();
     ctx.fillStyle = '#ffffff';
     ctx.font = `800 11px ${FONT()}`;
-    ctx.fillText(`S${sec.i + 1}`, x, y + 0.5);
+    ctx.fillText(tx(`S${sec.i + 1}`), x, y + 0.5);
   }
   if ($('#mapMiniNums').checked && view.z >= 1.5) {
     ctx.font = `700 9.5px ${FONT()}`;
@@ -544,7 +545,7 @@ function drawSectorLabels(lay) {
         const mid = prev + mod(m.r - prev, L) / 2;
         const p = screenAt(mid);
         ctx.fillStyle = 'rgba(233,237,244,.8)';
-        ctx.fillText(`${sec.i + 1}.${k + 1}`, p.x + p.nx * (W / 2 + 9), p.y + p.ny * (W / 2 + 9));
+        ctx.fillText(tx(`${sec.i + 1}.${k + 1}`), p.x + p.nx * (W / 2 + 9), p.y + p.ny * (W / 2 + 9));
         prev = m.r;
       });
     }
@@ -670,7 +671,7 @@ function draw() {
       ctx.font = `900 11px ${FONT()}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('SC', p.x, p.y + 0.5);
+      ctx.fillText(tx('SC'), p.x, p.y + 0.5);
     }
   }
 
@@ -865,7 +866,7 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
       }
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(label, x0 + fw, y + 0.5);
+      ctx.fillText(tx(label), x0 + fw, y + 0.5);
       flagZones.push({ number: r.number, dbl, approx: marshal.approx, text: describeZone(lay, r0, r1) });
     }
   }
@@ -900,7 +901,7 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
       ctx.lineWidth = 1;
       ctx.stroke();
       ctx.fillStyle = pal().chipText;
-      ctx.fillText(String(c.number), x, y + 0.5);
+      ctx.fillText(tx(String(c.number)), x, y + 0.5);
     }
   }
 
@@ -934,7 +935,7 @@ function drawGaps(cars, lines) {
     ctx.moveTo(mx, my);
     ctx.lineTo(bx, by);
     ctx.stroke();
-    const txt = v.toFixed(2).replace('.', ',');
+    const txt = v.toFixed(2).replace('.', DEC);
     ctx.font = `700 11px ${MONO()}`;
     const w = ctx.measureText(txt).width + 14;
     ctx.fillStyle = 'rgba(7,8,10,.94)';
@@ -943,7 +944,7 @@ function drawGaps(cars, lines) {
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = color;
-    ctx.fillText(txt, bx, by + 0.5);
+    ctx.fillText(tx(txt), bx, by + 0.5);
   }
   ctx.restore();
 }
@@ -986,21 +987,21 @@ function drawFocusCard(cars, lines, disp) {
   ctx.fillStyle = '#F1F3F6';
   ctx.font = `800 17px ${FONT()}`;
   const tla = c.d?.Tla || c.num;
-  ctx.fillText(tla, x + 20, y + 23);
+  ctx.fillText(tx(tla), x + 20, y + 23);
   const tw = ctx.measureText(tla).width;
   const iv = String(l.IntervalToPositionAhead?.Value || l.TimeDiffToPositionAhead || '');
   ctx.fillStyle = '#8A919C';
   ctx.font = `500 11px ${FONT()}`;
-  ctx.fillText(`${c.pos ? `P${c.pos}` : ''}${iv && !/LAP/i.test(iv) ? ` · ${iv} devant` : ''}`, x + 26 + tw, y + 23.5);
+  ctx.fillText(tx(`${c.pos ? `P${c.pos}` : ''}${iv && !/LAP/i.test(iv) ? ` · ${iv} devant` : ''}`), x + 26 + tw, y + 23.5);
   if (tel) {
     ctx.fillStyle = '#F1F3F6';
     ctx.font = `700 20px ${MONO()}`;
     const sp = Math.round(tel.speed || 0);
-    ctx.fillText(String(sp), x + 12, y + 52);
+    ctx.fillText(tx(String(sp)), x + 12, y + 52);
     const sw = ctx.measureText(String(sp)).width;
     ctx.fillStyle = '#8A919C';
     ctx.font = `600 10.5px ${FONT()}`;
-    ctx.fillText(`KM/H · ${tel.gear === 0 ? 'N' : tel.gear ?? '—'}e · ${Math.round((tel.rpm || 0) / 10) * 10} tr/min`, x + 18 + sw, y + 53);
+    ctx.fillText(tx(`KM/H · ${tel.gear === 0 ? 'N' : tel.gear ?? '—'}e · ${Math.round((tel.rpm || 0) / 10) * 10} tr/min`), x + 18 + sw, y + 53);
     const bw = 96;
     if (small) { ctx.restore(); return; }
     ctx.fillStyle = '#1C2028';
@@ -1069,7 +1070,7 @@ function drawRibbon(lay, flagZones) {
     if (row === undefined) continue;
     rows[row].push([x - half, x + half]);
     g.fillStyle = lightUI() ? (c.isF ? '#0E1116' : c.sp ? '#3D4552' : '#6B7380') : (c.isF ? '#F1F3F6' : c.sp ? '#D5D9E0' : '#8A919C');
-    g.fillText(txt, x, row ? mid + 14 : mid - 13);
+    g.fillText(tx(txt), x, row ? mid + 14 : mid - 13);
   }
 }
 
@@ -1206,7 +1207,7 @@ function drawCars(dt) {
       ctx.font = `800 ${(c.r * 0.78).toFixed(1)}px ${FONT()}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(c.d?.Tla || c.num, x, y + 0.5);
+      ctx.fillText(tx(c.d?.Tla || c.num), x, y + 0.5);
       if (posBadges && c.pos) {
         // Numéro de position dans un petit rond, en haut à droite de la pastille
         const br = Math.max(6.5, c.r * 0.48), bx = x + c.r * 0.82, by = y - c.r * 0.82;
@@ -1219,7 +1220,7 @@ function drawCars(dt) {
         ctx.stroke();
         ctx.fillStyle = '#F1F3F6';
         ctx.font = `700 ${(br * 1.2).toFixed(1)}px ${MONO()}`;
-        ctx.fillText(String(c.pos), bx, by + 0.5);
+        ctx.fillText(tx(String(c.pos)), bx, by + 0.5);
       }
     } else {
       // Reflet
@@ -1286,7 +1287,7 @@ function drawCars(dt) {
       ctx.fillStyle = inkOn(c.col);
       ctx.font = `800 ${fs}px ${FONT()}`;
       ctx.textAlign = 'center';
-      ctx.fillText(posTxt, lx + pw / 2, ly + h / 2 + 0.5);
+      ctx.fillText(tx(posTxt), lx + pw / 2, ly + h / 2 + 0.5);
     } else {
       ctx.fillStyle = c.col;
       ctx.fillRect(lx, ly, 2.5, h);
@@ -1294,7 +1295,7 @@ function drawCars(dt) {
     ctx.fillStyle = '#eef0f5';
     ctx.font = `700 ${fs}px ${FONT()}`;
     ctx.textAlign = 'left';
-    ctx.fillText(txt, lx + (pw || 3) + 4, ly + h / 2 + 0.5);
+    ctx.fillText(tx(txt), lx + (pw || 3) + 4, ly + h / 2 + 0.5);
     ctx.globalAlpha = 1;
   }
 

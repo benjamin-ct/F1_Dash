@@ -271,11 +271,18 @@ function createSplash() {
   });
   win.once('ready-to-show', () => win.show());
   win.on('closed', () => { if (!mainWindow && !splashDone) app.quit(); });
-  win.loadFile(path.join(__dirname, 'splash.html'));
+  win.loadFile(path.join(__dirname, 'splash.html'), { query: { lang: uiEn() ? 'en' : 'fr' } });
   return win;
 }
 
 let splashDone = false;
+
+// Langue de l'interface (choisie dans l'appli, sinon celle du système) pour l'écran de démarrage
+function uiEn() {
+  const l = readState().uiLang;
+  return l ? l === 'en' : !String(app.getLocale() || 'fr').toLowerCase().startsWith('fr');
+}
+const T = (fr, en) => (uiEn() ? en : fr);
 
 // Met à jour le texte de l'écran de démarrage (progress : null = activité, 0…1, false = sans barre)
 function splashSay(win, title, detail = '', progress = null) {
@@ -284,16 +291,17 @@ function splashSay(win, title, detail = '', progress = null) {
   if (win.webContents.isLoading()) win.webContents.once('did-finish-load', run); else run();
 }
 
-const mo = (b) => `${Math.round(b / 1048576)} Mo`;
+const mo = (b) => `${Math.round(b / 1048576)} ${T('Mo', 'MB')}`;
 
 // Avancement de la mise à jour affiché sur l'écran de démarrage
 function splashUpdate(win, st) {
-  if (st.status === 'checking') splashSay(win, 'Recherche de mise à jour…');
+  if (st.status === 'checking') splashSay(win, T('Recherche de mise à jour…', 'Checking for updates…'));
   else if (st.status === 'downloading') {
     const size = st.asset?.size;
-    splashSay(win, `Téléchargement de la version ${st.latest?.version}…`,
-      size ? `${mo(size * (st.progress || 0))} / ${mo(size)} · l'appli s'ouvrira sur la nouvelle version` : 'l\'appli s\'ouvrira sur la nouvelle version', st.progress || 0);
-  } else if (st.status === 'ready') splashSay(win, `Installation de la version ${st.latest?.version}…`, 'L\'appli va redémarrer toute seule dans quelques secondes.');
+    const next = T('l\'appli s\'ouvrira sur la nouvelle version', 'the app will open on the new version');
+    splashSay(win, T(`Téléchargement de la version ${st.latest?.version}…`, `Downloading version ${st.latest?.version}…`),
+      size ? `${mo(size * (st.progress || 0))} / ${mo(size)} · ${next}` : next, st.progress || 0);
+  } else if (st.status === 'ready') splashSay(win, T(`Installation de la version ${st.latest?.version}…`, `Installing version ${st.latest?.version}…`), T('L\'appli va redémarrer toute seule dans quelques secondes.', 'The app will restart by itself in a few seconds.'));
 }
 
 // Nouvelle version qui ne s'installe pas toute seule (.deb, appli lancée depuis l'image disque) :
@@ -301,7 +309,7 @@ function splashUpdate(win, st) {
 function splashAsk(win, version) {
   return new Promise((resolve) => {
     if (!win || win.isDestroyed()) { resolve('continue'); return; }
-    splashSay(win, `Nouvelle version ${version} disponible`, 'Elle s\'installe à la main pour cette installation.', false);
+    splashSay(win, T(`Nouvelle version ${version} disponible`, `New version ${version} available`), T('Elle s\'installe à la main pour cette installation.', 'It installs by hand for this installation.'), false);
     win.webContents.executeJavaScript('ask(true)').catch(() => {});
     const onNav = (e, target) => {
       e.preventDefault();
@@ -315,6 +323,8 @@ function splashAsk(win, version) {
   });
 }
 
+// Langue choisie dans l'interface (écran de démarrage suivant)
+ipcMain.on('ui-lang', (_e, l) => { if ((l === 'en' || l === 'fr') && readState().uiLang !== l) writeState({ uiLang: l }); });
 ipcMain.handle('restore-windows-get', () => readState().restoreWindows !== false);
 ipcMain.handle('restore-windows-set', (_e, v) => { writeState({ restoreWindows: !!v, windowsStart: v ? 'last' : 'none' }); return !!v; });
 ipcMain.handle('windows-start-get', () => { const st = readState(); return st.windowsStart || (st.restoreWindows === false ? 'none' : 'last'); });
@@ -375,7 +385,7 @@ async function start() {
   console.log('[mise à jour]', JSON.stringify(res));
   if (res.action === 'installing') { splashDone = true; return; }   // l'appli se ferme puis redémarre
   if (res.action === 'notify' && await splashAsk(splash, res.version) === 'download') shell.openExternal(res.url);
-  splashSay(splash, 'Démarrage…', res.reason ? `Mise à jour impossible : ${res.reason}` : '');
+  splashSay(splash, T('Démarrage…', 'Starting…'), res.reason ? T(`Mise à jour impossible : ${res.reason}`, `Update not possible: ${res.reason}`) : '');
   await widevineReady();
   const port = await pickPort();
   process.env.PORT = String(port || 3000);

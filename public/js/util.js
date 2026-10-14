@@ -1,5 +1,6 @@
 // Petits utilitaires d'affichage.
 import { parseLapTime, parseUtc } from '/shared/f1.js';
+import { DEC, LOCALE } from './i18n.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -32,11 +33,11 @@ export function fmtDuration(ms, withHours = true) {
 
 export function fmtClock(ms) {
   if (!Number.isFinite(ms)) return '—';
-  return new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return new Date(ms).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
 export function fmtDelay(ms) {
-  return `${(ms / 1000).toFixed(1).replace('.', ',')} s`;
+  return `${(ms / 1000).toFixed(1).replace('.', DEC)} s`;
 }
 
 export function lapSeconds(v) {

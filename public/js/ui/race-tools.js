@@ -5,6 +5,8 @@ import { parseGap, parseLapTime } from '/shared/f1.js';
 import { currentTrack } from './map.js';
 import { lapGapSeries } from './duel.js';
 import { icon } from '../icons.js';
+import { DEC, t } from '../i18n.js';
+import { measuredPitLoss, passIsRealStop, stintList, neutralLaps } from '/shared/pits.js';
 
 // Écart au leader en secondes (les retardataires sont convertis avec le dernier tour du leader).
 function gapsToLeader(state) {
@@ -62,7 +64,7 @@ function circleSvg(gaps, me, projected, dl) {
     <circle cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" r="8" class="cd-ghost"/>
     <text x="${glx.toFixed(1)}" y="${gly.toFixed(1)}" class="cd-ghost-l">sortie ${esc(dl[me]?.Tla || me)}</text>
     ${dots}
-    <text x="${C}" y="${C - 18}" class="cd-mid2">leader en haut</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', ',')} s</text>
+    <text x="${C}" y="${C - 18}" class="cd-mid2">leader en haut</text><text x="${C}" y="${C - 2}" class="cd-mid">1 tour</text><text x="${C}" y="${C + 12}" class="cd-mid2">${lap.toFixed(1).replace('.', DEC)} s</text>
   </svg>`;
 }
 
@@ -71,13 +73,46 @@ let simDriver = null;
 let lossOverride = null;
 let simKey = '';
 
+// Temps perdu au stand mesuré pendant cette course (arrêts sous drapeau vert, shared/pits.js),
+// recalculé quand de nouveaux tours ou arrêts arrivent
+let measured = { key: '', val: null };
+const lst = (o) => (Array.isArray(o) ? o : Object.values(o || {})).filter(Boolean);
+function sessionLoss() {
+  const key = versionOf(['TimingData', 'PitLaneTimeCollection', 'TimingAppData', 'PitStopSeries', 'RaceControlMessages', '__reset']);
+  if (measured.key === key) return measured.val;
+  const s = store.state, d = store.derived;
+  const app = s.TimingAppData?.Lines || {};
+  const laps = {};
+  for (const [n, arr] of Object.entries(d.laps || {})) laps[n] = arr.map((x) => ({ lap: x.lap, s1: parseLapTime(x.s?.[0]), s3: parseLapTime(x.s?.[2]), pit: x.pit }));
+  const stopTime = new Map();
+  for (const [n, arr] of Object.entries(s.PitStopSeries?.PitTimes || {})) {
+    for (const p of lst(arr)) { const ps = p.PitStop || p; if (ps?.Lap) stopTime.set(`${n}-${ps.Lap}`, parseLapTime(ps.PitStopTime)); }
+  }
+  const byNum = {};
+  for (const x of [...(d.pitLane || [])].sort((a, b) => a.t - b.t)) (byNum[x.num] ||= []).push(x);
+  const stops = [];
+  for (const [n, arr] of Object.entries(byNum)) {
+    const st = stintList(app[n]);
+    arr.forEach((x, i) => { if (passIsRealStop(st, i)) stops.push({ num: n, lap: x.lap, stop: stopTime.get(`${n}-${x.lap}`) ?? null }); });
+  }
+  measured = { key, val: measuredPitLoss(laps, stops, neutralLaps(s.RaceControlMessages?.Messages)) };
+  return measured.val;
+}
+
 function defaultLoss() {
   const pl = currentTrack()?.raw?.pitLoss;
   const ts = String(store.state.TrackStatus?.Status || '1');
-  if (!pl) return { value: 22, label: 'valeur par défaut' };
-  if (ts === '4' && pl.sc) return { value: Number(pl.sc), label: 'sous voiture de sécurité' };
-  if ((ts === '6' || ts === '7') && pl.vsc) return { value: Number(pl.vsc), label: 'sous VSC' };
-  return { value: Number(pl.normal) || 22, label: 'en conditions normales' };
+  const m = sessionLoss();
+  // Au moins 3 arrêts mesurés : la mesure de la course prime sur la valeur du circuit
+  const useM = m && m.n >= 3;
+  const normal = useM ? m.value : Number(pl?.normal) || 22;
+  const src = useM ? `mesuré sur ${m.n} arrêts de la course` : pl ? 'valeur du circuit' : 'valeur par défaut';
+  // Sous neutralisation, les autres roulent lentement : la perte est plus faible (même proportion
+  // que pour les valeurs du circuit, sinon environ 63 % sous safety car et 72 % sous VSC)
+  const ratio = (k, def) => (pl?.[k] && pl?.normal ? Number(pl[k]) / Number(pl.normal) : def);
+  if (ts === '4') return { value: Math.round(normal * ratio('sc', 0.63) * 10) / 10, label: `sous voiture de sécurité · ${src}` };
+  if (ts === '6' || ts === '7') return { value: Math.round(normal * ratio('vsc', 0.72) * 10) / 10, label: `sous VSC · ${src}` };
+  return { value: normal, label: `en conditions normales · ${src}` };
 }
 
 export function renderPitSim(force = false) {
@@ -131,7 +166,7 @@ export function renderPitSim(force = false) {
         </div>
       </div>
       <div id="simOut"></div>
-      <p class="small muted">Estimation : écart au leader actuel + temps perdu dans la voie des stands (source : MultiViewer, ajustable). Ne tient pas compte des pneus neufs ni du trafic.</p>
+      <p class="small muted">Estimation : écart au leader actuel + temps perdu dans la voie des stands, mesuré sur les arrêts de la course dès qu'il y en a assez (secteur d'entrée et de sortie comparés aux tours normaux), sinon valeur du circuit (MultiViewer) ; ajustable. Ne tient pas compte des pneus neufs ni du trafic.</p>
     </div>`;
     $('#simDriver').onchange = (e) => { simDriver = e.target.value; renderPitSim(true); };
     const setLoss = (v) => { lossOverride = Math.round(Math.max(5, Math.min(60, v)) * 10) / 10; renderPitSim(true); };
@@ -146,14 +181,14 @@ export function renderPitSim(force = false) {
   const opts = gaps.map((g) => `<option value="${g.num}">${esc(dl[g.num]?.Tla || g.num)}</option>`).join('');
   if (sel._opts !== opts) { sel.innerHTML = opts; sel._opts = opts; }
   if (document.activeElement !== sel) sel.value = me;
-  $('#simLossVal').textContent = `${lossVal.toFixed(1).replace('.', ',')} s`;
+  $('#simLossVal').textContent = `${lossVal.toFixed(1).replace('.', DEC)} s`;
   $('#simLossSrc').textContent = `(${lossOverride !== null ? 'réglage manuel' : loss.label})`;
   if (document.activeElement !== $('#simLoss')) $('#simLoss').value = lossVal;
   $('#simLossReset').hidden = lossOverride === null;
   $('#simOut').innerHTML = `<div class="pitsim-cols"><div class="cd-wrap">${circleSvg(gaps, me, projected, dl)}</div><div class="pitsim-res"><div class="pit-result">
       <div class="small muted">Si <b>${esc(dl[me]?.Tla || me)}</b> s'arrête maintenant (actuellement P${curPos}) :</div>
       <div class="big">P${newPos}</div>
-      <div class="small">${ahead ? `à <b>${(projected - ahead.gap).toFixed(1).replace('.', ',')} s</b> derrière ${esc(dl[ahead.num]?.Tla || ahead.num)}` : 'en tête'}${behind ? ` · <b>${(behind.gap - projected).toFixed(1).replace('.', ',')} s</b> devant ${esc(dl[behind.num]?.Tla || behind.num)}` : ''}</div>
+      <div class="small">${ahead ? t('à {} derrière {}', `<b>${(projected - ahead.gap).toFixed(1).replace('.', DEC)} s</b>`, esc(dl[ahead.num]?.Tla || ahead.num)) : t('en tête')}${behind ? ` ${t('· {} devant {}', `<b>${(behind.gap - projected).toFixed(1).replace('.', DEC)} s</b>`, esc(dl[behind.num]?.Tla || behind.num))}` : ''}</div>
       ${behind && behind.gap - projected < 1.5 ? `<div class="small" style="color:var(--orange)">${icon('warning')} Sortie des stands très serrée : risque de ressortir derrière.</div>` : ''}
     </div>
     <table class="pit-order">${slice.map((o) => `<tr class="${o.me ? 'me' : ''}"><td>P${order.indexOf(o) + 1}</td>
@@ -202,7 +237,7 @@ export function battleList(s, max = 20) {
       <span class="muted">vs</span><span class="drv-bar" style="background:${teamColor(dl[b.back])}"></span>${esc(dl[b.back]?.Tla || b.back)}
       <span class="muted small">P${Number(b.pos) - 1}–P${b.pos}</span></div>
       <div class="battle-sub">${b.gap < 1 ? 'Dans la seconde · ' : ''}${esc(b.trend)}</div></div>
-    <div style="display:flex;align-items:center;gap:10px"><span class="battle-gap">${b.gap.toFixed(3).replace('.', ',')}</span>
+    <div style="display:flex;align-items:center;gap:10px"><span class="battle-gap">${b.gap.toFixed(3).replace('.', DEC)}</span>
       <button class="btn small" data-battle="${b.front},${b.back}">Duel</button></div></div>`).join('');
 }
 
