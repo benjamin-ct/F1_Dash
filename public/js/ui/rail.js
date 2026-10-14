@@ -2,6 +2,7 @@
 // Réglages). Elle reprend les actions des boutons du haut, masqués dans ce design.
 import { $, $$ } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
+import { openNews, closeNews } from './news.js';
 import { unmaximize, showPanelLarge, setFreeLayout, isFreeLayout, saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { toast } from './delay.js';
 
@@ -11,12 +12,14 @@ function openSettings(group) {
 }
 
 const ACTIONS = {
-  live: () => { closeSeason(); unmaximize(); },
+  live: () => { closeSeason(); closeNews(); unmaximize(); },
   ana: () => {
     closeSeason();
+    closeNews();
     if (showPanelLarge('analysis') === 'elsewhere') toast('Analyse affichée en grand dans l\'autre fenêtre (second écran)');
   },
-  season: () => ($('#seasonView').hidden ? openSeason() : closeSeason()),
+  season: () => { closeNews(); if ($('#seasonView').hidden) openSeason(); else closeSeason(); },
+  news: () => ($('#newsView').hidden ? openNews() : closeNews()),
   replay: () => openSettings('source'),
   radio: () => $('#commBtn').click(),
   reset: (btn) => layoutMenu(btn),
@@ -59,8 +62,9 @@ function layoutMenu(btn) {
 // Élément actif : Saison ouverte, Analyse en grand, sinon Direct
 function sync() {
   const season = !$('#seasonView').hidden;
+  const news = !$('#newsView').hidden;
   const ana = $('.p-analysis')?.classList.contains('maximized');
-  const cur = season ? 'season' : ana ? 'ana' : 'live';
+  const cur = news ? 'news' : season ? 'season' : ana ? 'ana' : 'live';
   for (const b of $$('#rail [data-rail]')) {
     const k = b.dataset.rail;
     b.classList.toggle('on', k === cur);
@@ -79,6 +83,7 @@ export function initRail() {
   });
   const mo = new MutationObserver(sync);
   mo.observe($('#seasonView'), { attributes: true, attributeFilter: ['hidden'] });
+  mo.observe($('#newsView'), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('.grid'), { attributes: true, attributeFilter: ['class'] });
   mo.observe($('#commBtn'), { attributes: true, attributeFilter: ['class'] });
   sync();

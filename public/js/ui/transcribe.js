@@ -208,9 +208,9 @@ async function decode(url) {
 // Traduction d'un texte quelconque (évolutions techniques de la FIA…) avec le même moteur que
 // les radios : un seul modèle en mémoire, une tâche à la fois. Le modèle de langage (carte
 // graphique) n'est utilisé que s'il est déjà téléchargé, pour ne pas imposer 2,5 Go.
-export function translateText(text, language, domain) {
+export function translateText(text, language, domain, from = 'en') {
   return new Promise((resolve, reject) => {
-    queue.push({ kind: 'text', text, lang: language, domain, resolve, reject, k: `text|${text}` });
+    queue.push({ kind: 'text', text, lang: language, domain, from, resolve, reject, k: `text|${text}` });
     pump();
   });
 }
@@ -227,11 +227,11 @@ async function textQuality() {
 async function runText(task) {
   const q = await textQuality();
   try {
-    task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: q, domain: task.domain }), q });
+    task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: q, domain: task.domain, from: task.from }), q });
   } catch (err) {
     if (q === 'high') {
       markHighFailed('mt', err);
-      task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: 'light', domain: task.domain }), q: 'light' });
+      task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: 'light', domain: task.domain, from: task.from }), q: 'light' });
     } else throw err;
   }
 }

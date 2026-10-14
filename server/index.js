@@ -20,6 +20,7 @@ import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
 import { weekendTyres } from './tyres.js';
 import { circuitRecords } from './records.js';
+import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 
@@ -190,6 +191,24 @@ async function handleApi(req, res, url) {
       let text = '';
       try { text = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8'); } catch { /* journal absent */ }
       return sendJSON(res, 200, { versions: parseChangelog(text) });
+    }
+
+    // Actualités : nouvelles de toutes les sources, gestion des sources
+    case 'GET /api/news':
+      return sendJSON(res, 200, newsSnapshot());
+    case 'POST /api/news/refresh':
+      refreshNews();
+      return sendJSON(res, 200, { ok: true });
+    case 'POST /api/news/sources': {
+      const body = await readBody(req);
+      try {
+        if (body.add) return sendJSON(res, 200, { ok: true, source: await addNewsSource(body.add, body.cat, body.lang) });
+        if (body.remove) { removeNewsSource(String(body.remove)); return sendJSON(res, 200, { ok: true }); }
+        if (body.toggle) { setNewsSourceEnabled(String(body.toggle), !!body.on); return sendJSON(res, 200, { ok: true }); }
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+      return sendJSON(res, 400, { error: 'Requête invalide' });
     }
 
     case 'GET /api/season': {
@@ -383,6 +402,13 @@ server.listen(settings.port, settings.host, () => {
 
 live.start();
 startAutoRenew();
+
+// Actualités : chaque nouvelle est envoyée tout de suite aux fenêtres ouvertes
+startNews();
+onNews((list) => {
+  const str = JSON.stringify({ type: 'news', items: list });
+  for (const c of hub.clients) hub.send(c, str);
+});
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {

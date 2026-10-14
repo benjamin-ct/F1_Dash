@@ -42,6 +42,7 @@ export function connect() {
         if (msg.hostDelay != null) followHost(msg.hostDelay);
         break;
       case 'hostDelay': followHost(msg.ms); break;
+      case 'news': emit('news', msg.items); break;
       case 'pong': {
         const sent = pending.get(msg.id);
         pending.delete(msg.id);

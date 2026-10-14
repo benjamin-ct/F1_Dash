@@ -53,6 +53,20 @@ function notify(title, body, kind) {
   }
 }
 
+// Actualités (voir news.js) : même son, vibration et notification que les alertes de course ; un
+// clic sur la notification ouvre l'espace Actu
+export function notifyNews(title, body, kind, onClick) {
+  beep(kind);
+  buzz(kind);
+  toast(`${title} — ${body}`, 8000);
+  if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+    try {
+      const n = new Notification(title, { body, silent: true });
+      n.onclick = () => { window.focus(); onClick?.(); n.close(); };
+    } catch { /* ignore */ }
+  }
+}
+
 const TRACK_ALERT = {
   '4': ['🚨 Voiture de sécurité', 'sc'],
   '5': ['🟥 Drapeau rouge', 'red'],

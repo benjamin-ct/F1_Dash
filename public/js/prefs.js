@@ -37,6 +37,9 @@ const DEFAULTS = {
   rcmDeleted: true,       // direction de course : temps supprimés affichés
   rcmType: 'all',         // direction de course : type de messages affichés
   spoilers: false,
+  newsAlerts: 'important', // actualités : 'important' | 'favs' | 'all' | 'off'
+  newsTranslate: true,     // actualités traduites en français (sur l'ordinateur)
+  newsSpoilers: true,      // actualités : titres masqués et alertes suspendues pendant une séance / un replay
   mapFollow: false,
   muted: false,
 };

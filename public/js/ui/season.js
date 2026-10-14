@@ -389,6 +389,7 @@ function tick() {
 
 export function openSeason(sec) {
   if (sec) section = sec;
+  import('./news.js').then((m) => m.closeNews());
   $('#seasonView').style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
   $('#seasonView').hidden = false;
   $('#seasonBtn').classList.add('on');

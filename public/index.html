@@ -22,6 +22,7 @@
     <button class="rail-btn" data-rail="live" title="Direct : tableau de bord de la séance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><small>Direct</small></button>
     <button class="rail-btn" data-rail="ana" title="Analyse : graphiques, comparaison des tours (plein écran ; Échap pour revenir)"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7"/></svg><small>Analyse</small></button>
     <button class="rail-btn" data-rail="season" title="Saison : calendrier, classements, résultats, statistiques"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><small>Saison</small></button>
+    <button class="rail-btn" data-rail="news" title="Actu : toute l'actualité de la F1 (F1, FIA, écuries, pilotes, médias du monde entier), traduite, avec alertes"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12h7M7 15h4"/></svg><small>Actu</small></button>
     <button class="rail-btn" data-rail="replay" title="Replays : rejouer une séance passée"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M10 9l5 3-5 3z"/></svg><small>Replays</small></button>
     <button class="rail-btn" data-rail="radio" title="Commentaires en direct F1 TV / radio"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><small>Radios</small></button>
     <div class="rail-sp"></div>
@@ -82,6 +83,7 @@
       <span class="src-dot"></span><span id="sourceLabel">—</span>
     </button>
     <button class="btn season-btn" id="seasonBtn" title="Saison : prochaine séance, calendrier, classements, résultats, duels entre coéquipiers">🏆<span class="sb-label"> Saison</span></button>
+    <button class="btn season-btn news-btn" id="newsBtn" title="Actu : toute l'actualité de la F1, traduite, avec alertes">📰<span class="sb-label"> Actu</span></button>
     <button class="icon-btn" id="muteBtn" title="Son des alertes (touche M)">🔔</button>
     <button class="icon-btn comm-btn" id="commBtn" title="Commentaires en direct F1 TV Pro (touche C : couper / remettre le son)">🎙</button>
     <button class="icon-btn" id="soloFreeBtn" hidden>✥</button>
@@ -138,6 +140,39 @@
       <div class="muted small sz-src">Données : Jolpica (Ergast) et archives officielles F1 Live Timing, documents FIA</div>
     </aside>
     <div class="sz-main" id="szContent"></div>
+  </div>
+
+  <div class="season-view news-view" id="newsView" hidden>
+    <aside class="sz-side">
+      <div class="sz-side-head"><b>Actualités</b></div>
+      <nav id="nwNav">
+        <button data-nw="all" class="active">📰 Toute l'actu</button>
+        <button data-nw="important">⚡ Important</button>
+        <button data-nw="favs">★ Mes favoris</button>
+        <div class="sz-nav-sep">Par source</div>
+        <button data-nw="official">🏛 Officiel (F1, FIA)</button>
+        <button data-nw="team">🏎 Écuries</button>
+        <button data-nw="driver">👤 Pilotes</button>
+        <button data-nw="media">🌍 Médias</button>
+        <button data-nw="video">▶ Vidéos</button>
+        <div class="sz-nav-sep">Réglages</div>
+        <button data-nw="sources">⚙ Sources</button>
+      </nav>
+      <div class="nw-opts">
+        <input type="search" id="nwSearch" placeholder="Rechercher : pilote, écurie, mot…" aria-label="Rechercher dans l'actualité">
+        <select id="nwLang" aria-label="Langue d'origine">
+          <option value="all">Toutes les langues</option><option value="en">Anglais</option><option value="fr">Français</option><option value="es">Espagnol</option>
+          <option value="it">Italien</option><option value="de">Allemand</option><option value="nl">Néerlandais</option><option value="pt">Portugais</option><option value="ja">Japonais</option>
+        </select>
+        <label class="toggle" title="Titres et résumés traduits en français par le moteur de traduction de l'ordinateur (le même que pour les radios)"><input type="checkbox" id="nwTranslate" checked> Traduire en français</label>
+        <label class="nw-alerts" title="Son, vibration et notification quand une actualité arrive">Alertes
+          <select id="nwAlerts"><option value="important">Importantes et favoris</option><option value="favs">Favoris seulement</option><option value="all">Toutes les actualités</option><option value="off">Aucune</option></select></label>
+        <label class="toggle" title="Pendant une séance ou un replay : titres masqués et alertes d'actualité suspendues, pour ne pas voir un résultat avant l'image"><input type="checkbox" id="nwSpoilers" checked> Anti-spoiler pendant les séances</label>
+      </div>
+      <button class="btn small sz-back" id="nwClose" title="Retour au direct (Échap)">← Retour au direct</button>
+      <div class="muted small sz-src">F1, FIA, chaînes officielles des écuries et des pilotes, médias en 8 langues</div>
+    </aside>
+    <div class="sz-main" id="nwContent"></div>
   </div>
 
   <main class="grid">
