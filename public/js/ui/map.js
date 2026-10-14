@@ -1369,9 +1369,23 @@ export function initMap() {
   document.addEventListener('pointerdown', (e) => { if (layers.open && !layers.contains(e.target)) layers.open = false; });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') layers.open = false; });
   $('#mapFollow').addEventListener('change', (e) => { if (!e.target.checked) resetView(); });
-  const loop = () => {
-    try { draw(); } catch (err) { console.error(err); }
+  // Allègement : petite ou moyenne carte à 30 images/s (la grande garde 60) ; en pause, aucun
+  // redessin tant que rien ne change (vue, données, options, apparence)
+  let lastDraw = 0;
+  let idleKey = '';
+  const loop = (now) => {
     requestAnimationFrame(loop);
+    if (xf && detail() < 2 && now - lastDraw < 1000 / 30 - 2) return;
+    const ts = String(store.state.TrackStatus?.Status || '1');
+    if (store.status?.paused && (ts === '1' || ts === '2')) {
+      const c = canvas();
+      const k = [displayNow(), view.x, view.y, view.z, c?.clientWidth, c?.clientHeight, store.ver.__any, store.focus, store.duel.a, store.duel.b,
+        MAP_OPTS.map((o) => $(`#${o}`)?.checked).join(), document.documentElement.dataset.scheme, trackKey, !!zones].join('|');
+      if (k === idleKey) return;
+      idleKey = k;
+    } else idleKey = '';
+    lastDraw = now;
+    try { draw(); } catch (err) { console.error(err); }
   };
   requestAnimationFrame(loop);
 }

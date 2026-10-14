@@ -2097,6 +2097,7 @@ body.mini-body { display: block; min-height: 0; height: 100vh; overflow: hidden;
 .mini-foot { position: fixed; bottom: 0; left: 0; right: 0; padding: 3px 8px; font-size: 10.5px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--border); }
 .mini-table .m-drv .ic { width: 10px; height: 10px; margin-left: 4px; vertical-align: 0; color: var(--yellow); fill: currentColor; }
 @media (max-width: 900px), (pointer: coarse) { #miniBtn { display: none; } }
+@media (max-width: 600px) { #summaryBtn { display: none; } }
 a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
 
 /* Replay : moments clés (liste et repères sur la barre de lecture) */
@@ -2174,3 +2175,12 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 @keyframes lightBlink { 50% { box-shadow: inset 0 0 20px 4px var(--lg, transparent); } }
 .lights-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lights-devices { display: flex; flex-wrap: wrap; gap: 4px 12px; width: 100%; }
+
+/* Téléphone : tableaux de la Saison plus compacts, colonne du pilote figée pendant le défilement */
+@media (max-width: 700px) {
+  .sz-table { font-size: 12.5px; }
+  .sz-table th { padding: 5px 6px; }
+  .sz-table td { padding: 6px 6px; }
+  .sz-table td b + .muted.small { display: none; }
+  .sz-heat :is(th, td):first-child, .sz-rate :is(th, td):nth-child(2) { position: sticky; left: 0; z-index: 1; background: var(--panel); box-shadow: 1px 0 0 var(--line); }
+}
