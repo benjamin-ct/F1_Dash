@@ -4,7 +4,7 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.20.2 — à venir
+## v1.20.2 — 2026-10-14
 
 ### Sécurité et fiabilité
 - Le serveur ne plante plus sur une adresse mal formée (une seule requête suffisait à arrêter le dashboard).
