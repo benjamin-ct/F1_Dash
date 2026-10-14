@@ -55,6 +55,9 @@ Le bouton **Saison** de la barre de gauche (🏆 en haut dans les autres designs
 - **Évolutions techniques** : toutes les pièces nouvelles déclarées par les écuries (« Car Presentation Submissions ») — total et classement par écurie, zones de la voiture, type (performance, spécifique au circuit, fiabilité) et raison (appui local, flux, refroidissement, traînée…), composants les plus modifiés, courbe cumulée, tableau écurie × Grand Prix et détail de chaque évolution (modification et description d'origine, lien vers le PDF FIA).
 - **Éléments moteur** : éléments du groupe propulseur utilisés par chaque pilote (ICE, turbo, échappement, MGU-K, batterie, électronique, auxiliaires ; MGU-H avant 2026) face aux limites de la saison, limites atteintes ou dépassées, totaux par pilote et par écurie, pénalités sur la grille (éléments, sanction, document FIA) et éléments neufs montés à chaque Grand Prix.
 
+
+**Pronostics entre amis** (Saison → Pronostics) : avant chaque Grand Prix, chacun choisit la pole et le podium, sur l'ordinateur ou sur son téléphone (accès réseau local). Les choix des autres restent cachés jusqu'à la fermeture (début des qualifications pour la pole, départ pour le podium). Points : pole exacte 3, pilote à la bonne place du podium 3, sur le podium mais à une autre place 1, podium exact dans l'ordre +2 ; classement de la saison et détail de chaque Grand Prix.
+
 ## 📰 Espace Actu
 
 Toute l'actualité de la F1 au même endroit, sans aller la chercher partout (bouton **Actu** de la barre latérale ou du haut de l'écran sur téléphone ; pastille rouge = nombre de nouveautés) :
@@ -70,6 +73,16 @@ Toute l'actualité de la F1 au même endroit, sans aller la chercher partout (bo
 ## 🔔 Alertes
 
 Son, message et notification du système en option pour : SC, VSC, drapeau rouge, reprise, meilleur tour, arrêt ou message de la direction de course concernant **vos pilotes favoris**, abandons, arrivée. Elles sont déclenchées **au rythme de votre délai**, donc au moment où l'image passe à la TV et jamais avant. Réglages dans ⚙ ; touche `M` pour couper le son.
+
+- **Rappel avant chaque séance** (⚙ → Alertes) : message, son et notification 5 min à 1 h avant les essais, qualifications, sprint et course, quand F1 Dash est ouvert.
+- **Calendrier** : bouton « Ajouter la saison à mon agenda » (⚙ → Alertes, ou Saison → Calendrier, aussi par week-end) : un fichier `.ics` à ouvrir avec Google Agenda, Apple Calendrier ou Outlook, avec une alarme 15 min avant chaque séance, même F1 Dash fermé.
+- **Lumières connectées** (expérimental, ⚙ → Alertes) : vos ampoules **Philips Hue** (pont trouvé automatiquement, association par le bouton du pont) ou **Home Assistant** (adresse et jeton d'accès longue durée) prennent la couleur des drapeaux au rythme de votre délai TV : vert quelques secondes au départ, jaune, orange clignotant sous safety car, orange en VSC, rouge clignotant au drapeau rouge, blanc clignotant au damier, puis lumière normale. Mode **simulation à l'écran** pour essayer sans ampoule (lueur colorée sur les bords de la fenêtre), boutons de test pour chaque couleur.
+
+## 🪟 Mini-classement, résumé et radar
+
+- **Mini-classement** (bouton Mini de la barre latérale) : petite fenêtre toujours au premier plan avec le drapeau, le tour et le classement (intervalle ou écart au leader, pneus), à poser par-dessus F1 TV, Canal+ ou une autre vidéo sur le même écran. Image dans l'image dans Chrome et Edge, fenêtre au premier plan dans l'application de bureau ; même délai TV que la fenêtre principale.
+- **Résumé** (bouton Résumé de la barre latérale, sur ordinateur) : la séance racontée en français (vainqueur et écart, remontées, stratégies, voitures de sécurité, abandons, pénalités, meilleur tour ; pole et éliminés en qualifs), à copier pour le partager. Rédigé avec ce qui a déjà été affiché : il ne dévoile rien en avance.
+- **Radar de la pluie** (onglet Météo) : les images radar des deux dernières heures autour du circuit, en animation, pour voir la pluie arriver (RainViewer, fond OpenStreetMap).
 
 ## 🎙 Commentaires en direct (F1 TV Pro)
 
@@ -183,6 +196,8 @@ Vous pouvez aussi le fournir au démarrage : `F1TV_TOKEN=... npm start`.
 Chaque session suivie en live est **enregistrée automatiquement** sur votre PC (`recordings/`). Si le dashboard redémarre en pleine course, l'historique est rechargé et le délai reste exact. Les enregistrements se rejouent depuis ⚙ → *Mes enregistrements*, sans attendre l'archive officielle.
 
 ⚙ Réglages → *Replay* : choisissez une saison, un Grand Prix et une session (essais, qualifs, sprint, course). Les archives officielles contiennent **toujours le GPS et la télémétrie**. La **barre de lecture** (en bas) montre toute la séance : en vert quand la séance est en cours, en sombre quand elle est arrêtée, avec des **points blancs au début et à la fin de chaque partie** (Q1, Q2, Q3 en qualifs ; départ et reprise en course — cliquer sur un point pour y aller), la partie déjà lue en bleu, et les drapeaux rouges. Case **Drapeaux** : drapeaux jaunes, safety car et VSC sur la barre (ils révèlent les neutralisations à venir). Pause (`Espace`), ±10 s, **vitesse 1x à 30x**, retour au départ et **✕** pour revenir au direct. Le délai et la synchro TV fonctionnent aussi en replay, ce qui est pratique pour suivre une rediffusion.
+
+Bouton **Moments** de la barre de lecture : la liste des moments clés de la séance (départ, voitures de sécurité et drapeaux, changements de leader, dépassements pour le podium, arrêts des premiers, abandons, incidents, pénalités, meilleur tour, arrivée ; pole en Q3), filtrable, avec des repères de couleur sur la barre. Un clic y va (quelques secondes avant). Anti-spoiler : les moments pas encore vus n'affichent que leur type et leur tour (case pour tout afficher).
 
 ## ⚙ Options
 
