@@ -68,6 +68,9 @@
         }
       ],
       "category": "public.app-category.sports",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "F1 Dash écoute le son de votre TV pour se caler automatiquement sur la diffusion (synchro TV par le son). Rien n'est enregistré ni envoyé."
+      },
       "identity": "-",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,

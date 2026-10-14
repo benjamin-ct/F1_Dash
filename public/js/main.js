@@ -9,6 +9,7 @@ import { $$ } from './util.js';
 import { connect } from './conn.js';
 import { renderHeader, renderSource } from './ui/header.js';
 import { initDelay } from './ui/delay.js';
+import { initAutoSync } from './ui/autosync.js';
 import { initTower, renderTower } from './ui/tower.js';
 import { initMap } from './ui/map.js';
 import { initDuel, renderDuel } from './ui/duel.js';
@@ -87,6 +88,7 @@ function loop() {
 
 initTabs();
 initDelay();
+initAutoSync();
 initTower();
 initMap();
 initDuel();

@@ -238,6 +238,31 @@ export class Hub {
     }
   }
 
+  // Radios d'équipe publiées (heure du flux F1, pas de délai) pour la synchro TV par le son :
+  // jamais affichées, elles servent seulement de repères sonores.
+  radioCaptures() {
+    const clock = this.clock();
+    let path = null;
+    const radios = [];
+    const seen = new Set();
+    const add = (caps) => {
+      for (const c of Array.isArray(caps) ? caps : Object.values(caps || {})) {
+        if (!c?.Utc || !c.Path || seen.has(c.Path)) continue;
+        seen.add(c.Path);
+        radios.push({ utc: c.Utc, num: String(c.RacingNumber || ''), path: c.Path });
+      }
+    };
+    for (const e of this.events) {
+      if (e.t > clock) break;
+      const snap = e.topic === '__snapshot' ? e.data : null;
+      const info = snap ? snap.SessionInfo : e.topic === 'SessionInfo' ? e.data : null;
+      if (info?.Path) path = info.Path;
+      if (snap) add(snap.TeamRadio?.Captures);
+      else if (e.topic === 'TeamRadio') add(e.data?.Captures);
+    }
+    return { base: path ? `https://livetiming.formula1.com/static/${path}` : null, radios };
+  }
+
   statusPayload() {
     const clock = this.clock();
     const firstT = this.events.length ? this.events[0].t : null;

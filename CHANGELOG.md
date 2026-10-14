@@ -4,6 +4,14 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.22.0 — à venir
+
+### Synchro TV par le son (expérimental)
+- **Le délai se règle tout seul** : dans la fenêtre Synchro TV, bouton **Écouter la TV**. Le micro de l'ordinateur écoute votre TV et, dès qu'une **radio d'équipe** passe à l'antenne, F1 Dash la reconnaît (même avec les commentateurs qui parlent par-dessus) et en déduit le retard exact de votre diffusion. Plus besoin de guetter le compteur de tours pour cliquer au bon moment.
+- L'écoute continue ensuite pour confirmer avec les radios suivantes (15 minutes au plus) ; un point clignotant sur le bouton Synchro TV indique qu'elle est en cours.
+- **Correction** de ±0,5 s si le calage par le son est toujours un peu en avance ou en retard sur votre image.
+- Le son reste sur l'ordinateur : rien n'est enregistré ni envoyé. Disponible dans l'application et le navigateur de l'ordinateur (pas sur le téléphone).
+
 ## v1.21.0 — 2026-10-14
 
 ### Pendant la course

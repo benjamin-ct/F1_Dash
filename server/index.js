@@ -377,6 +377,9 @@ async function handleApi(req, res, url) {
     }
 
     // Moments clés du replay en cours (départ, drapeaux, leaders, arrêts, incidents, pénalités…)
+    case 'GET /api/sync/radios':
+      return sendJSON(res, 200, hub.radioCaptures());
+
     case 'GET /api/replay/moments':
       return sendJSON(res, 200, { path: hub.source.path || null, moments: hub.source.mode === 'replay' ? replay.moments || [] : [] });
 

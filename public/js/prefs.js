@@ -15,13 +15,14 @@ const DEFAULTS = {
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
   teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
-  keepAwake: true,
-  motion: true,           // animations de l'interface (désactivées aussi si le système le demande)        // écran toujours allumé pendant une séance
+  keepAwake: true,        // écran toujours allumé pendant une séance
+  motion: true,           // animations de l'interface (désactivées aussi si le système le demande)
   momentsSpoil: false,    // replay : détail des moments clés à venir affiché
+  autoSyncAdj: 0,         // synchro TV par le son : correction ajoutée au délai trouvé (s)
   remindMin: 15,          // rappel avant chaque séance (minutes, 0 : désactivé)
   legends: true,          // légendes sous les panneaux (couleurs, colonnes, graphiques)
-  replayMarks: true,
-  hotLapDim: false,       // essais / qualifs : voitures hors tour lancé estompées (carte, classement)      // replay : périodes de safety car / VSC sur la barre de lecture
+  replayMarks: true,      // replay : périodes de safety car / VSC sur la barre de lecture
+  hotLapDim: false,       // essais / qualifs : voitures hors tour lancé estompées (carte, classement)
   layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
