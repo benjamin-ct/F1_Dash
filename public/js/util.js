@@ -115,8 +115,12 @@ export const COMPOUNDS = {
   WET: { letter: 'W', color: '#2f8cff', name: 'Pluie' },
 };
 
+// Apparence claire : couleurs de composés plus foncées (le dur blanc serait invisible sur le blanc)
+const COMPOUND_LIGHT = { SOFT: '#DC2626', MEDIUM: '#C68A00', HARD: '#4B5563', INTERMEDIATE: '#16A34A', WET: '#2563EB' };
+
 export function compoundInfo(c) {
-  return COMPOUNDS[c] || { letter: '?', color: '#7a8396', name: c ? c.toLowerCase() : 'Inconnu' };
+  const ci = COMPOUNDS[c] || { letter: '?', color: '#7a8396', name: c ? c.toLowerCase() : 'Inconnu' };
+  return typeof document !== 'undefined' && document.documentElement.dataset.scheme === 'light' && COMPOUND_LIGHT[c] ? { ...ci, color: COMPOUND_LIGHT[c] } : ci;
 }
 
 export function tyreBadge(compound, age, isNew) {

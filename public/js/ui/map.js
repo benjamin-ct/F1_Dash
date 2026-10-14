@@ -16,29 +16,18 @@ let xf = null;
 let size = { w: 0, h: 0, dpr: 1 };
 let lastFrame = performance.now();
 
-// Couleurs de la carte selon le thème (Noir par défaut, Bleu nuit en option)
-const PALETTES = {
-  noir: {
-    outline: '#020203', edge: 'rgba(255,255,255,.17)', track: '#2a2a31', trackLine: '#55555f',
-    glow: 'rgba(255,255,255,.035)', dots: 'rgba(255,255,255,.07)',
-    chip: 'rgba(14,14,17,.94)', chipEdge: '#44444e', chipText: '#d4d4dc', label: 'rgba(8,8,10,.9)', ring: '#000000',
-  },
-  pitwall: {
-    outline: '#050608', edge: 'rgba(255,255,255,.09)', track: '#262B34', trackLine: '#4A5260',
-    glow: 'rgba(96,165,250,.035)', dots: 'rgba(255,255,255,.05)',
-    chip: 'rgba(14,17,22,.96)', chipEdge: '#3A414D', chipText: '#B4BAC4', label: 'rgba(7,8,10,.92)', ring: '#07080A',
-  },
-  bleu: {
-    outline: '#06080c', edge: 'rgba(190,210,255,.18)', track: '#2c3446', trackLine: '#566079',
-    glow: 'rgba(90,130,220,.06)', dots: 'rgba(170,195,255,.08)',
-    chip: 'rgba(16,20,28,.92)', chipEdge: '#3a4356', chipText: '#c9d0dc', label: 'rgba(10,12,17,.88)', ring: '#0a0c11',
-  },
+// Couleurs de la carte (thème Pitwall) : fond adapté à l'apparence, piste toujours en asphalte sombre
+const PAL_DARK = {
+  outline: '#050608', edge: 'rgba(255,255,255,.09)', track: '#262B34', trackLine: '#4A5260',
+  glow: 'rgba(96,165,250,.035)', dots: 'rgba(255,255,255,.05)',
+  chip: 'rgba(14,17,22,.96)', chipEdge: '#3A414D', chipText: '#B4BAC4', label: 'rgba(7,8,10,.92)', ring: '#07080A',
 };
-const pal = () => PALETTES[document.documentElement.dataset.theme] || PALETTES.noir;
-const pitwall = () => document.documentElement.dataset.theme === 'pitwall';
-// Polices de la carte : Saira Condensed (thème Pitwall) ou Titillium Web ; chiffres en chasse fixe
-const FONT = () => (pitwall() ? '"Saira Condensed", "Titillium Web", sans-serif' : '"Titillium Web", sans-serif');
-const MONO = () => (pitwall() ? '"JetBrains Mono", Consolas, monospace' : '"Titillium Web", sans-serif');
+const PAL_LIGHT = { ...PAL_DARK, glow: 'rgba(37,99,235,.04)', dots: 'rgba(14,17,22,.07)' };
+const lightUI = () => document.documentElement.dataset.scheme === 'light';
+const pal = () => (lightUI() ? PAL_LIGHT : PAL_DARK);
+// Polices de la carte : Saira Condensed ; chiffres en chasse fixe
+const FONT = () => '"Saira Condensed", "Titillium Web", sans-serif';
+const MONO = () => '"JetBrains Mono", Consolas, monospace';
 
 // Largeur de la piste à l'écran : proportionnelle à la taille de la carte, élargie au zoom.
 function trackWidth() {
@@ -186,11 +175,11 @@ function strokeOffset(from, to, off) {
 }
 
 function badge(x, y, text, bg, fg, edge) {
-  ctx.font = `800 ${pitwall() ? 10.5 : 9.5}px ${FONT()}`;
-  const w = ctx.measureText(text).width + (pitwall() ? 12 : 8);
+  ctx.font = `800 10.5px ${FONT()}`;
+  const w = ctx.measureText(text).width + 12;
   ctx.fillStyle = bg;
   ctx.beginPath();
-  ctx.roundRect(x - w / 2, y - 8, w, 16, pitwall() ? 5 : 4);
+  ctx.roundRect(x - w / 2, y - 8, w, 16, 5);
   ctx.fill();
   if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke(); }
   ctx.fillStyle = fg;
@@ -279,16 +268,14 @@ function drawZones() {
     ctx.setLineDash([]);
   }
   // Nom de chaque zone (officiel : A1, A2…) au milieu, à l'extérieur de la piste
-  if (pitwall() || zones.official) {
-    zones.zones.forEach((z, k) => {
-      const len = (z.to - z.from + n) % n;
-      const i = (z.from + Math.floor(len / 2)) % n;
-      const p = pts[i], a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
-      const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-      const nx = -(b[1] - a[1]) / l, ny = (b[0] - a[0]) / l;
-      badge(p[0] + nx * (W / 2 + 22), p[1] + ny * (W / 2 + 22), `LD ${z.name || k + 1}`, '#0E1116', '#34D399', '#34D399');
-    });
-  }
+  zones.zones.forEach((z, k) => {
+    const len = (z.to - z.from + n) % n;
+    const i = (z.from + Math.floor(len / 2)) % n;
+    const p = pts[i], a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
+    const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    const nx = -(b[1] - a[1]) / l, ny = (b[0] - a[0]) / l;
+    badge(p[0] + nx * (W / 2 + 22), p[1] + ny * (W / 2 + 22), `LD ${z.name || k + 1}`, '#0E1116', '#34D399', '#34D399');
+  });
   ctx.lineCap = 'round';
   // Mode dépassement : point de détection (rose) et point d'activation (vert), officiels (plan FIA
   // du circuit) ou estimés ; étiquettes de part et d'autre de la piste pour ne pas se chevaucher
@@ -486,7 +473,7 @@ function drawSectorLabels(lay) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const W = trackWidth();
-  const best = pitwall() ? bestSectors() : [];
+  const best = bestSectors();
   for (const sec of lay.sectors) {
     const p = screenAt(sec.from + sec.len / 2);
     const b = best[sec.i];
@@ -624,7 +611,7 @@ function draw() {
 
   const animated = red || scMode || [...flags.values()].includes('DOUBLE YELLOW');
   const bgKey = [size.w, size.h, size.dpr, view.x.toFixed(1), view.y.toFixed(1), view.z.toFixed(3), ts, [...flags].join(),
-    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.theme, pitwall() ? versionOf(['TimingStats']) : 0].join('|');
+    lay?.key, !!zones, store.positions.lineFrac().toFixed(4), MAP_OPTS.map((k) => $(`#${k}`).checked).join(), trackKey, document.fonts?.status, document.documentElement.dataset.scheme, versionOf(['TimingStats'])].join('|');
   let flagZones;
   if (!animated && bg.key === bgKey && bg.canvas) {
     ctx.drawImage(bg.canvas, 0, 0, size.w, size.h);
@@ -1054,7 +1041,7 @@ function drawRibbon(lay, flagZones) {
     g.arc(x, mid, c.sp ? 6 : 5, 0, Math.PI * 2);
     g.fillStyle = c.col;
     g.fill();
-    g.strokeStyle = c.isF ? '#F1F3F6' : '#07080A';
+    g.strokeStyle = lightUI() ? (c.isF ? '#0E1116' : '#FFFFFF') : (c.isF ? '#F1F3F6' : '#07080A');
     g.lineWidth = c.isF ? 2 : 1.2;
     g.stroke();
   }
@@ -1066,7 +1053,7 @@ function drawRibbon(lay, flagZones) {
     const row = [0, 1].find((k) => rows[k].every(([a, b]) => x + half < a || x - half > b));
     if (row === undefined) continue;
     rows[row].push([x - half, x + half]);
-    g.fillStyle = c.isF ? '#F1F3F6' : c.sp ? '#D5D9E0' : '#8A919C';
+    g.fillStyle = lightUI() ? (c.isF ? '#0E1116' : c.sp ? '#3D4552' : '#6B7380') : (c.isF ? '#F1F3F6' : c.sp ? '#D5D9E0' : '#8A919C');
     g.fillText(txt, x, row ? mid + 14 : mid - 13);
   }
 }

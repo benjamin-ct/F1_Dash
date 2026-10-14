@@ -219,9 +219,9 @@ export function initSettings() {
   $('#lanEnabled').addEventListener('change', (e) => renderLan({ enabled: e.target.checked }));
   $('#lanRegen').addEventListener('click', () => { if (confirm('Changer la clé ? Les téléphones et tablettes déjà autorisés devront rescanner le QR code.')) renderLan({ regenerate: true }); });
   // Application de bureau : fenêtres détachées rouvertes au lancement
-  $('#themeSel').value = prefs.theme;
-  $('#themeSel').addEventListener('change', (e) => setPref('theme', e.target.value));
-  on('prefs', (k) => { if (k === 'theme') $('#themeSel').value = prefs.theme; });
+  $('#schemeSel').value = prefs.scheme || 'dark';
+  $('#schemeSel').addEventListener('change', (e) => setPref('scheme', e.target.value));
+  on('prefs', (k) => { if (k === 'scheme') $('#schemeSel').value = prefs.scheme; });
   $('#vividTeams').checked = prefs.vividTeams;
   $('#vividTeams').addEventListener('change', (e) => setPref('vividTeams', e.target.checked));
   on('prefs', (k) => { if (k === 'vividTeams') $('#vividTeams').checked = prefs.vividTeams; });

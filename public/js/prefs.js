@@ -9,7 +9,8 @@ const DEFAULTS = {
   hiddenCols: [],
   extraCols: [],          // colonnes facultatives ajoutées au classement (voir EXTRA_COLUMNS)
   towerFit: true,         // classement agrandi pour remplir la hauteur disponible
-  theme: 'pitwall',       // 'pitwall' (Pitwall) | 'pro' (F1 Pro) | 'f1' (F1 sobre) | 'noir' (classique) | 'bleu' (bleu nuit)
+  theme: 'pitwall',       // thème unique de l'application
+  scheme: 'dark',         // apparence : 'dark' (sombre) | 'light' (clair) | 'auto' (comme le système)
   vividTeams: false,      // couleurs d'équipe contrastées plutôt qu'officielles
   teamLogos: true,        // logos des écuries (classement, championnat) plutôt que barres de couleur
   logoColor: true,        // logos dans leurs couleurs officielles (sinon logo blanc sur la couleur d'équipe)
@@ -47,26 +48,33 @@ const DEFAULTS = {
 
 const saved = storageGet('f1dash.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
-// Passage au design « F1 Pro » (une seule fois) : le thème par défaut précédent (F1 sobre, ou
-// noir avant lui) devient F1 Pro ; un thème choisi exprès est conservé. Les écuries reprennent
-// leurs couleurs officielles.
-if ((saved.themeV || 0) < 3) {
-  const v = saved.themeV || 0;
-  if (v === 2 ? !saved.theme || saved.theme === 'f1' : saved.theme !== 'bleu') prefs.theme = 'pro';
-  prefs.vividTeams = false;
-  storageSet('f1dash.prefs', { ...saved, theme: prefs.theme, vividTeams: false, themeV: 3 });
-}
-// Passage au design « Pitwall » (une seule fois) : F1 Pro, le thème par défaut précédent, devient
-// Pitwall ; un autre thème choisi exprès est conservé.
-if ((saved.themeV || 0) < 4) {
-  if (prefs.theme === 'pro') prefs.theme = 'pitwall';
-  storageSet('f1dash.prefs', { ...storageGet('f1dash.prefs', {}), theme: prefs.theme, themeV: 4 });
-}
-prefs.themeV = 4;   // gardé dans chaque enregistrement des préférences
+// Un seul thème depuis la v1.20 : Pitwall, en mode sombre ou clair. Les anciens thèmes (F1 Pro,
+// F1 sobre, Classique, Bleu nuit) passent sur Pitwall, en mode sombre.
+prefs.theme = 'pitwall';
+if ((saved.themeV || 0) < 5) storageSet('f1dash.prefs', { ...storageGet('f1dash.prefs', {}), theme: 'pitwall', themeV: 5 });
+prefs.themeV = 5;   // gardé dans chaque enregistrement des préférences
 document.documentElement.dataset.motion = prefs.motion === false ? 'off' : 'on';
 setVividTeams(prefs.vividTeams);
 setTeamLogos(prefs.teamLogos);
 setLogoColor(prefs.logoColor);
+
+// Apparence : sombre, clair ou comme le système (data-scheme sur <html>, lu par le CSS et la carte)
+const systemLight = window.matchMedia?.('(prefers-color-scheme: light)');
+export function resolvedScheme() {
+  return prefs.scheme === 'light' || (prefs.scheme === 'auto' && systemLight?.matches) ? 'light' : 'dark';
+}
+function applyScheme() {
+  const v = resolvedScheme();
+  if (document.documentElement.dataset.scheme !== v) {
+    document.documentElement.dataset.scheme = v;
+    emit('scheme', v);
+    touch('DriverList');   // panneaux redessinés avec les couleurs de l'apparence (pneus, carte…)
+  }
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', v === 'light' ? '#F4F5F7' : '#07080A');
+}
+document.documentElement.dataset.theme = 'pitwall';
+applyScheme();
+systemLight?.addEventListener?.('change', () => { if (prefs.scheme === 'auto') applyScheme(); });
 
 // Couleurs d'équipe changées : les panneaux qui affichent les pilotes se redessinent.
 function applyTeamColors() {
@@ -79,7 +87,7 @@ function applyTeamColors() {
 export function setPref(key, value) {
   prefs[key] = value;
   if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
-  if (key === 'theme') document.documentElement.dataset.theme = value;
+  if (key === 'scheme') applyScheme();
   if (key === 'motion') document.documentElement.dataset.motion = value ? 'on' : 'off';
   storageSet('f1dash.prefs', prefs);
   emit('prefs', key);
@@ -103,7 +111,7 @@ window.addEventListener('storage', (e) => {
     if (!(key in next) || JSON.stringify(next[key]) === JSON.stringify(prefs[key])) continue;
     prefs[key] = key === 'alerts' ? { ...DEFAULTS.alerts, ...next.alerts } : next[key];
     if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
-    if (key === 'theme') document.documentElement.dataset.theme = prefs[key];
+    if (key === 'scheme') applyScheme();
     emit('prefs', key);
   }
 });

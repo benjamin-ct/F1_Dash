@@ -4,6 +4,7 @@ import { prefs, setPref } from '../prefs.js';
 import { on } from '../store.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
+import { compoundInfo } from '../util.js';
 
 const sw = (color, label, shape = 'bar') => `<span class="lg-i"><i class="lg-${shape}" style="--c:${color}"></i>${label}</span>`;
 const tag = (cls, text, label) => `<span class="lg-i"><span class="tag ${cls}">${text}</span>${label}</span>`;
@@ -12,14 +13,15 @@ const txt = (s) => `<span class="lg-t">${s}</span>`;
 
 const L = {
   tower: {
-    _: [
+    // Recalculée à chaque affichage : couleurs des pneus selon l'apparence (sombre / claire)
+    get _() { return [
       txt('Mini-secteurs :'), sw('var(--purple)', 'meilleur de tous'), sw('var(--green)', 'record perso'), sw('var(--yellow)', 'plus lent'), sw('var(--blue)', 'stands'),
       txt('· Temps :'), `<span class="lg-i"><b style="color:var(--purple)">violet</b>&nbsp;meilleur de la séance</span>`, `<span class="lg-i"><b style="color:var(--green)">vert</b>&nbsp;record perso / l'écart se réduit</span>`,
       txt(`· <span class="lg-delta">${icon('tri-up')}${icon('tri-down')}</span> places gagnées/perdues depuis la grille`),
       tag('pit', 'STAND', 'aux stands'), tag('out', 'SORTIE', 'sort des stands'), tag('push', 'TOUR', 'tour rapide lancé'), tag('ret', 'ABD', 'abandon'),
-      tyre('#ff3b30', 'S', 'tendre'), tyre('#f5c518', 'M', 'médium'), tyre('#f1f1f4', 'H', 'dur'), tyre('#35d07f', 'I', 'intermédiaire'), tyre('#3ea6ff', 'W', 'pluie'),
+      tyre(compoundInfo('SOFT').color, 'S', 'tendre'), tyre(compoundInfo('MEDIUM').color, 'M', 'médium'), tyre(compoundInfo('HARD').color, 'H', 'dur'), tyre(compoundInfo('INTERMEDIATE').color, 'I', 'intermédiaire'), tyre(compoundInfo('WET').color, 'W', 'pluie'),
       txt('(chiffre : tours sur ce train) · Arr. : arrêts · V.max : vitesse au speed trap (km/h) · A / B : choisir les pilotes du duel · étoile : favori (alertes)'),
-    ],
+    ]; },
   },
   map: {
     _: [
@@ -78,7 +80,8 @@ function update(panel, id) {
     panel.appendChild(el);
   }
   const html = `${items.join('')}<button class="lg-hide" title="Masquer les légendes (réaffichables dans Réglages, onglet Affichage)">${icon('close')} Masquer</button>`;
-  if (el.dataset.k !== `${id}|${tab}`) { el.innerHTML = html; el.dataset.k = `${id}|${tab}`; }
+  const k = `${id}|${tab}|${document.documentElement.dataset.scheme}`;
+  if (el.dataset.k !== k) { el.innerHTML = html; el.dataset.k = k; }
 }
 
 function updateAll() {
@@ -94,6 +97,7 @@ export function initLegends() {
     panel?.querySelector('.panel-head')?.addEventListener('click', (e) => { if (e.target.closest('[data-tab]')) setTimeout(() => update(panel, id), 0); });
   }
   on('prefs', (k) => { if (k === 'legends') updateAll(); });
+  on('scheme', () => updateAll());
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.lg-hide')) return;
     setPref('legends', false);

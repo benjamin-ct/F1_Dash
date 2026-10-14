@@ -1,5 +1,5 @@
-// Design « F1 Pro » : barre de navigation latérale (Direct, Analyse, Saison, Replays, Radios,
-// Réglages). Elle reprend les actions des boutons du haut, masqués dans ce design.
+// Barre de navigation latérale (Direct, Analyse, Saison, Replays, Radios,
+// Réglages). Elle reprend les actions des boutons du haut, masqués.
 import { $, $$ } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
 import { openNews, closeNews } from './news.js';
