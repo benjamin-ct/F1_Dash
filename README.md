@@ -13,7 +13,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Classement en direct** : écarts, secteurs et mini-secteurs, pneus, arrêts, vitesse de pointe, logos officiels des écuries dans leurs vraies couleurs ; en qualif, limite d'élimination et temps à battre.
 - **Barre d'état de la séance** : drapeau, tour et progression de la course, temps restant, **heure locale du circuit**, météo, état de la piste.
 - **Carte du circuit** : toutes les voitures en mouvement (GPS), drapeaux par secteur, safety car, zones ligne droite et détection.
-- **Synchro TV** : tout (chronos, carte, drapeaux, radios, alertes) est retardé pour coller à votre image, **sans spoiler**.
+- **Synchro TV** : tout (chronos, carte, drapeaux, radios, alertes) est retardé pour coller à votre image, **sans spoiler** ; le délai peut même se régler tout seul en écoutant la TV (expérimental).
 - **Pneus du week-end** : jeux neufs et utilisés de chaque pilote sur toutes les séances, composés choisis par Pirelli et ses préconisations (stratégie attendue).
 - **Duels, bagarres et simulateur d'arrêt** : écart en temps réel, tendance, « s'il s'arrête maintenant, il ressort P8 ».
 - **Analyse** : race trace, positions, temps au tour, rythme, pneus, secteurs, télémétrie.
@@ -67,7 +67,7 @@ L'application **se met à jour toute seule** (sauf le paquet `.deb`).
 Le flux de chronométrage arrive **avant** l'image TV : le dashboard vous montre la course telle qu'elle était il y a N secondes.
 
 1. Lancez le dashboard quelques minutes avant la session.
-2. Cliquez sur **🎯 Synchro TV** (touche `S`) et, au moment où vous voyez un repère sur votre TV (changement de tour, drapeau…), cliquez **« Je le vois ! »**.
+2. Cliquez sur **🎯 Synchro TV** (touche `S`), puis **Écouter la TV** : le micro de l'ordinateur reconnaît la prochaine radio d'équipe diffusée et règle le délai tout seul (expérimental). Ou, à la main : au moment où vous voyez un repère sur votre TV (changement de tour, drapeau…), cliquez **« Je le vois ! »**.
 3. Enregistrez ce délai en préréglage (« Canal+ salon »…) pour la prochaine fois.
 
 Ajustement fin : `←` `→` ±1 s, `Maj` ±5 s, `Alt` ±0,1 s.

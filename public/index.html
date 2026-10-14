@@ -394,6 +394,19 @@
       <button class="icon-btn" value="close" aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </form>
     <div class="modal-body">
+      <section class="autosync" id="autoSync">
+        <div class="as-head"><b><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg> Synchro automatique par le son</b> <span class="as-tag">expérimental</span></div>
+        <p class="muted small">Le micro de l'ordinateur écoute votre TV. Dès qu'une <b>radio d'équipe</b> passe à l'antenne, F1 Dash la reconnaît et règle le délai tout seul. Le son reste sur l'ordinateur : rien n'est enregistré ni envoyé.</p>
+        <div class="as-row">
+          <button class="btn btn-accent" id="asStart" type="button"></button>
+          <span class="as-meter" id="asMeter" hidden><span class="as-bar"><i id="asLevel"></i></span><span class="small muted" id="asTime"></span></span>
+        </div>
+        <div class="small as-status" id="asStatus" role="status"></div>
+        <ul class="as-results" id="asResults"></ul>
+        <div class="as-adjust small muted">Correction <button class="btn as-step" type="button" data-asadj="-0.5">−0,5 s</button><b id="asAdj">0,0 s</b><button class="btn as-step" type="button" data-asadj="0.5">+0,5 s</button>
+          <span>si le calage par le son est toujours un peu en avance (−) ou en retard (+) sur votre image.</span></div>
+      </section>
+      <p class="sync-or muted small">ou à la main :</p>
       <ol class="sync-steps">
         <li>Regardez votre diffusion TV.</li>
         <li>Au moment <b>exact</b> où vous voyez l'un des événements ci-dessous à l'écran, cliquez sur <b>« Je le vois ! »</b>.</li>
