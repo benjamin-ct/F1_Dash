@@ -47,8 +47,12 @@ function firstImage(html) {
 
 const isImage = (attrs) => /image\//i.test(attrs) || /\.(jpe?g|png|webp|gif)(\?|["'])/i.test(attrs) || /medium=["']image/i.test(attrs) || !/type=/i.test(attrs);
 
-function parseDate(s) {
-  const t = Date.parse(String(s || '').trim());
+// Fuseaux écrits en lettres que Date.parse ne connaît pas (« 06:00:00 BST »)
+const TZ = { BST: '+0100', IST: '+0100', WEST: '+0100', CET: '+0100', CEST: '+0200', MEZ: '+0100', MESZ: '+0200', EET: '+0200', EEST: '+0300', JST: '+0900', AEST: '+1000', AEDT: '+1100', BRT: '-0300' };
+
+export function parseDate(s) {
+  const str = String(s || '').trim().replace(/\b([A-Z]{3,4})$/, (m, z) => TZ[z] || m);
+  const t = Date.parse(str);
   return Number.isFinite(t) ? t : null;
 }
 

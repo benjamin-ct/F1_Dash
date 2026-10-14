@@ -88,3 +88,11 @@ test('actualités : regroupement des articles d\'un même sujet', () => {
   assert.equal(by.e, 'e', 'hors de la fenêtre de 36 h');
   assert.ok(newsSimilarity(list[0], list[1]) >= 0.6);
 });
+
+test('actualités : dates avec fuseau en lettres', async () => {
+  const { parseDate } = await import('../shared/news.js');
+  assert.equal(parseDate('Wed, 14 Oct 2026 06:00:00 BST'), Date.parse('2026-10-14T05:00:00Z'));
+  assert.equal(parseDate('Wed, 14 Oct 2026 05:42:11 EST'), Date.parse('2026-10-14T10:42:11Z'));
+  assert.equal(parseDate('Wed, 14 Oct 2026 12:08:08 +0200'), Date.parse('2026-10-14T10:08:08Z'));
+  assert.equal(parseDate('pas une date'), null);
+});

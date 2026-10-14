@@ -37,6 +37,7 @@ let cache = {};
 let cacheLoaded = null;
 const queue = [];
 const queued = new Set();
+const failed = new Set();
 let translating = false;
 let pendingSave = [];
 let saveTimer = null;
@@ -48,7 +49,7 @@ function loadTranslations(force = false) {
 }
 
 const tr = (text) => cache[text]?.t || null;
-const needs = (text, from) => text && from !== LANG && !cache[text];
+const needs = (text, from) => text && from !== LANG && !cache[text] && !failed.has(text);
 
 function saveTranslation(item) {
   pendingSave.push(item);
@@ -71,7 +72,8 @@ async function pumpTranslations() {
       cache[text] = { t: out, q };
       saveTranslation({ en: text, t: out, q });
     }
-  } catch { /* moteur indisponible : texte d'origine */ }
+    else failed.add(text);
+  } catch { failed.add(text); /* moteur indisponible : texte d'origine */ }
   queued.delete(text);
   resolve?.();
   translating = false;
@@ -169,6 +171,9 @@ function matches(it, favs) {
   return true;
 }
 
+// Nouveau : publié et arrivé depuis la dernière visite de l'espace Actu
+const isUnread = (it) => it.seen > lastSeen && it.t > lastSeen;
+
 // ---- Affichage ----
 const ago = (t) => {
   const s = Math.max(0, (Date.now() - t) / 1000);
@@ -190,7 +195,7 @@ function tagChips(tags) {
 
 function titleOf(it) {
   const t = prefs.newsTranslate && it.lang !== LANG ? tr(it.title) : null;
-  return { text: t || it.title, translated: !!t, pending: prefs.newsTranslate && it.lang !== LANG && !t };
+  return { text: t || it.title, translated: !!t, pending: !t && queued.has(it.title) };
 }
 
 function card(g, favs) {
@@ -198,11 +203,11 @@ function card(g, favs) {
   const src = srcById[it.src] || { name: it.src };
   const title = titleOf(it);
   const sum = prefs.newsTranslate && it.lang !== LANG ? tr(it.summary) : null;
-  const unread = it.seen > lastSeen;
+  const unread = isUnread(it);
   const fav = (it.tags || []).some((t) => favs.has(t));
   const level = g.imp >= 3 ? '<span class="nw-imp major">Majeur</span>' : g.imp >= 2 ? '<span class="nw-imp">Important</span>' : '';
   const hot = g.sources >= 3 ? `<span class="nw-hot" title="Sujet repris par ${g.sources} sources">🔥 ${g.sources} sources</span>` : '';
-  const img = it.img ? `<img class="nw-img" src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : '';
+  const img = it.img ? `<img class="nw-img" src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.nw-thumb').remove()">` : '';
   const others = g.others.length ? `<details class="nw-others"><summary>Repris par ${g.others.length} autre${g.others.length > 1 ? 's' : ''} source${g.others.length > 1 ? 's' : ''}</summary>
     ${g.others.map((o) => `<a href="${esc(o.link)}" target="_blank" rel="noopener"><b>${esc(srcById[o.src]?.name || o.src)}</b> <span class="nw-lang">${esc(o.lang.toUpperCase())}</span> ${esc(titleOf(o).text)} <span class="muted">· ${ago(o.t)}</span></a>`).join('')}</details>` : '';
   return `<article class="nw-card${unread ? ' unread' : ''}${g.imp >= 2 ? ' imp' : ''}${fav ? ' fav' : ''}${it.kind === 'video' ? ' video' : ''}">
@@ -276,7 +281,7 @@ function render() {
 }
 
 function updateBadge() {
-  const n = items.filter((it) => it.seen > lastSeen && srcById[it.src]?.enabled !== false).length;
+  const n = items.filter((it) => isUnread(it) && srcById[it.src]?.enabled !== false).length;
   for (const b of [$('#newsBtn'), $('#rail [data-rail="news"]')]) {
     if (!b) continue;
     if (n) b.dataset.count = n > 99 ? '99+' : String(n);

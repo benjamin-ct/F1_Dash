@@ -1223,6 +1223,20 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
   .topbar :is(#seasonBtn, #newsBtn) { padding: 5px 6px; }
   .topbar .icon-btn { padding: 4px 4px; }
 }
+/* Téléphone : boutons du haut resserrés pour tenir sur une ligne (Saison, Actu, Radios, Réglages) */
+@media (max-width: 480px) {
+  .topbar { column-gap: 6px; }
+  .topbar .tb-tools { gap: 2px; }
+  .topbar .tb-tool { width: 26px; }
+  .topbar :is(#seasonBtn, #newsBtn) { padding: 4px 5px; }
+  .topbar .source-badge { padding: 4px 6px; }
+}
+@media (max-width: 400px) {
+  .topbar { column-gap: 4px; }
+  .topbar .tb-tool { width: 24px; }
+  .topbar #syncBtn { padding: 6px 6px; }
+  .topbar :is(#seasonBtn, #newsBtn, .icon-btn) { padding: 4px 3px; }
+}
 @media (min-width: 600px) and (max-width: 900px) {
   .grid.mobile .tower .c-last, .grid.mobile .tower .c-best { display: table-cell; }
 }

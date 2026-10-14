@@ -203,7 +203,10 @@ async function poll(s) {
         const id = hash(`${s.id}|${normLink(raw.link) || raw.guid}`);
         if (items.has(id)) continue;
         if (s.filter === 'f1' && !F1_ONLY.test(`${raw.title} ${raw.summary}`)) continue;
-        const t = raw.t && raw.t <= now + 10 * 60e3 ? raw.t : now;
+        // Date absente ou illisible : heure de découverte si la source était déjà suivie ; à la
+        // première lecture, l'article est placé plus bas (il peut être ancien)
+        const dated = !!raw.t && raw.t <= now + 10 * 60e3;
+        const t = dated ? raw.t : rt.primed ? now : now - 24 * 3600e3;
         const lang = LANGS.has(s.lang) ? s.lang : (LANGS.has(feed.lang) ? feed.lang : 'en');
         const it = {
           id, src: s.id, title: raw.title.slice(0, 300), summary: raw.summary || '', link: raw.link, img: raw.img, t, seen: now,
@@ -213,7 +216,7 @@ async function poll(s) {
         it.imp = newsImportance(it, s.cat);
         // Nouveauté signalée seulement si la source avait déjà été lue (pas au démarrage), ou si
         // elle vient d'être publiée
-        it.fresh = !!rt.primed || t > now - 20 * 60e3;
+        it.fresh = !!rt.primed || (dated && t > now - 20 * 60e3);
         items.set(id, it);
         added.push(it);
       }
