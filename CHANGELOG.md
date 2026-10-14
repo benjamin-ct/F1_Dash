@@ -4,6 +4,14 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.17.2 — à venir
+
+### Radios
+- Transcription et traduction en haute qualité plus fiables : un échec passager (téléchargement, mémoire de la carte graphique) ne fait plus passer définitivement les deux en qualité légère. Seul le modèle concerné passe en qualité légère, et la haute qualité est retentée automatiquement.
+- Les radios déjà traduites en qualité légère sont refaites en haute qualité dès qu'elle est disponible.
+- La ligne d'état indique la qualité réellement utilisée pour la transcription et pour la traduction, et pourquoi elle est légère le cas échéant.
+- Ordinateurs portables à deux cartes graphiques : la plus puissante est utilisée.
+
 ## v1.17.1 — 2026-10-10
 
 ### Carte
