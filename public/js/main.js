@@ -36,6 +36,7 @@ import { initReminders } from './ui/reminders.js';
 import { initMoments } from './ui/moments.js';
 import { initSummary } from './ui/summary-view.js';
 import { initRadar } from './ui/radar.js';
+import { initLights } from './ui/lights.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -114,6 +115,7 @@ initReminders();
 initMoments();
 initSummary();
 initRadar();
+initLights();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));

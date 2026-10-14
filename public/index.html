@@ -534,6 +534,30 @@
           <a class="btn small" id="icsSeason" href="/api/calendar.ics" download title="Fichier à ouvrir avec Google Agenda, Apple Calendrier ou Outlook : toutes les séances de la saison, avec une alarme 15 min avant (même F1 Dash fermé)"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg> Ajouter la saison à mon agenda</a></div>
         <div class="row"><span class="small">Pilotes favoris (cliquez pour ajouter/retirer — ou sur l'étoile à côté du nom dans le classement) :</span><div id="favList" class="fav-list"></div></div>
       </section>
+      <section class="set-block" data-sgroup="alerts" id="lightsBox">
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Lumières connectées <span class="muted small">(expérimental)</span></h4>
+        <p class="small muted">Vos ampoules prennent la couleur des drapeaux en même temps que la télé (délai TV) : vert, jaune, voiture de sécurité, rouge, damier.</p>
+        <div class="row"><label class="small">Lampes <select id="lightsProvider"><option value="off">Désactivé</option><option value="sim">Simulation à l'écran (sans ampoule)</option><option value="hue">Philips Hue</option><option value="ha">Home Assistant</option></select></label>
+          <label class="small">Après le drapeau vert <select id="lightsAfter"><option value="normal">revenir à une lumière normale</option><option value="off">éteindre</option><option value="keep">rester en vert</option></select></label></div>
+        <div class="row lights-sub" data-lp="hue" hidden>
+          <label class="small">Adresse du pont <input id="hueIp" placeholder="192.168.1.20" size="16"></label>
+          <button class="btn small" id="hueFind" type="button">Rechercher le pont</button>
+          <button class="btn small" id="huePair" type="button" title="Appuyez d'abord sur le bouton rond du pont Hue, puis cliquez ici dans les 30 secondes">Associer</button>
+          <span class="small muted" id="hueState"></span>
+        </div>
+        <div class="row lights-sub" data-lp="ha" hidden>
+          <label class="small">Adresse de Home Assistant <input id="haUrl" placeholder="http://homeassistant.local:8123" size="30"></label>
+          <label class="small">Jeton <input id="haToken" type="password" size="24" autocomplete="off"></label>
+          <button class="btn small" id="haSave" type="button">Enregistrer</button>
+          <span class="small muted">Jeton : profil Home Assistant → Sécurité → Jetons d'accès longue durée.</span>
+        </div>
+        <div class="row lights-sub" data-lp="test" hidden>
+          <button class="btn small" id="lightsLoad" type="button">Choisir les lampes</button>
+          <div id="lightsDevices" class="lights-devices"></div>
+          <span class="small">Tester :</span>
+          <button class="btn small" type="button" data-light-test="green">Vert</button><button class="btn small" type="button" data-light-test="yellow">Jaune</button><button class="btn small" type="button" data-light-test="sc">Safety car</button><button class="btn small" type="button" data-light-test="red">Rouge</button><button class="btn small" type="button" data-light-test="chequered">Damier</button><button class="btn small" type="button" data-light-test="normal">Normal</button>
+        </div>
+      </section>
 
       <section class="set-block" data-sgroup="display">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg> Affichage</h4>

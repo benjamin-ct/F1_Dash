@@ -25,6 +25,7 @@ import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
 import { osmTile } from './tiles.js';
 import { predictionsView, savePrediction } from './predict.js';
+import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 
@@ -233,6 +234,27 @@ async function handleApi(req, res, url) {
         'Cache-Control': 'no-store',
       });
       return res.end(body);
+    }
+
+    // Lumières connectées (expérimental) : réglages et commandes depuis cet ordinateur uniquement
+    case 'GET /api/lights':
+    case 'POST /api/lights':
+    case 'POST /api/lights/discover':
+    case 'POST /api/lights/pair':
+    case 'GET /api/lights/devices':
+    case 'POST /api/lights/set': {
+      if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
+      try {
+        if (route === 'GET /api/lights') return sendJSON(res, 200, lightsInfo());
+        if (route === 'GET /api/lights/devices') return sendJSON(res, 200, { devices: await lightDevices() });
+        if (route === 'POST /api/lights/discover') return sendJSON(res, 200, { bridges: await hueDiscover() });
+        const body = await readBody(req);
+        if (route === 'POST /api/lights') return sendJSON(res, 200, saveLights(body));
+        if (route === 'POST /api/lights/pair') return sendJSON(res, 200, await huePair(String(body.ip || '').trim()));
+        return sendJSON(res, 200, await setLights(String(body.state || ''), { force: !!body.force }));
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
     }
 
     // Pronostics entre amis (pole et podium de chaque Grand Prix)

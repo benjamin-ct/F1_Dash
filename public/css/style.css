@@ -2166,3 +2166,11 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .pd-near { color: var(--yellow); }
 .pd-me td { background: var(--focus); }
 .pd-round summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; }
+
+/* Lumières connectées : simulation à l'écran (lueur sur les bords de la fenêtre) */
+.light-glow { position: fixed; inset: 0; z-index: 90; pointer-events: none; box-shadow: inset 0 0 60px 18px var(--lg, transparent), inset 0 0 0 4px var(--lg, transparent); transition: box-shadow .4s; }
+.light-glow[hidden] { display: none; }
+.light-glow.blink { animation: lightBlink 1s steps(2, jump-none) infinite; }
+@keyframes lightBlink { 50% { box-shadow: inset 0 0 20px 4px var(--lg, transparent); } }
+.lights-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lights-devices { display: flex; flex-wrap: wrap; gap: 4px 12px; width: 100%; }
