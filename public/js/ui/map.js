@@ -19,15 +19,27 @@ let lastFrame = performance.now();
 // Couleurs de la carte (thème Pitwall) : fond adapté à l'apparence, piste toujours en asphalte sombre
 const PAL_DARK = {
   outline: '#050608', edge: 'rgba(255,255,255,.09)', track: '#262B34', trackLine: '#4A5260',
-  glow: 'rgba(96,165,250,.035)', dots: 'rgba(255,255,255,.05)',
+  glow: 'rgba(96,165,250,.035)', dots: 'rgba(255,255,255,.05)', shadow: 'rgba(0, 0, 0, .75)',
   chip: 'rgba(14,17,22,.96)', chipEdge: '#3A414D', chipText: '#B4BAC4', label: 'rgba(7,8,10,.92)', ring: '#07080A',
 };
-const PAL_LIGHT = { ...PAL_DARK, glow: 'rgba(37,99,235,.04)', dots: 'rgba(14,17,22,.07)' };
+const PAL_LIGHT = {
+  ...PAL_DARK, outline: '#B4BCC8', edge: 'rgba(255,255,255,.6)', shadow: 'rgba(15, 23, 42, .22)', ring: '#FFFFFF',
+  glow: 'rgba(37,99,235,.04)', dots: 'rgba(14,17,22,.07)',
+};
 const lightUI = () => document.documentElement.dataset.scheme === 'light';
 const pal = () => (lightUI() ? PAL_LIGHT : PAL_DARK);
 // Polices de la carte : Saira Condensed ; chiffres en chasse fixe
 const FONT = () => '"Saira Condensed", "Titillium Web", sans-serif';
 const MONO = () => '"JetBrains Mono", Consolas, monospace';
+
+// Niveau de détail selon la taille réelle du tracé à l'écran (taille du panneau et zoom) :
+// 0 = petite carte (points, pilotes suivis nommés), 1 = moyenne (pastilles avec trigramme, sans
+// virages, positions, écarts ni étiquettes), 2 = tout.
+// Évite une mini-carte illisible où pastilles, virages et étiquettes se recouvrent.
+function detail() {
+  const e = (xf?.base?.extent || 1e4) * view.z;
+  return e < 220 ? 0 : e < 520 ? 1 : 2;
+}
 
 // Largeur de la piste à l'écran : proportionnelle à la taille de la carte, élargie au zoom.
 function trackWidth() {
@@ -98,9 +110,10 @@ function makeTransform() {
     if (rx < minX) minX = rx; if (rx > maxX) maxX = rx;
     if (ry < minY) minY = ry; if (ry > maxY) maxY = ry;
   }
-  const pad = 36;
   // Place laissée en bas pour la bande « ordre sur la piste »
   const below = $('#mapRibbon2')?.checked ? 44 : 0;
+  // Marge autour du tracé : réduite sur une petite carte pour lui laisser la place
+  const pad = Math.max(12, Math.min(36, Math.min(size.w, size.h - below) * 0.1));
   const bw = maxX - minX || 1, bh = maxY - minY || 1;
   const scale = Math.min((size.w - pad * 2) / bw, (size.h - below - pad * 2) / bh);
   const ox = (size.w - bw * scale) / 2 - minX * scale;
@@ -110,6 +123,7 @@ function makeTransform() {
     return [rx * scale + ox, ry * scale + oy];
   };
   f.scale = scale;
+  f.extent = Math.sqrt(bw * bh) * scale;   // taille moyenne du tracé à l'écran (niveau de détail)
   return f;
 }
 
@@ -245,7 +259,7 @@ function drawPitLane(W) {
   // Du côté opposé à la piste
   const mn = near[pts.length >> 1];
   if ((nx * mn.nx + ny * mn.ny) * side < 0) { nx = -nx; ny = -ny; }
-  badge(m[0] + nx * (w / 2 + 14), m[1] + ny * (w / 2 + 14), 'STANDS', '#3a3a44', '#e6e6ee');
+  if (detail() > 1) badge(m[0] + nx * (w / 2 + 14), m[1] + ny * (w / 2 + 14), 'STANDS', '#3a3a44', '#e6e6ee');
   ctx.restore();
 }
 
@@ -259,16 +273,17 @@ function drawZones() {
   ctx.lineCap = 'round';
   // Zones « ligne droite » : hachures vertes de part et d'autre de la piste
   ctx.lineCap = 'butt';
+  const small = detail() === 0;   // petite carte : hachures plus fines et plus proches
   for (const z of zones.zones) {
     ctx.strokeStyle = 'rgba(60, 200, 110, 0.85)';
-    ctx.lineWidth = 4;
-    ctx.setLineDash([2, 3]);
-    strokeOffset(z.from, z.to, W / 2 + 3.5);
-    strokeOffset(z.from, z.to, -(W / 2 + 3.5));
+    ctx.lineWidth = small ? 2.5 : 4;
+    ctx.setLineDash(small ? [1.5, 2.5] : [2, 3]);
+    strokeOffset(z.from, z.to, W / 2 + (small ? 2.5 : 3.5));
+    strokeOffset(z.from, z.to, -(W / 2 + (small ? 2.5 : 3.5)));
     ctx.setLineDash([]);
   }
   // Nom de chaque zone (officiel : A1, A2…) au milieu, à l'extérieur de la piste
-  zones.zones.forEach((z, k) => {
+  if (detail() > 1) zones.zones.forEach((z, k) => {
     const len = (z.to - z.from + n) % n;
     const i = (z.from + Math.floor(len / 2)) % n;
     const p = pts[i], a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
@@ -290,7 +305,7 @@ function drawZones() {
     ctx.moveTo(p[0] - nx * (W / 2 + 4), p[1] - ny * (W / 2 + 4));
     ctx.lineTo(p[0] + nx * (W / 2 + 4), p[1] + ny * (W / 2 + 4));
     ctx.stroke();
-    badge(p[0] + nx * (W / 2 + 20), p[1] + ny * (W / 2 + 20), text, color, ink);
+    if (detail() > 1) badge(p[0] + nx * (W / 2 + 20), p[1] + ny * (W / 2 + 20), text, color, ink);
   };
   mark(zones.detection, '#ff4fd8', '#2a0623', 'DÉTECTION', 1);
   mark(zones.activation, '#3ce08a', '#062414', 'ACTIVATION', -1);
@@ -773,7 +788,7 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
   };
   path();
   ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, .75)';
+  ctx.shadowColor = pal().shadow;
   ctx.shadowBlur = W * 1.4;
   ctx.shadowOffsetY = W * 0.25;
   ctx.strokeStyle = pal().outline;
@@ -858,7 +873,7 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
   drawStartLine(W);
 
   // Numéros de virage (pastilles à l'extérieur de la piste)
-  if ($('#mapCorners').checked) {
+  if ($('#mapCorners').checked && detail() > 1) {
     const fs = Math.min(13, 10 + (view.z - 1) * 1.2);
     ctx.font = `700 ${fs}px ${FONT()}`;
     ctx.textAlign = 'center';
@@ -889,7 +904,7 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
     }
   }
 
-  if (!red && !scMode && $('#mapSectors').checked) drawSectorLabels(lay);
+  if (!red && !scMode && $('#mapSectors').checked && detail() > 1) drawSectorLabels(lay);
   return flagZones;
 }
 
@@ -1068,7 +1083,9 @@ function drawCars(dt) {
   const lines = s.TimingData?.Lines || {};
   const disp = displayNow();
   const gps = store.positions.hasGps(disp);
-  const labels = $('#mapLabels').checked;
+  // Petite carte : simples points (noms seulement pour les pilotes suivis) ; moyenne : sans écarts ni positions
+  const lod = detail();
+  const labels = $('#mapLabels').checked && lod > 0;
   const mode = $('#mapMode');
   const modeTxt = gps ? 'GPS' : 'Positions estimées';
   if (mode.textContent !== modeTxt) {
@@ -1150,13 +1167,13 @@ function drawCars(dt) {
   }
 
   // Voitures (essais / qualifs, option : celles hors tour lancé sont estompées)
-  const posBadges = $('#mapPosBadges').checked;
+  const posOpt = $('#mapPosBadges').checked, posBadges = posOpt && lod > 1;
   const hot = hotLaps();
   for (const c of cars) c.cool = !!hot && !hot.has(c.num) && !c.sp;
   for (const c of cars) {
     const [x, y] = c.p;
     ctx.globalAlpha = c.cool ? 0.3 : 1;
-    if (!c.sp && posBadges && c.pos === 1) {
+    if (!c.sp && posOpt && c.pos === 1) {
       // Leader : anneau jaune
       ctx.beginPath();
       ctx.arc(x, y, c.r + 4, 0, Math.PI * 2);
@@ -1281,7 +1298,7 @@ function drawCars(dt) {
     ctx.globalAlpha = 1;
   }
 
-  if ($('#mapGaps').checked) drawGaps(cars, lines);
+  if ($('#mapGaps').checked && lod > 1) drawGaps(cars, lines);
   if ($('#mapFocusCard').checked) drawFocusCard(cars, lines, disp);
   lastCars = cars;
 
