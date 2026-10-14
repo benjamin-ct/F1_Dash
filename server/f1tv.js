@@ -77,8 +77,10 @@ export function allowHost(host) {
   if (host) allowedHosts.add(host);
 }
 
+const onDomain = (host, domain) => host === domain || host.endsWith(`.${domain}`);
+
 function hostAllowed(host) {
-  return allowedHosts.has(host) || CDN_SUFFIXES.some((s) => host === s || host.endsWith(`.${s}`));
+  return allowedHosts.has(host) || CDN_SUFFIXES.some((s) => onDomain(host, s));
 }
 
 // Demande du flux pour une vidéo / un canal, avec le jeton de l'abonné (en-tête ascendontoken).
@@ -117,16 +119,17 @@ export async function playback(contentId, channelId, token) {
 }
 
 // Relais local : GET (manifestes, segments) et POST (licence DRM).
-export function proxy(req, res, target, token) {
+export function proxy(req, res, target, token, redirects = 5) {
   let u;
   try { u = new URL(target); } catch { res.writeHead(400); res.end('URL invalide'); return; }
   // HTTPS pour F1 TV ; HTTP accepté seulement pour les stations radio ajoutées par l'utilisateur
   const okProto = u.protocol === 'https:' || (u.protocol === 'http:' && allowedHosts.has(u.host));
   if (!okProto || !hostAllowed(u.host)) { res.writeHead(403); res.end('Hôte non autorisé'); return; }
-  const f1 = u.host.endsWith('formula1.com') || u.host.endsWith('akamaized.net');
+  // Le jeton de l'abonné ne part que vers F1 TV (pas vers « fauxformula1.com »)
+  const f1 = onDomain(u.hostname, 'formula1.com') || onDomain(u.hostname, 'akamaized.net');
   const headers = { 'User-Agent': UA, Accept: '*/*', ...(f1 ? { Origin: 'https://f1tv.formula1.com', Referer: 'https://f1tv.formula1.com/' } : {}) };
   if (req.headers.range) headers.Range = req.headers.range;
-  if (u.host.endsWith('formula1.com') && token) headers.ascendontoken = token;
+  if (onDomain(u.hostname, 'formula1.com') && u.protocol === 'https:' && token) headers.ascendontoken = token;
   const ent = req.headers['x-f1tv-entitlement'];
   if (ent) headers.entitlementtoken = ent;
   if (req.method === 'POST') headers['Content-Type'] = req.headers['content-type'] || 'application/octet-stream';
@@ -134,9 +137,12 @@ export function proxy(req, res, target, token) {
   const up = lib.request(u, { method: req.method === 'POST' ? 'POST' : 'GET', ...(u.protocol === 'https:' ? { agent } : {}), headers }, (r) => {
     if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location) {
       r.resume();
-      const next = new URL(r.headers.location, u).toString();
-      allowedHosts.add(new URL(next).host);
-      proxy(req, res, next, token);
+      // Redirections limitées (une boucle relançait des requêtes sans fin)
+      if (redirects <= 0) { res.writeHead(508); res.end('Trop de redirections'); return; }
+      const next = new URL(r.headers.location, u);
+      if (next.protocol !== 'https:' && next.protocol !== 'http:') { res.writeHead(502); res.end('Redirection invalide'); return; }
+      allowedHosts.add(next.host);
+      proxy(req, res, next.toString(), token, redirects - 1);
       return;
     }
     const out = { 'Cache-Control': 'no-store', 'X-Upstream-Url': u.toString() };
@@ -174,4 +180,4 @@ export async function resolvePlaylist(target) {
   return m[1].trim();
 }
 
-export const _test = { containersOf, hostAllowed, USER_AGENT };
+export const _test = { containersOf, hostAllowed, onDomain, USER_AGENT };

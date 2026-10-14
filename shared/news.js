@@ -61,6 +61,12 @@ export function parseDate(s) {
   return Number.isFinite(t) ? t : null;
 }
 
+// Adresse web (http/https) ou null : un flux ne peut pas glisser de lien « javascript: » ou « file: »
+export function webLink(u) {
+  const s = String(u || '').trim();
+  return /^https?:\/\/[^\s]+$/i.test(s) ? s : null;
+}
+
 // Flux → [{ guid, title, summary, link, img, t, lang? }] ; lang : langue déclarée par le flux
 export function parseFeed(xml) {
   const src = String(xml || '');
@@ -78,7 +84,7 @@ export function parseFeed(xml) {
     const img = tagAttr(b, 'media:thumbnail', 'url') || tagAttr(b, 'media:content', 'url', isImage) || tagAttr(b, 'enclosure', 'url', isImage)
       || firstImage(tagContent(b, 'content:encoded')) || firstImage(rawSummary);
     const t = parseDate(tagContent(b, 'pubDate') ?? tagContent(b, 'published') ?? tagContent(b, 'updated') ?? tagContent(b, 'dc:date'));
-    return { guid, title, summary: cleanText(rawSummary).slice(0, 600), link: link || null, img: img || null, t };
+    return { guid, title, summary: cleanText(rawSummary).slice(0, 600), link: webLink(link), img: webLink(img), t };
   }).filter((it) => it.title && it.link);
   return { lang, items };
 }

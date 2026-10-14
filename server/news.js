@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 import { request, getText, getJSON } from './net.js';
 import { CACHE_DIR } from './circuits.js';
 import { getConfig, saveConfig } from './config.js';
-import { parseFeed, cleanText, newsTags, newsImportance, clusterNews } from '../shared/news.js';
+import { parseFeed, cleanText, newsTags, newsImportance, clusterNews, webLink } from '../shared/news.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
 const FILE = path.join(CACHE_DIR, 'news.json');
@@ -86,7 +86,8 @@ const normLink = (u) => String(u || '').replace(/^http:/, 'https:').replace(/[?#
 function load() {
   try {
     const data = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-    for (const it of data.items || []) if (it?.id) items.set(it.id, it);
+    // Anciennes nouvelles en cache : liens non web écartés (filtrés aussi à la lecture des flux)
+    for (const it of data.items || []) if (it?.id && webLink(it.link)) items.set(it.id, { ...it, img: webLink(it.img) });
   } catch { /* pas encore de cache */ }
 }
 
@@ -124,7 +125,7 @@ function parseBsky(json, handle) {
     const text = String(post.record.text).replace(/\s+/g, ' ').trim();
     const rkey = String(post.uri || '').split('/').pop();
     const img = post.embed?.images?.[0]?.thumb || post.embed?.external?.thumb || post.embed?.media?.images?.[0]?.thumb || null;
-    out.push({ guid: post.uri, title: text.length > 160 ? `${text.slice(0, 157)}…` : text, summary: text.length > 160 ? text.slice(0, 600) : '', link: `https://bsky.app/profile/${handle}/post/${rkey}`, img, t: Date.parse(post.record.createdAt) || null });
+    out.push({ guid: post.uri, title: text.length > 160 ? `${text.slice(0, 157)}…` : text, summary: text.length > 160 ? text.slice(0, 600) : '', link: `https://bsky.app/profile/${handle}/post/${rkey}`, img: webLink(img), t: Date.parse(post.record.createdAt) || null });
   }
   return { lang: null, items: out };
 }

@@ -226,7 +226,9 @@ function setupContents(wc, url) {
         },
       };
     }
-    shell.openExternal(target);
+    // Navigateur par défaut, pour les adresses web seulement (pas de file:, ni de protocole
+    // système qui lancerait un autre programme)
+    if (/^https?:\/\//i.test(target)) shell.openExternal(target);
     return { action: 'deny' };
   });
   wc.on('did-create-window', (win) => {

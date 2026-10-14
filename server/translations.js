@@ -21,15 +21,16 @@ function load(lang) {
   return stores.get(lang);
 }
 
-let saveTimer = null;
+// Une minuterie par langue (avec une seule, l'ajout d'une autre langue annulait l'enregistrement)
+const saveTimers = new Map();
 function scheduleSave(lang) {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
+  clearTimeout(saveTimers.get(lang));
+  saveTimers.set(lang, setTimeout(() => {
     try {
       fs.mkdirSync(CACHE_DIR, { recursive: true });
       fs.writeFileSync(file(lang), JSON.stringify(load(lang)));
     } catch (err) { console.warn('[traductions]', err.message); }
-  }, 1000);
+  }, 1000));
 }
 
 export function getTranslations(lang) {
