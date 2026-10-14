@@ -4,6 +4,12 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.20.1 — à venir
+
+### Apparence
+- L'apparence est désormais **automatique par défaut** : l'application passe en clair ou en sombre comme votre ordinateur ou votre téléphone, et suit ses changements en direct (mode sombre programmé le soir, par exemple). Réglages → Affichage → Apparence pour la forcer en sombre ou en clair ; un choix déjà fait dans les réglages est conservé.
+- Application de bureau : la fenêtre s'ouvre directement dans la bonne couleur, sans flash noir en mode clair.
+
 ## v1.20.0 — 2026-10-14
 
 ### Apparence
