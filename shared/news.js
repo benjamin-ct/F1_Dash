@@ -24,7 +24,9 @@ export function cleanText(s) {
   t = decodeEntities(t);
   // Entités encodées deux fois (« &amp;#8211; ») : encore un décodage
   if (/&(#\d+|#x[0-9a-f]+|[a-z]+);/i.test(t)) t = decodeEntities(t);
-  return t.replace(/\s+/g, ' ').trim();
+  // Emojis des titres (vidéos, publications) retirés : l'appli n'en affiche pas
+  t = t.replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\uFE0F\u200D\u20E3]/gu, '');
+  return t.replace(/\s+/g, ' ').replace(/\s+([,.!?:;…])/g, '$1').trim();
 }
 
 function tagContent(xml, tag) {

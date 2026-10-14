@@ -61,7 +61,7 @@
     <div class="delay" id="delayBox">
       <div class="delay-head">
         <span class="delay-title">Délai</span>
-        <span class="delay-warn" id="delayWarn" hidden title="">⚠</span>
+        <span class="delay-warn" id="delayWarn" hidden title=""><svg class="ic" aria-hidden="true"><use href="#i-warning"/></svg></span>
       </div>
       <div class="delay-controls">
         <input id="delayInput" class="delay-input" type="text" inputmode="decimal" aria-label="Délai en secondes">
@@ -76,25 +76,25 @@
         </div>
       </div>
       <select id="presetSelect" class="preset" aria-label="Préréglages de délai"></select>
-      <button class="btn btn-accent" id="syncBtn" title="Caler le délai sur votre diffusion TV (touche S)">🎯<span class="sync-label"> Synchro TV</span></button>
+      <button class="btn btn-accent" id="syncBtn" title="Caler le délai sur votre diffusion TV (touche S)"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg><span class="sync-label"> Synchro TV</span></button>
     </div>
 
     <button class="source-badge" id="sourceBadge" title="Source des données (live / replay)">
       <span class="src-dot"></span><span id="sourceLabel">—</span>
     </button>
-    <button class="btn season-btn" id="seasonBtn" title="Saison : prochaine séance, calendrier, classements, résultats, duels entre coéquipiers">🏆<span class="sb-label"> Saison</span></button>
-    <button class="btn season-btn news-btn" id="newsBtn" title="Actu : toute l'actualité de la F1, traduite, avec alertes">📰<span class="sb-label"> Actu</span></button>
-    <button class="icon-btn" id="muteBtn" title="Son des alertes (touche M)">🔔</button>
-    <button class="icon-btn comm-btn" id="commBtn" title="Commentaires en direct F1 TV Pro (touche C : couper / remettre le son)">🎙</button>
-    <button class="icon-btn" id="soloFreeBtn" hidden>✥</button>
-    <button class="icon-btn" id="resetUiBtn" title="Réinitialiser l'interface (disposition, panneaux et colonnes par défaut)">⟲</button>
-    <button class="icon-btn" id="settingsBtn" title="Réglages : source (live / replay), compte F1 TV, affichage, alertes, application">⚙</button>
+    <button class="btn season-btn" id="seasonBtn" title="Saison : prochaine séance, calendrier, classements, résultats, duels entre coéquipiers"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="sb-label"> Saison</span></button>
+    <button class="btn season-btn news-btn" id="newsBtn" title="Actu : toute l'actualité de la F1, traduite, avec alertes"><svg class="ic" aria-hidden="true"><use href="#i-news"/></svg><span class="sb-label"> Actu</span></button>
+    <button class="icon-btn" id="muteBtn" title="Son des alertes (touche M)"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg></button>
+    <button class="icon-btn comm-btn" id="commBtn" title="Commentaires en direct F1 TV Pro (touche C : couper / remettre le son)"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg></button>
+    <button class="icon-btn" id="soloFreeBtn" hidden><svg class="ic" aria-hidden="true"><use href="#i-move"/></svg></button>
+    <button class="icon-btn" id="resetUiBtn" title="Réinitialiser l'interface (disposition, panneaux et colonnes par défaut)"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg></button>
+    <button class="icon-btn" id="settingsBtn" title="Réglages : source (live / replay), compte F1 TV, affichage, alertes, application"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg></button>
   </header>
 
   <div class="flag-banner" id="flagBanner" hidden><span class="fb-icon"></span><span class="fb-text"></span><span class="fb-sub"></span></div>
 
   <div class="replaybar" id="replayBar" hidden>
-    <button class="rp-play" id="rpPlay" title="Pause (barre d'espace)">❚❚</button>
+    <button class="rp-play" id="rpPlay" title="Pause (barre d'espace)"><svg class="ic" aria-hidden="true"><use href="#i-pause"/></svg></button>
     <div class="rp-main">
       <div class="rp-top"><span class="rp-title">Replay</span><span class="rp-phase" id="rpPhase"></span></div>
       <div class="rp-track" id="rpTrack">
@@ -110,9 +110,9 @@
       <label class="toggle small rp-flags" title="Afficher les drapeaux jaunes, safety car et VSC sur la barre (les drapeaux rouges restent toujours indiqués)"><input type="checkbox" id="rpFlags"> Drapeaux</label>
       <span class="rp-time" id="rpTime">—</span>
       <div class="rp-speeds" id="rpSpeeds" role="group" aria-label="Vitesse de lecture"></div>
-      <button class="btn small rp-red" id="rpRed" hidden title="Passer l'interruption : reprendre 30 s avant la relance de la séance">⏭ Fin du drapeau rouge</button>
-      <button class="icon-btn" id="rpStart" title="Aller au départ de la séance">⏮</button>
-      <button class="icon-btn" id="rpClose" title="Quitter le replay et revenir au direct">✕</button>
+      <button class="btn small rp-red" id="rpRed" hidden title="Passer l'interruption : reprendre 30 s avant la relance de la séance"><svg class="ic" aria-hidden="true"><use href="#i-skip-next"/></svg> Fin du drapeau rouge</button>
+      <button class="icon-btn" id="rpStart" title="Aller au départ de la séance"><svg class="ic" aria-hidden="true"><use href="#i-skip-start"/></svg></button>
+      <button class="icon-btn" id="rpClose" title="Quitter le replay et revenir au direct"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </div>
   </div>
 
@@ -120,23 +120,23 @@
     <aside class="sz-side">
       <div class="sz-side-head"><b>Saison</b> <select id="szYear" aria-label="Saison"></select></div>
       <nav id="szNav">
-        <button data-sz="home" class="active">🏠 Accueil</button>
-        <button data-sz="calendar">📅 Calendrier</button>
-        <button data-sz="standings">🏆 Classements</button>
-        <button data-sz="results">🏁 Résultats & records</button>
-        <button data-sz="h2h">⚔ Coéquipiers</button>
-        <button data-sz="ratings">🎖 Notes des pilotes</button>
+        <button data-sz="home" class="active"><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg> Accueil</button>
+        <button data-sz="calendar"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg> Calendrier</button>
+        <button data-sz="standings"><svg class="ic" aria-hidden="true"><use href="#i-trophy"/></svg> Classements</button>
+        <button data-sz="results"><svg class="ic" aria-hidden="true"><use href="#i-checkered"/></svg> Résultats & records</button>
+        <button data-sz="h2h"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg> Coéquipiers</button>
+        <button data-sz="ratings"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg> Notes des pilotes</button>
         <div class="sz-nav-sep">Statistiques détaillées</div>
-        <button data-sz="drivers">👤 Pilotes</button>
-        <button data-sz="consistency">📏 Régularité</button>
-        <button data-sz="pits">🔧 Arrêts aux stands</button>
-        <button data-sz="speeds">⚡ Vitesses de pointe</button>
-        <button data-sz="circuits">🗺 Profil des circuits</button>
+        <button data-sz="drivers"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg> Pilotes</button>
+        <button data-sz="consistency"><svg class="ic" aria-hidden="true"><use href="#i-ruler"/></svg> Régularité</button>
+        <button data-sz="pits"><svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg> Arrêts aux stands</button>
+        <button data-sz="speeds"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Vitesses de pointe</button>
+        <button data-sz="circuits"><svg class="ic" aria-hidden="true"><use href="#i-map"/></svg> Profil des circuits</button>
         <div class="sz-nav-sep">Technique (documents FIA)</div>
-        <button data-sz="tech">🛠 Évolutions techniques</button>
-        <button data-sz="elements">🔩 Éléments moteur</button>
+        <button data-sz="tech"><svg class="ic" aria-hidden="true"><use href="#i-wing"/></svg> Évolutions techniques</button>
+        <button data-sz="elements"><svg class="ic" aria-hidden="true"><use href="#i-engine"/></svg> Éléments moteur</button>
       </nav>
-      <button class="btn small sz-back" id="szClose" title="Retour au direct (Échap)">← Retour au direct</button>
+      <button class="btn small sz-back" id="szClose" title="Retour au direct (Échap)"><svg class="ic" aria-hidden="true"><use href="#i-arrow-left"/></svg> Retour au direct</button>
       <div class="muted small sz-src">Données : Jolpica (Ergast) et archives officielles F1 Live Timing, documents FIA</div>
     </aside>
     <div class="sz-main" id="szContent"></div>
@@ -146,17 +146,17 @@
     <aside class="sz-side">
       <div class="sz-side-head"><b>Actualités</b></div>
       <nav id="nwNav">
-        <button data-nw="all" class="active">📰 Toute l'actu</button>
-        <button data-nw="important">⚡ Important</button>
-        <button data-nw="favs">★ Mes favoris</button>
+        <button data-nw="all" class="active"><svg class="ic" aria-hidden="true"><use href="#i-news"/></svg> Toute l'actu</button>
+        <button data-nw="important"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Important</button>
+        <button data-nw="favs"><svg class="ic" aria-hidden="true"><use href="#i-star"/></svg> Mes favoris</button>
         <div class="sz-nav-sep">Par source</div>
-        <button data-nw="official">🏛 Officiel (F1, FIA)</button>
-        <button data-nw="team">🏎 Écuries</button>
-        <button data-nw="driver">👤 Pilotes</button>
-        <button data-nw="media">🌍 Médias</button>
-        <button data-nw="video">▶ Vidéos</button>
+        <button data-nw="official"><svg class="ic" aria-hidden="true"><use href="#i-landmark"/></svg> Officiel (F1, FIA)</button>
+        <button data-nw="team"><svg class="ic" aria-hidden="true"><use href="#i-car"/></svg> Écuries</button>
+        <button data-nw="driver"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg> Pilotes</button>
+        <button data-nw="media"><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg> Médias</button>
+        <button data-nw="video"><svg class="ic" aria-hidden="true"><use href="#i-video"/></svg> Vidéos</button>
         <div class="sz-nav-sep">Réglages</div>
-        <button data-nw="sources">⚙ Sources</button>
+        <button data-nw="sources"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Sources</button>
       </nav>
       <div class="nw-opts">
         <input type="search" id="nwSearch" placeholder="Rechercher : pilote, écurie, mot…" aria-label="Rechercher dans l'actualité">
@@ -169,7 +169,7 @@
           <select id="nwAlerts"><option value="important">Importantes et favoris</option><option value="favs">Favoris seulement</option><option value="all">Toutes les actualités</option><option value="off">Aucune</option></select></label>
         <label class="toggle" title="Pendant une séance ou un replay : titres masqués et alertes d'actualité suspendues, pour ne pas voir un résultat avant l'image"><input type="checkbox" id="nwSpoilers" checked> Anti-spoiler pendant les séances</label>
       </div>
-      <button class="btn small sz-back" id="nwClose" title="Retour au direct (Échap)">← Retour au direct</button>
+      <button class="btn small sz-back" id="nwClose" title="Retour au direct (Échap)"><svg class="ic" aria-hidden="true"><use href="#i-arrow-left"/></svg> Retour au direct</button>
       <div class="muted small sz-src">F1, FIA, chaînes officielles des écuries et des pilotes, médias en 8 langues</div>
     </aside>
     <div class="sz-main" id="nwContent"></div>
@@ -180,7 +180,7 @@
       <div class="panel-head">
         <h2>Classement</h2>
         <div class="panel-tools"><span class="hint">Cliquez <b>A</b> / <b>B</b> pour lancer un duel · clic sur un pilote = suivi</span>
-          <details class="map-layers tower-cols" id="towerCols"><summary class="btn small" title="Ajouter ou retirer des colonnes du classement">Colonnes ▾</summary><div class="map-layers-menu" id="towerColOpts"></div></details></div>
+          <details class="map-layers tower-cols" id="towerCols"><summary class="btn small" title="Ajouter ou retirer des colonnes du classement">Colonnes <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary><div class="map-layers-menu" id="towerColOpts"></div></details></div>
       </div>
       <div class="panel-body tower-wrap"><table class="tower" id="tower"></table></div>
     </section>
@@ -192,7 +192,7 @@
           <span class="map-mode" id="mapMode"></span>
           <label class="toggle" title="Centrer la carte sur le pilote suivi (clic sur un pilote du classement)"><input type="checkbox" id="mapFollow"> Suivre</label>
           <details class="map-layers" id="mapLayers">
-            <summary class="btn small" title="Éléments affichés sur la carte">Calques ▾</summary>
+            <summary class="btn small" title="Éléments affichés sur la carte">Calques <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
             <div class="map-layers-menu">
               <label class="toggle"><input type="checkbox" id="mapLabels" checked> Noms des pilotes (pastilles)</label>
               <label class="toggle" title="Courte traînée derrière chaque voiture (direction et vitesse)"><input type="checkbox" id="mapTrails" checked> Traînées</label>
@@ -288,10 +288,10 @@
         <h2>Duel</h2>
         <div class="panel-tools duel-pick">
           <select id="duelA" aria-label="Pilote A"></select>
-          <button class="icon-btn small" id="duelSwap" title="Inverser">⇄</button>
+          <button class="icon-btn small" id="duelSwap" title="Inverser"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg></button>
           <select id="duelB" aria-label="Pilote B"></select>
-          <button class="btn small" id="duelAhead" title="Duel automatique : pilote A contre la voiture juste devant">⬆</button>
-          <button class="btn small" id="duelBehind" title="Duel automatique : pilote A contre la voiture juste derrière">⬇</button>
+          <button class="btn small" id="duelAhead" title="Duel automatique : pilote A contre la voiture juste devant"><svg class="ic" aria-hidden="true"><use href="#i-arrow-up"/></svg></button>
+          <button class="btn small" id="duelBehind" title="Duel automatique : pilote A contre la voiture juste derrière"><svg class="ic" aria-hidden="true"><use href="#i-arrow-down"/></svg></button>
         </div>
       </div>
       <div class="panel-body" id="duelBody"></div>
@@ -348,7 +348,7 @@
           <div class="subbar">
             <label class="small" title="Pilote A (bleu)">A <select id="cmpA"></select></label>
             <select id="cmpLapA" class="cmp-lap" aria-label="Tour du pilote A"></select>
-            <button class="btn small" id="cmpSwap" title="Inverser A et B">⇄</button>
+            <button class="btn small" id="cmpSwap" title="Inverser A et B"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg></button>
             <label class="small" title="Pilote B (orange)">B <select id="cmpB"></select></label>
             <select id="cmpLapB" class="cmp-lap" aria-label="Tour du pilote B"></select>
             <button class="btn small" id="cmpTop" title="Revenir à P1 contre P2">P1 / P2</button>
@@ -387,8 +387,8 @@
   <!-- Synchro TV -->
   <dialog class="modal" id="syncModal">
     <form method="dialog" class="modal-head">
-      <h3>🎯 Synchroniser avec ma TV (Canal+…)</h3>
-      <button class="icon-btn" value="close" aria-label="Fermer">✕</button>
+      <h3><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg> Synchroniser avec ma TV (Canal+…)</h3>
+      <button class="icon-btn" value="close" aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </form>
     <div class="modal-body">
       <ol class="sync-steps">
@@ -405,7 +405,7 @@
       <ul class="sync-list" id="syncList"></ul>
       <div class="sync-save">
         <input type="text" id="presetName" placeholder="Nom du préréglage (ex. Canal+ salon)" maxlength="40">
-        <button class="btn" id="presetSave">💾 Enregistrer le délai actuel</button>
+        <button class="btn" id="presetSave"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer le délai actuel</button>
       </div>
       <div class="preset-manage" id="presetManage"></div>
     </div>
@@ -414,25 +414,25 @@
   <!-- Réglages -->
   <dialog class="modal wide" id="settingsModal">
     <form method="dialog" class="modal-head">
-      <h3>⚙ Réglages</h3>
-      <button class="icon-btn" value="close" aria-label="Fermer">✕</button>
+      <h3><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg> Réglages</h3>
+      <button class="icon-btn" value="close" aria-label="Fermer"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
     </form>
     <nav class="set-nav" id="setNav">
-      <button class="set-tab active" data-sgroup="source">📡 Source</button>
-      <button class="set-tab" data-sgroup="f1tv">🔐 Compte F1 TV</button>
-      <button class="set-tab" data-sgroup="display">🧩 Affichage</button>
-      <button class="set-tab" data-sgroup="alerts">🔔 Alertes & favoris</button>
-      <button class="set-tab" data-sgroup="app">⚙ Application</button>
+      <button class="set-tab active" data-sgroup="source"><svg class="ic" aria-hidden="true"><use href="#i-signal"/></svg> Source</button>
+      <button class="set-tab" data-sgroup="f1tv"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> Compte F1 TV</button>
+      <button class="set-tab" data-sgroup="display"><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg> Affichage</button>
+      <button class="set-tab" data-sgroup="alerts"><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Alertes & favoris</button>
+      <button class="set-tab" data-sgroup="app"><svg class="ic" aria-hidden="true"><use href="#i-gear"/></svg> Application</button>
     </nav>
     <div class="modal-body">
       <section class="set-block" data-sgroup="source">
-        <h4>🔴 Live</h4>
+        <h4><svg class="ic ic-live" aria-hidden="true"><use href="#i-record"/></svg> Live</h4>
         <p class="muted small">Se connecte au flux officiel F1 Live Timing (session en cours ou dernière session).</p>
         <button class="btn btn-accent" id="goLive">Passer en live</button>
       </section>
 
       <section class="set-block" data-sgroup="source">
-        <h4>⏪ Replay d'une session passée</h4>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-history"/></svg> Replay d'une session passée</h4>
         <div class="row">
           <select id="rpYear"></select>
           <select id="rpMeeting"></select>
@@ -447,13 +447,13 @@
       </section>
 
       <section class="set-block" data-sgroup="source">
-        <h4>💾 Mes enregistrements</h4>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Mes enregistrements</h4>
         <p class="muted small">Chaque session suivie en live est enregistrée sur ce PC (dossier <code>recordings/</code>) et peut être rejouée immédiatement.</p>
         <div id="recList" class="rec-list"></div>
       </section>
 
       <section class="set-block" data-sgroup="f1tv">
-        <h4>📡 Positions GPS & télémétrie en live (F1 TV)</h4>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-signal"/></svg> Positions GPS & télémétrie en live (F1 TV)</h4>
         <p class="small">Depuis 2025, la F1 réserve les positions GPS et la télémétrie du flux live aux abonnés <b>F1 TV</b>.
           Sans jeton, le dashboard <b>estime</b> la position des voitures à partir des chronos (mini-secteurs) : c'est moins précis mais fonctionne.
           Les replays, eux, contiennent toujours le GPS.</p>
@@ -467,11 +467,11 @@
           <p>Le jeton est enregistré uniquement sur votre PC (fichier <code>config.json</code>). Il n'est envoyé qu'aux serveurs de la F1 (dont api.formula1.com pour le renouvellement). Il vaut environ 4 jours et l'application le <b>renouvelle automatiquement</b> tant que votre session formula1.com est valide (environ 30 jours après la connexion) ; un rappel s'affiche quelques jours avant la fin.</p>
         </details>
         <div class="row" id="desktopLogin" hidden>
-          <button class="btn btn-accent" id="desktopLoginBtn">🔐 Se connecter à F1 TV</button>
+          <button class="btn btn-accent" id="desktopLoginBtn"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> Se connecter à F1 TV</button>
           <span class="small muted">Une fenêtre de connexion formula1.com s'ouvre ; une fois connecté, le jeton est récupéré automatiquement.</span>
           <button class="btn small" id="desktopLogoutBtn" title="Oublier la session F1 TV mémorisée dans l'application">Se déconnecter</button>
         </div>
-        <p class="small" id="bookmarkletHelp"><b>Méthode rapide :</b> glissez ce bouton dans votre barre de favoris → <a class="btn" id="bookmarklet" href="#">📡 F1 Dash : récupérer mon jeton</a>
+        <p class="small" id="bookmarkletHelp"><b>Méthode rapide :</b> glissez ce bouton dans votre barre de favoris → <a class="btn" id="bookmarklet" href="#">F1 Dash : récupérer mon jeton</a>
           puis, connecté sur formula1.com, cliquez sur ce favori. <span class="muted">(Si le site bloque la lecture du cookie, utilisez la méthode manuelle.)</span></p>
         <div class="row">
           <input type="password" id="tokenInput" placeholder="Valeur du cookie login-session ou jeton" autocomplete="off">
@@ -482,13 +482,13 @@
       </section>
 
       <section class="set-block" data-sgroup="app" id="followHostBlock" hidden>
-        <h4>⏱ Délai TV</h4>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-stopwatch"/></svg> Délai TV</h4>
         <div class="row"><label class="toggle small"><input type="checkbox" id="followHost"> Reprendre automatiquement le délai TV réglé sur l'ordinateur</label></div>
-        <p class="small muted">Décochez si cet appareil regarde une autre diffusion que l'ordinateur ; réglez alors son délai avec 🎯 en haut de l'écran.</p>
+        <p class="small muted">Décochez si cet appareil regarde une autre diffusion que l'ordinateur ; réglez alors son délai avec le bouton de synchronisation en haut de l'écran.</p>
       </section>
 
       <section class="set-block" data-sgroup="app" id="lanBlock" hidden>
-        <h4>📱 Sur votre téléphone ou tablette</h4>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-phone"/></svg> Sur votre téléphone ou tablette</h4>
         <p class="muted small">Ouvrez F1 Dash sur un téléphone ou une tablette connecté au <b>même Wi-Fi</b> que cet ordinateur : l'interface s'adapte au petit écran (un panneau à la fois). Le délai TV, le pilote suivi et le replay sont ceux de cet ordinateur ; l'ordinateur doit rester allumé avec F1 Dash ouvert.</p>
         <div class="row"><label class="toggle small"><input type="checkbox" id="lanEnabled"> Autoriser l'accès depuis le réseau local</label></div>
         <div id="lanInfo" hidden>
@@ -508,7 +508,7 @@
       </section>
 
       <section class="set-block" data-sgroup="app" id="updateBlock" hidden>
-        <h4>🔄 Mises à jour de l'application</h4>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg> Mises à jour de l'application</h4>
         <div class="small" id="updateStatus">—</div>
         <div class="row">
           <button class="btn" id="updateCheck">Vérifier maintenant</button>
@@ -520,25 +520,25 @@
       </section>
 
       <section class="set-block" data-sgroup="app">
-        <h4>📝 Nouveautés (journal des modifications)</h4>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg> Nouveautés (journal des modifications)</h4>
         <div class="cl-list" id="changelog"><p class="muted">Chargement…</p></div>
       </section>
 
       <section class="set-block" data-sgroup="alerts">
-        <h4>🔔 Alertes (synchronisées avec votre délai TV)</h4>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Alertes (synchronisées avec votre délai TV)</h4>
         <div class="row" id="alertOpts"></div>
-        <div class="row"><span class="small">Pilotes favoris (cliquez pour ajouter/retirer — ou sur l'étoile ☆ à côté du nom dans le classement) :</span><div id="favList" class="fav-list"></div></div>
+        <div class="row"><span class="small">Pilotes favoris (cliquez pour ajouter/retirer — ou sur l'étoile à côté du nom dans le classement) :</span><div id="favList" class="fav-list"></div></div>
       </section>
 
       <section class="set-block" data-sgroup="display">
-        <h4>🧩 Affichage</h4>
-        <div class="small muted">Disposition libre : glissez un panneau par sa poignée <b>⠿</b> à côté, au-dessus ou en dessous d'un autre (ou au centre pour les échanger), entre deux panneaux ou deux colonnes, ou contre le bord gauche ou droit de la fenêtre pour en faire une nouvelle colonne ; glissez les espaces entre les panneaux pour changer leur taille (double-clic : partage égal). <b>↗</b> envoie un panneau vers une nouvelle fenêtre ou l'ajoute à une fenêtre déjà ouverte (second écran), où il se dispose de la même façon ; <b>↙</b> le remet ici.</div>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-layout"/></svg> Affichage</h4>
+        <div class="small muted">Disposition libre : glissez un panneau par sa poignée <b><svg class="ic" aria-hidden="true"><use href="#i-grip"/></svg></b> à côté, au-dessus ou en dessous d'un autre (ou au centre pour les échanger), entre deux panneaux ou deux colonnes, ou contre le bord gauche ou droit de la fenêtre pour en faire une nouvelle colonne ; glissez les espaces entre les panneaux pour changer leur taille (double-clic : partage égal). <b><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg></b> envoie un panneau vers une nouvelle fenêtre ou l'ajoute à une fenêtre déjà ouverte (second écran), où il se dispose de la même façon ; <b><svg class="ic" aria-hidden="true"><use href="#i-window-in"/></svg></b> le remet ici.</div>
         <div class="row"><label class="small">Disposition <select id="layoutModeSel"><option value="auto">Automatique selon la séance</option><option value="race">Toujours « Course »</option><option value="quali">Toujours « Qualif &amp; essais »</option></select></label></div>
         <div class="small muted">Deux dispositions indépendantes, l'une pour les courses (et sprints), l'autre pour les qualifications et les essais : chacune garde ses panneaux, leurs tailles, les colonnes du classement et les onglets ouverts. <b id="layoutProfileNow"></b></div>
         <div class="row"><label class="small">Placement des panneaux <select id="freeSel"><option value="cols">Rangés en colonnes (redimensionnables)</option><option value="free">Libre : n'importe où, chevauchement possible</option></select></label></div>
-        <div class="row"><button class="btn small" id="winSave" title="Garde la disposition de chaque fenêtre (panneaux, tailles, mode libre) et la place des fenêtres sur les écrans">💾 Enregistrer l'emplacement des fenêtres</button> <button class="btn small" id="winRestore">↩ Revenir à l'emplacement enregistré</button></div>
+        <div class="row"><button class="btn small" id="winSave" title="Garde la disposition de chaque fenêtre (panneaux, tailles, mode libre) et la place des fenêtres sur les écrans"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer l'emplacement des fenêtres</button> <button class="btn small" id="winRestore"><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg> Revenir à l'emplacement enregistré</button></div>
         <div class="row" id="winStartRow" hidden><label class="small">Au lancement de l'application <select id="winStart"><option value="last">rouvrir les fenêtres comme à la fermeture</option><option value="saved">reprendre l'emplacement enregistré</option><option value="none">ne pas rouvrir les fenêtres détachées</option></select></label></div>
-        <div class="row"><button class="btn small" id="layoutReset">Réinitialiser l'interface</button> <span class="small muted">(aussi avec le bouton ⟲ en haut)</span></div>
+        <div class="row"><button class="btn small" id="layoutReset">Réinitialiser l'interface</button> <span class="small muted">(aussi avec le bouton de réinitialisation en haut)</span></div>
         <div class="small muted">Panneaux visibles :</div>
         <div class="row" id="panelOpts"></div>
         <div class="small muted">Colonnes du classement :</div>
@@ -554,14 +554,14 @@
       </section>
 
       <section class="set-block" data-sgroup="app" id="shortcutsBlock">
-        <h4>⌨ Raccourcis</h4>
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-keyboard"/></svg> Raccourcis</h4>
         <p class="small muted">← / → : délai ±1 s · Maj : ±5 s · Alt : ±0,1 s · S : synchro TV · Espace : pause (replay) · M : couper les alertes sonores · Échap : quitter le panneau agrandi</p>
       </section>
     </div>
   </dialog>
 
   <div class="comm-panel" id="commPanel" hidden>
-    <div class="comm-head"><b>🎙 Commentaires en direct</b><button class="icon-btn small" id="commClose" title="Fermer (le son continue)">✕</button></div>
+    <div class="comm-head"><b><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg> Commentaires en direct</b><button class="icon-btn small" id="commClose" title="Fermer (le son continue)"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button></div>
     <div class="comm-row comm-src">
       <label class="toggle small"><input type="radio" name="commSource" value="f1tv"> F1 TV Pro</label>
       <label class="toggle small"><input type="radio" name="commSource" value="radio"> Radio / flux audio</label>
@@ -576,8 +576,8 @@
     <div class="comm-radio" hidden>
       <div class="comm-row">
         <label class="small muted">Station <select id="radioStation"></select></label>
-        <button class="btn small" id="radioAdd" title="Ajouter une station">＋ Ajouter</button>
-        <button class="btn small" id="radioDel" title="Supprimer cette station">🗑</button>
+        <button class="btn small" id="radioAdd" title="Ajouter une station"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> Ajouter</button>
+        <button class="btn small" id="radioDel" title="Supprimer cette station"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg></button>
       </div>
       <form class="comm-radio-form" id="radioForm" hidden>
         <input id="radioName" placeholder="Nom (ex. : Radio F1 FR)" required>
@@ -588,8 +588,8 @@
       </form>
     </div>
     <div class="comm-row">
-      <button class="btn btn-accent" id="commPlay">▶ Écouter</button>
-      <button class="btn" id="commMute" title="Couper / remettre le son (touche C)">🔊</button>
+      <button class="btn btn-accent" id="commPlay"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg> Écouter</button>
+      <button class="btn" id="commMute" title="Couper / remettre le son (touche C)"><svg class="ic" aria-hidden="true"><use href="#i-volume"/></svg></button>
       <input type="range" id="commVol" min="0" max="1" step="0.05" aria-label="Volume">
       <span class="small muted" id="commVolVal"></span>
     </div>
@@ -603,12 +603,12 @@
       <button class="btn small" data-coff="0.2">+0,2</button><button class="btn small" data-coff="1">+1</button>
     </div>
     <div class="comm-status small" id="commStatus"></div>
-    <a class="comm-browser small" id="commBrowser" target="_blank" rel="noopener" hidden>🌐 Ouvrir le dashboard dans le navigateur (Chrome / Edge)</a>
+    <a class="comm-browser small" id="commBrowser" target="_blank" rel="noopener" hidden><svg class="ic" aria-hidden="true"><use href="#i-external"/></svg> Ouvrir le dashboard dans le navigateur (Chrome / Edge)</a>
     <video id="commMedia" hidden playsinline></video>
   </div>
 
-  <div class="update-pill auth-pill" id="authPill" hidden><span id="authPillText"></span><button class="btn small btn-accent" id="authPillBtn">Se reconnecter</button><button class="icon-btn small" id="authPillClose" title="Masquer jusqu'à demain">✕</button></div>
-  <div class="update-pill" id="updatePill" hidden><span id="updatePillText"></span><button class="btn small btn-accent" id="updatePillBtn">Redémarrer</button><button class="icon-btn small" id="updatePillClose" title="Plus tard (installée à la fermeture)">✕</button></div>
+  <div class="update-pill auth-pill" id="authPill" hidden><span id="authPillText"></span><button class="btn small btn-accent" id="authPillBtn">Se reconnecter</button><button class="icon-btn small" id="authPillClose" title="Masquer jusqu'à demain"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+  <div class="update-pill" id="updatePill" hidden><span id="updatePillText"></span><button class="btn small btn-accent" id="updatePillBtn">Redémarrer</button><button class="icon-btn small" id="updatePillClose" title="Plus tard (installée à la fermeture)"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button></div>
 
   <div class="toast" id="toast" hidden></div>
 

@@ -1,4 +1,5 @@
 // Point d'entrée de l'interface.
+import './icons.js';
 import { store, on } from './store.js';
 import { $$ } from './util.js';
 import { connect } from './conn.js';

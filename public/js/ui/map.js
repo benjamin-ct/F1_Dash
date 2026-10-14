@@ -838,15 +838,31 @@ function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
       // Fanion au début de la zone avec le numéro du secteur de commissaires
       const p = screenAt(r0);
       const x = p.x + p.nx * (W / 2 + 15), y = p.y + p.ny * (W / 2 + 15);
+      // Étiquette : fanion(s) dessiné(s) puis numéro du secteur de commissaires
+      ctx.font = `800 10.5px ${FONT()}`;
+      const label = String(r.number);
+      const fw = (dbl ? 2 : 1) * 7 + 2;
+      const bw = Math.max(28, fw + ctx.measureText(label).width + 10);
       ctx.fillStyle = dbl ? '#ff9f1a' : '#f5c518';
       ctx.beginPath();
-      ctx.roundRect(x - 14, y - 9, 28, 18, 4);
+      ctx.roundRect(x - bw / 2, y - 9, bw, 18, 4);
       ctx.fill();
-      ctx.fillStyle = '#1a1500';
-      ctx.font = `800 10.5px ${FONT()}`;
-      ctx.textAlign = 'center';
+      const x0 = x - (fw + ctx.measureText(label).width) / 2;
+      ctx.fillStyle = ctx.strokeStyle = '#1a1500';
+      ctx.lineWidth = 1.3;
+      for (let k = 0; k < (dbl ? 2 : 1); k++) {
+        const fx = x0 + k * 7 + 1;
+        ctx.beginPath();
+        ctx.moveTo(fx, y + 5); ctx.lineTo(fx, y - 5);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(fx, y - 5); ctx.lineTo(fx + 5, y - 3.2); ctx.lineTo(fx, y - 1.4);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${dbl ? '⚑⚑' : '⚑'}${r.number}`, x, y + 0.5);
+      ctx.fillText(label, x0 + fw, y + 0.5);
       flagZones.push({ number: r.number, dbl, approx: marshal.approx, text: describeZone(lay, r0, r1) });
     }
   }

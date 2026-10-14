@@ -4,6 +4,7 @@ import { store, on } from '../store.js';
 import { $, esc, drivers } from '../util.js';
 import { prefs, setPref, isFav } from '../prefs.js';
 import { toast } from './delay.js';
+import { icon } from '../icons.js';
 
 let audio = null;
 
@@ -44,10 +45,13 @@ function buzz(kind) {
   try { navigator.vibrate(pattern); } catch { /* ignore */ }
 }
 
+// Icône du message selon le type d'alerte
+const KIND_ICON = { red: 'flag', sc: 'siren', green: 'checkered', info: 'warning', fastest: 'stopwatch', fav: 'star' };
+
 function notify(title, body, kind) {
   beep(kind);
   buzz(kind);
-  toast(`${title}${body ? ' — ' + body : ''}`, 5000);
+  toast(`${title}${body ? ' — ' + body : ''}`, 5000, KIND_ICON[kind] || 'bell');
   if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     try { new Notification(title, { body, silent: true }); } catch { /* ignore */ }
   }
@@ -58,7 +62,7 @@ function notify(title, body, kind) {
 export function notifyNews(title, body, kind, onClick) {
   beep(kind);
   buzz(kind);
-  toast(`${title} — ${body}`, 8000);
+  toast(`${title} — ${body}`, 8000, 'news');
   if (prefs.alerts.notify && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
     try {
       const n = new Notification(title, { body, silent: true });
@@ -68,9 +72,9 @@ export function notifyNews(title, body, kind, onClick) {
 }
 
 const TRACK_ALERT = {
-  '4': ['🚨 Voiture de sécurité', 'sc'],
-  '5': ['🟥 Drapeau rouge', 'red'],
-  '6': ['🟠 Voiture de sécurité virtuelle', 'sc'],
+  '4': ['Voiture de sécurité', 'sc'],
+  '5': ['Drapeau rouge', 'red'],
+  '6': ['Voiture de sécurité virtuelle', 'sc'],
 };
 
 let lastTrack = null;
@@ -85,26 +89,26 @@ function onEvents(events) {
       const st = String(data.Status);
       if (st !== lastTrack) {
         if (TRACK_ALERT[st]) notify(TRACK_ALERT[st][0], '', TRACK_ALERT[st][1]);
-        else if (st === '1' && ['4', '5', '6', '7'].includes(lastTrack)) notify('🟢 Piste dégagée', 'Reprise de la course', 'green');
+        else if (st === '1' && ['4', '5', '6', '7'].includes(lastTrack)) notify('Piste dégagée', 'Reprise de la course', 'green');
         lastTrack = st;
       }
     } else if (topic === 'SessionStatus' && data.Status === 'Finished' && a.finish) {
-      notify('🏁 Drapeau à damier', '', 'green');
+      notify('Drapeau à damier', '', 'green');
     } else if (topic === 'TimingData' && data.Lines) {
       for (const [num, l] of Object.entries(data.Lines)) {
         if (!l || typeof l !== 'object') continue;
         if (a.fastest && l.LastLapTime?.OverallFastest === true && l.LastLapTime?.Value) {
-          notify(`⏱ Meilleur tour : ${tla(num)}`, l.LastLapTime.Value, 'fastest');
+          notify(`Meilleur tour : ${tla(num)}`, l.LastLapTime.Value, 'fastest');
         }
-        if (a.favPit && isFav(num) && l.InPit === true) notify(`🔧 ${tla(num)} rentre aux stands`, '', 'fav');
-        if (a.retire && (l.Retired === true || l.Stopped === true) && store.state.SessionStatus?.Status === 'Started') notify(`⚠ ${tla(num)} ${l.Retired ? 'abandonne' : 'est arrêté'}`, '', 'info');
+        if (a.favPit && isFav(num) && l.InPit === true) notify(`${tla(num)} rentre aux stands`, '', 'fav');
+        if (a.retire && (l.Retired === true || l.Stopped === true) && store.state.SessionStatus?.Status === 'Started') notify(`${tla(num)} ${l.Retired ? 'abandonne' : 'est arrêté'}`, '', 'info');
       }
     } else if (topic === 'RaceControlMessages' && data.Messages && a.favRcm) {
       const msgs = Array.isArray(data.Messages) ? data.Messages : Object.values(data.Messages);
       for (const m of msgs) {
         const nums = new Set([m?.RacingNumber, ...String(m?.Message || '').matchAll(/CAR (\d+)/g)].map((x) => (Array.isArray(x) ? x[1] : x)).filter(Boolean).map(String));
         const fav = [...nums].find((n) => isFav(n));
-        if (fav && m.Flag !== 'BLUE') notify(`📣 ${tla(fav)} — direction de course`, m.Message, 'fav');
+        if (fav && m.Flag !== 'BLUE') notify(`${tla(fav)} — direction de course`, m.Message, 'fav');
       }
     }
   }
@@ -122,23 +126,23 @@ export function initAlerts() {
   }, { passive: true });
   const toggleMute = () => {
     setPref('muted', !prefs.muted);
-    toast(prefs.muted ? '🔕 Son des alertes coupé (touche M pour le remettre)' : '🔔 Son des alertes activé');
+    toast(prefs.muted ? 'Son des alertes coupé (touche M pour le remettre)' : 'Son des alertes activé', 2500, prefs.muted ? 'bell-off' : 'bell');
   };
   window.addEventListener('keydown', (e) => {
     if ((e.key === 'm' || e.key === 'M') && !e.target.closest('input, select, textarea')) toggleMute();
   });
-  // Bouton de la barre du haut : 🔔 son actif, 🔕 coupé
+  // Bouton de la barre du haut : cloche (son actif) ou cloche barrée (coupé)
   const btn = $('#muteBtn');
   const showMute = () => {
     if (!btn) return;
     const off = prefs.muted || !prefs.alerts.sound;
-    btn.textContent = off ? '🔕' : '🔔';
+    btn.innerHTML = icon(off ? 'bell-off' : 'bell');
     btn.classList.toggle('off', off);
     btn.title = off ? 'Son des alertes coupé — cliquer pour le remettre (touche M)' : 'Son des alertes actif — cliquer pour le couper (touche M)';
   };
   btn?.addEventListener('click', () => {
     // Son décoché dans les Réglages : le bouton le réactive
-    if (!prefs.alerts.sound) { setPref('alerts', { ...prefs.alerts, sound: true }); setPref('muted', false); toast('🔔 Son des alertes activé'); renderAlertOptions(); } else toggleMute();
+    if (!prefs.alerts.sound) { setPref('alerts', { ...prefs.alerts, sound: true }); setPref('muted', false); toast('Son des alertes activé', 2500, 'bell'); renderAlertOptions(); } else toggleMute();
   });
   on('prefs', (k) => { if (k === 'muted' || k === 'alerts') showMute(); });
   showMute();
@@ -161,5 +165,5 @@ export function renderAlertOptions() {
     setPref('alerts', { ...prefs.alerts, [k]: e.target.checked });
     if (k === 'notify' && e.target.checked && 'Notification' in window) Notification.requestPermission();
   };
-  el.onclick = (e) => { if (e.target.id === 'alertTest') notify('🚨 Voiture de sécurité', 'Exemple d\'alerte', 'sc'); };
+  el.onclick = (e) => { if (e.target.id === 'alertTest') notify('Voiture de sécurité', 'Exemple d\'alerte', 'sc'); };
 }

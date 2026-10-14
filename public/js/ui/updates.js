@@ -9,11 +9,11 @@ let dismissed = false;
 function fmt(s) {
   switch (s.status) {
     case 'checking': return 'Recherche d\'une nouvelle version…';
-    case 'up-to-date': return `✔ Vous avez la dernière version (${s.current}).`;
+    case 'up-to-date': return `Vous avez la dernière version (${s.current}).`;
     case 'available': return `Nouvelle version ${s.latest?.version} disponible (vous avez ${s.current}).`;
     case 'downloading': return `Téléchargement de la version ${s.latest?.version}… ${Math.round((s.progress || 0) * 100)} %`;
-    case 'ready': return `✅ Version ${s.latest?.version} prête : elle sera installée à la fermeture de l'appli, ou tout de suite avec « Redémarrer ».`;
-    case 'error': return `⚠ ${s.error}`;
+    case 'ready': return `Version ${s.latest?.version} prête : elle sera installée à la fermeture de l'appli, ou tout de suite avec « Redémarrer ».`;
+    case 'error': return `Erreur : ${s.error}`;
     case 'unsupported': return 'Mise à jour automatique indisponible pour cette installation (paquet .deb, ou appli lancée depuis l\'image disque) : installez la nouvelle version depuis la page des versions du projet sur GitHub.';
     default: return `Version ${s.current}`;
   }
@@ -26,7 +26,7 @@ function render(s) {
   $('#updateCheck').hidden = s.status === 'unsupported';
   const pill = $('#updatePill');
   pill.hidden = s.status !== 'ready' || dismissed;
-  $('#updatePillText').textContent = `🔄 F1 Dash ${s.latest?.version} est prête`;
+  $('#updatePillText').textContent = `F1 Dash ${s.latest?.version} est prête`;
   // Nouveautés de la version à installer (page de la version : avant la ligne « --- »)
   const notes = ['available', 'downloading', 'ready'].includes(s.status) ? String(s.latest?.notes || '').split(/\n-{3,}\s*\n/)[0].replace(/^## .*\n/, '') : '';
   $('#updateNotes').hidden = !notes.trim();

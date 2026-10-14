@@ -2,6 +2,7 @@
 // documents officiels de la FIA lus par le serveur (/api/season/fia).
 import { $, esc, teamColor, teamMark, storageGet, storageSet } from '../util.js';
 import { translated, requestTranslations, onTranslation, translationState } from './fia-translate.js';
+import { icon } from '../icons.js';
 
 const TYPES_FR = { Performance: 'Performance', 'Circuit specific': 'Spécifique au circuit', Reliability: 'Fiabilité', 'Structural Improvement': 'Structure' };
 const REASONS_FR = {
@@ -55,8 +56,8 @@ const trSpan = (en) => {
 function trStatusHtml() {
   if (showOriginal()) return '';
   const s = translationState();
-  if (s.left) return `⏳ Traduction en cours (${s.left} texte${s.left > 1 ? 's' : ''})${s.loading ? ` · ${esc(s.loading)}` : ''} — faite sur cet ordinateur, une seule fois.`;
-  if (s.error) return `⚠ Traduction impossible pour l'instant : ${esc(s.error)}.`;
+  if (s.left) return `${icon('hourglass')} Traduction en cours (${s.left} texte${s.left > 1 ? 's' : ''})${s.loading ? ` · ${esc(s.loading)}` : ''} — faite sur cet ordinateur, une seule fois.`;
+  if (s.error) return `${icon('warning')} Traduction impossible pour l'instant : ${esc(s.error)}.`;
   return '';
 }
 
@@ -95,7 +96,7 @@ const short = (n) => String(n || '').replace(/ Grand Prix$/, '').replace(/^Grand
 function note(fia) {
   if (!fia) return '<div class="note">Chargement des documents de la FIA…</div>';
   if (fia.error) return `<div class="note">Documents de la FIA indisponibles (${esc(fia.error)}).</div>`;
-  if (fia.pending) return `<div class="note">⏳ Lecture des documents officiels de la FIA : <b>${fia.done} / ${fia.total}</b> Grands Prix — la première fois, les PDF de chaque épreuve sont téléchargés et lus, ensuite tout est conservé sur ce PC.</div>`;
+  if (fia.pending) return `<div class="note">${icon('hourglass')} Lecture des documents officiels de la FIA : <b>${fia.done} / ${fia.total}</b> Grands Prix — la première fois, les PDF de chaque épreuve sont téléchargés et lus, ensuite tout est conservé sur ce PC.</div>`;
   return '';
 }
 
@@ -188,7 +189,7 @@ export function renderTech(ctx, fia) {
     <section class="sz-box"><h3>Détail des évolutions</h3>
       <div class="sz-h2h-pick"><label class="small">Grand Prix <select id="szTechGp">${evs.map((e) => `<option value="${esc(e.page)}" ${e === gp ? 'selected' : ''}>${esc(e.label)} · ${esc(short(e.name))} (${e.tech.length})</option>`).join('')}</select></label>
         <label class="small">Écurie <select id="szTechTeam"><option value="all">Toutes</option>${teamsGp.map((t) => `<option ${t === techTeam ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
-        ${gp.docs?.tech ? `<a class="small" href="${esc(gp.docs.tech)}" target="_blank" rel="noopener">Document FIA (PDF) ↗</a>` : ''}</div>
+        ${gp.docs?.tech ? `<a class="small" href="${esc(gp.docs.tech)}" target="_blank" rel="noopener">Document FIA (PDF) ${icon('external', 'ic-s')}</a>` : ''}</div>
       ${gp.noUpdates.length ? `<p class="muted small">Sans nouveauté : ${gp.noUpdates.map(esc).join(', ')}.</p>` : ''}
       <div class="sz-tr-bar small"><label class="toggle small"><input type="checkbox" id="szTechOrig" ${showOriginal() ? 'checked' : ''}> Texte d'origine (anglais)</label><span class="muted" id="szTrStatus">${trStatusHtml()}</span></div>
       <div class="sz-upd">${list.map((u) => `<article class="sz-upd-item" style="--tc:${tcol(u.team, ctx, u.teamId)}">
@@ -263,7 +264,7 @@ export function renderElements(ctx, fia) {
       <section class="sz-box"><h3>Total par écurie</h3>${hbars(byTeam.map((t) => ({ html: `${mark(t.team, ctx, t.teamId)}<b>${esc(t.team)}</b>`, v: t.n, color: tcol(t.team, ctx, t.teamId) })))}</section>
     </div>
     <section class="sz-box"><h3>Pénalités sur la grille</h3>${pens.length ? `<table class="sz-table sz-wrap"><tr><th>Grand Prix</th><th>Pilote</th><th>Éléments</th><th>Sanction</th><th></th></tr>
-      ${pens.map((p) => `<tr><td>${esc(p.ev.label)} ${esc(short(p.ev.name))}</td><td><b>${esc(p.driver)}</b></td><td class="small">${esc(elementsOf(p.fact))}${/without the approval|parc ferm/i.test(p.fact) ? ' <span class="muted">(changement en parc fermé)</span>' : ''}</td><td><b>${esc(DECISION_FR(p.decision))}</b></td><td><a href="${esc(p.url)}" target="_blank" rel="noopener" class="small">PDF ↗</a></td></tr>`).join('')}</table>` : '<div class="note">Aucune pénalité.</div>'}</section>
+      ${pens.map((p) => `<tr><td>${esc(p.ev.label)} ${esc(short(p.ev.name))}</td><td><b>${esc(p.driver)}</b></td><td class="small">${esc(elementsOf(p.fact))}${/without the approval|parc ferm/i.test(p.fact) ? ' <span class="muted">(changement en parc fermé)</span>' : ''}</td><td><b>${esc(DECISION_FR(p.decision))}</b></td><td><a href="${esc(p.url)}" target="_blank" rel="noopener" class="small">PDF ${icon('external', 'ic-s')}</a></td></tr>`).join('')}</table>` : '<div class="note">Aucune pénalité.</div>'}</section>
     <section class="sz-box"><h3>Éléments neufs par Grand Prix</h3><table class="sz-table sz-wrap"><tr><th>Grand Prix</th><th>Nouveaux éléments</th></tr>
       ${evs.filter((e) => e.fresh.length).reverse().map((e) => {
         const by = new Map();

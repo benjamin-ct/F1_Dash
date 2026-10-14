@@ -6,6 +6,7 @@ import { $, esc, api, teamColor } from '../util.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge } from './season-stats.js';
 import { driverRatings, qualiGaps } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
+import { icon } from '../icons.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -205,7 +206,7 @@ function renderCalendar() {
       <summary><div class="sz-race-top"><span class="muted">R${r.round}</span> ${r.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''} ${status}</div>
         <div class="sz-race-name">${esc(r.name.replace(' Grand Prix', ''))}</div>
         <div class="muted small">${esc(r.circuit || '')} · ${fmtDate(first)} – ${fmtDate(r.date)}</div>
-        ${w ? `<div class="small">🏆 ${chip(w)} ${r.quali[0] ? `· pole ${chip(r.quali.find((q) => q.pos === 1) || r.quali[0])}` : ''}</div>` : ''}</summary>
+        ${w ? `<div class="small">${icon('trophy')} ${chip(w)} ${r.quali[0] ? `· pole ${chip(r.quali.find((q) => q.pos === 1) || r.quali[0])}` : ''}</div>` : ''}</summary>
       <ul class="sz-sessions">${r.sessions.map((s) => `<li><span>${esc(s.label)}</span><span>${s.t ? `${fmtDate(s.t, { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(s.t)}` : '—'}</span></li>`).join('')}</ul>
     </details>`;
   }).join('')}</div><p class="muted small">Horaires affichés à l'heure de cet ordinateur.</p>`;

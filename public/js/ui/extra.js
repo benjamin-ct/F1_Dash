@@ -2,6 +2,7 @@
 import { store, displayNow, versionOf, setFocus } from '../store.js';
 import { Dial, SpeedTrace, animate, carNow } from './gauge.js';
 import { $, esc, drivers, orderedNumbers, teamColor, teamMark, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds } from '../util.js';
+import { icon } from '../icons.js';
 
 let lastTele = 0;
 let stratVer = -1, wxVer = -1, champVer = -1;
@@ -53,7 +54,7 @@ export function renderTelemetry() {
   const dl = drivers(store.state);
   const num = focusDriver();
   if (!store.positions.car.size) {
-    el.innerHTML = `<div class="note">Pas de télémétrie disponible.<br><br>En <b>live</b>, la F1 réserve la télémétrie (vitesse, régime, rapport, accélérateur, frein) aux abonnés F1 TV : ajoutez votre jeton dans ⚙ Réglages.<br>En <b>replay</b>, elle est incluse.</div>`;
+    el.innerHTML = `<div class="note">Pas de télémétrie disponible.<br><br>En <b>live</b>, la F1 réserve la télémétrie (vitesse, régime, rapport, accélérateur, frein) aux abonnés F1 TV : ajoutez votre jeton dans Réglages.<br>En <b>replay</b>, elle est incluse.</div>`;
     el._k = null;
     tele = null;
     return;
@@ -74,7 +75,7 @@ export function renderTelemetry() {
     el.innerHTML = `<div class="tele2">
       <div class="tele2-bar"><span class="tele-chip" style="--tc:${teamColor(dl[num] || {})}">${pick('teleSel', num)}</span>
         <span class="tele-vs">vs</span>
-        <span class="tele-chip ${numB ? '' : 'empty'}" style="--tc:${numB ? teamColor(dl[numB] || {}) : 'var(--border)'}">${pick('teleSelB', numB, true)}${numB ? '<button class="tele-x" id="teleClearB" title="Un seul pilote" aria-label="Retirer le second pilote">✕</button>' : ''}</span>
+        <span class="tele-chip ${numB ? '' : 'empty'}" style="--tc:${numB ? teamColor(dl[numB] || {}) : 'var(--border)'}">${pick('teleSelB', numB, true)}${numB ? `<button class="tele-x" id="teleClearB" title="Un seul pilote" aria-label="Retirer le second pilote">${icon('close')}</button>` : ''}</span>
         <span class="muted small tele-hint">clic sur un pilote du classement = pilote suivi</span></div>
       <div class="tele2-dials ${numB ? 'two' : 'one'}">
         <div class="tele2-col">${head(num)}<div class="tele-dial" id="teleDialA"></div></div>
@@ -142,7 +143,7 @@ export function renderWeather() {
     ${g('Air', esc(w.AirTemp), '°C')}${g('Piste', esc(w.TrackTemp), '°C')}${g('Humidité', esc(w.Humidity), '%')}
     ${g('Pression', esc(w.Pressure), 'hPa')}
     ${g('Vent', Number.isFinite(wind) ? (wind * 3.6).toFixed(0) : '—', `km/h <span class="wind-arrow" style="transform:rotate(${dir + 180}deg)" title="Direction ${dir}°">↑</span>`)}
-    ${g('Pluie', w.Rainfall === '1' || w.Rainfall === 1 ? '🌧 Oui' : 'Non', '')}
+    ${g('Pluie', w.Rainfall === '1' || w.Rainfall === 1 ? `${icon('rain')} Oui` : 'Non', '')}
   </div><p class="note">Direction du vent : ${dir}° (d'où il vient). Données de la station météo du circuit.</p>`;
 }
 

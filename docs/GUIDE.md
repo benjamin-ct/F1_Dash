@@ -57,13 +57,14 @@ Le bouton **Saison** de la barre de gauche (🏆 en haut dans les autres designs
 
 ## 📰 Espace Actu
 
-Toute l'actualité de la F1 au même endroit, sans aller la chercher partout (bouton **Actu** de la barre latérale, 📰 sur téléphone ; pastille rouge = nombre de nouveautés) :
+Toute l'actualité de la F1 au même endroit, sans aller la chercher partout (bouton **Actu** de la barre latérale ou du haut de l'écran sur téléphone ; pastille rouge = nombre de nouveautés) :
 
 - **Sources** : officielles (site de la F1, communiqués et actualités F1 de la FIA, chaîne YouTube de la F1), chaînes YouTube officielles des écuries et des pilotes, et médias reconnus en 8 langues (anglais, français, espagnol, italien, allemand, néerlandais, portugais, japonais). Le PC relit chaque source toutes les 3 à 10 minutes. L'onglet **⚙ Sources** montre l'état de chacune, permet d'en couper et d'en **ajouter** (site ou flux RSS, chaîne YouTube, compte Bluesky). X, Instagram et TikTok ne sont pas proposés : ces réseaux n'offrent pas d'accès gratuit à leurs publications.
 - **Traduction en français** des titres et résumés, faite sur l'ordinateur par le moteur des radios (modèle de langage sur la carte graphique, sinon modèles légers), gardée par le PC et servie aussi au téléphone. Bouton **VO** pour voir le texte d'origine.
-- **Un sujet = une carte** : les articles qui parlent de la même chose sont regroupés (« repris par N sources », 🔥 quand au moins 3 sources en parlent). Pilotes et écuries cités sont repérés (étiquettes de couleur).
+- **Un sujet = une carte** : les articles qui parlent de la même chose sont regroupés (« repris par N sources », pastille flamme quand au moins 3 sources en parlent). Pilotes et écuries cités sont repérés (étiquettes de couleur).
+- **Colonne de droite** : sujets à la une (48 h), pilotes et écuries qui font l'actu (24 h ; un clic pour ne garder que leurs sujets), dernières vidéos.
 - **Filtres** : important, mes favoris (pilotes marqués ★ et leurs écuries), officiel, écuries, pilotes, médias, vidéos, langue d'origine, recherche.
-- **Alertes** (son, message, notification du système) : actualités importantes (annonces officielles, contrats, pénalités, accidents… ou sujet repris par au moins 3 sources) et celles de vos favoris, ou toutes, ou aucune. Une seule alerte par sujet.
+- **Alertes** (son, message, notification du système) : actualités importantes (annonces officielles, contrats, pénalités, accidents… ou sujet repris par au moins 4 sources) et celles de vos favoris, ou toutes, ou aucune. Une seule alerte par sujet.
 - **Anti-spoiler** : pendant une séance en cours ou un replay, les titres sont floutés et les alertes d'actualité suspendues (bouton « Afficher quand même », case à décocher pour le désactiver).
 
 ## 🔔 Alertes

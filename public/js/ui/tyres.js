@@ -4,6 +4,7 @@ import { store, f1Now, versionOf } from '../store.js';
 import { $, esc, api, drivers, orderedNumbers, teamColor, compoundInfo } from '../util.js';
 import { buildSets, setSummary, DRY, WET } from '/shared/tyres.js';
 import { translated, requestTranslations, onTranslation } from './fia-translate.js';
+import { icon } from '../icons.js';
 
 let data = null;          // réponse de /api/tyres
 let dataKey = '';
@@ -47,7 +48,7 @@ function pirelliCard(d) {
   };
   return `<div class="ty-card">
     <div class="ty-card-head"><b>Choix de Pirelli</b><span class="muted small">${esc(d.meeting.name)}${d.meeting.sprint ? ' · week-end sprint' : ''}</span>
-      ${n?.url ? `<a class="ty-src" href="${esc(n.url)}" target="_blank" rel="noopener">source ↗</a>` : ''}</div>
+      ${n?.url ? `<a class="ty-src" href="${esc(n.url)}" target="_blank" rel="noopener">source ${icon('external', 'ic-s')}</a>` : ''}</div>
     ${n ? `<div class="ty-comps">${comp('HARD', n.hard)}${comp('MEDIUM', n.medium)}${comp('SOFT', n.soft)}</div>`
       : `<div class="note">Composés pas encore annoncés par Pirelli pour ce Grand Prix.</div>`}
     <div class="small muted">Allocation par pilote : ${a.HARD + a.MEDIUM + a.SOFT} jeux pour piste sèche, plus des intermédiaires et des pneus pluie. En course sur le sec, deux composés différents sont obligatoires. C1 = le plus dur, C5 = le plus tendre.</div>

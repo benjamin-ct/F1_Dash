@@ -2,6 +2,7 @@
 import { store, f1Now, versionOf } from '../store.js';
 import { $, esc, fmtDuration, sessionKind, currentStint } from '../util.js';
 import { trackStatusInfo, SESSION_STATUS_FR, parseUtc, parseLapTime } from '/shared/f1.js';
+import { icon } from '../icons.js';
 
 let lastVer = -1;
 
@@ -77,7 +78,7 @@ export function renderHeader() {
       + wm('wm-air', 'Air', `${esc(w.AirTemp)}°`)
       + wm('wm-hum', 'Humidité', `${esc(Math.round(Number(w.Humidity)) || w.Humidity)}<small> %</small>`)
       + wm('wm-pres', 'Pression', `${esc(Math.round(Number(w.Pressure)) || w.Pressure)}<small> hPa</small>`)
-      + wm('wm-rain', 'Pluie', w.Rainfall === '1' || w.Rainfall === 1 ? '🌧 Oui' : 'Non') : '';
+      + wm('wm-rain', 'Pluie', w.Rainfall === '1' || w.Rainfall === 1 ? `${icon('rain')} Oui` : 'Non') : '';
     const surf = trackSurface(s);
     const sb = $('#surfaceBox');
     sb.hidden = !surf;

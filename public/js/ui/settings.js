@@ -4,6 +4,7 @@ import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, stor
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav } from '../prefs.js';
 import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
+import { icon } from '../icons.js';
 
 let archive = [];
 let dragging = false;
@@ -41,15 +42,15 @@ async function refreshAuth() {
     const el = $('#tokenStatus');
     if (!a.hasToken) { el.innerHTML = '<span class="muted">Aucun jeton enregistré : positions estimées en live.</span>'; return; }
     const live = store.status?.source?.authenticated;
-    const offer = a.product ? ` · offre « ${esc(a.product)} »${a.country ? ` (${esc(a.country)})` : ''}${/pro/i.test(a.product) ? '' : ' — commentaires 🎙 réservés à F1 TV Pro'}` : '';
-    const gps = !a.expired && store.status?.source?.mode === 'live' ? (live ? ' · GPS reçu ✔' : ' · GPS pas encore reçu (normal hors session)') : '';
+    const offer = a.product ? ` · offre « ${esc(a.product)} »${a.country ? ` (${esc(a.country)})` : ''}${/pro/i.test(a.product) ? '' : ' — commentaires en direct réservés à F1 TV Pro'}` : '';
+    const gps = !a.expired && store.status?.source?.mode === 'live' ? (live ? ' · GPS reçu' : ' · GPS pas encore reçu (normal hors session)') : '';
     let head;
-    if (a.expired) head = `<span style="color:var(--orange)">⚠ Jeton expiré${a.autoRenew && !a.renewRejected ? ' : renouvellement en cours…' : ' : reconnectez-vous'}</span>`;
-    else head = `<span style="color:var(--green)">✔ Connecté</span> · jeton valable jusqu'au ${esc(a.expiresAt ? fmtWhen(a.expiresAt) : 'inconnu')}`;
+    if (a.expired) head = `<span style="color:var(--orange)">${icon('warning')} Jeton expiré${a.autoRenew && !a.renewRejected ? ' : renouvellement en cours…' : ' : reconnectez-vous'}</span>`;
+    else head = `<span style="color:var(--green)">${icon('check-circle')} Connecté</span> · jeton valable jusqu'au ${esc(a.expiresAt ? fmtWhen(a.expiresAt) : 'inconnu')}`;
     let renew;
     if (a.renewRejected) renew = `<span style="color:var(--orange)">La F1 a mis fin à la session : reconnectez-vous pour continuer.</span>`;
     else if (a.autoRenew) {
-      renew = `🔄 Renouvelé automatiquement (tous les ~4 jours)${a.sessionExpiresAt ? ` jusqu'au <b>${esc(fmtWhen(a.sessionExpiresAt))}</b>, fin de la session formula1.com (≈ 30 jours après la connexion) : il faudra alors se reconnecter` : ''}.`;
+      renew = `${icon('refresh')} Renouvelé automatiquement (tous les ~4 jours)${a.sessionExpiresAt ? ` jusqu'au <b>${esc(fmtWhen(a.sessionExpiresAt))}</b>, fin de la session formula1.com (≈ 30 jours après la connexion) : il faudra alors se reconnecter` : ''}.`;
       if (a.renewError) renew += ` <span style="color:var(--orange)">Dernier essai : ${esc(a.renewError)}</span>`;
     } else renew = `<span class="muted">Ce jeton ne se renouvelle pas tout seul : reconnectez-vous avant son expiration.</span>`;
     el.innerHTML = `${head}${offer}${gps}<br>${renew} ${a.autoRenew && !a.renewRejected ? '<button class="btn small" id="tokenRenew">Renouveler maintenant</button>' : ''}`;
@@ -76,7 +77,7 @@ async function reconnectF1TV() {
   if (window.f1desktop?.isDesktop) {
     toast('Connectez-vous dans la fenêtre F1 qui vient de s\'ouvrir…', 6000);
     const res = await window.f1desktop.loginF1TV();
-    if (res?.ok) toast('✅ Connecté à F1 TV', 5000);
+    if (res?.ok) toast('Connecté à F1 TV', 5000, 'check');
     else if (res?.error) toast(res.error, 6000);
     refreshAuth();
   } else {
@@ -146,7 +147,7 @@ function renderReplayBar() {
   $('#rpPhase').textContent = cur >= 0 ? `${labels[cur]} · ${fmtDuration(shown - phases[cur].start, false)}`
     : next > 0 ? `Entre ${labels[next - 1]} et ${labels[next]}` : next === 0 ? `Avant ${labels[0]} · ${fmtDuration(phases[0].start - shown, false)}` : phases.length ? 'Séance terminée' : '';
   $('#rpTime').textContent = `${fmtDuration(shown)} / ${fmtDuration(dur)}`;
-  $('#rpPlay').textContent = store.status.paused ? '▶' : '❚❚';
+  $('#rpPlay').innerHTML = icon(store.status.paused ? 'play' : 'pause');
   $('#rpPlay').title = store.status.paused ? 'Reprendre (barre d\'espace)' : 'Pause (barre d\'espace)';
 }
 
@@ -168,7 +169,7 @@ async function renderLan(change) {
   const ok = info.enabled && info.running && info.urls.length;
   $('#lanInfo').hidden = !ok;
   $('#lanError').hidden = !(info.enabled && !ok);
-  $('#lanError').textContent = info.error ? `⚠ Accès réseau impossible : ${info.error}.` : !info.urls.length ? '⚠ Aucun réseau local détecté sur cet ordinateur.' : 'Démarrage…';
+  $('#lanError').textContent = info.error ? `Accès réseau impossible : ${info.error}.` : !info.urls.length ? 'Aucun réseau local détecté sur cet ordinateur.' : 'Démarrage…';
   if (!ok) return;
   $('#lanQr').innerHTML = info.qr;
   $('#lanUrl').textContent = info.urls[0].url;
@@ -259,7 +260,7 @@ export function initSettings() {
     const b = e.target.closest('#tokenRenew');
     if (!b) return;
     b.disabled = true;
-    try { await api('/api/auth/renew', { method: 'POST' }); toast('✅ Connexion F1 TV renouvelée'); } catch (err) { toast(err.message, 6000); }
+    try { await api('/api/auth/renew', { method: 'POST' }); toast('Connexion F1 TV renouvelée', 2500, 'check'); } catch (err) { toast(err.message, 6000); }
     refreshAuth();
   });
   $('#authPillBtn')?.addEventListener('click', reconnectF1TV);
@@ -273,7 +274,7 @@ export function initSettings() {
     $('#desktopLoginBtn').addEventListener('click', async () => {
       toast('Connectez-vous dans la fenêtre F1 qui vient de s\'ouvrir…', 6000);
       const res = await window.f1desktop.loginF1TV();
-      if (res?.ok) toast('✅ Connecté à F1 TV : GPS et télémétrie activés en live', 6000);
+      if (res?.ok) toast('Connecté à F1 TV : GPS et télémétrie activés en live', 6000, 'check');
       else if (res?.error) toast(res.error, 6000);
       refreshAuth();
     });
@@ -294,7 +295,7 @@ export function initSettings() {
   if (m) {
     history.replaceState(null, '', location.pathname + location.search);
     api('/api/auth', { method: 'POST', body: { token: decodeURIComponent(m[1]) } })
-      .then(() => toast('✅ Jeton F1 TV enregistré : GPS et télémétrie activés en live', 5000))
+      .then(() => toast('Jeton F1 TV enregistré : GPS et télémétrie activés en live', 5000, 'check'))
       .catch((err) => toast(err.message, 6000));
   }
 
@@ -351,7 +352,7 @@ export function initSettings() {
     const end = Number(e.currentTarget.dataset.end);
     if (!end) return;
     control({ action: 'seek', toMs: end - 30000 + store.delay * (store.status?.source?.speed || 1) });
-    toast('⏭ Reprise 30 s avant la relance de la séance');
+    toast('Reprise 30 s avant la relance de la séance');
   });
   $('#rpStart').addEventListener('click', () => {
     const src = store.status?.source;
@@ -394,7 +395,7 @@ async function renderRecordings() {
     const recs = await api('/api/recordings');
     el.innerHTML = recs.length ? recs.map((r) => `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(r.name)}</span>
       <span class="muted">${(r.size / 1e6).toFixed(1)} Mo</span>
-      <button class="btn small" data-play="${esc(r.id)}">▶ Rejouer</button><button class="btn small" data-del-rec="${esc(r.id)}" title="Supprimer">🗑</button></div>`).join('')
+      <button class="btn small" data-play="${esc(r.id)}">${icon('play')} Rejouer</button><button class="btn small" data-del-rec="${esc(r.id)}" title="Supprimer">${icon('trash')}</button></div>`).join('')
       : '<span class="muted small">Aucun enregistrement pour l\'instant : ils se créent automatiquement pendant les sessions live.</span>';
   } catch (err) { el.textContent = err.message; }
 }

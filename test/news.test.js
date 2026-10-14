@@ -54,6 +54,7 @@ test('actualités : lecture d\'un flux Atom (vidéos YouTube)', () => {
 test('actualités : nettoyage du texte', () => {
   assert.equal(cleanText('<p>Hülkenberg&#8217;s &quot;best&quot;</p><script>x()</script>'), 'Hülkenberg’s "best"');
   assert.equal(cleanText('Abwehrschlacht &amp;#8211; doch wie'), 'Abwehrschlacht – doch wie');
+  assert.equal(cleanText('Hello George 🤣 🥶 #f1 | Max 🆚 Charles 🇸🇬 !'), 'Hello George #f1 | Max Charles!');
 });
 
 test('actualités : pilotes et écuries cités', () => {

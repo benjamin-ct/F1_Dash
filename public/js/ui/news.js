@@ -7,6 +7,7 @@ import { NEWS_TEAMS, newsTags } from '/shared/news.js';
 import { translateText } from './transcribe.js';
 import { notifyNews } from './alerts.js';
 import { toast } from './delay.js';
+import { icon } from '../icons.js';
 
 const LANG = 'fr';
 const CAT_LABEL = { official: 'Officiel', team: 'Écurie', driver: 'Pilote', media: 'Média' };
@@ -22,6 +23,7 @@ let srcById = {};
 let section = 'all';
 let lang = 'all';
 let query = '';
+let tagFilter = null;          // étiquette choisie dans la colonne de droite (pilote ou écurie)
 let limit = PAGE;
 let loaded = null;
 // Première ouverture : tout ce qui existe déjà est considéré comme lu
@@ -163,6 +165,7 @@ function matches(it, favs) {
     case 'official': case 'team': case 'driver': case 'media': if (it.cat !== section) return false; break;
     default: break;
   }
+  if (tagFilter && !(it.tags || []).includes(tagFilter)) return false;
   if (query) {
     const q = query.toLowerCase();
     const hay = `${it.title} ${it.summary} ${tr(it.title) || ''} ${srcById[it.src]?.name || ''} ${(it.tags || []).map((t) => TEAM_NAME[t] || t).join(' ')}`.toLowerCase();
@@ -206,15 +209,15 @@ function card(g, favs) {
   const unread = isUnread(it);
   const fav = (it.tags || []).some((t) => favs.has(t));
   const level = g.imp >= 3 ? '<span class="nw-imp major">Majeur</span>' : g.imp >= 2 ? '<span class="nw-imp">Important</span>' : '';
-  const hot = g.sources >= 3 ? `<span class="nw-hot" title="Sujet repris par ${g.sources} sources">🔥 ${g.sources} sources</span>` : '';
+  const hot = g.sources >= 3 ? `<span class="nw-hot" title="Sujet repris par ${g.sources} sources">${icon('fire')} ${g.sources} sources</span>` : '';
   const img = it.img ? `<img class="nw-img" src="${esc(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.nw-thumb').remove()">` : '';
   const others = g.others.length ? `<details class="nw-others"><summary>Repris par ${g.others.length} autre${g.others.length > 1 ? 's' : ''} source${g.others.length > 1 ? 's' : ''}</summary>
     ${g.others.map((o) => `<a href="${esc(o.link)}" target="_blank" rel="noopener"><b>${esc(srcById[o.src]?.name || o.src)}</b> <span class="nw-lang">${esc(o.lang.toUpperCase())}</span> ${esc(titleOf(o).text)} <span class="muted">· ${ago(o.t)}</span></a>`).join('')}</details>` : '';
   return `<article class="nw-card${unread ? ' unread' : ''}${g.imp >= 2 ? ' imp' : ''}${fav ? ' fav' : ''}${it.kind === 'video' ? ' video' : ''}">
-    ${img ? `<a class="nw-thumb" href="${esc(it.link)}" target="_blank" rel="noopener">${img}${it.kind === 'video' ? '<span class="nw-play">▶</span>' : ''}</a>` : ''}
+    ${img ? `<a class="nw-thumb" href="${esc(it.link)}" target="_blank" rel="noopener">${img}${it.kind === 'video' ? `<span class="nw-play">${icon('play')}</span>` : ''}</a>` : ''}
     <div class="nw-body">
       <div class="nw-meta"><span class="nw-src nw-c-${esc(it.cat)}">${esc(src.name)}</span><span class="nw-cat">${CAT_LABEL[it.cat] || ''}</span>
-        <span class="nw-lang" title="Langue d'origine : ${esc(LANG_LABEL[it.lang] || it.lang)}">${esc(it.lang.toUpperCase())}</span><span class="nw-time" title="${esc(new Date(it.t).toLocaleString('fr-FR'))}">${ago(it.t)}</span>${level}${hot}${fav ? '<span class="nw-favmark" title="Concerne un de vos favoris">★</span>' : ''}</div>
+        <span class="nw-lang" title="Langue d'origine : ${esc(LANG_LABEL[it.lang] || it.lang)}">${esc(it.lang.toUpperCase())}</span><span class="nw-time" title="${esc(new Date(it.t).toLocaleString('fr-FR'))}">${ago(it.t)}</span>${level}${hot}${fav ? `<span class="nw-favmark" title="Concerne un de vos favoris">${icon('star-fill')}</span>` : ''}</div>
       <a class="nw-title" href="${esc(it.link)}" target="_blank" rel="noopener" ${title.translated ? `title="${esc(it.title)}"` : ''}>${esc(title.text)}</a>
       ${title.pending ? '<div class="nw-trans muted">Traduction en cours…</div>' : title.translated ? '<div class="nw-trans muted" title="Traduit automatiquement sur cet ordinateur">Traduit · <button class="nw-vo" data-vo>VO</button></div>' : ''}
       <div class="nw-vo-text" hidden>${esc(it.title)}</div>
@@ -229,20 +232,61 @@ function sourcesView() {
   const by = { official: [], team: [], driver: [], media: [] };
   for (const s of sources) (by[s.cat] || by.media).push(s);
   const row = (s) => {
-    const state = !s.enabled ? '<span class="muted">désactivée</span>' : s.ok === false ? `<span class="nw-err" title="${esc(s.error || '')}">⚠ indisponible</span>` : s.ok ? `<span class="nw-ok">✓ ${s.count} article${s.count > 1 ? 's' : ''}</span>` : '<span class="muted">en attente…</span>';
+    const state = !s.enabled ? '<span class="muted">désactivée</span>' : s.ok === false ? `<span class="nw-err" title="${esc(s.error || '')}">${icon('warning')} indisponible</span>` : s.ok ? `<span class="nw-ok">${icon('check')} ${s.count} article${s.count > 1 ? 's' : ''}</span>` : '<span class="muted">en attente…</span>';
     const kind = s.kind === 'youtube' ? 'YouTube' : s.kind === 'bsky' ? 'Bluesky' : 'Flux RSS';
     return `<tr><td><label class="toggle"><input type="checkbox" data-src-toggle="${esc(s.id)}" ${s.enabled ? 'checked' : ''}> ${esc(s.name)}</label></td>
       <td class="muted">${kind}</td><td>${esc((s.lang || '').toUpperCase())}</td><td>${state}</td>
-      <td>${s.custom ? `<button class="btn small" data-src-del="${esc(s.id)}" title="Retirer cette source">✕</button>` : ''}</td></tr>`;
+      <td>${s.custom ? `<button class="btn small" data-src-del="${esc(s.id)}" title="Retirer cette source">${icon('close')}</button>` : ''}</td></tr>`;
   };
   const block = (cat, title) => (by[cat].length ? `<div class="sz-box"><h3>${title}</h3><table class="sz-table nw-src-table">${by[cat].map(row).join('')}</table></div>` : '');
-  return `<div class="sz-box"><h3>➕ Ajouter une source</h3>
+  return `<div class="sz-box"><h3>${icon('plus')} Ajouter une source</h3>
       <p class="muted small">Adresse d'un site ou de son flux RSS, d'une chaîne YouTube (ex. https://www.youtube.com/@Formula1) ou d'un compte Bluesky (ex. @compte.bsky.social).</p>
       <form class="nw-add" id="nwAdd"><input type="text" id="nwAddUrl" placeholder="https://… ou @compte.bsky.social" required>
         <select id="nwAddCat"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select>
         <button class="btn" type="submit">Ajouter</button></form>
       <p class="muted small">X (Twitter), Instagram et TikTok ne sont pas proposés : ces réseaux n'offrent pas d'accès gratuit à leurs publications. Les annonces officielles qui y paraissent sont reprises par la F1, les écuries et les médias ci-dessous.</p></div>
-    ${block('official', '🏛 Officiel : F1 et FIA')}${block('team', '🏎 Écuries (chaînes officielles)')}${block('driver', '👤 Pilotes (chaînes officielles)')}${block('media', '📰 Médias')}`;
+    ${block('official', `${icon('landmark')} Officiel : F1 et FIA`)}${block('team', `${icon('car')} Écuries (chaînes officielles)`)}${block('driver', `${icon('user')} Pilotes (chaînes officielles)`)}${block('media', `${icon('globe')} Médias`)}`;
+}
+
+// Nom affiché d'une étiquette : pilote (nom de famille du classement si connu) ou écurie
+function tagName(t) {
+  if (TEAM_NAME[t]) return TEAM_NAME[t];
+  const d = Object.values(drivers(store.state)).find((x) => x.Tla === t);
+  return d?.LastName ? `${d.LastName}` : t;
+}
+
+function tagColor(t) {
+  const d = Object.values(drivers(store.state)).find((x) => x.Tla === t);
+  return d ? teamColor(d) : t === 'fia' ? '#3b82f6' : 'var(--muted)';
+}
+
+// Colonne de droite : sujets à la une, qui fait l'actu, dernières vidéos
+function asideView(all) {
+  const now = Date.now();
+  const recent = all.filter((it) => it.t > now - 48 * 3600e3);
+  const top = groups(recent).filter((g) => g.sources >= 2 || g.imp >= 2)
+    .sort((a, b) => b.sources - a.sources || b.imp - a.imp || b.t - a.t).slice(0, 6);
+  const day = groups(all.filter((it) => it.t > now - 24 * 3600e3));
+  const counts = new Map();
+  for (const g of day) for (const t of new Set(g.lead.tags || [])) counts.set(t, (counts.get(t) || 0) + 1);
+  const who = [...counts].filter(([t]) => t !== 'fia').sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const max = who[0]?.[1] || 1;
+  const videos = all.filter((it) => it.kind === 'video' && it.img).slice(0, 4);
+  const topHtml = top.length ? top.map((g, i) => `<a class="nwa-top" href="${esc(g.lead.link)}" target="_blank" rel="noopener">
+      <span class="nwa-rank">${i + 1}</span><span class="nwa-txt"><b>${esc(titleOf(g.lead).text)}</b>
+      <span class="muted small">${g.sources} source${g.sources > 1 ? 's' : ''} · ${ago(g.t)}</span></span></a>`).join('')
+    : '<div class="muted small">Pas encore de sujet repris par plusieurs sources.</div>';
+  const whoHtml = who.length ? who.map(([t, n]) => `<button class="nwa-who${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}" style="--tc:${tagColor(t)}" title="Afficher seulement les sujets qui citent ${esc(tagName(t))}">
+      <span class="nwa-who-name">${esc(tagName(t))}</span><span class="nwa-bar"><i style="width:${Math.round((n / max) * 100)}%"></i></span><span class="nwa-n">${n}</span></button>`).join('')
+    : '<div class="muted small">Rien sur les dernières 24 heures.</div>';
+  const vidHtml = videos.length ? `<div class="nwa-vids">${videos.map((v) => `<a href="${esc(v.link)}" target="_blank" rel="noopener" title="${esc(v.title)}">
+      <span class="nwa-vthumb"><img src="${esc(v.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">${icon('play')}</span>
+      <span class="nwa-vtitle">${esc(titleOf(v).text)}</span><span class="muted small">${esc(srcById[v.src]?.name || '')}</span></a>`).join('')}</div>` : '<div class="muted small">Aucune vidéo récente.</div>';
+  return `<aside class="nw-aside">
+    <section class="nwa-box"><h3>${icon('fire')} À la une <span class="muted small">48 h</span></h3>${topHtml}</section>
+    <section class="nwa-box"><h3>${icon('chart')} Qui fait l'actu <span class="muted small">24 h</span></h3>${whoHtml}</section>
+    <section class="nwa-box"><h3>${icon('video')} Dernières vidéos</h3>${vidHtml}</section>
+  </aside>`;
 }
 
 let renderQueued = false;
@@ -262,18 +306,19 @@ function render() {
   const list = groups(items.filter((it) => matches(it, favs)));
   const shown = list.slice(0, limit);
   const guard = spoilerRisk() && !revealSpoilers;
-  const okSources = sources.filter((s) => s.enabled && s.ok).length;
-  const head = `<div class="nw-head"><div><h2>${$(`#nwNav [data-nw="${section}"]`)?.textContent.trim() || 'Actualités'}</h2>
-      <div class="muted small">${okSources} sources suivies · ${list.length} sujet${list.length > 1 ? 's' : ''}${section === 'favs' && !favTags().size ? ' · aucun favori : ajoutez-en avec ★ dans le classement' : ''}</div></div>
-      <div class="nw-actions"><button class="btn small" id="nwRefresh" title="Relire toutes les sources maintenant">↻ Actualiser</button>
-      <button class="btn small" id="nwMarkRead" title="Plus de pastille « nouveau » sur les articles déjà là">✓ Tout marquer comme lu</button></div></div>`;
-  const banner = guard ? `<div class="nw-guard">🙈 <b>Anti-spoiler</b> : ${store.status?.source?.mode === 'replay' ? 'replay' : 'séance'} en cours, les titres sont masqués et les alertes d'actualité suspendues.
+  const okSources = sources.filter((s) => s.enabled && s.ok !== false).length;
+  const head = `<div class="nw-head"><div><h2>${$(`#nwNav [data-nw="${section}"]`)?.innerHTML.trim() || 'Actualités'}</h2>
+      <div class="muted small">${tagFilter ? `<button class="nw-filter" data-tag-clear style="--tc:${tagColor(tagFilter)}">${esc(tagName(tagFilter))} ${icon('close')}</button> ` : ''}${okSources} sources suivies · ${list.length} sujet${list.length > 1 ? 's' : ''}${section === 'favs' && !favTags().size ? ' · aucun favori : ajoutez-en avec l\'étoile du classement' : ''}</div></div>
+      <div class="nw-actions"><button class="btn small" id="nwRefresh" title="Relire toutes les sources maintenant">${icon('refresh')} Actualiser</button>
+      <button class="btn small" id="nwMarkRead" title="Plus de pastille « nouveau » sur les articles déjà là">${icon('check')} Tout marquer comme lu</button></div></div>`;
+  const banner = guard ? `<div class="nw-guard">${icon('eye-off')} <b>Anti-spoiler</b> : ${store.status?.source?.mode === 'replay' ? 'replay' : 'séance'} en cours, les titres sont masqués et les alertes d'actualité suspendues.
       <button class="btn small" id="nwReveal">Afficher quand même</button></div>` : '';
   const body = shown.length
     ? `<div class="nw-list${guard ? ' guarded' : ''}">${shown.map((g) => card(g, favs)).join('')}</div>${list.length > limit ? '<button class="btn nw-more" id="nwMore">Voir plus</button>' : ''}`
     : `<div class="sz-box muted">${loaded ? 'Aucune actualité pour ces filtres.' : 'Chargement des actualités…'}</div>`;
   const keep = el.scrollTop;
-  el.innerHTML = head + banner + body;
+  const visible = items.filter((it) => srcById[it.src]?.enabled !== false);
+  el.innerHTML = `<div class="nw-layout${guard ? ' guarded' : ''}"><div class="nw-feed">${head}${banner}${body}</div>${asideView(visible)}</div>`;
   el.scrollTop = keep;
   // Titres affichés traduits en priorité, puis les résumés des premiers sujets
   for (const g of shown.slice(0, 40)) translate(g.lead.title, g.lead.lang);
@@ -326,7 +371,7 @@ async function onFresh(list) {
     await Promise.race([translate(it.title, it.lang, true), new Promise((r) => setTimeout(r, 15000))]);
     const src = srcById[it.src]?.name || it.src;
     const title = titleOf(it).text;
-    notifyNews(`📰 ${src}${it.sources >= 4 ? ` · ${it.sources} sources` : ''}`, title, (it.imp || 0) >= 2 ? 'info' : 'fav', () => { openNews(); });
+    notifyNews(`${src}${it.sources >= 4 ? ` · ${it.sources} sources` : ''}`, title, (it.imp || 0) >= 2 ? 'info' : 'fav', () => { openNews(); });
   }
 }
 
@@ -406,6 +451,9 @@ export function initNews() {
     if (e.target.closest('#nwRefresh')) { api('/api/news/refresh', { method: 'POST' }).catch(() => {}); toast('Lecture de toutes les sources…'); setTimeout(reload, 15000); return; }
     if (e.target.closest('#nwMarkRead')) { markRead(); return; }
     if (e.target.closest('#nwReveal')) { revealSpoilers = true; render(); return; }
+    const tagBtn = e.target.closest('[data-tag]');
+    if (tagBtn) { tagFilter = tagFilter === tagBtn.dataset.tag ? null : tagBtn.dataset.tag; limit = PAGE; render(); $('#nwContent').scrollTop = 0; return; }
+    if (e.target.closest('[data-tag-clear]')) { tagFilter = null; render(); return; }
     const vo = e.target.closest('[data-vo]');
     if (vo) {
       const card = vo.closest('.nw-card');
