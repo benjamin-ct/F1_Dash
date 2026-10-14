@@ -23,6 +23,7 @@ import { circuitRecords } from './records.js';
 import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
+import { osmTile } from './tiles.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 
@@ -217,7 +218,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/schedule': {
       const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
       const d = await season(year);
-      return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, sessions: r.sessions })) });
+      return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
     }
     case 'GET /api/calendar.ics': {
       const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
@@ -231,6 +232,18 @@ async function handleApi(req, res, url) {
         'Cache-Control': 'no-store',
       });
       return res.end(body);
+    }
+
+    // Fond de carte du radar météo (OpenStreetMap, en cache)
+    case 'GET /api/tile': {
+      const [z, x, y] = ['z', 'x', 'y'].map((k) => Number(url.searchParams.get(k)));
+      try {
+        const png = await osmTile(z, x, y);
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'max-age=604800' });
+        return res.end(png);
+      } catch (err) {
+        return sendJSON(res, 404, { error: err.message });
+      }
     }
 
     case 'GET /api/season/stats': {

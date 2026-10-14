@@ -35,6 +35,7 @@ import { initMiniOpen } from './ui/mini-open.js';
 import { initReminders } from './ui/reminders.js';
 import { initMoments } from './ui/moments.js';
 import { initSummary } from './ui/summary-view.js';
+import { initRadar } from './ui/radar.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -112,6 +113,7 @@ initMiniOpen();
 initReminders();
 initMoments();
 initSummary();
+initRadar();
 on('status', renderSource);
 on('connection', renderSource);
 on('focus', () => renderTower(true));

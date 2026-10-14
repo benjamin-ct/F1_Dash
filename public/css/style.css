@@ -2137,3 +2137,19 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .sum-body { padding: 8px 18px; max-height: 60vh; overflow-y: auto; }
 .sum-body p { margin: 8px 0; line-height: 1.5; font-size: 14.5px; }
 .sum-foot { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 10px 14px 14px 18px; border-top: 1px solid var(--line); }
+
+/* Météo : radar des précipitations autour du circuit */
+#wxRadar { margin-top: 10px; padding: 0 12px 12px; }
+.rd-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.rd-head b { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.rd-map { position: relative; overflow: hidden; border-radius: 8px; border: 1px solid var(--border); background: var(--panel-2); }
+.rd-map img { position: absolute; max-width: none; user-select: none; pointer-events: none; }
+.rd-frame { position: absolute; inset: 0; opacity: 0; transition: opacity .25s; }
+.rd-frame.on { opacity: .85; }
+.rd-dot { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--accent, #E10600); box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0, 0, 0, .5); }
+.rd-ring { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border: 1.5px dashed rgba(225, 6, 0, .7); border-radius: 50%; pointer-events: none; }
+.rd-ctl { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.rd-ctl input[type=range] { flex: 1; }
+.rd-time { font-family: "JetBrains Mono", Consolas, monospace; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.rd-note { margin: 6px 0 0; }
+.rd-base.dark img { filter: invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.5); }
