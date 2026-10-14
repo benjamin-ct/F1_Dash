@@ -17,6 +17,9 @@ l'application (Réglages → Application → Nouveautés).
 - **Simulateur d'arrêt** : le temps perdu au stand est **mesuré pendant la course** sur les vrais arrêts sous drapeau vert (tour d'entrée et tour de sortie comparés aux tours normaux du pilote, un arrêt raté ne faussant pas la mesure), dès que 3 arrêts sont disponibles ; sinon la valeur du circuit. Sous voiture de sécurité ou VSC, la perte est réduite dans la même proportion. L'origine de la valeur est indiquée (« mesuré sur 12 arrêts de la course »).
 - Statistiques de la saison : les arrêts sans temps d'immobilisation publié par la F1 sont désormais comptés.
 
+### Replay
+- **Barre de lecture sur toute la largeur** : les commandes (±10 s, drapeaux, vitesses, moments clés…) passent sur la ligne du titre, la barre de la séance s'étire d'un bord à l'autre (plus de deux fois plus longue sur un écran d'ordinateur) : placement plus précis, drapeaux et moments mieux séparés.
+
 ## v1.22.0 — 2026-10-14
 
 ### Synchro TV par le son (expérimental)
