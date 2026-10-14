@@ -133,7 +133,13 @@ async function fetchSource(s, rt) {
   const headers = { 'User-Agent': UA, Accept: s.kind === 'bsky' ? 'application/json' : 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' };
   if (rt.etag) headers['If-None-Match'] = rt.etag;
   if (rt.modified) headers['If-Modified-Since'] = rt.modified;
-  const res = await request(feedUrl(s), { headers, timeout: 20000 });
+  // Délai maximal : une connexion qui ne s'établit jamais (proxy, site bloqué) ne doit pas
+  // occuper indéfiniment une des lectures en parallèle
+  let timer;
+  const res = await Promise.race([
+    request(feedUrl(s), { headers, timeout: 20000 }),
+    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Délai dépassé')), 30000); }),
+  ]).finally(() => clearTimeout(timer));
   if (res.status === 304) return null;
   if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
   rt.etag = res.headers.etag || null;
@@ -244,7 +250,7 @@ let running = 0;
 async function tick() {
   const now = Date.now();
   for (const s of allSources()) {
-    if (!s.enabled || running >= 4) continue;
+    if (!s.enabled || running >= 6) continue;
     const rt = runtime.get(s.id);
     if (rt?.busy || (rt?.nextAt && rt.nextAt > now)) continue;
     const r = rt || {};
@@ -260,7 +266,7 @@ export function startNews() {
   started = true;
   load();
   // Départ échelonné : toutes les sources ne sont pas lues à la même seconde
-  allSources().forEach((s, i) => { runtime.set(s.id, { nextAt: Date.now() + 3000 + i * 1500 }); });
+  allSources().forEach((s, i) => { runtime.set(s.id, { nextAt: Date.now() + 2000 + i * 800 }); });
   setInterval(tick, 5000).unref?.();
   tick();
 }
