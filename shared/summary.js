@@ -2,6 +2,8 @@
 // (donc au rythme du délai TV, sans rien dévoiler d'avance) : podium, écart, remontées, stratégies,
 // voitures de sécurité, abandons, pénalités, meilleur tour. Course, qualifications et essais.
 
+import { realStints } from './pits.js';
+
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 const COMP = { SOFT: 'tendres', MEDIUM: 'médiums', HARD: 'durs', INTERMEDIATE: 'intermédiaires', WET: 'pluie' };
 const COMP_EN = { SOFT: 'soft', MEDIUM: 'medium', HARD: 'hard', INTERMEDIATE: 'intermediate', WET: 'wet' };
@@ -95,7 +97,7 @@ export function buildSummary(state, { lang = 'fr' } = {}) {
     if (down.length) out.paragraphs.push(`Course difficile pour ${joinFr(down.map((m) => `${name(m.n)} (${ordinal(Number(app[m.n].GridPos))} → ${ordinal(Number(lines[m.n].Position))})`))}.`);
 
     // Stratégies : celle du vainqueur et la plus courante
-    const strat = (n) => list(app[n]?.Stints).map((s) => s?.Compound).filter((c) => LETTER[c]);
+    const strat = (n) => realStints(list(app[n]?.Stints)).map((s) => s?.Compound).filter((c) => LETTER[c]);
     const s1 = strat(p1);
     if (s1.length) {
       const stops = s1.length - 1;
@@ -186,7 +188,7 @@ function buildSummaryEn(state) {
     if (up.length) out.paragraphs.push(`Great comebacks: ${joinEn(up.map((m) => `${name(m.n)} (${ordinalEn(Number(app[m.n].GridPos))} → ${ordinalEn(Number(lines[m.n].Position))}, +${m.d})`))}.`);
     if (down.length) out.paragraphs.push(`A difficult race for ${joinEn(down.map((m) => `${name(m.n)} (${ordinalEn(Number(app[m.n].GridPos))} → ${ordinalEn(Number(lines[m.n].Position))})`))}.`);
 
-    const strat = (n) => list(app[n]?.Stints).map((s) => s?.Compound).filter((c) => LETTER[c]);
+    const strat = (n) => realStints(list(app[n]?.Stints)).map((s) => s?.Compound).filter((c) => LETTER[c]);
     const s1 = strat(p1);
     if (s1.length) {
       const stops = s1.length - 1;

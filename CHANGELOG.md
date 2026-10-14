@@ -12,6 +12,11 @@ l'application (Réglages → Application → Nouveautés).
 - Nombres et dates au format anglais (0.5 s, 14 Oct).
 - Première ouverture : l'interface prend la langue de l'ordinateur ou du téléphone (français, sinon anglais). Les installations existantes restent en français.
 
+### Arrêts aux stands au plus juste
+- **Un passage par les stands n'est plus compté comme un arrêt** quand les pneus ne changent pas : passage imposé par la direction de course sous voiture de sécurité (« tout le monde par la voie des stands »), drive-through… La F1 les compte pourtant comme des arrêts. Le nombre d'arrêts est maintenant juste partout : classement (colonne Arr.), duel, stratégie (le relais n'est plus coupé en deux), résumé de la séance, moments clés du replay, statistiques de la saison (« Arrêts par pilote »). À Bakou 2026, la plupart des pilotes passaient de 2 arrêts affichés à 1, comme en réalité.
+- **Simulateur d'arrêt** : le temps perdu au stand est **mesuré pendant la course** sur les vrais arrêts sous drapeau vert (tour d'entrée et tour de sortie comparés aux tours normaux du pilote, un arrêt raté ne faussant pas la mesure), dès que 3 arrêts sont disponibles ; sinon la valeur du circuit. Sous voiture de sécurité ou VSC, la perte est réduite dans la même proportion. L'origine de la valeur est indiquée (« mesuré sur 12 arrêts de la course »).
+- Statistiques de la saison : les arrêts sans temps d'immobilisation publié par la F1 sont désormais comptés.
+
 ## v1.22.0 — 2026-10-14
 
 ### Synchro TV par le son (expérimental)

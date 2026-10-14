@@ -4,6 +4,7 @@ import { $, esc, drivers, orderedNumbers, sessionKind, teamMark, tyreBadge, curr
 import { prefs, isFav, toggleFav } from '../prefs.js';
 import { segmentClass, parseUtc } from '/shared/f1.js';
 import { icon } from '../icons.js';
+import { realStopCount } from '/shared/pits.js';
 
 let lastKey = '';
 let lastRender = 0;
@@ -159,7 +160,7 @@ export function renderTower(force = false) {
         <td class="t-gap">${gapText(l.GapToLeader)}</td>
         <td class="t-int c-int ${int.Catching ? 'catching' : ''}">${gapText(int.Value)}</td>
         ${last}<td class="t-lap c-best ${bestPurple ? 'purple' : ''}">${esc(best) || '<span class="dim">—</span>'}</td>
-        ${secCells}${tyre}<td class="c-pits">${esc(l.NumberOfPitStops ?? 0)}</td>
+        ${secCells}${tyre}<td class="c-pits">${realStopCount(store.state.TimingAppData?.Lines?.[num], l)}</td>
         <td class="c-speed ${timingClass(st)}">${esc(st?.Value || '') || '<span class="dim">—</span>'}</td>${extra}${duel}`;
     } else if (kind === 'quali') {
       const bl = list(l.BestLapTimes);

@@ -7,6 +7,7 @@ import { radioEntry, requestTranscripts, setTranscribe, transcribeStatus } from 
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 import { icon } from '../icons.js';
 import { DEC } from '../i18n.js';
+import { continuesStint } from '/shared/pits.js';
 
 function list(obj) {
   if (!obj) return [];
@@ -204,9 +205,9 @@ export function renderPits() {
     $('#pitList').innerHTML = '<div class="note">Aucun arrêt aux stands enregistré depuis le début du suivi.</div>';
     return;
   }
-  // Passage sans changement de pneus (voie des stands sous drapeau rouge, drive-through…)
-  const sameTyres = (p) => p.from && p.to && p.from.Compound === p.to.Compound && Number(p.to.StartLaps) > 0
-    && Number(p.to.StartLaps) === Number(p.from.TotalLaps);
+  // Passage sans changement de pneus (voie des stands sous voiture de sécurité ou drapeau rouge,
+  // drive-through…) : indication officielle TyresNotChanged, sinon usure qui continue (shared/pits.js)
+  const sameTyres = (p) => continuesStint(p.from, p.to);
   const real = stops.filter((p) => !sameTyres(p));
   const nth = new Map();
   for (const p of real.slice().sort((a, b) => a.t - b.t)) { const k = (nth.get(p.num) || 0) + 1; nth.set(p.num, k); p.k = k; }

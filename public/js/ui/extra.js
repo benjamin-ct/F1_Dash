@@ -3,6 +3,7 @@ import { store, displayNow, versionOf, setFocus } from '../store.js';
 import { Dial, SpeedTrace, animate, carNow } from './gauge.js';
 import { $, esc, drivers, orderedNumbers, teamColor, teamMark, stintsOf, compoundInfo, COMPOUNDS, fmtLap, fmtSigned, lapSeconds } from '../util.js';
 import { icon } from '../icons.js';
+import { realStints } from '/shared/pits.js';
 
 let lastTele = 0;
 let stratVer = -1, wxVer = -1, champVer = -1;
@@ -106,7 +107,8 @@ export function renderStrategy() {
   let total = Number(s.LapCount?.TotalLaps) || 0;
   const rows = nums.map((num) => {
     let start = 0;
-    const stints = stintsOf(app[num]).map((st) => {
+    // Relais réels : un passage par les stands sans changer de pneus ne coupe pas le relais
+    const stints = realStints(stintsOf(app[num])).map((st) => {
       const len = Math.max(0, (Number(st.TotalLaps) || 0) - (Number(st.StartLaps) || 0));
       const out = { ...st, from: start, len };
       start += len;

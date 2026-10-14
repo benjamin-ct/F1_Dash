@@ -3,6 +3,8 @@
 // tour, arrivée. Calculés une fois au chargement du replay à partir des messages de la séance.
 // Chaque moment : { off (ms depuis le début), kind, text, who (pilotes concernés), lap }.
 
+import { passIsRealStop } from './pits.js';
+
 const KIND_LABEL = {
   start: 'Départ', sc: 'Voiture de sécurité', vsc: 'VSC', red: 'Drapeau rouge', green: 'Reprise',
   lead: 'Changement de leader', overtake: 'Dépassement (podium)', pit: 'Arrêt aux stands', retire: 'Abandon',
@@ -42,6 +44,8 @@ export function keyMoments(events, { kind = 'race', lang = 'fr' } = {}) {
   let track = '1';
   let part = null;
   let fastest = null;
+  const passes = new Map();     // numéro -> passages par la voie des stands
+  const stints = new Map();     // numéro -> relais (indice -> relais)
   const tla = (n) => name.get(n) || `n°${n}`;
   const add = (off, k, text, who = []) => out.push({ off, kind: k, text, who, lap: kind === 'race' ? lap : null });
 
@@ -79,6 +83,15 @@ export function keyMoments(events, { kind = 'race', lang = 'fr' } = {}) {
         track = st;
         break;
       }
+      case 'TimingAppData':
+        // Relais (pour écarter ensuite les passages par les stands sans changement de pneus)
+        for (const [n, l] of lines(d.Lines)) {
+          if (!l?.Stints || typeof l.Stints !== 'object') continue;
+          const m = stints.get(n) || {};
+          for (const [i, v] of lines(l.Stints)) if (v && typeof v === 'object') m[i] = { ...(m[i] || {}), ...v };
+          stints.set(n, m);
+        }
+        break;
       case 'TimingData': {
         if (d.SessionPart !== undefined) part = Number(d.SessionPart) || part;
         for (const [n, l] of lines(d.Lines)) {
@@ -86,7 +99,12 @@ export function keyMoments(events, { kind = 'race', lang = 'fr' } = {}) {
           if (l.InPit === true && !inPit.get(n)) {
             inPit.set(n, true);
             const p = pos.get(n);
-            if (kind === 'race' && started && p && p <= 5 && !retired.has(n)) add(e.off, 'pit', en ? `${tla(n)} pits (P${p})` : `Arrêt de ${tla(n)} (P${p})`, [tla(n)]);
+            const pass = passes.get(n) || 0;
+            passes.set(n, pass + 1);
+            if (kind === 'race' && started && p && p <= 5 && !retired.has(n)) {
+              add(e.off, 'pit', en ? `${tla(n)} pits (P${p})` : `Arrêt de ${tla(n)} (P${p})`, [tla(n)]);
+              out[out.length - 1].pass = { n, i: pass };
+            }
           } else if (l.InPit === false) inPit.set(n, false);
           // Voitures garées après l'arrivée : pas des abandons
           if ((l.Retired === true || (l.Stopped === true && kind === 'race')) && !retired.has(n) && started && !finished) {
@@ -133,6 +151,13 @@ export function keyMoments(events, { kind = 'race', lang = 'fr' } = {}) {
     }
   }
   if (fastest) out.push({ off: fastest.off, kind: 'fastest', text: en ? `Fastest race lap: ${tla(fastest.n)} in ${fastest.time}` : `Meilleur tour de la course : ${tla(fastest.n)} en ${fastest.time}`, who: [tla(fastest.n)], lap: fastest.lap });
+  // Passage par les stands sans changement de pneus (voiture de sécurité, drive-through) : pas un arrêt
+  const stintArr = (n) => Object.keys(stints.get(n) || {}).sort((a, b) => a - b).map((k) => stints.get(n)[k]);
+  for (let i = out.length - 1; i >= 0; i--) {
+    const pz = out[i].pass;
+    if (pz && !passIsRealStop(stintArr(pz.n), pz.i)) out.splice(i, 1);
+    else delete out[i].pass;
+  }
   // Doublons rapprochés (même type et mêmes pilotes à moins de 20 s) écartés ; arrêts de
   // plusieurs pilotes en moins de 2 min (sous voiture de sécurité) regroupés ; ordre chronologique
   const seen = [];

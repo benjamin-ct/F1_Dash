@@ -5,6 +5,7 @@ import { parseGap, parseLapTime } from '/shared/f1.js';
 import { lineChart } from './charts.js';
 import { Dial, animate, carNow } from './gauge.js';
 import { DEC } from '../i18n.js';
+import { realStopCount } from '/shared/pits.js';
 
 let skeletonFor = null;
 let lastSlowKey = '';
@@ -239,7 +240,8 @@ function renderSlow(a, b) {
   for (let i = 0; i < 3; i++) rows += cmpRow(`Secteur ${i + 1}`, lap(sec(la, i)), lap(sec(lb, i)), 'low');
   rows += cmpRow('Pneus', tyre(stA), tyre(stB));
   if (kind === 'race') {
-    rows += cmpRow('Arrêts', num(la.NumberOfPitStops ?? 0), num(lb.NumberOfPitStops ?? 0));
+    // Vrais arrêts (changements de pneus), sans les passages par les stands sous voiture de sécurité
+    rows += cmpRow('Arrêts', realStopCount(app[a], la), realStopCount(app[b], lb));
     rows += cmpRow('Écart leader', num(/^LAP/i.test(la.GapToLeader || '') ? 'Leader' : la.GapToLeader), num(/^LAP/i.test(lb.GapToLeader || '') ? 'Leader' : lb.GapToLeader));
   } else {
     rows += cmpRow('Tours', num(la.NumberOfLaps), num(lb.NumberOfLaps));

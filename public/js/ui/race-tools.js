@@ -6,6 +6,7 @@ import { currentTrack } from './map.js';
 import { lapGapSeries } from './duel.js';
 import { icon } from '../icons.js';
 import { DEC, t } from '../i18n.js';
+import { measuredPitLoss, passIsRealStop, stintList, neutralLaps } from '/shared/pits.js';
 
 // Écart au leader en secondes (les retardataires sont convertis avec le dernier tour du leader).
 function gapsToLeader(state) {
@@ -72,13 +73,46 @@ let simDriver = null;
 let lossOverride = null;
 let simKey = '';
 
+// Temps perdu au stand mesuré pendant cette course (arrêts sous drapeau vert, shared/pits.js),
+// recalculé quand de nouveaux tours ou arrêts arrivent
+let measured = { key: '', val: null };
+const lst = (o) => (Array.isArray(o) ? o : Object.values(o || {})).filter(Boolean);
+function sessionLoss() {
+  const key = versionOf(['TimingData', 'PitLaneTimeCollection', 'TimingAppData', 'PitStopSeries', 'RaceControlMessages', '__reset']);
+  if (measured.key === key) return measured.val;
+  const s = store.state, d = store.derived;
+  const app = s.TimingAppData?.Lines || {};
+  const laps = {};
+  for (const [n, arr] of Object.entries(d.laps || {})) laps[n] = arr.map((x) => ({ lap: x.lap, s1: parseLapTime(x.s?.[0]), s3: parseLapTime(x.s?.[2]), pit: x.pit }));
+  const stopTime = new Map();
+  for (const [n, arr] of Object.entries(s.PitStopSeries?.PitTimes || {})) {
+    for (const p of lst(arr)) { const ps = p.PitStop || p; if (ps?.Lap) stopTime.set(`${n}-${ps.Lap}`, parseLapTime(ps.PitStopTime)); }
+  }
+  const byNum = {};
+  for (const x of [...(d.pitLane || [])].sort((a, b) => a.t - b.t)) (byNum[x.num] ||= []).push(x);
+  const stops = [];
+  for (const [n, arr] of Object.entries(byNum)) {
+    const st = stintList(app[n]);
+    arr.forEach((x, i) => { if (passIsRealStop(st, i)) stops.push({ num: n, lap: x.lap, stop: stopTime.get(`${n}-${x.lap}`) ?? null }); });
+  }
+  measured = { key, val: measuredPitLoss(laps, stops, neutralLaps(s.RaceControlMessages?.Messages)) };
+  return measured.val;
+}
+
 function defaultLoss() {
   const pl = currentTrack()?.raw?.pitLoss;
   const ts = String(store.state.TrackStatus?.Status || '1');
-  if (!pl) return { value: 22, label: 'valeur par défaut' };
-  if (ts === '4' && pl.sc) return { value: Number(pl.sc), label: 'sous voiture de sécurité' };
-  if ((ts === '6' || ts === '7') && pl.vsc) return { value: Number(pl.vsc), label: 'sous VSC' };
-  return { value: Number(pl.normal) || 22, label: 'en conditions normales' };
+  const m = sessionLoss();
+  // Au moins 3 arrêts mesurés : la mesure de la course prime sur la valeur du circuit
+  const useM = m && m.n >= 3;
+  const normal = useM ? m.value : Number(pl?.normal) || 22;
+  const src = useM ? `mesuré sur ${m.n} arrêts de la course` : pl ? 'valeur du circuit' : 'valeur par défaut';
+  // Sous neutralisation, les autres roulent lentement : la perte est plus faible (même proportion
+  // que pour les valeurs du circuit, sinon environ 63 % sous safety car et 72 % sous VSC)
+  const ratio = (k, def) => (pl?.[k] && pl?.normal ? Number(pl[k]) / Number(pl.normal) : def);
+  if (ts === '4') return { value: Math.round(normal * ratio('sc', 0.63) * 10) / 10, label: `sous voiture de sécurité · ${src}` };
+  if (ts === '6' || ts === '7') return { value: Math.round(normal * ratio('vsc', 0.72) * 10) / 10, label: `sous VSC · ${src}` };
+  return { value: normal, label: `en conditions normales · ${src}` };
 }
 
 export function renderPitSim(force = false) {
@@ -132,7 +166,7 @@ export function renderPitSim(force = false) {
         </div>
       </div>
       <div id="simOut"></div>
-      <p class="small muted">Estimation : écart au leader actuel + temps perdu dans la voie des stands (source : MultiViewer, ajustable). Ne tient pas compte des pneus neufs ni du trafic.</p>
+      <p class="small muted">Estimation : écart au leader actuel + temps perdu dans la voie des stands, mesuré sur les arrêts de la course dès qu'il y en a assez (secteur d'entrée et de sortie comparés aux tours normaux), sinon valeur du circuit (MultiViewer) ; ajustable. Ne tient pas compte des pneus neufs ni du trafic.</p>
     </div>`;
     $('#simDriver').onchange = (e) => { simDriver = e.target.value; renderPitSim(true); };
     const setLoss = (v) => { lossOverride = Math.round(Math.max(5, Math.min(60, v)) * 10) / 10; renderPitSim(true); };

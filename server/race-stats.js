@@ -12,9 +12,10 @@ import { seasonNominations } from './tyres.js';
 import { createDerived, applyEvent } from '../shared/derive.js';
 import { parseLapTime } from '../shared/f1.js';
 import { Track } from '../shared/track.js';
+import { realStints } from '../shared/pits.js';
 
 const STATIC = 'https://livetiming.formula1.com/static/';
-const VERSION = 2;
+const VERSION = 3;   // 3 : relais sans changement de pneus fusionnés (arrêts réels)
 const NEUTRAL = new Set(['4', '5', '6', '7']);   // SC, drapeau rouge, VSC, fin de VSC
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.values(o));
@@ -103,7 +104,9 @@ export function summarizeRace({ events, keyframes = {}, track = null }) {
       best: parseLapTime(stats[n]?.PersonalBestLapTime?.Value) || null,
       speeds: { ST: spd('ST'), FL: spd('FL'), I1: spd('I1'), I2: spd('I2') },
       stops,
-      stints: list(app[n]?.Stints).filter((s) => s?.Compound).map((s) => ({ c: s.Compound, n: num(s.TotalLaps) || 0, new: s.New === 'true' || s.New === true })),
+      stints: realStints(list(app[n]?.Stints).filter((s) => s?.Compound)).map((s) => ({ c: s.Compound, n: num(s.TotalLaps) || 0, new: s.New === 'true' || s.New === true })),
+      // Vrais arrêts : relais réels (la F1 ne publie pas toujours l'immobilisation de chaque arrêt)
+      stopCount: Math.max(stops.length, realStints(list(app[n]?.Stints).filter((s) => s?.Compound)).length - 1),
       laps,
     });
   }

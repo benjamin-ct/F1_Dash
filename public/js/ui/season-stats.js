@@ -389,7 +389,7 @@ export function renderCircuits(ctx, sort = 'round') {
     const p = race.profile;
     const ty = stats.tyres?.[race.round] || null;
     const cars = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).length || race.drivers.length || 1;
-    const finStops = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).reduce((n, d) => n + d.stops.length, 0);
+    const finStops = race.drivers.filter((d) => d.laps.length > p.laps * 0.9).reduce((n, d) => n + (d.stopCount ?? d.stops.length), 0);
     return {
       round: race.round, r, p, ty, avgSpeed: p.fastest?.avgSpeed || 0, topSpeed: p.topSpeed?.kmh || 0, gains: p.gains || 0, neutral: p.neutralPct || 0, length: p.length || 0,
       tyre: ty ? 6 - ty.hard : 0, stopsPerCar: finStops / cars,
