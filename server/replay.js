@@ -5,6 +5,7 @@ import { getText, getJSON, HttpError, withRetry } from './net.js';
 import { ARCHIVE_TOPICS, topicName } from '../shared/f1.js';
 import { sessionLabel } from './live.js';
 import { readRecording, recordingPath } from './recorder.js';
+import { keyMoments } from '../shared/moments.js';
 
 const STATIC = 'https://livetiming.formula1.com/static/';
 
@@ -186,6 +187,10 @@ export class ReplaySource {
     const start = Number.isFinite(startOffsetMs) ? startOffsetMs : Math.max(0, archive.startOff - 60000);
     this.duration = archive.duration;
     this.startOff = archive.startOff;
+    // Moments clés (liste du replay) : servis à part (GET /api/replay/moments)
+    const t = archive.info?.Type, n = archive.info?.Name || '';
+    const kind = t === 'Race' ? 'race' : t === 'Qualifying' || /qualif|shootout/i.test(n) ? 'quali' : 'practice';
+    try { this.moments = keyMoments(archive.events, { kind }); } catch (err) { this.moments = []; console.warn('[moments]', err.message); }
     this.speed = 1;
     this.anchor = Date.now() - start;
     const events = archive.events.map((e) => ({ off: e.off, t: this.anchor + e.off, topic: e.topic, data: e.data }));

@@ -22,6 +22,10 @@ import { weekendTyres } from './tyres.js';
 import { circuitRecords } from './records.js';
 import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
+import { buildIcs } from '../shared/ics.js';
+import { osmTile } from './tiles.js';
+import { predictionsView, savePrediction } from './predict.js';
+import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 
@@ -212,6 +216,73 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, await season(year));
     }
 
+    // Horaires des séances (rappels de l'interface) et calendrier .ics à importer dans un agenda
+    case 'GET /api/schedule': {
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const d = await season(year);
+      return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
+    }
+    case 'GET /api/calendar.ics': {
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      const round = Number(url.searchParams.get('round')) || null;
+      const alarm = Math.max(0, Math.min(120, Number(url.searchParams.get('alarm') ?? 15) || 0));
+      const d = await season(year);
+      const body = buildIcs(d.races, { year, round, alarmMin: alarm });
+      res.writeHead(200, {
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': `attachment; filename="f1-${year}${round ? `-manche-${round}` : ''}.ics"`,
+        'Cache-Control': 'no-store',
+      });
+      return res.end(body);
+    }
+
+    // Lumières connectées (expérimental) : réglages et commandes depuis cet ordinateur uniquement
+    case 'GET /api/lights':
+    case 'POST /api/lights':
+    case 'POST /api/lights/discover':
+    case 'POST /api/lights/pair':
+    case 'GET /api/lights/devices':
+    case 'POST /api/lights/set': {
+      if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
+      try {
+        if (route === 'GET /api/lights') return sendJSON(res, 200, lightsInfo());
+        if (route === 'GET /api/lights/devices') return sendJSON(res, 200, { devices: await lightDevices() });
+        if (route === 'POST /api/lights/discover') return sendJSON(res, 200, { bridges: await hueDiscover() });
+        const body = await readBody(req);
+        if (route === 'POST /api/lights') return sendJSON(res, 200, saveLights(body));
+        if (route === 'POST /api/lights/pair') return sendJSON(res, 200, await huePair(String(body.ip || '').trim()));
+        return sendJSON(res, 200, await setLights(String(body.state || ''), { force: !!body.force }));
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+    }
+
+    // Pronostics entre amis (pole et podium de chaque Grand Prix)
+    case 'GET /api/predictions': {
+      const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
+      return sendJSON(res, 200, await predictionsView(year, url.searchParams.get('me') || ''));
+    }
+    case 'POST /api/predictions': {
+      const body = await readBody(req);
+      try {
+        return sendJSON(res, 200, await savePrediction({ ...body, year: Number(body.year) || new Date().getFullYear() }));
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+    }
+
+    // Fond de carte du radar météo (OpenStreetMap, en cache)
+    case 'GET /api/tile': {
+      const [z, x, y] = ['z', 'x', 'y'].map((k) => Number(url.searchParams.get(k)));
+      try {
+        const png = await osmTile(z, x, y);
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'max-age=604800' });
+        return res.end(png);
+      } catch (err) {
+        return sendJSON(res, 404, { error: err.message });
+      }
+    }
+
     case 'GET /api/season/stats': {
       const year = Number(url.searchParams.get('year')) || new Date().getFullYear();
       return sendJSON(res, 200, await seasonStats(year));
@@ -304,6 +375,10 @@ async function handleApi(req, res, url) {
       replay.start(source, body.startOffsetMs).catch((err) => console.warn('[replay]', err.message));
       return sendJSON(res, 202, { ok: true });
     }
+
+    // Moments clés du replay en cours (départ, drapeaux, leaders, arrêts, incidents, pénalités…)
+    case 'GET /api/replay/moments':
+      return sendJSON(res, 200, { path: hub.source.path || null, moments: hub.source.mode === 'replay' ? replay.moments || [] : [] });
 
     case 'POST /api/replay/control': {
       const body = await readBody(req);

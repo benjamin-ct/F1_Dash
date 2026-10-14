@@ -22,7 +22,10 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Commentaires F1 TV Pro** ou radio de votre choix, synchronisés sur le dashboard.
 - **Espace Actu** : toute l'actualité de la F1 au même endroit (F1, FIA, chaînes officielles des écuries et des pilotes, une trentaine de médias en 8 langues), traduite en français, regroupée par sujet, avec alertes et anti-spoiler.
 - **Espace Saison** : calendrier, classements, notes des pilotes (S à F), écart en qualification entre coéquipiers, statistiques par pilote, régularité, arrêts, vitesses, profils des circuits, évolutions techniques et éléments moteur (documents FIA).
-- **Replays** de toutes les sessions archivées, disposition libre des panneaux, second écran.
+- **Replays** de toutes les sessions archivées, avec les **moments clés** cliquables (départ, drapeaux, leaders, arrêts, incidents, pénalités), disposition libre des panneaux, second écran.
+- **Mini-classement flottant** toujours au premier plan, à poser par-dessus la vidéo de la course.
+- **Résumé automatique** de la séance en français, **radar de la pluie** autour du circuit, **rappels** avant chaque séance et **calendrier** à ajouter à votre agenda.
+- **Pronostics entre amis** (pole et podium) avec classement de la saison, et **lumières connectées** (Philips Hue, Home Assistant) aux couleurs des drapeaux, en expérimental.
 - **Sur votre téléphone ou tablette** : l'ordinateur affiche un QR code ; scannez-le pour retrouver le dashboard sur le réseau Wi-Fi de la maison, calé sur le même délai TV.
 
 | | |
@@ -30,6 +33,14 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 | ![Classement](docs/screenshots/classement.png) | ![Carte](docs/screenshots/carte.png) |
 | ![Analyse : rythme](docs/screenshots/analyse-rythme.png) | ![Saison : accueil](docs/screenshots/saison-accueil.png) |
 | ![Saison : fiche pilote](docs/screenshots/saison-pilote.png) | ![Saison : évolutions techniques](docs/screenshots/saison-evolutions-techniques.png) |
+| ![Replay : moments clés](docs/screenshots/moments.png) | ![Résumé automatique de la séance](docs/screenshots/resume.png) |
+| ![Météo : radar de la pluie autour du circuit](docs/screenshots/radar.png) | ![Saison : pronostics entre amis](docs/screenshots/pronostics.png) |
+
+<img src="docs/screenshots/mini-classement.png" alt="Mini-classement flottant, toujours au premier plan" width="380" align="right">
+
+**Mini-classement** (bouton Mini de la barre latérale) : une petite fenêtre toujours au premier plan, à poser sur la vidéo de la course. Positions, intervalle ou écart au leader, pneus, favoris, au rythme de votre délai TV.
+
+<br clear="right">
 
 ![Espace Actu : l'actualité de la F1 traduite en français](docs/screenshots/actu.png)
 

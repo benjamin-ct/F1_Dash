@@ -25,6 +25,8 @@
     <button class="rail-btn" data-rail="news" title="Actu : toute l'actualité de la F1 (F1, FIA, écuries, pilotes, médias du monde entier), traduite, avec alertes"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12h7M7 15h4"/></svg><small>Actu</small></button>
     <button class="rail-btn" data-rail="replay" title="Replays : rejouer une séance passée"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M10 9l5 3-5 3z"/></svg><small>Replays</small></button>
     <button class="rail-btn" data-rail="radio" title="Commentaires en direct F1 TV / radio"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><small>Radios</small></button>
+    <button class="rail-btn" data-rail="summary" id="summaryBtn" title="Résumé de la séance : rédigé automatiquement (podium, remontées, stratégies, incidents), au rythme de votre délai TV"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 12h6M10 15h6M10 18h4"/></svg><small>Résumé</small></button>
+    <button class="rail-btn" data-rail="mini" id="miniBtn" title="Mini-classement : petite fenêtre toujours au premier plan, à poser par-dessus la vidéo de la course"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="11" width="7" height="7" rx="1"/></svg><small>Mini</small></button>
     <div class="rail-sp"></div>
     <button class="rail-btn" data-rail="reset" title="Disposition des panneaux : rangés en colonnes ou placés librement, réinitialisation"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
     <button class="rail-btn" data-rail="settings" title="Réglages : source, compte F1 TV, affichage, alertes, application"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><small>Réglages</small></button>
@@ -126,6 +128,7 @@
         <button data-sz="results"><svg class="ic" aria-hidden="true"><use href="#i-checkered"/></svg> Résultats & records</button>
         <button data-sz="h2h"><svg class="ic" aria-hidden="true"><use href="#i-duel"/></svg> Coéquipiers</button>
         <button data-sz="ratings"><svg class="ic" aria-hidden="true"><use href="#i-medal"/></svg> Notes des pilotes</button>
+        <button data-sz="predict"><svg class="ic" aria-hidden="true"><use href="#i-target"/></svg> Pronostics entre amis</button>
         <div class="sz-nav-sep">Statistiques détaillées</div>
         <button data-sz="drivers"><svg class="ic" aria-hidden="true"><use href="#i-user"/></svg> Pilotes</button>
         <button data-sz="consistency"><svg class="ic" aria-hidden="true"><use href="#i-ruler"/></svg> Régularité</button>
@@ -527,7 +530,33 @@
       <section class="set-block" data-sgroup="alerts">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg> Alertes (synchronisées avec votre délai TV)</h4>
         <div class="row" id="alertOpts"></div>
+        <div class="row"><label class="small" title="Message, son et notification avant le début de chaque séance (essais, qualifications, sprint, course), quand F1 Dash est ouvert">Rappel avant chaque séance <select id="remindSel"><option value="0">Désactivé</option><option value="5">5 min avant</option><option value="15">15 min avant</option><option value="30">30 min avant</option><option value="60">1 h avant</option></select></label>
+          <a class="btn small" id="icsSeason" href="/api/calendar.ics" download title="Fichier à ouvrir avec Google Agenda, Apple Calendrier ou Outlook : toutes les séances de la saison, avec une alarme 15 min avant (même F1 Dash fermé)"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg> Ajouter la saison à mon agenda</a></div>
         <div class="row"><span class="small">Pilotes favoris (cliquez pour ajouter/retirer — ou sur l'étoile à côté du nom dans le classement) :</span><div id="favList" class="fav-list"></div></div>
+      </section>
+      <section class="set-block" data-sgroup="alerts" id="lightsBox">
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Lumières connectées <span class="muted small">(expérimental)</span></h4>
+        <p class="small muted">Vos ampoules prennent la couleur des drapeaux en même temps que la télé (délai TV) : vert, jaune, voiture de sécurité, rouge, damier.</p>
+        <div class="row"><label class="small">Lampes <select id="lightsProvider"><option value="off">Désactivé</option><option value="sim">Simulation à l'écran (sans ampoule)</option><option value="hue">Philips Hue</option><option value="ha">Home Assistant</option></select></label>
+          <label class="small">Après le drapeau vert <select id="lightsAfter"><option value="normal">revenir à une lumière normale</option><option value="off">éteindre</option><option value="keep">rester en vert</option></select></label></div>
+        <div class="row lights-sub" data-lp="hue" hidden>
+          <label class="small">Adresse du pont <input id="hueIp" placeholder="192.168.1.20" size="16"></label>
+          <button class="btn small" id="hueFind" type="button">Rechercher le pont</button>
+          <button class="btn small" id="huePair" type="button" title="Appuyez d'abord sur le bouton rond du pont Hue, puis cliquez ici dans les 30 secondes">Associer</button>
+          <span class="small muted" id="hueState"></span>
+        </div>
+        <div class="row lights-sub" data-lp="ha" hidden>
+          <label class="small">Adresse de Home Assistant <input id="haUrl" placeholder="http://homeassistant.local:8123" size="30"></label>
+          <label class="small">Jeton <input id="haToken" type="password" size="24" autocomplete="off"></label>
+          <button class="btn small" id="haSave" type="button">Enregistrer</button>
+          <span class="small muted">Jeton : profil Home Assistant → Sécurité → Jetons d'accès longue durée.</span>
+        </div>
+        <div class="row lights-sub" data-lp="test" hidden>
+          <button class="btn small" id="lightsLoad" type="button">Choisir les lampes</button>
+          <div id="lightsDevices" class="lights-devices"></div>
+          <span class="small">Tester :</span>
+          <button class="btn small" type="button" data-light-test="green">Vert</button><button class="btn small" type="button" data-light-test="yellow">Jaune</button><button class="btn small" type="button" data-light-test="sc">Safety car</button><button class="btn small" type="button" data-light-test="red">Rouge</button><button class="btn small" type="button" data-light-test="chequered">Damier</button><button class="btn small" type="button" data-light-test="normal">Normal</button>
+        </div>
       </section>
 
       <section class="set-block" data-sgroup="display">

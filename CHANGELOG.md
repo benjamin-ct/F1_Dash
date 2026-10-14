@@ -4,6 +4,28 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.21.0 — 2026-10-14
+
+### Pendant la course
+- **Mini-classement flottant** (bouton Mini de la barre latérale) : petite fenêtre toujours au premier plan, à poser par-dessus la vidéo de la course (F1 TV, Canal+…) : drapeau, tour, classement avec intervalle ou écart au leader, pneus, pilotes suivis et favoris. Même délai TV que la fenêtre principale.
+- **Résumé de la séance** (bouton Résumé de la barre latérale) : la course racontée en français — vainqueur et écart, remontées, stratégies, voitures de sécurité, abandons, pénalités, meilleur tour (pole et éliminés en qualifications) — à copier pour le partager. Rien n'est dévoilé en avance : il suit votre délai TV.
+- **Radar de la pluie** (onglet Météo) : les deux dernières heures d'images radar autour du circuit, en animation, pour voir la pluie arriver.
+
+### Replays
+- **Moments clés** (bouton Moments de la barre de lecture) : départ, drapeaux, changements de leader, dépassements pour le podium, arrêts, abandons, incidents, pénalités, meilleur tour, arrivée — un clic pour y aller, repères de couleur sur la barre. Les moments pas encore vus restent masqués (anti-spoiler).
+
+### Week-ends
+- **Rappel avant chaque séance** (Réglages → Alertes) : message, son et notification, de 5 min à 1 h avant (15 min par défaut).
+- **Calendrier** : toutes les séances de la saison ou d'un week-end à ajouter à votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant chaque séance, même F1 Dash fermé.
+- **Pronostics entre amis** (Saison → Pronostics) : pole et podium de chaque Grand Prix, sur l'ordinateur ou le téléphone, choix cachés jusqu'à la fermeture, points et classement de la saison.
+
+### Lumières connectées (expérimental)
+- Vos ampoules **Philips Hue** ou **Home Assistant** prennent la couleur des drapeaux au rythme de votre délai TV (vert, jaune, safety car, VSC, rouge, damier). Mode simulation à l'écran pour essayer sans ampoule. Réglages → Alertes.
+
+### Fluidité
+- La carte consomme moins : 30 images par seconde quand elle est petite (60 en grand), et plus aucun calcul pendant une pause du replay.
+- Téléphone : tableaux de l'espace Saison plus compacts, colonne du pilote figée pendant le défilement.
+
 ## v1.20.2 — 2026-10-14
 
 ### Sécurité et fiabilité

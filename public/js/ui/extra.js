@@ -135,11 +135,13 @@ export function renderWeather() {
   if (v === wxVer) return;
   wxVer = v;
   const w = store.state.WeatherData;
-  if (!w) { $('#weather').innerHTML = '<div class="note">Pas de données météo.</div>'; return; }
+  // Deux zones : jauges (ici) et radar des précipitations (radar.js), rafraîchies séparément
+  if (!$('#wxGauges')) $('#weather').innerHTML = '<div id="wxGauges"></div><div id="wxRadar"></div>';
+  if (!w) { $('#wxGauges').innerHTML = '<div class="note">Pas de données météo.</div>'; return; }
   const g = (lbl, val, unit) => `<div class="gauge"><div class="gauge-lbl">${lbl}</div><div class="gauge-val">${val}<small> ${unit}</small></div></div>`;
   const wind = Number(w.WindSpeed);
   const dir = Number(w.WindDirection) || 0;
-  $('#weather').innerHTML = `<div class="wx">
+  $('#wxGauges').innerHTML = `<div class="wx">
     ${g('Air', esc(w.AirTemp), '°C')}${g('Piste', esc(w.TrackTemp), '°C')}${g('Humidité', esc(w.Humidity), '%')}
     ${g('Pression', esc(w.Pressure), 'hPa')}
     ${g('Vent', Number.isFinite(wind) ? (wind * 3.6).toFixed(0) : '—', `km/h <span class="wind-arrow" style="transform:rotate(${dir + 180}deg)" title="Direction ${dir}°">${icon('arrow-up')}</span>`)}

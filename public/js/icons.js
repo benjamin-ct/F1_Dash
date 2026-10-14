@@ -44,6 +44,7 @@ const P = {
   wing: '<path d="M2.5 9h19M4 9v6M20 9v6M4 13h16M9 13v6M15 13v6M7.5 19h9"/>',
   engine: '<rect x="5" y="8" width="11" height="9" rx="1.5"/><path d="M8 8V5.5h5V8M16 11h2.5V9H21v7h-2.5v-2H16M5 12.5H2.5M8.5 12.5h4"/>',
   star: '<path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z"/>',
+  highlights: '<path d="M4 6h9M4 12h9M4 18h6"/><path d="M18 3.5l1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.6 1.4.5-3-2.2-2.1 3-.4z"/>',
   'star-fill': '<path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.6l-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" fill="currentColor"/>',
   landmark: '<path d="M3 9.5L12 4l9 5.5M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20.5h18"/>',
   car: '<circle cx="6.5" cy="16.5" r="2.5"/><circle cx="18" cy="16.5" r="2.5"/><path d="M2 14.5h2M9 16.5h6.5M20.5 16.5H22v-3h-4l-2-3H11l-2.5 3H4.5M13 10.5V8h3"/>',
