@@ -274,6 +274,8 @@ function asideView(all) {
   const who = [...counts].filter(([t]) => t !== 'fia').sort((a, b) => b[1] - a[1]).slice(0, 8);
   const max = who[0]?.[1] || 1;
   const videos = all.filter((it) => it.kind === 'video' && it.img).slice(0, 4);
+  // Titres de la colonne traduits comme ceux du fil
+  for (const it of [...top.map((g) => g.lead), ...videos]) translate(it.title, it.lang);
   const topHtml = top.length ? top.map((g, i) => `<a class="nwa-top" href="${esc(g.lead.link)}" target="_blank" rel="noopener">
       <span class="nwa-rank">${i + 1}</span><span class="nwa-txt"><b>${esc(titleOf(g.lead).text)}</b>
       <span class="muted small">${g.sources} source${g.sources > 1 ? 's' : ''} · ${ago(g.t)}</span></span></a>`).join('')

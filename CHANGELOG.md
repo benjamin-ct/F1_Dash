@@ -4,6 +4,20 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.20.0 — 2026-10-14
+
+### Apparence
+- Un seul design pour toute l'application : **Pitwall**. Les anciens designs (F1 Pro, F1 sobre, Classique, Bleu nuit) sont retirés ; si vous en utilisiez un, l'application passe automatiquement sur Pitwall.
+- Nouveau **mode clair** : Réglages → Affichage → **Apparence** — Sombre (par défaut), Clair (idéal en plein jour) ou Automatique (suit le réglage de l'ordinateur ou du téléphone). Le changement est immédiat, carte, graphiques et couleurs des pneus compris.
+
+### Carte
+- **Petite carte lisible** : quand la carte est petite (tableau de bord, téléphone), elle s'allège automatiquement. Sur une très petite carte, les pilotes deviennent de simples points, et seuls les pilotes suivis sont nommés. Sur une carte moyenne, les pastilles gardent le trigramme, sans numéros de virage, positions ni écarts. Tous les détails reviennent en agrandissant la carte ou en zoomant.
+- Le tracé occupe davantage la place disponible sur une petite carte.
+- Mode clair : contour et ombre de la piste plus légers.
+
+### Actualités
+- Les titres de la colonne de droite (À la une, dernières vidéos) sont eux aussi traduits en français.
+
 ## v1.19.0 — 2026-10-14
 
 ### Actualités

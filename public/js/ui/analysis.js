@@ -132,7 +132,7 @@ function multiChart(canvas, series, o) {
 
   // Réticule
   if (hoverX !== null && hoverX >= xMin && hoverX <= xMax) {
-    ctx.strokeStyle = 'rgba(255,255,255,.25)';
+    ctx.strokeStyle = document.documentElement.dataset.scheme === 'light' ? 'rgba(14,17,22,.3)' : 'rgba(255,255,255,.25)';
     ctx.beginPath(); ctx.moveTo(X(hoverX), padT); ctx.lineTo(X(hoverX), H - padB); ctx.stroke();
   }
   canvas._map = { X, Y, xMin, xMax, padL, padR, W, H, padT, padB, series, o };
