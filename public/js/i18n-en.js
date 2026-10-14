@@ -1297,6 +1297,7 @@ export default {
   "Reprise imminente": "Restart imminent",
   "Requête invalide": "Invalid request",
   "Requête trop volumineuse": "Request too large",
+  "JSON invalide": "Invalid JSON",
   "rester en vert": "stay green",
   "Résultats & records": "Results & records",
   "Résultats finalisés": "Final results",

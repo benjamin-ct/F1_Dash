@@ -42,7 +42,9 @@ export function resultOf(race) {
 // Nom de joueur : 1 à 24 caractères lisibles ; clé insensible à la casse
 export function playerKey(name) {
   const n = String(name || '').normalize('NFC').replace(/[^\p{L}\p{N} ._'-]/gu, '').trim().slice(0, 24);
-  return n ? n.toLowerCase() : null;
+  // Les noms réservés des objets JavaScript (« __proto__ », « constructor »…) ne peuvent pas servir de clé
+  const k = n.toLowerCase();
+  return k && !(k in Object.prototype) ? k : null;
 }
 
 // Classement de la saison : [{ name, total, rounds: { round: points } }], du meilleur au moins bon

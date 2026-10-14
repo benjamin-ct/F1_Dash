@@ -18,4 +18,6 @@ test('traductions FIA : ajout, priorité au modèle de langage, entrées invalid
   assert.equal(addTranslations('fr', [{ en: '', t: 'x' }, { en: 'a', t: 42 }, null]), 0);
   assert.equal(addTranslations('xx', [{ en: 'a', t: 'b' }]), 0);
   assert.deepEqual(getTranslations('xx'), {});
+  assert.equal(addTranslations('fr', [{ en: '__proto__', t: 'x', q: 'high' }, { en: 'constructor', t: 'y', q: 'high' }]), 0, 'noms réservés ignorés');
+  assert.equal(Object.getPrototypeOf(getTranslations('fr')), Object.prototype);
 });

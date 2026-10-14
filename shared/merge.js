@@ -20,7 +20,8 @@ export function merge(target, update) {
   }
 
   for (const key of Object.keys(update)) {
-    if (key === '_deleted') continue;
+    // « __proto__ » (possible après JSON.parse) modifierait le modèle de tous les objets
+    if (key === '_deleted' || key === '__proto__') continue;
     if (Array.isArray(target)) {
       const i = Number(key);
       if (Number.isInteger(i)) target[i] = merge(target[i], update[key]);
