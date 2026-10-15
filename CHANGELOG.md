@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.26.0 — à venir
+## v1.26.0 — 2026-10-15
 
 ### Sauvegarde des réglages
 - **Enregistrer ses réglages dans un fichier et les restaurer** (Réglages → Application → *Sauvegarde des réglages*) : affichage, dispositions et fenêtres, colonnes, délais TV mémorisés, carte, analyse, sources d'actualités, lumières connectées. Pratique après une réinstallation ou sur un autre ordinateur.
