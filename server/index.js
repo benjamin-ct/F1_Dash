@@ -28,6 +28,7 @@ import { osmTile } from './tiles.js';
 import { predictionsView, savePrediction } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
+import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 
@@ -88,13 +89,13 @@ function sendJSON(res, status, obj) {
 // Requête mal formée : erreur 400 (et non 500)
 class BadRequest extends Error {}
 
-function readBody(req) {
+function readBody(req, max = 1e6) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
-      if (size > 1e6) { reject(new BadRequest('Requête trop volumineuse')); req.destroy(); return; }
+      if (size > max) { reject(new BadRequest('Requête trop volumineuse')); req.destroy(); return; }
       chunks.push(c);
     });
     req.on('end', () => {
@@ -278,6 +279,27 @@ async function handleApi(req, res, url) {
       if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
       if (route === 'GET /api/backup') return sendJSON(res, 200, exportServerSettings());
       return sendJSON(res, 200, importServerSettings(await readBody(req)));
+    }
+
+    // Mode créateur (générateur de posts) : depuis cet ordinateur uniquement
+    case 'GET /api/creator':
+      return sendJSON(res, 200, { enabled: isLoopback(req.socket.remoteAddress) && creatorEnabled() });
+    case 'POST /api/creator':
+    case 'POST /api/posts/save':
+    case 'POST /api/posts/open': {
+      if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
+      const body = await readBody(req, route === 'POST /api/posts/save' ? 25e6 : 1e6);
+      if (route === 'POST /api/creator') {
+        if (body.off) return sendJSON(res, 200, { enabled: setCreator(null, false) });
+        return setCreator(body.code) ? sendJSON(res, 200, { enabled: true }) : sendJSON(res, 403, { error: 'Code incorrect' });
+      }
+      if (!creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
+      try {
+        if (route === 'POST /api/posts/open') return sendJSON(res, 200, { dir: openPostsDir(body.folder) });
+        return sendJSON(res, 200, { dir: savePostImage(body.folder, body.name, body.data) });
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
     }
 
     // Pronostics entre amis (pole et podium de chaque Grand Prix)

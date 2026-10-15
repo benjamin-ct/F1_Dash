@@ -1,0 +1,136 @@
+// Générateur de posts pour les réseaux sociaux (mode créateur) : données de la séance affichée
+// (vainqueur, podium, classement, faits marquants, championnat projeté) et légendes prêtes à
+// copier pour Instagram / Facebook, les stories et X / Threads / Bluesky.
+
+import { buildSummary, gpNameFr, sessionKindOf } from './summary.js';
+import { realStints } from './pits.js';
+
+const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
+const RACE_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+const SPRINT_PTS = [8, 7, 6, 5, 4, 3, 2, 1];
+const COMP = { SOFT: 'Tendres', MEDIUM: 'Médiums', HARD: 'Durs', INTERMEDIATE: 'Intermédiaires', WET: 'Pluie' };
+const dec = (v) => String(v).replace('.', ',');
+
+// « +7.335 » -> « +7,335 s », « 1L » -> « +1 tour »
+export function gapFr(v) {
+  const s = String(v ?? '').trim();
+  if (!s || /^LAP/i.test(s)) return '';
+  const laps = s.match(/^\+?(\d+)\s*L(AP)?S?$/i);
+  if (laps) return `+${laps[1]} tour${laps[1] > 1 ? 's' : ''}`;
+  return /^\+?\d/.test(s) ? `+${dec(s.replace('+', ''))} s` : s;
+}
+
+const hashtag = (s) => `#${String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '')}`;
+
+export function postData(state) {
+  const kind = sessionKindOf(state);
+  const info = state?.SessionInfo || {};
+  const sprint = /sprint/i.test(info.Name || '');
+  const dl = state?.DriverList || {};
+  const lines = state?.TimingData?.Lines || {};
+  const app = state?.TimingAppData?.Lines || {};
+  const stats = state?.TimingStats?.Lines || {};
+  const msgs = list(state?.RaceControlMessages?.Messages);
+  const finished = ['Finished', 'Finalised', 'Ends'].includes(state?.SessionStatus?.Status);
+  const part = Number(state?.TimingData?.SessionPart) || 1;
+  const gpEn = String(info.Meeting?.Name || '').trim();
+  const gp = gpEn ? gpNameFr(gpEn).replace(/^le /, '') : 'Grand Prix';
+  const label = kind === 'race' ? (sprint ? 'Sprint' : 'Course') : kind === 'quali' ? (sprint ? 'Qualifications sprint' : 'Qualifications') : (info.Name || 'Essais').replace(/^Practice (\d)$/, 'Essais libres $1');
+  const ranked = Object.keys(lines).filter((n) => Number(lines[n]?.Position) > 0).sort((a, b) => Number(lines[a].Position) - Number(lines[b].Position));
+  const leaderLaps = Number(lines[ranked[0]]?.NumberOfLaps) || 0;
+  const isOut = (n) => kind === 'race' && (lines[n].Retired || (lines[n].Stopped && (!finished || (Number(lines[n].NumberOfLaps) || 0) < 0.9 * leaderLaps)));
+  const pts = sprint ? SPRINT_PTS : RACE_PTS;
+  const bestQ = (n) => list(lines[n]?.BestLapTimes)[part - 1]?.Value || lines[n]?.BestLapTime?.Value || '';
+
+  const rows = ranked.map((n, i) => {
+    const d = dl[n] || {};
+    const grid = Number(app[n]?.GridPos) || null;
+    const out = isOut(n);
+    let gap = '';
+    if (kind === 'race') gap = out ? 'Abandon' : i === 0 ? '' : gapFr(lines[n].GapToLeader);
+    else if (kind === 'quali') gap = i === 0 ? bestQ(n) : (list(lines[n]?.Stats)[part - 1]?.TimeDiffToFastest ? `+${dec(String(list(lines[n].Stats)[part - 1].TimeDiffToFastest).replace('+', ''))}` : lines[n].KnockedOut ? (list(lines[n].BestLapTimes).filter((x) => x?.Value).at(-1)?.Value || bestQ(n)) : '');
+    else gap = i === 0 ? (lines[n]?.BestLapTime?.Value || '') : (lines[n]?.TimeDiffToFastest ? `+${dec(String(lines[n].TimeDiffToFastest).replace('+', ''))}` : '');
+    return {
+      pos: i + 1, num: n, tla: d.Tla || n, first: d.FirstName || '', last: d.LastName || d.Tla || n,
+      team: d.TeamName || '', color: d.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: d.HeadshotUrl || null,
+      gap, grid, delta: kind === 'race' && grid && !out ? grid - (i + 1) : null, out,
+      points: kind === 'race' && !out ? (pts[i] || 0) : 0, knockedOut: !!lines[n].KnockedOut,
+      // Partie de la qualif où le pilote a été éliminé (dernier temps réalisé : Q1 ou Q2)
+      koPart: lines[n].KnockedOut ? Math.max(1, list(lines[n].BestLapTimes).filter((x) => x?.Value).length) : null,
+    };
+  });
+
+  // Faits marquants
+  const facts = [];
+  const byNum = Object.fromEntries(rows.map((r) => [r.num, r]));
+  if (kind === 'race' && rows.length) {
+    const fl = Object.keys(stats).find((n) => stats[n]?.PersonalBestLapTime?.Position === 1);
+    if (fl && byNum[fl] && stats[fl].PersonalBestLapTime.Value) facts.push({ label: 'Meilleur tour', value: byNum[fl].last, sub: `${stats[fl].PersonalBestLapTime.Value}${stats[fl].PersonalBestLapTime.Lap ? ` · tour ${stats[fl].PersonalBestLapTime.Lap}` : ''}`, color: byNum[fl].color });
+    const up = rows.filter((r) => r.delta > 0).sort((a, b) => b.delta - a.delta)[0];
+    if (up && up.delta >= 3) facts.push({ label: 'Plus belle remontée', value: up.last, sub: `P${up.grid} → P${up.pos} (+${up.delta})`, color: up.color });
+    const w = rows[0];
+    const stints = realStints(list(app[w.num]?.Stints)).map((s) => s?.Compound).filter((c) => COMP[c]);
+    if (stints.length) facts.push({ label: 'Stratégie du vainqueur', value: stints.length === 1 ? 'Sans arrêt' : `${stints.length - 1} arrêt${stints.length > 2 ? 's' : ''}`, sub: stints.map((c) => COMP[c]).join(' → '), color: w.color });
+    const sc = msgs.filter((m) => /^SAFETY CAR DEPLOYED/.test(m?.Message || '')).length;
+    const vsc = msgs.filter((m) => /^VIRTUAL SAFETY CAR DEPLOYED/.test(m?.Message || '')).length;
+    const red = msgs.filter((m) => m?.Flag === 'RED').length;
+    const neut = [sc && `${sc} safety car${sc > 1 ? 's' : ''}`, vsc && `${vsc} VSC`, red && `${red} drapeau${red > 1 ? 'x' : ''} rouge${red > 1 ? 's' : ''}`].filter(Boolean);
+    facts.push({ label: 'Neutralisations', value: neut.length ? neut.join(' · ') : 'Aucune', sub: neut.length ? '' : 'Drapeau vert de bout en bout' });
+    const outs = rows.filter((r) => r.out);
+    facts.push({ label: 'Abandons', value: outs.length ? String(outs.length) : 'Aucun', sub: outs.map((r) => r.last).join(', ') });
+  } else if (kind === 'quali' && rows.length) {
+    const ko = rows.filter((r) => r.knockedOut);
+    if (ko.length) facts.push({ label: 'Éliminés', value: String(ko.length), sub: ko.map((r) => r.tla).join(', ') });
+    if (rows[1]) facts.push({ label: 'Écart pole / P2', value: rows[1].gap || '—', sub: `${rows[0].last} devant ${rows[1].last}`, color: rows[0].color });
+  }
+
+  // Championnat projeté (publié par la F1 pendant les courses et les sprints)
+  let champ = null;
+  const cp = state?.ChampionshipPrediction;
+  if (cp?.Drivers) {
+    const drv = Object.values(cp.Drivers).filter(Boolean).sort((a, b) => (a.PredictedPosition || 99) - (b.PredictedPosition || 99));
+    const teams = Object.values(cp.Teams || {}).filter(Boolean).sort((a, b) => (a.PredictedPosition || 99) - (b.PredictedPosition || 99));
+    const teamColor = (name) => { const d = Object.values(dl).find((x) => x?.TeamName === name); return d?.TeamColour ? `#${d.TeamColour}` : '#8b95a8'; };
+    champ = {
+      drivers: drv.map((r) => { const d = dl[r.RacingNumber] || {}; return { pos: r.PredictedPosition, tla: d.Tla || r.RacingNumber, last: d.LastName || d.Tla || r.RacingNumber, team: d.TeamName || '', color: d.TeamColour ? `#${d.TeamColour}` : '#8b95a8', points: r.PredictedPoints, gained: (r.PredictedPoints || 0) - (r.CurrentPoints || 0), move: (r.CurrentPosition || 0) - (r.PredictedPosition || 0) }; }),
+      teams: teams.map((t) => ({ pos: t.PredictedPosition, name: t.TeamName || '', color: teamColor(t.TeamName), points: t.PredictedPoints, gained: (t.PredictedPoints || 0) - (t.CurrentPoints || 0), move: (t.CurrentPosition || 0) - (t.PredictedPosition || 0) })),
+    };
+  }
+
+  // Date du jour de la séance sur place (heure locale du circuit, sans décalage)
+  const start = /^\d{4}-\d\d-\d\d/.test(info.StartDate || '') ? new Date(`${info.StartDate.slice(0, 10)}T12:00:00Z`) : null;
+  return {
+    kind, sprint, final: finished, label, gp, gpEn,
+    country: info.Meeting?.Country?.Code || '', countryName: info.Meeting?.Country?.Name || '', circuit: info.Meeting?.Circuit?.ShortName || info.Meeting?.Location || '',
+    date: start && !Number.isNaN(start.getTime()) ? start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '',
+    year: start && !Number.isNaN(start.getTime()) ? start.getFullYear() : '',
+    laps: state?.LapCount?.TotalLaps || null,
+    rows, facts, champ, summary: buildSummary(state, { lang: 'fr' }),
+  };
+}
+
+// Légendes prêtes à copier
+export function captions(d, signature = '') {
+  if (!d.rows.length) return { instagram: '', x: '', story: '' };
+  const [p1, p2, p3] = d.rows;
+  const sig = signature ? `\n\n${signature}` : '';
+  const tags = [hashtag('F1'), hashtag(`${d.gpEn.replace(/ Grand Prix$/i, '')}GP`), hashtag('Formula1'), ...(d.kind === 'race' ? [hashtag(p1.last)] : []), hashtag(`F1${d.year || ''}`)].filter((t) => t.length > 2);
+  const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${i + 1}. ${r.first} ${r.last} (${r.team})${i && r.gap ? ` ${r.gap}` : ''}`).join('\n');
+  let head; let short;
+  if (d.kind === 'race') {
+    head = `${p1.first} ${p1.last} remporte ${d.sprint ? 'le sprint du ' : 'le '}${d.gp} !`;
+    short = `${p1.last} remporte ${d.sprint ? 'le sprint du ' : 'le '}${d.gp} devant ${p2?.last || ''}${p3 ? ` et ${p3.last}` : ''}.`;
+  } else if (d.kind === 'quali') {
+    head = `Pole position pour ${p1.first} ${p1.last} au ${d.gp}${d.sprint ? ' (sprint)' : ''} !`;
+    short = `Pole pour ${p1.last}${p1.gap ? ` en ${p1.gap}` : ''} au ${d.gp}${d.sprint ? ' (sprint)' : ''}, devant ${p2?.last || ''}${p3 ? ` et ${p3.last}` : ''}.`;
+  } else {
+    head = `${d.label} du ${d.gp} : ${p1.first} ${p1.last} en tête.`;
+    short = `${d.label} du ${d.gp} : meilleur temps pour ${p1.last}, devant ${p2?.last || ''}${p3 ? ` et ${p3.last}` : ''}.`;
+  }
+  const facts = d.facts.filter((f) => f.value && f.value !== 'Aucun').map((f) => `${f.label} : ${f.value}${f.sub ? ` (${f.sub})` : ''}`).join('\n');
+  const story = d.summary.paragraphs.slice(0, 2).join(' ');
+  const instagram = `${head}\n\n${d.kind === 'quali' ? 'Grille de départ' : 'Podium'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.join(' ')}`;
+  let x = `${short}\n\n${tags.slice(0, 3).join(' ')}`;
+  if (x.length > 280) x = `${short.slice(0, 270 - tags[0].length)}… ${tags[0]}`;
+  return { instagram, x, story: head };
+}

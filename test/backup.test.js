@@ -57,3 +57,11 @@ test('sauvegarde serveur : sans jeton ni clé, restauration revérifiée', () =>
   assert.deepEqual(c.radioHosts, ['radio.exemple.fr']);
   assert.equal(c.f1tvToken, 'a.b.c', 'connexion F1 TV inchangée');
 });
+
+test('mode créateur : un mauvais code ne l\'active pas', async () => {
+  const { setCreator, creatorEnabled } = await import('../server/creator.js');
+  assert.equal(setCreator('PL-FAUX-CODE'), false);
+  assert.equal(creatorEnabled(), false);
+  setCreator(null, false);
+  assert.equal(creatorEnabled(), false);
+});
