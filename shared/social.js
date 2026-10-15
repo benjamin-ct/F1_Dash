@@ -109,12 +109,41 @@ export function postData(state) {
   };
 }
 
+// Hashtags ajoutés automatiquement : compte du créateur, F1, Grand Prix, séance, pilotes, écuries, lieu
+export const BRAND_TAG = '#BenjyPaddock';
+const TEAM_TAGS = [
+  [/racing bulls|visa|\brb\b/i, 'RacingBulls'], [/red bull/i, 'RedBullRacing'], [/ferrari/i, 'ScuderiaFerrari'],
+  [/mclaren/i, 'McLaren'], [/mercedes/i, 'MercedesAMGF1'], [/aston/i, 'AstonMartinF1'], [/williams/i, 'WilliamsRacing'],
+  [/alpine/i, 'AlpineF1Team'], [/haas/i, 'HaasF1'], [/audi|sauber|kick/i, 'AudiF1'], [/cadillac/i, 'CadillacF1'],
+];
+const teamTag = (team) => hashtag(TEAM_TAGS.find(([re]) => re.test(team || ''))?.[1] || team);
+
+export function hashtags(d) {
+  const [p1, p2, p3] = d.rows;
+  const gpTag = hashtag(`${d.gpEn.replace(/ Grand Prix$/i, '')}GP`);
+  const session = d.kind === 'race' ? (d.sprint ? ['#F1Sprint', '#Sprint'] : ['#RaceDay']) : d.kind === 'quali' ? ['#Qualifying', '#Qualifs'] : ['#F1Practice'];
+  const people = d.kind === 'practice' ? [p1] : [p1, p2, p3];
+  const raw = [
+    BRAND_TAG, '#F1', '#Formula1', '#Formule1', gpTag, d.year ? `#F1${d.year}` : '', ...session,
+    p1 ? hashtag(`${p1.first}${p1.last}`) : '', ...people.filter(Boolean).map((r) => hashtag(r.last)),
+    ...[...new Set(people.filter(Boolean).map((r) => r.team))].map(teamTag),
+    d.countryName ? hashtag(d.countryName) : '', d.circuit ? hashtag(d.circuit) : '', '#GrandPrix', '#Motorsport',
+  ];
+  const seen = new Set();
+  const all = raw.filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase())).slice(0, 25);
+  return {
+    all,
+    x: [BRAND_TAG, '#F1', gpTag, p1 ? hashtag(`${p1.first}${p1.last}`) : ''].filter((t) => t.length > 2),
+    threads: ['#F1', BRAND_TAG],
+  };
+}
+
 // Légendes prêtes à copier
 export function captions(d, signature = '') {
   if (!d.rows.length) return { instagram: '', x: '', threads: '', story: '' };
   const [p1, p2, p3] = d.rows;
   const sig = signature ? `\n\n${signature}` : '';
-  const tags = [hashtag('F1'), hashtag(`${d.gpEn.replace(/ Grand Prix$/i, '')}GP`), hashtag('Formula1'), ...(d.kind === 'race' ? [hashtag(p1.last)] : []), hashtag(`F1${d.year || ''}`)].filter((t) => t.length > 2);
+  const tags = hashtags(d);
   const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${i + 1}. ${r.first} ${r.last} (${r.team})${i && r.gap ? ` ${r.gap}` : ''}`).join('\n');
   let head; let short;
   if (d.kind === 'race') {
@@ -129,10 +158,13 @@ export function captions(d, signature = '') {
   }
   const facts = d.facts.filter((f) => f.value && f.value !== 'Aucun').map((f) => `${f.label} : ${f.value}${f.sub ? ` (${f.sub})` : ''}`).join('\n');
   const story = d.summary.paragraphs.slice(0, 2).join(' ');
-  const instagram = `${head}\n\n${d.kind === 'quali' ? 'Grille de départ' : 'Podium'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.join(' ')}`;
-  let x = `${short}\n\n${tags.slice(0, 3).join(' ')}`;
-  if (x.length > 280) x = `${short.slice(0, 270 - tags[0].length)}… ${tags[0]}`;
-  let threads = `${head}\n\n${podium}${sig}\n\n${tags.slice(0, 2).join(' ')}`;
-  if (threads.length > 500) threads = `${head}\n\n${tags.slice(0, 2).join(' ')}`.slice(0, 500);
+  const instagram = `${head}\n\n${d.kind === 'quali' ? 'Grille de départ' : 'Podium'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.all.join(' ')}`;
+  // X : 280 caractères, hashtags retirés un à un si besoin (le compte du créateur reste)
+  const xt = [...tags.x];
+  let x = `${short}\n\n${xt.join(' ')}`;
+  while (x.length > 280 && xt.length > 1) { xt.pop(); x = `${short}\n\n${xt.join(' ')}`; }
+  if (x.length > 280) x = `${short.slice(0, 276 - xt[0].length)}… ${xt[0]}`;
+  let threads = `${head}\n\n${podium}${sig}\n\n${tags.threads.join(' ')}`;
+  if (threads.length > 500) threads = `${head}\n\n${tags.threads.join(' ')}`.slice(0, 500);
   return { instagram, x, threads, story: head };
 }

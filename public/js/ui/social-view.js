@@ -79,7 +79,7 @@ async function render(dlg) {
   dlg.publish = null;
   const d = postData(store.state);
   const slides = slidesFor(d);
-  const sig = storageGet(SIG_KEY, 'Paddock Live');
+  const sig = storageGet(SIG_KEY, '@BenjyPaddock');
   const caps = captions(d, sig);
   const body = $('.posts-body', dlg);
   if (!slides.length) { body.innerHTML = `<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
@@ -154,7 +154,7 @@ function open() {
     });
     $('[data-photos]', dlg).addEventListener('change', (e) => { withPhotos = e.target.checked; sync(); render(dlg); });
     const sig = $('.posts-sig', dlg);
-    sig.value = storageGet(SIG_KEY, 'Paddock Live');
+    sig.value = storageGet(SIG_KEY, '@BenjyPaddock');
     let tm = null;
     sig.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(() => { storageSet(SIG_KEY, sig.value.trim()); render(dlg); }, 500); });
     sync();
