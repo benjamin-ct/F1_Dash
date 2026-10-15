@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.1 — à venir
+## v1.27.1 — 2026-10-15
 
 ### Replays
 - **La F1 a fermé l'accès libre à ses archives** (replays, statistiques de la saison, records, jeux de pneus des séances précédentes) : Paddock Live utilise désormais votre **connexion F1 TV** pour y accéder, puis une copie publique des archives si besoin. Sans connexion F1 TV, un message clair l'indique au lieu de « HTTP 401 ».
