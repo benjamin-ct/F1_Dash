@@ -42,11 +42,16 @@ test('posts : données de la course (classement, points, faits marquants, champi
 });
 
 test('posts : légendes Instagram et X', () => {
-  const c = captions(postData(state), '@paddocklive');
+  const c = captions(postData(state), '@BenjyPaddock');
   assert.match(c.instagram, /^Lando Norris remporte le Grand Prix d'Italie !/);
   assert.match(c.instagram, /2\. Charles Leclerc \(Ferrari\) \+2,5 s/);
-  assert.match(c.instagram, /@paddocklive/);
-  assert.match(c.instagram, /#F1 #ItalianGP #Formula1 #Norris #F12026/);
+  assert.match(c.instagram, /\n\n@BenjyPaddock\n\n/);
+  const tags = c.instagram.split('\n').at(-1).split(' ');
+  assert.deepEqual(tags.slice(0, 9), ['#BenjyPaddock', '#F1', '#Formula1', '#Formule1', '#ItalianGP', '#F12026', '#RaceDay', '#LandoNorris', '#Norris']);
+  for (const t of ['#Leclerc', '#Hamilton', '#McLaren', '#ScuderiaFerrari', '#Italy', '#GrandPrix']) assert.ok(tags.includes(t), t);
+  assert.equal(new Set(tags.map((t) => t.toLowerCase())).size, tags.length, 'pas de doublon');
+  assert.match(c.x, /#BenjyPaddock #F1 #ItalianGP #LandoNorris$/);
+  assert.match(c.threads, /#F1 #BenjyPaddock$/);
   assert.ok(c.x.length <= 280);
   assert.ok(c.threads.length <= 500);
   assert.match(c.threads, /^Lando Norris remporte/);

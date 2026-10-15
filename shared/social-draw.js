@@ -121,7 +121,7 @@ function frame(ctx, W, H, d, o, title) {
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   ctx.fillStyle = C.line;
   ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, o.signature || 'Paddock Live', pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, color: C.text, spacing: 1 });
+  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, color: C.text, spacing: 1 });
   if (!d.final) txt(ctx, 'RÉSULTATS PROVISOIRES', W - pad, fy, { size: Math.round(Math.min(W, H) * 0.022), weight: 700, family: TITLE, color: C.gold, align: 'right', spacing: 2 });
   return { pad, top: top + Math.round(Math.min(W, H) * 0.14), bottom: fy - Math.round(Math.min(W, H) * 0.06) };
 }
