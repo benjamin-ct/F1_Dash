@@ -13,6 +13,7 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Mémoire et mises à jour
 - **Transcription des radios : beaucoup moins de mémoire.** Les modèles (plusieurs Go en haute qualité) sont libérés quand la transcription est coupée, et après 5 minutes sans radio à traiter ; ils se rechargent tout seuls à la radio suivante.
+- La mémoire occupée par la transcription en haute qualité (10 à 15 Go pendant l'utilisation sur Mac) est indiquée dans l'infobulle du choix de qualité ; la qualité légère en utilise environ 1 Go.
 - **Mémoire utilisée affichée** dans Réglages → Application (application de bureau), avec le détail : serveur, fenêtres, carte graphique.
 - **macOS : mises à jour automatiques réparées** quand macOS lance l'appli depuis une copie temporaire (appli non signée par Apple) : la mise à jour remplace l'appli du dossier Applications.
 

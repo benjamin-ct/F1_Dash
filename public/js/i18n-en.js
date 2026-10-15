@@ -1766,4 +1766,5 @@ export default {
   "services": "services",
   "Mémoire utilisée : {} ({})": "Memory used: {} ({})",
   "Valider": "OK",
+  "Haute qualité : Whisper large-v3-turbo + modèle de langage (Qwen3-4B) qui connaît le contexte F1 ; nécessite une carte graphique (environ 4,5 Go téléchargés une fois) et occupe 10 à 15 Go de mémoire pendant la transcription (libérés après 5 minutes sans radio). Légère : petits modèles sur le processeur, plus approximatifs, environ 1 Go.": "High quality: Whisper large-v3-turbo + a language model (Qwen3-4B) that knows the F1 context; needs a graphics card (about 4.5 GB downloaded once) and uses 10 to 15 GB of memory while transcribing (freed after 5 minutes without radio). Light: small models on the processor, less accurate, about 1 GB.",
 };
