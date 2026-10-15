@@ -5,6 +5,7 @@ import { icon, arrows } from '../icons.js';
 import { toast } from './delay.js';
 import { POINTS } from '/shared/predict.js';
 import { LOCALE } from '../i18n.js';
+import { track } from './stats.js';
 
 let view = null;
 let viewYear = null;
@@ -94,6 +95,7 @@ export function initPredict() {
     const f = e.target.closest('#pdForm');
     if (!f) return;
     e.preventDefault();
+    track('feature.predict');
     const v = Object.fromEntries(new FormData(f));
     storageSet('paddock.player', v.name.trim());
     try {

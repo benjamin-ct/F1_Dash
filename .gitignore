@@ -6,3 +6,4 @@ config.json
 recordings/
 predictions.json
 posts/
+stats-pending.json

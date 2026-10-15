@@ -1,0 +1,70 @@
+name: Statistiques
+
+# Déploie le petit serveur des statistiques d'utilisation anonymes (Cloudflare Worker + base D1,
+# dossier analytics/) : automatiquement quand il est modifié, ou à la main (onglet Actions →
+# « Statistiques » → Run workflow).
+# Au premier lancement, la base D1 et sa table sont créées sur le compte du jeton.
+# Secrets du dépôt :
+# - CLOUDFLARE_API_TOKEN : jeton Cloudflare (modèle « Edit Cloudflare Workers » + permission
+#   Compte → D1 → Modifier) ;
+# - STATS_KEY : mot de passe de la page des statistiques (/stats?key=…) ;
+# - CLOUDFLARE_ACCOUNT_ID (facultatif) : seulement si le jeton donne accès à plusieurs comptes.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'analytics/**'
+      - 'shared/stats.js'
+      - '.github/workflows/stats.yml'
+
+concurrency: stats-deploy
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: analytics
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER: npx --yes wrangler@4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Secrets présents
+        env:
+          STATS_KEY: ${{ secrets.STATS_KEY }}
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error::Secret CLOUDFLARE_API_TOKEN manquant"; exit 1; }
+          [ -n "$STATS_KEY" ] || { echo "::error::Secret STATS_KEY manquant"; exit 1; }
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
+      - name: Base D1 (créée si besoin)
+        run: |
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
+          id=$($WRANGLER d1 list --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const l=JSON.parse(s);const db=l.find(x=>x.name==='paddock-live-stats');console.log(db?db.uuid:'')})")
+          if [ -z "$id" ]; then
+            $WRANGLER d1 create paddock-live-stats --location weur
+            id=$($WRANGLER d1 list --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const l=JSON.parse(s);console.log(l.find(x=>x.name==='paddock-live-stats').uuid)})")
+          fi
+          echo "Base : $id"
+          sed -i "s/^database_id = .*/database_id = \"$id\"/" wrangler.toml
+          $WRANGLER d1 execute paddock-live-stats --remote --file schema.sql
+      - name: Déploiement
+        run: |
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
+          $WRANGLER deploy | tee deploy.log
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          echo "### Serveur des statistiques : $url" >> "$GITHUB_STEP_SUMMARY"
+          echo "Page : $url/stats?key=…" >> "$GITHUB_STEP_SUMMARY"
+      - name: Mot de passe de la page
+        env:
+          STATS_KEY: ${{ secrets.STATS_KEY }}
+        run: |
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
+          printf '%s' "$STATS_KEY" | $WRANGLER secret put STATS_KEY

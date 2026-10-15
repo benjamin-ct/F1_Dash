@@ -4,6 +4,13 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.0 — 2026-10-15
+
+### Statistiques d'utilisation anonymes
+- **Au premier lancement, Paddock Live vous demande s'il peut envoyer des statistiques d'utilisation anonymes**, pour savoir quelles fonctions servent le plus ou le moins et améliorer l'appli dans le bon sens. Rien n'est envoyé sans votre accord.
+- Choix modifiable à tout moment : Réglages → Application → *Statistiques d'utilisation*.
+- Seulement des totaux par jour : fonctions utilisées, version, système, ordinateur ou téléphone, direct ou replay, erreurs rencontrées. Ni connexion F1 TV, ni identifiant, ni contenu ; l'adresse IP n'est pas conservée.
+
 ## v1.26.1 — 2026-10-15
 
 ### Améliorations

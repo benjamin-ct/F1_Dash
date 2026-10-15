@@ -32,6 +32,7 @@ import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creat
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
+import { stats, startStats } from './stats.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -299,6 +300,22 @@ async function handleApi(req, res, url) {
       }
     }
 
+    // Statistiques d'utilisation anonymes : l'accord se donne sur l'ordinateur ; toutes les
+    // fenêtres (téléphone compris) signalent les fonctions utilisées si c'est accepté
+    case 'GET /api/stats':
+      return sendJSON(res, 200, { ...stats.state(), canSet: isLoopback(req.socket.remoteAddress) });
+    case 'POST /api/stats': {
+      if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
+      const body = await readBody(req);
+      if (typeof body.on !== 'boolean') return sendJSON(res, 400, { error: 'Réglage invalide' });
+      stats.set(body.on);
+      return sendJSON(res, 200, stats.state());
+    }
+    case 'POST /api/stats/events': {
+      const body = await readBody(req, 64e3);
+      return sendJSON(res, 200, { added: stats.fromClient(body.events, body.device) });
+    }
+
     // Mode créateur (générateur de posts) : depuis cet ordinateur uniquement
     case 'GET /api/creator':
       return sendJSON(res, 200, { enabled: isLoopback(req.socket.remoteAddress) && creatorEnabled() });
@@ -447,6 +464,7 @@ async function handleApi(req, res, url) {
       else if (typeof body.path === 'string' && /^\d{4}\/[\w\-./]+\/$/.test(body.path)) source = body.path;
       else return sendJSON(res, 400, { error: 'Session invalide' });
       live.stop();
+      stats.record('session.replay');
       replay.start(source, body.startOffsetMs).catch((err) => console.warn('[replay]', err.message));
       return sendJSON(res, 202, { ok: true });
     }
@@ -575,6 +593,7 @@ server.listen(settings.port, settings.host, () => {
 
 live.start();
 startAutoRenew();
+startStats(hub, live);
 
 // Actualités : chaque nouvelle est envoyée tout de suite aux fenêtres ouvertes
 startNews();
@@ -585,8 +604,8 @@ onNews((list) => {
 
 // Une erreur imprévue (réponse d'un site mal formée…) ne doit pas arrêter le dashboard en pleine
 // séance : elle est consignée et le serveur continue
-process.on('unhandledRejection', (err) => console.error('[erreur]', err));
-process.on('uncaughtException', (err) => console.error('[erreur]', err));
+process.on('unhandledRejection', (err) => { console.error('[erreur]', err); stats.record('error.server'); });
+process.on('uncaughtException', (err) => { console.error('[erreur]', err); stats.record('error.server'); });
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {

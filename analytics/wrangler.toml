@@ -1,0 +1,12 @@
+# Statistiques d'utilisation anonymes de Paddock Live (déployé par le workflow « Statistiques »,
+# sur le compte Cloudflare du jeton CLOUDFLARE_API_TOKEN)
+name = "paddock-live-stats"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "paddock-live-stats"
+# Rempli par le workflow (base créée au premier déploiement si elle n'existe pas)
+database_id = "00000000-0000-0000-0000-000000000000"

@@ -5,6 +5,7 @@ import { prefs, setPref } from '../prefs.js';
 import { store, on } from '../store.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
+import { track } from './stats.js';
 
 export const PANELS = [
   { id: 'tower', cls: 'p-tower', name: 'Classement' },
@@ -652,6 +653,7 @@ function announce() {
 }
 
 function openWindow(win) {
+  track('feature.popout');
   return window.open(`/?win=${encodeURIComponent(win)}`, `paddock-${win}`, 'width=1200,height=800');
 }
 
