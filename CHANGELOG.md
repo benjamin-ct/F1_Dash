@@ -16,6 +16,7 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Corrections
 - Traduction en ligne : un envoi trop long (résumés d'articles) mettait la traduction en ligne en pause pendant 10 minutes. Les envois sont maintenant découpés.
+- Panneau dont tous les onglets ont été déplacés : impossible de le masquer (sa barre s'aplatissait et le contenu recouvrait la croix). La barre garde sa hauteur, et un bouton « Masquer ce panneau » est proposé dans le panneau vide.
 
 ## v1.27.3 — 2026-10-15
 

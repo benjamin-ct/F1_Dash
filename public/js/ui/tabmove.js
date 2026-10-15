@@ -41,6 +41,12 @@ function tidy(id, prefer = null) {
     empty = document.createElement('div');
     empty.className = 'tab-empty note';
     empty.textContent = 'Panneau vide : glissez ici un onglet d\'un autre panneau (ou masquez ce panneau).';
+    // Bouton pour masquer le panneau directement (fenêtre principale seulement : voir le CSS)
+    const hide = document.createElement('button');
+    hide.className = 'btn small';
+    hide.textContent = 'Masquer ce panneau';
+    hide.addEventListener('click', () => panel(id)?.querySelector('.panel-ctrl [data-act="hide"]')?.click());
+    empty.append(document.createElement('br'), hide);
     b.appendChild(empty);
   }
   if (tabs.length) empty?.remove();

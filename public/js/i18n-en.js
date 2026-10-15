@@ -1778,6 +1778,7 @@ export default {
   "Traduire et transcrire avec le serveur Paddock Live (recommandé)": "Translate and transcribe with the Paddock Live server (recommended)",
   "Actualités, radios d'équipe et documents FIA sont traduits en ligne, et les radios d'équipe transcrites, une seule fois pour tous les utilisateurs : rien à calculer sur cet ordinateur. Seuls les textes à traduire et le son des radios sont envoyés. Décoché, ou si le serveur ne répond pas, tout se fait sur cet ordinateur.": "News, team radios and FIA documents are translated online, and team radios transcribed, only once for all users: nothing to compute on this computer. Only the texts to translate and the radio audio are sent. Unchecked, or if the server does not respond, everything happens on this computer.",
   "Traductions": "Translations",
+  "Masquer ce panneau": "Hide this panel",
   "Titres et résumés traduits en français d'avance, dès leur arrivée, par le serveur Paddock Live (sur l'ordinateur si la traduction en ligne est désactivée)": "Titles and summaries translated into French in advance, as soon as they arrive, by the Paddock Live server (on this computer if online translation is turned off)",
   "Messages traduits en français par le serveur Paddock Live (texte d'origine au survol)": "Messages translated into French by the Paddock Live server (original text on hover)",
 };
