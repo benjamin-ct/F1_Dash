@@ -941,6 +941,9 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tyre-hist td { padding: 2px 5px; text-align: center; border-radius: 3px; white-space: nowrap; background: color-mix(in srgb, var(--tc) 22%, transparent); border-bottom: 2px solid var(--tc); }
 .tyre-hist td:empty { background: none; border: 0; }
 .tyre-hist td.pit { outline: 1px solid #fff; }
+:root[data-scheme="light"] .tyre-hist td { background: color-mix(in srgb, var(--tc) 30%, transparent); }
+:root[data-scheme="light"] .tyre-hist td.pit { outline: 1.5px solid var(--text); }
+:root[data-scheme="light"] .tyre-hist td.best { color: var(--purple); }
 .tyre-hist td.best { color: #d58cff; font-weight: 700; }
 .tyre-legend { padding: 6px 4px; display: flex; gap: 10px; flex-wrap: wrap; }
 .tyre-legend span { border-bottom: 2px solid var(--tc); }

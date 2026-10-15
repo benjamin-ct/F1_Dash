@@ -1,5 +1,6 @@
 // Petits utilitaires d'affichage.
 import { parseLapTime, parseUtc } from '/shared/f1.js';
+import { onLight } from '/shared/colors.js';
 import { DEC, LOCALE } from './i18n.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -65,13 +66,12 @@ let vividTeams = false;
 export function setVividTeams(v) { vividTeams = !!v; }
 
 export function teamColor(driver) {
-  if (vividTeams && driver?.TeamName) {
-    const hit = VIVID_TEAMS.find(([re]) => re.test(driver.TeamName));
-    if (hit) return hit[1];
-  }
-  const c = driver?.TeamColour;
-  return c ? `#${c.replace('#', '')}` : '#8b95a8';
+  let c = null;
+  if (vividTeams && driver?.TeamName) c = VIVID_TEAMS.find(([re]) => re.test(driver.TeamName))?.[1] || null;
+  if (!c) c = driver?.TeamColour ? `#${driver.TeamColour.replace('#', '')}` : '#8b95a8';
+  return typeof document !== 'undefined' && document.documentElement.dataset.scheme === 'light' ? onLight(c) : c;
 }
+
 
 // Logos officiels (version blanche) des écuries, servis par formula1.com
 const TEAM_LOGOS = [

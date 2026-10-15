@@ -194,11 +194,8 @@ const ago = (t) => {
 };
 
 function tagChips(tags) {
-  const dl = Object.values(drivers(store.state));
   return (tags || []).slice(0, 5).map((t) => {
-    const d = dl.find((x) => x.Tla === t);
-    const color = d ? teamColor(d) : t === 'fia' ? '#3b82f6' : 'var(--muted)';
-    return `<span class="nw-tag" style="--tc:${color}">${esc(TEAM_NAME[t] || t)}</span>`;
+    return `<span class="nw-tag" style="--tc:${tagColor(t)}">${esc(TEAM_NAME[t] || t)}</span>`;
   }).join('');
 }
 
@@ -261,8 +258,15 @@ function tagName(t) {
   return d?.LastName ? `${d.LastName}` : t;
 }
 
+// Écurie de l'actualité -> nom d'équipe dans les données de la séance (couleur de l'écurie)
+const TEAM_MATCH = {
+  ferrari: /ferrari/i, mercedes: /mercedes/i, mclaren: /mclaren/i, redbull: /^red bull/i, rb: /racing bulls|\brb\b|visa cash/i,
+  aston: /aston/i, williams: /williams/i, alpine: /alpine/i, haas: /haas/i, audi: /audi|sauber|kick/i, cadillac: /cadillac/i,
+};
+
 function tagColor(t) {
-  const d = Object.values(drivers(store.state)).find((x) => x.Tla === t);
+  const all = Object.values(drivers(store.state));
+  const d = all.find((x) => x.Tla === t) || (TEAM_MATCH[t] && all.find((x) => TEAM_MATCH[t].test(x.TeamName || '')));
   return d ? teamColor(d) : t === 'fia' ? '#3b82f6' : 'var(--muted)';
 }
 

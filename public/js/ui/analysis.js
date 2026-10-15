@@ -370,7 +370,7 @@ function renderTyres() {
   }).join('');
   const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 30;
   el.innerHTML = `<table class="tyre-hist"><tr><th class="sticky">Tour</th>${head}</tr>${rows}</table>
-    <div class="small muted tyre-legend">${['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET'].map((c) => `<span style="--tc:${compoundInfo(c).color}">${esc(compoundInfo(c).name)}</span>`).join('')} · cadre blanc = arrêt aux stands · violet = meilleur tour</div>`;
+    <div class="small muted tyre-legend">${['SOFT', 'MEDIUM', 'HARD', 'INTERMEDIATE', 'WET'].map((c) => `<span style="--tc:${compoundInfo(c).color}">${esc(compoundInfo(c).name)}</span>`).join('')} · case encadrée = arrêt aux stands · violet = meilleur tour</div>`;
   if (atEnd) el.scrollLeft = el.scrollWidth;
 }
 
