@@ -22,6 +22,7 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Corrections
 - Bandeau en haut de l'écran et carte : « Voiture de sécurité » et « Voiture de sécurité virtuelle » en français (ils restaient en anglais).
+- Fenêtres secondaires (second écran) : le titre de la fenêtre ne clignote plus entre le nom de la séance et celui des panneaux.
 
 ## v1.27.1 — 2026-10-15
 

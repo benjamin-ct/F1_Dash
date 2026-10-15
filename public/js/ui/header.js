@@ -4,6 +4,8 @@ import { $, esc, fmtDuration, sessionKind, currentStint } from '../util.js';
 import { trackStatusInfo, SESSION_STATUS_FR, parseUtc, parseLapTime } from '/shared/f1.js';
 import { icon } from '../icons.js';
 
+const POPOUT = new URLSearchParams(location.search).has('win');
+
 let lastVer = -1;
 
 export function renderHeader() {
@@ -21,7 +23,8 @@ export function renderHeader() {
     $('#sessionSub').textContent = info
       ? [info.Meeting?.Circuit?.ShortName, info.Meeting?.Country?.Name, status ? SESSION_STATUS_FR[status] || status : null].filter(Boolean).join(' · ')
       : '';
-    document.title = info ? `Paddock Live · ${info.Meeting?.Name || ''} ${info.Name || ''}` : 'Paddock Live';
+    // Fenêtres secondaires : leur titre est la liste de leurs panneaux (layout.js), pas la séance
+    if (!POPOUT) document.title = info ? `Paddock Live · ${info.Meeting?.Name || ''} ${info.Name || ''}` : 'Paddock Live';
 
     // Drapeau / état de piste
     const ts = $('#trackStatus');
