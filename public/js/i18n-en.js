@@ -1771,4 +1771,7 @@ export default {
   "Légère (≈ 1 Go)": "Light (≈ 1 GB)",
   "Haute (carte graphique, 10 à 15 Go)": "High (graphics card, 10 to 15 GB)",
   "économe en mémoire (« Haute » dans le choix de qualité pour de meilleurs textes)": "memory-saving (pick “High” in the quality choice for better texts)",
+  "En piste, dépassements interdits": "On track, no overtaking",
+  "Voiture de sécurité — rentre à la fin du tour": "Safety car — in this lap",
+  " · position estimée": " · estimated position",
 };

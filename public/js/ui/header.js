@@ -207,8 +207,8 @@ function renderBanner() {
   let cls = null, text = '', sub = '';
   if (session === 'Started' || session === 'Aborted') {
     if (st === '5' || session === 'Aborted') { cls = 'red'; text = 'Drapeau rouge'; sub = 'Session interrompue'; }
-    else if (st === '4') { cls = 'sc'; text = 'Safety car'; sub = 'Voiture de sécurité en piste'; }
-    else if (st === '6') { cls = 'vsc'; text = 'Virtual safety car'; sub = 'Vitesse limitée sur tout le circuit'; }
+    else if (st === '4') { cls = 'sc'; text = 'Voiture de sécurité'; sub = 'En piste, dépassements interdits'; }
+    else if (st === '6') { cls = 'vsc'; text = 'Voiture de sécurité virtuelle'; sub = 'Vitesse limitée sur tout le circuit'; }
     else if (st === '7') { cls = 'vsc'; text = 'Fin de VSC'; sub = 'Reprise imminente'; }
     else if (st === '2') { cls = 'yellow'; text = 'Drapeau jaune'; sub = 'Incident sur la piste'; }
     else if (st === '1' && now < bannerState.greenUntil) { cls = 'green'; text = 'Drapeau vert'; sub = 'Reprise de la course'; }

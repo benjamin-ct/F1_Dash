@@ -678,8 +678,8 @@ function draw() {
   // Informations : bandeau drapeau rouge / SC / VSC et zones sous drapeau jaune
   const items = [];
   if (red) items.push('<div class="mf-banner red">Drapeau rouge — séance arrêtée</div>');
-  else if (sc) items.push(`<div class="mf-banner sc">Safety car${scEnding() ? ' — rentre à la fin du tour' : ' en piste'}${leaderR() !== null ? ' · position estimée' : ''}</div>`);
-  else if (ts === '6') items.push('<div class="mf-banner vsc">Virtual safety car</div>');
+  else if (sc) items.push(`<div class="mf-banner sc">${scEnding() ? 'Voiture de sécurité — rentre à la fin du tour' : 'Voiture de sécurité en piste'}${leaderR() !== null ? ' · position estimée' : ''}</div>`);
+  else if (ts === '6') items.push('<div class="mf-banner vsc">Voiture de sécurité virtuelle</div>');
   else if (ts === '7') items.push('<div class="mf-banner vsc">Fin de VSC — reprise imminente</div>');
   for (const z of $('#mapFlagText').checked ? flagZones.sort((a, b) => a.number - b.number) : []) {
     items.push(`<div class="mf-item ${z.dbl ? 'dy' : ''}"><b>${z.dbl ? 'Double jaune' : 'Jaune'}</b> · secteur de commissaires ${z.number}${z.text ? ` · ${z.text}` : ''}${z.approx ? ' <span class="muted">(position estimée)</span>' : ''}</div>`);

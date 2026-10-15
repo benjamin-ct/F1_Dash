@@ -14,6 +14,9 @@ l'application (Réglages → Application → Nouveautés).
 - **« Qui fait l'actu » : les barres ne se réaniment plus sans arrêt.** Chaque titre traduit redessinait toute la page ; seuls les morceaux qui changent sont maintenant mis à jour, et les traductions sont affichées par paquets (au plus une mise à jour toutes les 1,5 s), ce qui allège aussi la page.
 - **Traduction des actualités beaucoup plus économe** : seuls les articles visibles à l'écran sont traduits (avant : les 40 premiers titres et 12 résumés d'un coup), et plus rien n'est traduit en arrière-plan page fermée, sauf les actus qui déclenchent une alerte. Les traductions déjà faites restent gardées.
 
+### Corrections
+- Bandeau en haut de l'écran et carte : « Voiture de sécurité » et « Voiture de sécurité virtuelle » en français (ils restaient en anglais).
+
 ## v1.27.1 — 2026-10-15
 
 ### Replays
