@@ -546,7 +546,11 @@ async function openReader(id) {
     <span class="nwr-src"><b>${esc(src)}</b> <span class="nw-lang">${esc(it.lang.toUpperCase())}</span> · ${ago(it.t)}</span><span class="spacer"></span>
     ${translate ? `<button class="btn small" data-r-vo aria-pressed="false" title="Afficher le texte d'origine">VO</button>` : ''}
     <a class="btn small" href="${safeUrl(it.link)}" target="_blank" rel="noopener">${icon('external')} Ouvrir sur le site</a></div>`;
+  // Seuls le titre et le résumé sont traduits (déjà faits d'avance) ; le texte de l'article reste en
+  // version originale, pour ne pas multiplier les traductions
   const textEl = (tag, text, cls = '') => `<${tag}${cls ? ` class="${cls}"` : ''} data-no-i18n data-orig="${esc(text)}">${esc(text)}</${tag}>`;
+  const plainEl = (tag, text) => `<${tag} data-no-i18n>${esc(text)}</${tag}>`;
+  const summary = translate && it.summary ? `<div class="nwr-sum"><div class="nwr-sum-h">Résumé</div>${textEl('p', it.summary)}</div>` : '';
   const yt = youtubeId(it.link);
   let body;
   if (yt) {
@@ -562,17 +566,18 @@ async function openReader(id) {
     const date = a.published && Number.isFinite(Date.parse(a.published)) ? new Date(a.published).toLocaleString(LOCALE, { dateStyle: 'long', timeStyle: 'short' }) : '';
     const meta = [a.author, date].filter(Boolean).join(' · ');
     const img = a.image || it.img;
-    const blocks = (a.blocks || []).map((b) => (b.h ? textEl('h2', b.h) : textEl('p', b.p))).join('');
+    const blocks = (summary ? `<div class="nwr-vo-note muted small">Article en version originale (${esc(LANG_LABEL[it.lang] || it.lang)})</div>` : '')
+      + (a.blocks || []).map((b) => (b.h ? plainEl('h2', b.h) : plainEl('p', b.p))).join('');
     body = `${textEl('h1', it.title)}${meta ? `<div class="nwr-meta muted" data-no-i18n>${esc(meta)}</div>` : ''}
       ${img ? `<img class="nwr-img" src="${safeUrl(img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
-      ${a.readable ? blocks : `${a.description || it.summary ? textEl('p', a.description || it.summary, 'nwr-lead') : ''}
+      ${a.readable ? summary + blocks : `${it.summary ? textEl('p', it.summary, 'nwr-lead') : a.description ? plainEl('p', a.description) : ''}
         <div class="nwr-note">${icon('info')} <span>L'article complet ne peut pas être affiché dans l'appli.${a.reason ? ` <span class="muted">${esc(a.reason)}</span>` : ''}</span>
         <a class="btn small btn-accent" href="${safeUrl(it.link)}" target="_blank" rel="noopener">${icon('external')} Lire sur le site</a></div>`}
       ${a.readable ? `<div class="nwr-end muted small">Texte lu sur ${esc(a.site || src)} · <a href="${safeUrl(it.link)}" target="_blank" rel="noopener">article d'origine</a></div>` : ''}`;
   }
   readerEl.innerHTML = `${bar}<article class="nwr">${body}</article>`;
   if (!translate) return true;
-  // Traduction : titre et paragraphes, affichés dès qu'ils arrivent (le titre est souvent déjà traduit)
+  // Traduction du titre et du résumé (en général déjà faite d'avance)
   const els = [...readerEl.querySelectorAll('[data-orig]')];
   const voBtn = readerEl.querySelector('[data-r-vo]');
   await Promise.all(els.map(async (el) => {

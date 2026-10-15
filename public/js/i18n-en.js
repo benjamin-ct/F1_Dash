@@ -1792,4 +1792,5 @@ export default {
   "pas de texte lisible sur cette page (vidéo, accès réservé…)": "no readable text on this page (video, subscribers only…)",
   "Texte lu sur {} · ": "Text read on {} · ",
   "article d'origine": "original article",
+  "Article en version originale ({})": "Article in its original language ({})",
 };
