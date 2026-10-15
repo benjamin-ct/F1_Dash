@@ -219,6 +219,35 @@ async function widevineReady() {
   }
 }
 
+// Publication sur X sans accès payant (mode créateur) : la page officielle de X pour écrire un post
+// (« intent »), préremplie avec le texte, dans une fenêtre de l'appli. La connexion au compte X y est
+// gardée (session à part, sans accès à l'appli) ; l'image se colle avec Ctrl+V (Cmd+V sur Mac).
+const isXCompose = (u) => /^https:\/\/(x|twitter)\.com\/intent\/(post|tweet)\?/i.test(String(u || ''));
+let xWindow = null;
+function openXCompose(url) {
+  if (xWindow && !xWindow.isDestroyed()) {
+    xWindow.loadURL(url, { userAgent: xWindow.webContents.getUserAgent() });
+    if (xWindow.isMinimized()) xWindow.restore();
+    xWindow.focus();
+    return;
+  }
+  xWindow = new BrowserWindow({
+    width: 720, height: 780, title: 'Publier sur X', autoHideMenuBar: true, icon: APP_ICON,
+    backgroundColor: '#000000',
+    webPreferences: { partition: 'persist:x', contextIsolation: true, sandbox: true },
+  });
+  // Liens vers d'autres sites : navigateur par défaut
+  xWindow.webContents.setWindowOpenHandler(({ url: target }) => {
+    if (/^https?:\/\//i.test(target)) shell.openExternal(target);
+    return { action: 'deny' };
+  });
+  xWindow.on('closed', () => { xWindow = null; });
+  // User-agent de Chrome standard (sans la mention Electron ni le nom de l'appli), comme pour F1 TV
+  const ua = xWindow.webContents.getUserAgent().replace(/ Electron\/\S+/, '').replace(/\) (?!Chrome\/)\S+\/\S+ (?=Chrome\/)/, ') ');
+  xWindow.webContents.setUserAgent(ua);
+  xWindow.loadURL(url, { userAgent: ua });
+}
+
 // Ouverture de fenêtres depuis une page de l'appli : panneaux détachés = nouvelle fenêtre de l'appli
 // (directement sur le second écran s'il existe) ; tout le reste (liens, dashboard dans le
 // navigateur pour les flux DRM) s'ouvre dans le navigateur.
@@ -248,6 +277,8 @@ function setupContents(wc, url) {
         },
       };
     }
+    // Mode créateur : fenêtre de publication de X préremplie, ouverte dans l'appli
+    if (isXCompose(target)) { openXCompose(target); return { action: 'deny' }; }
     // Navigateur par défaut, pour les adresses web seulement (pas de file:, ni de protocole
     // système qui lancerait un autre programme)
     if (/^https?:\/\//i.test(target)) shell.openExternal(target);

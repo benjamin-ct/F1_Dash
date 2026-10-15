@@ -1793,4 +1793,9 @@ export default {
   "Texte lu sur {} · ": "Text read on {} · ",
   "article d'origine": "original article",
   "Article en version originale ({})": "Article in its original language ({})",
+  "Publier sur X (gratuit)": "Post on X (free)",
+  "Ouvre la page de X pour écrire un post, avec ce texte, et copie la première image : collez-la puis cliquez sur Poster. Gratuit, sans clés d'accès.": "Opens X's post page with this text and copies the first image: paste it, then click Post. Free, no access keys.",
+  "Fenêtre de X ouverte avec le texte : collez l'image avec Ctrl+V (Cmd+V sur Mac), puis cliquez sur « Poster ». Pour d'autres images, cliquez sur « Copier » sous chacune et collez-les aussi.": "X window open with the text: paste the image with Ctrl+V (Cmd+V on Mac), then click “Post”. For more images, click “Copy” under each one and paste them too.",
+  "Image 1 copiée : collez-la dans X (Ctrl+V)": "Image 1 copied: paste it into X (Ctrl+V)",
+  "Gratuit et sans clés : dans la fenêtre Posts, format X, bouton « Publier sur X (gratuit) » (texte prérempli dans X, image à coller). Les clés ci-dessous ne servent qu'à publier automatiquement.": "Free, no keys: in the Posts window, X format, “Post on X (free)” button (text prefilled in X, image to paste). The keys below are only needed for automatic posting.",
 };

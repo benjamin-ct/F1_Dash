@@ -30,7 +30,8 @@ const PUBLIC_NOTE = "Les posts seront publics (TikTok : brouillon à finir dans 
 
 // ---------- Comptes ----------
 const HELP = {
-  x: ['developer.x.com : créez un projet et une app (accès payant à l\'usage, environ 0,015 $ par post).',
+  x: ["Gratuit et sans clés : dans la fenêtre Posts, format X, bouton « Publier sur X (gratuit) » (texte prérempli dans X, image à coller). Les clés ci-dessous ne servent qu'à publier automatiquement.",
+    'developer.x.com : créez un projet et une app (accès payant à l\'usage, environ 0,015 $ par post).',
     'Dans l\'app, « User authentication settings » : autorisations « Read and write ».',
     '« Keys and tokens » : copiez API Key et API Key Secret, puis générez Access Token et Access Token Secret (après le passage en lecture-écriture).'],
   meta: ['Passez votre compte Instagram en compte professionnel (créateur) et reliez-le à votre page Facebook.',

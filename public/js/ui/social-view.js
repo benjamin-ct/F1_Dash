@@ -91,7 +91,9 @@ async function render(dlg) {
     <div class="posts-caps">
       ${fmt === 'story' ? '' : `<label class="small muted">${fmt === 'x' ? t('Texte pour X / Threads / Bluesky') : t('Légende Instagram / Facebook')}</label>
       <textarea class="posts-cap" rows="${fmt === 'x' ? 4 : 12}" data-no-i18n>${esc(fmt === 'x' ? caps.x : caps.instagram)}</textarea>
-      <div class="row"><button class="btn small" data-cap>${icon('doc')} ${t('Copier le texte')}</button>${fmt === 'x' ? `<span class="small muted" data-count></span>` : ''}</div>`}
+      <div class="row"><button class="btn small" data-cap>${icon('doc')} ${t('Copier le texte')}</button>${fmt === 'x' ? `<span class="small muted" data-count></span><span class="spacer"></span>
+        <button class="btn small btn-accent" data-xpost title="${t("Ouvre la page de X pour écrire un post, avec ce texte, et copie la première image : collez-la puis cliquez sur Poster. Gratuit, sans clés d'accès.")}">${icon('external')} ${t('Publier sur X (gratuit)')}</button>` : ''}</div>
+      ${fmt === 'x' ? `<p class="small muted posts-xhelp" hidden>${icon('info')} ${t("Fenêtre de X ouverte avec le texte : collez l'image avec Ctrl+V (Cmd+V sur Mac), puis cliquez sur « Poster ». Pour d'autres images, cliquez sur « Copier » sous chacune et collez-les aussi.")}</p>` : ''}`}
     </div>`;
   const o = { ...(await assets(d)), signature: sig };
   if (id !== renderId) return;   // format ou réglage changé entre-temps
@@ -110,6 +112,13 @@ async function render(dlg) {
       if (b.dataset.copy !== undefined) { await copyImage(canvases[Number(b.dataset.copy)]); toast(t('Image copiée'), 2000, 'check'); }
       if (b.dataset.save !== undefined) { const r = await saveImages(d, [canvases[Number(b.dataset.save)]]); toast(t('Image enregistrée dans {}', r.dir), 4000, 'check'); }
       if (b.dataset.cap !== undefined) { await navigator.clipboard.writeText(area.value); toast(t('Texte copié'), 2000, 'check'); }
+      // Publication sur X sans accès payant : page officielle de X préremplie, première image copiée
+      if (b.dataset.xpost !== undefined) {
+        await copyImage(canvases[0]).catch(() => {});
+        window.open(`https://x.com/intent/post?text=${encodeURIComponent(area.value)}`, 'paddock-x-compose', 'width=720,height=780');
+        $('.posts-xhelp', body).hidden = false;
+        toast(t('Image 1 copiée : collez-la dans X (Ctrl+V)'), 4000, 'check');
+      }
     } catch (err) { toast(err.message, 5000, 'warning'); }
   };
   dlg.onSaveAll = async () => {
