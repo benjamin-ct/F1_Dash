@@ -358,7 +358,7 @@ async function handleApi(req, res, url) {
     }
     case 'POST /api/stats/events': {
       const body = await readBody(req, 64e3);
-      return sendJSON(res, 200, { added: stats.fromClient(body.events, body.device) });
+      return sendJSON(res, 200, { added: stats.fromClient(body.events, body.device, body.errors) });
     }
 
     // Mode créateur (générateur de posts) : depuis cet ordinateur uniquement
@@ -657,8 +657,8 @@ startNewsTranslation(newsTranslator, onNews);
 
 // Une erreur imprévue (réponse d'un site mal formée…) ne doit pas arrêter le dashboard en pleine
 // séance : elle est consignée et le serveur continue
-process.on('unhandledRejection', (err) => { console.error('[erreur]', err); stats.record('error.server'); });
-process.on('uncaughtException', (err) => { console.error('[erreur]', err); stats.record('error.server'); });
+process.on('unhandledRejection', (err) => { console.error('[erreur]', err); stats.record('error.server'); stats.recordError(err); });
+process.on('uncaughtException', (err) => { console.error('[erreur]', err); stats.record('error.server'); stats.recordError(err); });
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {

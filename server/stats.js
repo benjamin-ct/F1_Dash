@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DATA_DIR, getConfig, saveConfig } from './config.js';
 import { request } from './net.js';
-import { cleanBatch, EVENT_RE, DEVICES, MAX_COUNT } from '../shared/stats.js';
+import { cleanBatch, cleanErrors, stackFrames, EVENT_RE, DEVICES, MAX_COUNT, WHERE_RE } from '../shared/stats.js';
 
 // Adresse du serveur des statistiques (analytics/, workflow « Statistiques »). Vide = fonction
 // désactivée : aucune question posée, rien d'envoyé.
@@ -19,11 +19,12 @@ const FLUSH_MS = 15 * 60e3;
 const PENDING_FILE = path.join(DATA_DIR, 'stats-pending.json');
 
 // Compteurs pas encore envoyés, gardés sur le disque : rien de perdu si l'appli se ferme avant l'envoi
+// (ancien format : la liste des compteurs seule ; maintenant { items, errors })
 const diskStore = {
   load() { try { return JSON.parse(fs.readFileSync(PENDING_FILE, 'utf8')); } catch { return []; } },
-  save(items) {
+  save(items, errors = []) {
     try {
-      if (items.length) fs.writeFileSync(PENDING_FILE, JSON.stringify(items));
+      if (items.length || errors.length) fs.writeFileSync(PENDING_FILE, JSON.stringify({ items, errors }));
       else fs.rmSync(PENDING_FILE, { force: true });
     } catch { /* disque indisponible : tant pis */ }
   },
@@ -35,12 +36,14 @@ export function createStats({
   url = STATS_URL, version = VERSION, os = OS, today = () => new Date().toISOString().slice(0, 10),
 } = {}) {
   const counts = new Map();
+  const errs = new Map();   // détail des erreurs : clé -> { w, k, m, s, d, n }
   const enabled = () => !!url && config.get().stats === true;
   let saveTimer = null;
   const items = () => [...counts].map(([k, n]) => [...k.split('|'), n]);
+  const errors = () => [...errs.values()];
   const persist = () => {
     if (saveTimer) return;
-    saveTimer = setTimeout(() => { saveTimer = null; store.save(items()); }, 5000);
+    saveTimer = setTimeout(() => { saveTimer = null; store.save(items(), errors()); }, 5000);
     saveTimer.unref?.();
   };
   const add = (event, device, n) => {
@@ -48,7 +51,20 @@ export function createStats({
     counts.set(k, Math.min(MAX_COUNT, (counts.get(k) || 0) + n));
     persist();
   };
-  if (enabled()) for (const [ev, dev, n] of store.load()) if (EVENT_RE.test(ev) && DEVICES.includes(dev) && Number.isInteger(n) && n > 0) add(ev, dev, n);
+  const addErrors = (list) => {
+    for (const e of cleanErrors(list)) {
+      const k = [e.w, e.k, e.m, e.s, e.d].join('\u0001');
+      errs.set(k, { ...e, n: Math.min(MAX_COUNT, (errs.get(k)?.n || 0) + e.n) });
+    }
+    if (errs.size > 200) for (const k of [...errs.keys()].slice(0, errs.size - 200)) errs.delete(k);
+    persist();
+  };
+  if (enabled()) {
+    const saved = store.load();
+    const list = Array.isArray(saved) ? saved : Array.isArray(saved?.items) ? saved.items : [];
+    for (const [ev, dev, n] of list) if (EVENT_RE.test(ev) && DEVICES.includes(dev) && Number.isInteger(n) && n > 0) add(ev, dev, n);
+    if (Array.isArray(saved?.errors)) addErrors(saved.errors);
+  }
 
   // Installation active aujourd'hui (une fois par jour), nouvelle installation (une seule fois)
   const markActive = () => {
@@ -66,17 +82,27 @@ export function createStats({
     set(on) {
       config.save({ stats: !!on });
       if (on) markActive();
-      else { counts.clear(); clearTimeout(saveTimer); saveTimer = null; store.save([]); }
+      else { counts.clear(); errs.clear(); clearTimeout(saveTimer); saveTimer = null; store.save([]); }
     },
     // Événement venu du serveur lui-même (séances, erreurs)
     record(event, n = 1) {
       if (enabled() && EVENT_RE.test(event)) add(event, '-', n);
     },
-    // Événements d'une fenêtre : { nom: nombre }. Les compteurs « app. » (sauf les ouvertures) et
-    // « session. » sont réservés au serveur.
-    fromClient(events, device) {
-      if (!enabled() || !events || typeof events !== 'object' || Array.isArray(events)) return 0;
+    // Erreur du serveur de l'appli : endroit (premier fichier de la pile), message nettoyé, chemin d'appel
+    recordError(err) {
+      if (!enabled()) return;
+      const frames = stackFrames(err?.stack);
+      const first = frames.split(' ← ')[0]?.match(/([\w.-]+\.[cm]?js:\d+)$/)?.[1]?.toLowerCase();
+      const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      addErrors([{ w: first && WHERE_RE.test(first) ? first : 'server', k: 'server', m: message, s: frames, d: '-', n: 1 }]);
+    },
+    // Événements d'une fenêtre : { nom: nombre } (et détail des erreurs). Les compteurs « app. »
+    // (sauf les ouvertures) et « session. » sont réservés au serveur.
+    fromClient(events, device, errorList) {
+      if (!enabled()) return 0;
       const dev = DEVICES.includes(device) && device !== '-' ? device : 'browser';
+      if (Array.isArray(errorList)) addErrors(errorList.slice(0, 20).map((e) => ({ ...e, k: e?.k === 'server' ? 'js' : e?.k, d: dev })));
+      if (!events || typeof events !== 'object' || Array.isArray(events)) return 0;
       let added = 0;
       for (const [ev, n] of Object.entries(events).slice(0, 100)) {
         if (!EVENT_RE.test(ev) || (ev.startsWith('app.') && ev !== 'app.open') || ev.startsWith('session.')) continue;
@@ -90,17 +116,19 @@ export function createStats({
     pending: items,
     async flush() {
       markActive();
-      if (!enabled() || !counts.size) return false;
-      const batch = cleanBatch({ v: version, os, items: items() });
+      if (!enabled() || (!counts.size && !errs.size)) return false;
+      const batch = cleanBatch({ v: version, os, items: items(), errors: errors() });
       counts.clear();
+      errs.clear();
       if (!batch) { store.save([]); return false; }
       try {
-        await post(url, { v: batch.version, os: batch.os, items: batch.items });
-        store.save(items());   // ce qui a pu arriver pendant l'envoi
+        await post(url, { v: batch.version, os: batch.os, items: batch.items, ...(batch.errors ? { errors: batch.errors } : {}) });
+        store.save(items(), errors());   // ce qui a pu arriver pendant l'envoi
         return true;
       } catch {
         // Hors ligne : les compteurs reviennent pour le prochain envoi
         for (const [ev, dev, n] of batch.items) add(ev, dev, n);
+        if (batch.errors) addErrors(batch.errors);
         return false;
       }
     },

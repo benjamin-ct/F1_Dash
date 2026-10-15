@@ -76,7 +76,12 @@ async function ingest(req, env) {
   if (!batch) return json({ error: 'Lot invalide' }, 400);
   const day = new Date().toISOString().slice(0, 10);
   const stmt = env.DB.prepare('INSERT INTO counts (day, event, device, version, os, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT (day, event, device, version, os) DO UPDATE SET n = n + excluded.n');
-  await env.DB.batch(batch.items.map(([event, device, n]) => stmt.bind(day, event, device, batch.version, batch.os, n)));
+  const estmt = env.DB.prepare('INSERT INTO error_details (day, version, os, device, kind, place, msg, stack, n) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) ON CONFLICT (day, version, os, device, kind, place, msg, stack) DO UPDATE SET n = n + excluded.n');
+  const all = [
+    ...batch.items.map(([event, device, n]) => stmt.bind(day, event, device, batch.version, batch.os, n)),
+    ...(batch.errors || []).map((e) => estmt.bind(day, batch.version, batch.os, e.d, e.k, e.w, e.m, e.s, e.n)),
+  ];
+  if (all.length) await env.DB.batch(all);
   return new Response(null, { status: 204 });
 }
 
@@ -91,11 +96,13 @@ export async function summary(env, days, now = Date.now()) {
   const since = dayOf(now - (days - 1) * 86400e3);
   const prevSince = dayOf(now - (2 * days - 1) * 86400e3);
   const q = (sql, ...p) => env.DB.prepare(sql).bind(...p).all().then((r) => r.results || []);
-  const [daily, events, versions, systems] = await Promise.all([
+  const [daily, events, versions, systems, errDetails, errCounts] = await Promise.all([
     q("/*daily*/ SELECT day, event, SUM(n) AS n FROM counts WHERE day >= ?1 AND (event IN ('app.active', 'app.open', 'app.install', 'session.live', 'session.replay') OR event LIKE 'error.%') GROUP BY day, event", prevSince),
     q('/*events*/ SELECT event, device, SUM(n) AS n FROM counts WHERE day >= ?1 GROUP BY event, device', since),
     q("/*versions*/ SELECT version, SUM(n) AS n FROM counts WHERE day >= ?1 AND event = 'app.active' GROUP BY version ORDER BY n DESC", since),
     q("/*systems*/ SELECT os, SUM(n) AS n FROM counts WHERE day >= ?1 AND event = 'app.active' GROUP BY os ORDER BY n DESC", since),
+    q('/*errdetails*/ SELECT place, kind, msg, stack, version, device, SUM(n) AS n, MAX(day) AS last FROM error_details WHERE day >= ?1 GROUP BY place, kind, msg, stack, version, device', since).catch(() => []),
+    q("/*errcounts*/ SELECT event, version, device, SUM(n) AS n, MAX(day) AS last FROM counts WHERE day >= ?1 AND event LIKE 'error.%' GROUP BY event, version, device", since),
   ]);
 
   // Séries jour par jour (jours sans données = 0) et totaux de la période précédente
@@ -135,8 +142,38 @@ export async function summary(env, days, now = Date.now()) {
     versions: versions.map((r) => ({ label: r.version === 'dev' ? 'dev (développement)' : `v${r.version}`, n: r.n })),
     systems: systems.map((r) => ({ label: OS_NAMES[r.os] || r.os, n: r.n })),
     devices, langs,
-    errors: all.filter((e) => e.event.startsWith('error.')),
+    errors: errorRows(errDetails, errCounts),
   };
+}
+
+// Erreurs regroupées (endroit, type, message, chemin d'appel) avec versions, appareils et dernier jour.
+// Versions d'avant le détail des erreurs (1.27.4 et avant) : compteur seul, « sans détail ».
+export const DETAIL_SINCE = [1, 27, 5];
+const olderThanDetail = (v) => {
+  const p = String(v).split('.').map(Number);
+  if (p.length !== 3 || p.some((x) => !Number.isFinite(x))) return false;   // « dev »
+  for (let i = 0; i < 3; i++) if (p[i] !== DETAIL_SINCE[i]) return p[i] < DETAIL_SINCE[i];
+  return false;
+};
+function errorRows(details, counts) {
+  const rows = new Map();
+  const row = (key, base) => rows.get(key) || rows.set(key, { ...base, versions: {}, desktop: 0, phone: 0, browser: 0, total: 0, last: '' }).get(key);
+  const addTo = (r, version, device, n, last) => {
+    r.versions[version] = (r.versions[version] || 0) + n;
+    if (device in r && device !== 'total') r[device] += n;
+    r.total += n;
+    if (last > r.last) r.last = last;
+  };
+  for (const d of details) {
+    addTo(row(['d', d.place, d.kind, d.msg, d.stack].join('\u0001'), { place: d.place, kind: d.kind, msg: d.msg, stack: d.stack }), d.version, d.device, d.n, d.last);
+  }
+  for (const c of counts) {
+    if (!olderThanDetail(c.version)) continue;
+    const place = c.event.replace(/^error\./, '');
+    addTo(row(`c\u0001${place}`, { place, kind: place === 'server' ? 'server' : '', msg: '', stack: '', legacy: true }), c.version, c.device, c.n, c.last);
+  }
+  return [...rows.values()].map((r) => ({ ...r, versions: Object.entries(r.versions).sort((a, b) => b[1] - a[1]).map(([v, n]) => ({ v, n })) }))
+    .sort((a, b) => b.total - a.total || b.last.localeCompare(a.last)).slice(0, 60);
 }
 
 const periodOf = (url) => {

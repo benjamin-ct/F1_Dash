@@ -4,6 +4,11 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.5 — à venir
+
+### Statistiques d'utilisation
+- **Erreurs plus détaillées** (pour les corriger plus vite) : avec l'accord pour les statistiques, une erreur envoie maintenant, en plus du fichier et de la ligne, son message technique et le chemin d'appel (noms des fonctions et des fichiers de l'appli), ainsi que les erreurs du serveur de l'appli. Le message est nettoyé avant l'envoi : adresses web, noms de dossiers, e-mails et longs nombres sont retirés. Toujours rien qui permette d'identifier quelqu'un.
+
 ## v1.27.4 — 2026-10-15
 
 ### Actu

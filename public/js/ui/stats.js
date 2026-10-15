@@ -5,21 +5,25 @@ import { $ } from '../util.js';
 import { t, EN } from '../i18n.js';
 import { icon } from '../icons.js';
 import { toast } from './delay.js';
+import { cleanErrorText, stackFrames } from '/shared/stats.js';
 
 let on = null;   // null tant que le réglage n'est pas connu : les événements attendent
 const queue = new Map();
 let timer = null;
 let errors = 0;
+const errQueue = new Map();   // détail des erreurs : clé -> { w, k, m, s, n }
 
 const device = () => (window.f1desktop ? 'desktop' : document.querySelector('.grid.mobile') ? 'phone' : 'browser');
 
 function send() {
   clearTimeout(timer);
   timer = null;
-  if (!on || !queue.size) return;
+  if (!on || (!queue.size && !errQueue.size)) return;
   const events = Object.fromEntries(queue);
+  const errs = [...errQueue.values()];
   queue.clear();
-  fetch('/api/stats/events', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ events, device: device() }) }).catch(() => {});
+  errQueue.clear();
+  fetch('/api/stats/events', { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ events, device: device(), errors: errs }) }).catch(() => {});
 }
 
 export function track(name) {
@@ -27,6 +31,17 @@ export function track(name) {
   queue.set(name, (queue.get(name) || 0) + 1);
   if (on && !timer) timer = setTimeout(send, 60e3);
 }
+
+// Détail d'une erreur : message technique nettoyé et chemin d'appel (voir shared/stats.js)
+function trackError(w, k, message, stack) {
+  if (on === false) return;
+  const m = cleanErrorText(message), st = stackFrames(stack);
+  const key = [w, k, m, st].join('\u0001');
+  const cur = errQueue.get(key);
+  errQueue.set(key, { w, k, m, s: st, n: (cur?.n || 0) + 1 });
+  if (on && !timer) timer = setTimeout(send, 60e3);
+}
+const messageOf = (r) => (r instanceof Error ? `${r.name}: ${r.message}` : typeof r === 'string' ? r : r?.message || String(r));
 
 // Clics suivis sans toucher aux modules : barre latérale, onglets, réglages, sections Saison
 const CLICKS = [
@@ -57,16 +72,24 @@ function listen() {
       if (e.target.matches?.(sel)) { const n = name(e.target); if (n) track(n); }
     }
   }, true);
-  // Erreurs de l'interface : seulement le fichier et la ligne (jamais le message, qui peut
-  // contenir un nom de dossier ou un texte)
+  // Erreurs de l'interface : fichier et ligne (compteur), plus le détail pour les comprendre :
+  // message technique nettoyé (adresses, dossiers, e-mails et longs nombres retirés) et chemin d'appel
   const where = (file, line) => {
     const f = String(file || '').split(/[?#]/)[0].split('/').pop().replace(/[^a-z0-9._-]/gi, '').toLowerCase().slice(0, 40);
     return f ? `error.${f}:${Number(line) || 0}` : 'error.other';
   };
-  window.addEventListener('error', (e) => { if (errors++ < 20) track(where(e.filename, e.lineno)); });
+  window.addEventListener('error', (e) => {
+    if (errors++ >= 20) return;
+    const w = where(e.filename, e.lineno);
+    track(w);
+    trackError(w.slice(6), 'js', e.error ? messageOf(e.error) : e.message, e.error?.stack);
+  });
   window.addEventListener('unhandledrejection', (e) => {
+    if (errors++ >= 20) return;
     const m = String(e.reason?.stack || '').match(/\/([\w.-]+\.js):(\d+):\d+/);
-    if (errors++ < 20) track(m ? where(m[1], m[2]) : 'error.other');
+    const w = m ? where(m[1], m[2]) : 'error.other';
+    track(w);
+    trackError(w.slice(6), 'promise', messageOf(e.reason), e.reason?.stack);
   });
   window.addEventListener('pagehide', send);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') send(); });
@@ -80,7 +103,7 @@ async function setConsent(value) {
 
 function apply(state) {
   on = !!state.enabled;
-  if (!on) queue.clear(); else if (queue.size && !timer) timer = setTimeout(send, 5000);
+  if (!on) { queue.clear(); errQueue.clear(); } else if ((queue.size || errQueue.size) && !timer) timer = setTimeout(send, 5000);
   const box = $('#statsOn');
   if (box) box.checked = on;
 }

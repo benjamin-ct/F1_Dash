@@ -9,15 +9,63 @@ export const VERSION_RE = /^(\d{1,4}\.\d{1,4}\.\d{1,4}|dev)$/;
 export const MAX_ITEMS = 300;
 export const MAX_COUNT = 5000;
 
-// Lot reçu -> { version, os, items: [[événement, appareil, nombre]] }, ou null s'il est invalide.
-// Les lignes mal formées sont ignorées ; les doublons sont additionnés.
+// ---- Détail des erreurs ----
+// Pour comprendre une erreur : fichier et ligne, type (interface, promesse, serveur de l'appli),
+// message technique et chemin d'appel (fonctions, fichiers, lignes). Le message est nettoyé :
+// adresses web, dossiers, e-mails et longs nombres retirés (rien qui désigne la personne).
+export const ERROR_KINDS = ['js', 'promise', 'server'];
+export const WHERE_RE = /^([a-z0-9._-]{1,40}:\d{1,6}|other|server)$/;
+export const MAX_ERRORS = 50;
+
+export function cleanErrorText(text, max = 200) {
+  return String(text || '')
+    // Adresse : seul le nom d'un fichier de code est gardé (« news.js »)
+    .replace(/[a-z][\w+.-]*:\/\/[^\s'"()<>]+/gi, (u) => { const f = u.split(/[?#]/)[0].split('/').pop(); return /^[\w.-]+\.[cm]?js(:\d+)*$/i.test(f) ? f : '<adresse>'; })
+    .replace(/[A-Za-z]:\\[^\s'",;]+/g, '<dossier>')
+    .replace(/(^|[\s('"=])\/(?:[^\s/'",;]+\/)+[^\s'",;]*/g, '$1<dossier>')
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '<e-mail>')
+    .replace(/\d{5,}/g, '#')
+    .replace(/[\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+// Pile d'appels -> « fonction fichier.js:ligne ← … » (3 étapes au plus, noms de fichiers seuls)
+export function stackFrames(stack, max = 3) {
+  const out = [];
+  for (const line of String(stack || '').split('\n')) {
+    const m = line.match(/^\s*(?:at\s+(?:async\s+)?(?:(.*?)\s+\()?|(.*?)@)(?:.*?[/\\])?([\w.-]+\.[cm]?js):(\d+)(?::\d+)?\)?\s*$/);
+    if (!m) continue;
+    const fn = String(m[1] || m[2] || '').replace(/^(Object|Module)\./, '').replace(/[^\w$.<>]/g, '').slice(0, 40);
+    out.push(`${fn ? `${fn} ` : ''}${m[3]}:${m[4]}`);
+    if (out.length >= max) break;
+  }
+  return out.join(' ← ');
+}
+
+// Erreurs reçues -> [{ w, k, m, s, d, n }] valides, doublons additionnés
+export function cleanErrors(list) {
+  if (!Array.isArray(list)) return [];
+  const out = new Map();
+  for (const e of list.slice(0, MAX_ERRORS)) {
+    if (!e || typeof e !== 'object') continue;
+    const w = String(e.w || ''), k = String(e.k || ''), d = String(e.d || '');
+    if (!WHERE_RE.test(w) || !ERROR_KINDS.includes(k) || !DEVICES.includes(d) || !Number.isInteger(e.n) || e.n < 1) continue;
+    const m = cleanErrorText(e.m), st = cleanErrorText(e.s, 300);
+    const key = [w, k, m, st, d].join('\u0001');
+    out.set(key, { w, k, m, s: st, d, n: Math.min(MAX_COUNT, (out.get(key)?.n || 0) + e.n) });
+  }
+  return [...out.values()];
+}
+
+// Lot reçu -> { version, os, items: [[événement, appareil, nombre]], errors? }, ou null s'il est
+// invalide. Les lignes mal formées sont ignorées ; les doublons sont additionnés.
 export function cleanBatch(body) {
   if (!body || typeof body !== 'object') return null;
   const version = String(body.v || '');
   const os = String(body.os || '');
-  if (!VERSION_RE.test(version) || !SYSTEMS.includes(os) || !Array.isArray(body.items)) return null;
+  if (!VERSION_RE.test(version) || !SYSTEMS.includes(os) || (!Array.isArray(body.items) && !Array.isArray(body.errors))) return null;
+  const errors = cleanErrors(body.errors);
   const sum = new Map();
-  for (const it of body.items.slice(0, MAX_ITEMS)) {
+  for (const it of (Array.isArray(body.items) ? body.items : []).slice(0, MAX_ITEMS)) {
     if (!Array.isArray(it)) continue;
     const [event, device, n] = it;
     if (typeof event !== 'string' || !EVENT_RE.test(event) || !DEVICES.includes(device)) continue;
@@ -25,8 +73,8 @@ export function cleanBatch(body) {
     const k = `${event}|${device}`;
     sum.set(k, Math.min(MAX_COUNT, (sum.get(k) || 0) + n));
   }
-  if (!sum.size) return null;
-  return { version, os, items: [...sum].map(([k, n]) => [...k.split('|'), n]) };
+  if (!sum.size && !errors.length) return null;
+  return { version, os, items: [...sum].map(([k, n]) => [...k.split('|'), n]), ...(errors.length ? { errors } : {}) };
 }
 
 // Fonctions suivies, pour la page de stats : nom lisible et rubrique (les autres s'affichent telles quelles)
