@@ -4,6 +4,21 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.4 — 2026-10-15
+
+### Actu
+- **Les actualités sont traduites d'avance** : dès qu'un article arrive, même page fermée (et au lancement pour ceux des derniers jours), son titre et son résumé sont traduits par le serveur Paddock Live. La page Actu s'ouvre directement en français.
+- **Plus de caractères étrangers dans les traductions** : le modèle de traduction glissait parfois des caractères chinois ou japonais dans le texte (« Laurent Mekies将继续… ») ou laissait un titre japonais tel quel. Ces traductions sont maintenant détectées et refaites, y compris celles déjà gardées.
+- Barre de recherche aux couleurs de l'application (même style que les listes, loupe, bouton pour effacer).
+
+### Direction de course
+- **Messages traduits en français** par le serveur Paddock Live (case *Traduire* du panneau, activée par défaut) : drapeaux, pénalités, limites de piste… avec le vocabulaire de la F1 (« commissaires », « limites de piste »). Le message d'origine s'affiche au survol.
+
+### Corrections
+- Traduction en ligne : un envoi trop long (résumés d'articles) mettait la traduction en ligne en pause pendant 10 minutes. Les envois sont maintenant découpés.
+- **Second écran : les panneaux ne disparaissent plus.** Une fenêtre secondaire gardait une disposition par type de séance : au changement de séance (chargement d'un replay de qualif après une course, par exemple), elle reprenait une ancienne disposition et ses panneaux revenaient dans la fenêtre principale. Elle garde maintenant les mêmes panneaux quelle que soit la séance.
+- Panneau dont tous les onglets ont été déplacés : impossible de le masquer (sa barre s'aplatissait et le contenu recouvrait la croix). La barre garde sa hauteur, et un bouton « Masquer ce panneau » est proposé dans le panneau vide.
+
 ## v1.27.3 — 2026-10-15
 
 ### Radios d'équipe

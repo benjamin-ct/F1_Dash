@@ -48,6 +48,7 @@ const DEFAULTS = {
   rcmBlue: true,          // direction de course : drapeaux bleus affichés
   rcmDeleted: true,       // direction de course : temps supprimés affichés
   rcmType: 'all',         // direction de course : type de messages affichés
+  rcmTranslate: true,     // direction de course : messages traduits par le serveur Paddock Live
   spoilers: false,
   newsAlerts: 'important', // actualités : 'important' | 'favs' | 'all' | 'off'
   newsTranslate: true,     // actualités traduites en français (sur l'ordinateur)

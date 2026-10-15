@@ -36,6 +36,7 @@ import { stats, startStats } from './stats.js';
 import { archivePath, sendArchiveFile } from './archive.js';
 import { cloud } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
+import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -63,6 +64,14 @@ const live = new LiveSource(hub, () => {
   return token && !tokenInfo(token).expired ? token : null;
 }, recorder);
 const replay = new ReplaySource(hub);
+// Actualités traduites d'avance (server/news-translate.js)
+const newsTranslator = createNewsTranslator({
+  cloud,
+  snapshot: () => newsSnapshot().items,
+  known: getTranslations,
+  store: addTranslations,
+  lang: () => getConfig().newsTranslateLang || null,
+});
 for (const h of getConfig().radioHosts || []) allowHost(h);
 
 // ---- HTTP ----
@@ -220,6 +229,15 @@ async function handleApi(req, res, url) {
     case 'POST /api/news/refresh':
       refreshNews();
       return sendJSON(res, 200, { ok: true });
+    // Traduction d'avance des actualités : { lang: 'fr' | 'en' | null } (null = désactivée)
+    case 'POST /api/news/translate': {
+      if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
+      const body = await readBody(req);
+      const lang = ['fr', 'en'].includes(body.lang) ? body.lang : null;
+      if (getConfig().newsTranslateLang !== lang) saveConfig({ newsTranslateLang: lang });
+      newsTranslator.sweep();
+      return sendJSON(res, 200, { lang });
+    }
     case 'POST /api/news/sources': {
       const body = await readBody(req);
       try {
@@ -634,6 +652,8 @@ onNews((list) => {
   const str = JSON.stringify({ type: 'news', items: list });
   for (const c of hub.clients) hub.send(c, str);
 });
+// … et traduite d'avance par le serveur Paddock Live (langue choisie par l'interface de l'ordinateur)
+startNewsTranslation(newsTranslator, onNews);
 
 // Une erreur imprévue (réponse d'un site mal formée…) ne doit pas arrêter le dashboard en pleine
 // séance : elle est consignée et le serveur continue

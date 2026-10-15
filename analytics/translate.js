@@ -3,6 +3,8 @@
 // traduit sur l'ordinateur comme avant.
 // Modèle de langage (Mistral Small 3.1) avec des consignes F1 : noms propres gardés, jargon des fans.
 // Plusieurs textes par appel ; réponse mal formée -> modèle de traduction simple (m2m100) en secours.
+// Traduction avec des caractères d'une autre écriture (chinois glissé dans du français…) : refaite.
+import { badScript } from '../shared/translation-check.js';
 export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const FALLBACK = '@cf/meta/m2m100-1.2b';
 const MODEL_TAG = 'ms31';   // dans la clé du cache : changer de modèle = nouvelles traductions
@@ -21,7 +23,7 @@ export async function keyOf(from, to, text) {
 const system = (to) => `You are a professional translator for a Formula 1 app. Translate each input text into ${NAMES[to]}.
 Rules:
 - Keep names of drivers, teams, people, circuits, cities, sponsors and car models exactly as written (e.g. Câmara, Verstappen, Red Bull, Haas, Marina Bay). Never translate a surname as a common word.
-- Use the natural vocabulary of ${NAMES[to]}-speaking F1 fans and commentators.${to === 'fr' ? ' Team radio jargon: "box, box" = "rentre aux stands", "copy" = "reçu", "lift and coast" = "lever le pied", "deg" = "dégradation", "softs/mediums/hards" = "tendres/mediums/durs", "pole" = "pole position".' : ''}
+- Use the natural vocabulary of ${NAMES[to]}-speaking F1 fans and commentators.${to === 'fr' ? ' Team radio jargon: "box, box" = "rentre aux stands", "copy" = "reçu", "lift and coast" = "lever le pied", "deg" = "dégradation", "softs/mediums/hards" = "tendres/mediums/durs", "pole" = "pole position". Race control: "stewards" = "commissaires", "track limits" = "limites de piste", "time deleted" = "temps supprimé", "noted" = "noté", "under investigation" = "sous enquête", "safety car" = "voiture de sécurité", "timed at" = "à", "pass holders" = "titulaires d’un pass". Write French accents and cedillas correctly, even in capital letters.' : ''}
 - Keep quotes, numbers, units and punctuation. Do not add explanations, notes or quotes around the result.
 - The input is a JSON array of strings. Answer ONLY with a JSON array of the translations, same order, same length.`;
 
@@ -81,7 +83,7 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   if (want.length) {
     const rows = (await env.DB.prepare(`SELECT k, out FROM translations WHERE k IN (${want.map(() => '?').join(',')})`).bind(...want).all()).results || [];
     const found = new Map(rows.map((r) => [r.k, r.out]));
-    keys.forEach((k, i) => { if (out[i] === null && found.has(k)) out[i] = found.get(k); });
+    keys.forEach((k, i) => { if (out[i] === null && found.has(k) && !badScript(found.get(k), req.to)) out[i] = found.get(k); });
   }
   const todo = [...new Set(keys.filter((k, i) => out[i] === null))].map((k) => ({ k, it: req.items[keys.indexOf(k)] }));
   if (!todo.length) return { out, cached: true };
@@ -96,8 +98,12 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   const results = await mapLimit(groups, 3, async (g) => {
     let list = null;
     try { list = await llm(env, g.map(({ it }) => it.text), req.to); } catch { list = null; }
-    if (list) return list;
-    return Promise.all(g.map(({ it }) => simple(env, it.text, it.from, req.to)));
+    // Paquet raté : tout en traduction simple ; sinon seulement les traductions suspectes
+    return Promise.all(g.map(async ({ it }, j) => {
+      if (list && !badScript(list[j], req.to)) return list[j];
+      const s = await simple(env, it.text, it.from, req.to);
+      return s && !badScript(s, req.to) ? s : null;
+    }));
   });
   const done = results.flat();
   const now = Date.now();

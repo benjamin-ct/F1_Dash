@@ -164,12 +164,12 @@
         <button data-nw="sources"><svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Sources</button>
       </nav>
       <div class="nw-opts">
-        <input type="search" id="nwSearch" placeholder="Rechercher : pilote, écurie, mot…" aria-label="Rechercher dans l'actualité">
+        <input type="search" id="nwSearch" placeholder="Pilote, écurie, mot…" aria-label="Rechercher dans l'actualité" title="Rechercher dans l'actualité : pilote, écurie, mot…">
         <select id="nwLang" aria-label="Langue d'origine">
           <option value="all">Toutes les langues</option><option value="en">Anglais</option><option value="fr">Français</option><option value="es">Espagnol</option>
           <option value="it">Italien</option><option value="de">Allemand</option><option value="nl">Néerlandais</option><option value="pt">Portugais</option><option value="ja">Japonais</option>
         </select>
-        <label class="toggle" title="Titres et résumés traduits en français par le moteur de traduction de l'ordinateur (le même que pour les radios)"><input type="checkbox" id="nwTranslate" checked> Traduire en français</label>
+        <label class="toggle" title="Titres et résumés traduits en français d'avance, dès leur arrivée, par le serveur Paddock Live (sur l'ordinateur si la traduction en ligne est désactivée)"><input type="checkbox" id="nwTranslate" checked> Traduire en français</label>
         <label class="nw-alerts" title="Son, vibration et notification quand une actualité arrive">Alertes
           <select id="nwAlerts"><option value="important">Importantes et favoris</option><option value="favs">Favoris seulement</option><option value="all">Toutes les actualités</option><option value="off">Aucune</option></select></label>
         <label class="toggle" title="Pendant une séance ou un replay : titres masqués et alertes d'actualité suspendues, pour ne pas voir un résultat avant l'image"><input type="checkbox" id="nwSpoilers" checked> Anti-spoiler pendant les séances</label>
@@ -247,6 +247,7 @@
               <option value="all">Tous les messages</option><option value="flags">Drapeaux</option><option value="sc">Safety car / VSC</option>
               <option value="stewards">Enquêtes et pénalités</option><option value="limits">Limites de piste</option><option value="other">Autres</option>
             </select>
+            <label class="toggle" id="rcmTranslateBox" title="Messages traduits en français par le serveur Paddock Live (texte d'origine au survol)"><input type="checkbox" id="rcmTranslate"> Traduire</label>
             <span class="muted small" id="rcmHidden"></span>
           </div>
           <ul class="rcm" id="rcmList"></ul>

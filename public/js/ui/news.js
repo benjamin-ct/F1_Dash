@@ -1,9 +1,10 @@
 // Espace « Actu » : toute l'actualité de la F1 au même endroit (F1, FIA, écuries, pilotes, médias
-// du monde entier), traduite en français sur l'ordinateur, avec des alertes pour ce qui compte.
+// du monde entier), traduite d'avance par le serveur Paddock Live, avec des alertes pour ce qui compte.
 import { $, $$, esc, api, storageGet, storageSet, drivers, teamColor } from '../util.js';
 import { store, on } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
 import { NEWS_TEAMS, newsTags, webLink } from '/shared/news.js';
+import { badScript } from '/shared/translation-check.js';
 
 // Lien ou image d'une nouvelle : adresse web uniquement (jamais « javascript: »), échappée
 const safeUrl = (u) => esc(webLink(u) || '#');
@@ -51,14 +52,23 @@ let translating = false;
 let pendingSave = [];
 let saveTimer = null;
 
+// Le serveur de l'appli traduit les actualités d'avance (dès leur arrivée) dans la langue de
+// l'interface : la page s'ouvre avec des titres et résumés déjà traduits
+let staleTranslations = false;
+function shareNewsLang() {
+  const on = prefs.newsTranslate !== false && prefs.cloudTranslate !== false;
+  api('/api/news/translate', { method: 'POST', body: { lang: on ? LANG : null } }).catch(() => {});
+}
+
 function loadTranslations(force = false) {
   if (force) cacheLoaded = null;
   cacheLoaded ||= api(`/api/translations?lang=${LANG}`).then((d) => { cache = { ...cache, ...(d || {}) }; }).catch(() => {});
   return cacheLoaded;
 }
 
-const tr = (text) => cache[text]?.t || null;
-const needs = (text, from) => text && from !== LANG && !cache[text] && !failed.has(text);
+// Traduction gardée avec des caractères d'une autre écriture (anciennes versions) : ignorée, refaite
+const tr = (text) => { const t = cache[text]?.t; return t && !badScript(t, LANG) ? t : null; };
+const needs = (text, from) => text && from !== LANG && !tr(text) && !failed.has(text);
 
 function saveTranslation(item) {
   pendingSave.push(item);
@@ -464,16 +474,20 @@ on('news', (list) => {
   const fresh = list.filter((x) => !known.has(x.id));
   items = [...fresh.map(({ fresh: f, ...x }) => x), ...items].sort((a, b) => b.t - a.t);
   for (const it of fresh) justArrived.add(it.id);
-  // Pas de traduction de toutes les nouvelles en arrière-plan (des dizaines de sources, plusieurs
-  // langues : beaucoup de calcul) : seulement celles qui donnent une alerte, et celles affichées à l'écran
+  // Pas de traduction de toutes les nouvelles en arrière-plan sur l'ordinateur (beaucoup de calcul) :
+  // le serveur de l'appli les fait traduire d'avance en ligne ; ici, seulement les alertes et l'écran
   onFresh(fresh);
+  staleTranslations = true;   // traductions faites d'avance par le serveur : relues à l'ouverture
   scheduleRender();
   updateBadge();
   // Une nouvelle source a répondu : on rafraîchit leur état si la page Sources est ouverte
   if (section === 'sources') reloadSources();
 });
 
-on('prefs', (k) => { if (k === 'favs' && open()) scheduleRender(); });
+on('prefs', (k) => {
+  if (k === 'favs' && open()) scheduleRender();
+  if ((k === 'newsTranslate' || k === 'cloudTranslate') && store.isHost !== false) shareNewsLang();
+});
 
 async function reloadSources() {
   try { setSources((await api('/api/news')).sources || []); } catch { /* ignore */ }
@@ -489,8 +503,15 @@ export function openNews(sec) {
   $('#newsBtn')?.classList.add('on');
   limit = PAGE;
   cascadeUntil = Date.now() + 400;
-  load().then(render);
-  render();
+  // Nouvelles arrivées depuis la dernière lecture : leurs traductions (faites d'avance) sont relues
+  // avant d'afficher la page, pour ne pas montrer le texte d'origine une fraction de seconde
+  if (staleTranslations && cacheLoaded) {
+    staleTranslations = false;
+    loadTranslations(true).then(render);
+  } else {
+    load().then(render);
+    render();
+  }
   clearInterval(openNews.timer);
   openNews.timer = setInterval(() => { if (open()) scheduleRender(); }, 60000);
 }
@@ -507,6 +528,7 @@ export function closeNews() {
 export const isNewsOpen = open;
 
 export function initNews() {
+  if (store.isHost !== false) shareNewsLang();
   const alertsSel = $('#nwAlerts');
   alertsSel.value = prefs.newsAlerts || 'important';
   alertsSel.addEventListener('change', () => setPref('newsAlerts', alertsSel.value));

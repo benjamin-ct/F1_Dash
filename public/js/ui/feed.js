@@ -5,7 +5,8 @@ import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge,
 import { parseUtc, parseLapTime } from '/shared/f1.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 import { icon } from '../icons.js';
-import { DEC } from '../i18n.js';
+import { DEC, EN } from '../i18n.js';
+import { cloudOn, cloudTranslate } from '../cloud.js';
 import { continuesStint } from '/shared/pits.js';
 
 function list(obj) {
@@ -45,8 +46,23 @@ function rcmShown(m) {
   return true;
 }
 
+// Traduction des messages par le serveur Paddock Live (une fois pour tous, gardée en mémoire ici)
+const rcmTr = new Map();   // message -> traduction (null : en cours ou refusée)
+let rcmTrVer = 0;
+const rcmTranslating = () => !EN && prefs.rcmTranslate !== false && cloudOn();
+function rcmTranslation(msg) {
+  if (!msg || !rcmTranslating()) return null;
+  if (rcmTr.has(msg)) return rcmTr.get(msg);
+  rcmTr.set(msg, null);
+  cloudTranslate(msg, 'en', 'fr').then((t) => {
+    if (t) { rcmTr.set(msg, t); rcmTrVer++; renderRcm(); }
+    else if (!cloudOn()) rcmTr.delete(msg);   // serveur indisponible : nouvel essai plus tard
+  });
+  return null;
+}
+
 export function renderRcm() {
-  const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}|${prefs.rcmType}`;
+  const v = `${versionOf(['RaceControlMessages', '__reset'])}|${prefs.rcmBlue}|${prefs.rcmDeleted}|${prefs.rcmType}|${rcmTranslating()}|${rcmTrVer}`;
   if (v === rcmVer) return;
   const sameList = String(rcmVer).split('|')[0] === v.split('|')[0] || rcmVer === -1;
   rcmVer = v;
@@ -56,13 +72,17 @@ export function renderRcm() {
   const fresh = !sameList && all.length > rcmCount && rcmCount > 0 ? all.slice(rcmCount).filter(rcmShown).length : 0;
   rcmCount = all.length;
   const hidden = all.length - msgs.length;
+  const msgHtml = (msg) => {
+    const t = rcmTranslation(msg);
+    return t ? `<div class="rcm-msg" data-no-i18n title="${esc(msg)}">${esc(t)}</div>` : `<div class="rcm-msg">${esc(msg)}</div>`;
+  };
   $('#rcmHidden').textContent = hidden ? `${hidden} message(s) masqué(s)` : '';
   $('#rcmList').innerHTML = msgs.length
     ? msgs.slice().reverse().map((m, i) => {
       const t = parseUtc(m.Utc);
       const title = m.Flag ? `Drapeau ${FLAG_FR[m.Flag] || m.Flag}${m.Scope === 'Sector' ? ` (secteur ${m.Sector})` : ''}` : m.Category;
       return `<li class="${i < fresh ? 'new' : ''}"><div class="rcm-time">${Number.isFinite(t) ? fmtClock(t) : ''}${m.Lap ? `<br>Tour ${m.Lap}` : ''}</div>
-        <div class="rcm-flag ${rcmFlagClass(m)}" title="${esc(title)}"></div><div class="rcm-msg">${esc(m.Message)}</div></li>`;
+        <div class="rcm-flag ${rcmFlagClass(m)}" title="${esc(title)}"></div>${msgHtml(m.Message)}</li>`;
     }).join('')
     : '<li class="note">Aucun message de la direction de course.</li>';
 }
@@ -219,6 +239,11 @@ export function initRcmFilters() {
     $(`#${id}`).addEventListener('change', (e) => setPref(key, e.target.checked));
   }
   on('prefs', (k) => { if (k === 'rcmBlue' || k === 'rcmDeleted') $(`#${k}`).checked = prefs[k]; });
+  // Traduction : interface en français seulement
+  $('#rcmTranslateBox').hidden = EN;
+  $('#rcmTranslate').checked = prefs.rcmTranslate !== false;
+  $('#rcmTranslate').addEventListener('change', (e) => setPref('rcmTranslate', e.target.checked));
+  on('prefs', (k) => { if (k === 'rcmTranslate') $('#rcmTranslate').checked = prefs.rcmTranslate !== false; });
   const type = $('#rcmType');
   type.value = prefs.rcmType || 'all';
   type.addEventListener('change', (e) => setPref('rcmType', e.target.value));
