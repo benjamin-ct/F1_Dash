@@ -22,6 +22,9 @@ const SPEEDS = [1, 1.25, 1.5, 2];
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o.filter(Boolean) : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]).filter(Boolean));
 const base = () => (store.state.SessionInfo?.Path ? `https://livetiming.formula1.com/static/${store.state.SessionInfo.Path}` : null);
+// Les archives de la F1 ne sont plus ouvertes à tous : les radios passent par l'appli (connexion F1 TV)
+const ARCHIVE = 'https://livetiming.formula1.com/static/';
+const playable = (url) => (url.startsWith(ARCHIVE) ? `/api/archive/file?p=${encodeURIComponent(url.slice(ARCHIVE.length))}` : url);
 const fmtDur = (s) => (Number.isFinite(s) && s > 0 ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '');
 
 let heard = new Set(storageGet(HEARD_KEY, []));
@@ -209,7 +212,7 @@ export function playRadio(url) {
   const prev = cur;
   track('feature.radio-play');
   cur = { url, num: ordered.find((x) => x.url === url)?.num };
-  a.src = url;
+  a.src = playable(url);
   a.playbackRate = speed;
   markHeard(url);
   if (prev) refresh(prev.url);

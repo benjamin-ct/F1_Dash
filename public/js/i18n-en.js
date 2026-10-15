@@ -1759,4 +1759,12 @@ export default {
   "Pour savoir quelles fonctions servent le plus ou le moins : panneaux, onglets et fonctions utilisés, version de l'appli, système, ordinateur ou téléphone, direct ou replay, erreurs rencontrées. Ni compte F1 TV, ni identifiant, ni contenu ; l'adresse IP n'est pas conservée.": "To learn which features are used the most or the least: panels, tabs and features used, app version, system, computer or phone, live or replay, errors encountered. No F1 TV account, no identifier, no content; the IP address is not kept.",
   "Statistiques d'utilisation": "Usage statistics",
   "Non merci": "No thanks",
+  "Mise à jour automatique indisponible pour cette installation (paquet .deb, appli lancée depuis l'image disque, ou sur Mac appli hors du dossier Applications) : installez la nouvelle version depuis la page des versions du projet sur GitHub.": "Automatic update unavailable for this installation (.deb package, app launched from the disk image, or on Mac an app outside the Applications folder): install the new version from the project's releases page on GitHub.",
+  "fenêtres": "windows",
+  "serveur": "server",
+  "carte graphique": "graphics card",
+  "services": "services",
+  "Mémoire utilisée : {} ({})": "Memory used: {} ({})",
+  "Valider": "OK",
+  "Haute qualité : Whisper large-v3-turbo + modèle de langage (Qwen3-4B) qui connaît le contexte F1 ; nécessite une carte graphique (environ 4,5 Go téléchargés une fois) et occupe 10 à 15 Go de mémoire pendant la transcription (libérés après 5 minutes sans radio). Légère : petits modèles sur le processeur, plus approximatifs, environ 1 Go.": "High quality: Whisper large-v3-turbo + a language model (Qwen3-4B) that knows the F1 context; needs a graphics card (about 4.5 GB downloaded once) and uses 10 to 15 GB of memory while transcribing (freed after 5 minutes without radio). Light: small models on the processor, less accurate, about 1 GB.",
 };

@@ -4,6 +4,19 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.1 — 2026-10-15
+
+### Replays
+- **La F1 a fermé l'accès libre à ses archives** (replays, statistiques de la saison, records, jeux de pneus des séances précédentes) : Paddock Live utilise désormais votre **connexion F1 TV** pour y accéder, puis une copie publique des archives si besoin. Sans connexion F1 TV, un message clair l'indique au lieu de « HTTP 401 ».
+- Les radios d'équipe des replays (écoute et transcription) passent par le même accès.
+- Vos enregistrements des séances suivies en direct restent rejouables sans connexion.
+
+### Mémoire et mises à jour
+- **Transcription des radios : beaucoup moins de mémoire.** Les modèles (plusieurs Go en haute qualité) sont libérés quand la transcription est coupée, et après 5 minutes sans radio à traiter ; ils se rechargent tout seuls à la radio suivante.
+- La mémoire occupée par la transcription en haute qualité (10 à 15 Go pendant l'utilisation sur Mac) est indiquée dans l'infobulle du choix de qualité ; la qualité légère en utilise environ 1 Go.
+- **Mémoire utilisée affichée** dans Réglages → Application (application de bureau), avec le détail : serveur, fenêtres, carte graphique.
+- **macOS : mises à jour automatiques réparées** quand macOS lance l'appli depuis une copie temporaire (appli non signée par Apple) : la mise à jour remplace l'appli du dossier Applications.
+
 ## v1.27.0 — 2026-10-15
 
 ### Statistiques d'utilisation anonymes

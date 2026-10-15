@@ -1,5 +1,6 @@
 // Mises à jour automatiques de l'application de bureau (Windows, Linux, macOS).
 import { $ } from '../util.js';
+import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { changelogHtml } from './changelog.js';
 
@@ -14,7 +15,7 @@ function fmt(s) {
     case 'downloading': return `Téléchargement de la version ${s.latest?.version}… ${Math.round((s.progress || 0) * 100)} %`;
     case 'ready': return `Version ${s.latest?.version} prête : elle sera installée à la fermeture de l'appli, ou tout de suite avec « Redémarrer ».`;
     case 'error': return `Erreur : ${s.error}`;
-    case 'unsupported': return 'Mise à jour automatique indisponible pour cette installation (paquet .deb, ou appli lancée depuis l\'image disque) : installez la nouvelle version depuis la page des versions du projet sur GitHub.';
+    case 'unsupported': return 'Mise à jour automatique indisponible pour cette installation (paquet .deb, appli lancée depuis l\'image disque, ou sur Mac appli hors du dossier Applications) : installez la nouvelle version depuis la page des versions du projet sur GitHub.';
     default: return `Version ${s.current}`;
   }
 }
@@ -45,8 +46,23 @@ async function install() {
   else toast('Installation de la mise à jour… l\'appli va redémarrer', 6000);
 }
 
+// Mémoire utilisée (mise à jour toutes les 5 s pendant que les réglages sont ouverts)
+const GB = (b) => `${(b / 1e9).toLocaleString(undefined, { maximumFractionDigits: 1, minimumFractionDigits: 1 })} Go`;
+async function showMemory() {
+  const el = $('#memUse');
+  if (!desk?.memory || !el || el.offsetParent === null) return;
+  const by = await desk.memory().catch(() => null);
+  if (!by) return;
+  const total = Object.values(by).reduce((a, b) => a + b, 0);
+  const part = (k, label) => (by[k] ? `${label} ${GB(by[k])}` : '');
+  el.textContent = t('Mémoire utilisée : {} ({})', GB(total), [part('Browser', t('serveur')), part('Tab', t('fenêtres')), part('GPU', t('carte graphique')), part('Utility', t('services'))].filter(Boolean).join(' · '));
+  el.hidden = false;
+}
+
 export function initUpdates() {
   if (!desk?.version) return;
+  setInterval(showMemory, 5000);
+  $('#settingsBtn')?.addEventListener('click', () => setTimeout(showMemory, 300));
   $('#updateBlock').hidden = false;
   desk.onUpdate(render);
   desk.version().then(render);

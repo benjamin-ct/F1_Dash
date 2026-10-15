@@ -172,9 +172,31 @@ function show(on) {
   if (block) block.hidden = !on;
 }
 
+// Saisie du code (window.prompt n'existe pas dans l'application de bureau)
+function askCode() {
+  return new Promise((resolve) => {
+    const dlg = document.createElement('dialog');
+    dlg.className = 'modal creator-dlg';
+    dlg.innerHTML = `<form method="dialog" class="creator-form">
+      <label class="small muted" for="creatorCode">${t('Code du mode créateur :')}</label>
+      <input id="creatorCode" type="password" autocomplete="off" spellcheck="false" maxlength="40" required>
+      <div class="row"><span class="spacer"></span><button class="btn" value="" type="button" data-cancel>${t('Annuler')}</button><button class="btn btn-accent" value="ok">${t('Valider')}</button></div>
+    </form>`;
+    document.body.appendChild(dlg);
+    const input = $('#creatorCode', dlg);
+    const done = (v) => { dlg.close(); dlg.remove(); resolve(v); };
+    $('[data-cancel]', dlg).addEventListener('click', () => done(''));
+    dlg.addEventListener('cancel', (e) => { e.preventDefault(); done(''); });
+    $('form', dlg).addEventListener('submit', (e) => { e.preventDefault(); done(input.value.trim()); });
+    dlg.showModal();
+    input.focus();
+  });
+}
+
 async function unlock() {
   if (enabled) { open(); return; }
-  const code = window.prompt(t('Code du mode créateur :'));
+  if (document.querySelector('.creator-dlg[open]')) return;
+  const code = await askCode();
   if (!code) return;
   const res = await fetch('/api/creator', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) }).catch(() => null);
   if (res?.ok) { show(true); toast(t('Mode créateur activé : bouton « Posts » dans la barre latérale'), 4000, 'check'); } else toast(t(res?.status === 403 ? 'Code incorrect' : 'Activation impossible'), 3000, 'warning');

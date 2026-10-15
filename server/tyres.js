@@ -2,12 +2,12 @@
 // composés de Pirelli et communiqués Pirelli (flux RSS de press.pirelli.com).
 import fs from 'node:fs';
 import path from 'node:path';
-import { getText, getJSON, HttpError, withRetry } from './net.js';
+import { getText, HttpError, withRetry } from './net.js';
+import { archiveJSON } from './archive.js';
 import { seasonIndex } from './replay.js';
 import { CACHE_DIR } from './circuits.js';
 import { dryAllocation } from '../shared/tyres.js';
 
-const STATIC = 'https://livetiming.formula1.com/static/';
 const FEED = 'https://press.pirelli.com/feed/';
 
 // Composés choisis par Pirelli (dur, medium, tendre) pour 2026, d'après les communiqués de
@@ -174,7 +174,7 @@ async function sessionStints(ses) {
   if (cached) return cached;
   let stints = {};
   try {
-    const d = await withRetry(() => getJSON(`${STATIC}${ses.path}TyreStintSeries.json`, { timeout: 30000 }), { tries: 2 });
+    const d = await withRetry(() => archiveJSON(`${ses.path}TyreStintSeries.json`, { timeout: 30000 }), { tries: 2 });
     stints = d?.Stints || {};
   } catch (err) {
     if (!(err instanceof HttpError)) throw err;
@@ -182,7 +182,7 @@ async function sessionStints(ses) {
   let q3 = [];
   if (ses.type === 'Qualifying' && !/sprint/i.test(ses.name)) {
     try {
-      const td = await getJSON(`${STATIC}${ses.path}TimingData.json`, { timeout: 30000 });
+      const td = await archiveJSON(`${ses.path}TimingData.json`, { timeout: 30000 });
       q3 = Object.entries(td?.Lines || {}).filter(([, l]) => !l.KnockedOut && Number(l.Position) >= 1 && Number(l.Position) <= 10).map(([n]) => n);
     } catch { /* pas de Q3 connue */ }
   }

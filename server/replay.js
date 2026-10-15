@@ -1,13 +1,13 @@
 // Replay d'une session passée à partir des archives publiques F1 Live Timing
 // (livetiming.formula1.com/static/...). Les messages sont réinjectés dans le hub
 // exactement comme en live : le délai, les duels, la carte... fonctionnent pareil.
-import { getText, getJSON, HttpError, withRetry } from './net.js';
+import { HttpError, withRetry } from './net.js';
+import { archiveGet, archiveJSON } from './archive.js';
 import { ARCHIVE_TOPICS, topicName } from '../shared/f1.js';
 import { sessionLabel } from './live.js';
 import { readRecording, recordingPath } from './recorder.js';
 import { keyMoments } from '../shared/moments.js';
 
-const STATIC = 'https://livetiming.formula1.com/static/';
 
 function parseStream(text, topic) {
   const out = [];
@@ -40,7 +40,7 @@ export async function loadArchive(path, onProgress = () => {}, topics = ARCHIVE_
   let done = 0;
   const parts = await mapLimit(topics, 4, async (rawTopic) => {
     try {
-      const text = await getText(`${STATIC}${path}${rawTopic}.jsonStream`, { timeout: 120000 });
+      const text = await archiveGet(`${path}${rawTopic}.jsonStream`, { timeout: 120000 });
       return parseStream(text, rawTopic);
     } catch (err) {
       if (!(err instanceof HttpError)) console.warn(`[replay] ${rawTopic}: ${err.message}`);
@@ -272,7 +272,7 @@ const indexCache = new Map();
 export async function seasonIndex(year) {
   const cached = indexCache.get(year);
   if (cached && Date.now() - cached.at < 10 * 60 * 1000) return cached.data;
-  const raw = await withRetry(() => getJSON(`${STATIC}${year}/Index.json`), { tries: 3 });
+  const raw = await withRetry(() => archiveJSON(`${year}/Index.json`), { tries: 3 });
   const data = (raw.Meetings || []).map((m) => ({
     key: m.Key,
     name: m.Name,

@@ -4,7 +4,7 @@
 // (en arrière-plan), puis conservée sur disque.
 import fs from 'node:fs';
 import path from 'node:path';
-import { getJSON } from './net.js';
+import { archiveJSON } from './archive.js';
 import { loadArchive, seasonIndex } from './replay.js';
 import { circuit, CACHE_DIR } from './circuits.js';
 import { season } from './season.js';
@@ -14,7 +14,6 @@ import { parseLapTime } from '../shared/f1.js';
 import { Track } from '../shared/track.js';
 import { realStints } from '../shared/pits.js';
 
-const STATIC = 'https://livetiming.formula1.com/static/';
 const VERSION = 3;   // 3 : relais sans changement de pneus fusionnés (arrêts réels)
 const NEUTRAL = new Set(['4', '5', '6', '7']);   // SC, drapeau rouge, VSC, fin de VSC
 
@@ -145,7 +144,7 @@ export function summarizeRace({ events, keyframes = {}, track = null }) {
 }
 
 async function keyframe(p, topic) {
-  try { return await getJSON(`${STATIC}${p}${topic}.json`, { timeout: 60000 }); } catch { return null; }
+  try { return await archiveJSON(`${p}${topic}.json`, { timeout: 60000 }); } catch { return null; }
 }
 
 async function analyseRace(p, circuitKey, year) {
@@ -174,6 +173,7 @@ function findRaceSession(index, race) {
 
 // Message lisible quand l'index des archives officielles d'une année est inaccessible
 export function archiveError(year, err) {
+  if (err?.locked) return err.message;   // archives réservées aux abonnés F1 TV
   return err?.status === 403 || err?.status === 404
     ? `la F1 ne donne pas accès aux archives officielles de ${year}`
     : `archives officielles de la F1 injoignables (${err?.message || err}) ; nouvel essai dans quelques minutes`;
