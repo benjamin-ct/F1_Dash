@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { CACHE_DIR } from './circuits.js';
+import { badScript } from '../shared/translation-check.js';
 
 const LANGS = new Set(['fr', 'es', 'de', 'it', 'en']);
 const MAX_ENTRIES = 20000;
@@ -16,6 +17,8 @@ function load(lang) {
   if (!stores.has(lang)) {
     let data = {};
     try { data = JSON.parse(fs.readFileSync(file(lang), 'utf8')) || {}; } catch { /* rien encore */ }
+    // Traductions avec des caractères d'une autre écriture (anciennes versions) : retirées, refaites
+    for (const [k, v] of Object.entries(data)) if (badScript(v?.t, lang)) delete data[k];
     stores.set(lang, data);
   }
   return stores.get(lang);
@@ -47,7 +50,7 @@ export function addTranslations(lang, items) {
     const t = typeof it?.t === 'string' ? it.t.trim() : '';
     const q = it?.q === 'high' ? 'high' : 'light';
     // « __proto__ », « constructor »… : noms réservés des objets JavaScript, jamais enregistrés
-    if (!en || !t || en.length > MAX_LEN || t.length > MAX_LEN || en in Object.prototype) continue;
+    if (!en || !t || en.length > MAX_LEN || t.length > MAX_LEN || en in Object.prototype || badScript(t, lang)) continue;
     const old = Object.hasOwn(data, en) ? data[en] : null;
     if (old && (old.q === 'high' || q === 'light')) continue;
     if (!old && Object.keys(data).length >= MAX_ENTRIES) break;

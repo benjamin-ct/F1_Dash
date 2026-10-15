@@ -16,6 +16,7 @@ on:
       - 'analytics/**'
       - 'shared/stats.js'
       - 'shared/radio-text.js'
+      - 'shared/translation-check.js'
       - '.github/workflows/stats.yml'
 
 concurrency: stats-deploy

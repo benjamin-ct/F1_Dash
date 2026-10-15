@@ -102,3 +102,42 @@ test('traduction partagée : consignes F1 envoyées, réponse mal formée -> tra
   assert.equal(parseList('["x"]', 2), null);
   assert.deepEqual(parseList('ok ["x", " y "]', 2), ['x', 'y']);
 });
+
+test('appli : textes longs répartis en plusieurs envois, envoi refusé sans pause', async () => {
+  const posts = [];
+  const tr = createCloudTranslator({
+    url: 'https://x/t',
+    post: async (url, body) => {
+      posts.push(body.items.map((i) => i.text.length));
+      if (body.items.some((i) => i.text.startsWith('refusé'))) return { status: 400, json: { error: 'Requête invalide' } };
+      return { status: 200, json: { out: body.items.map((i) => `fr:${i.text.slice(0, 3)}`) } };
+    },
+  });
+  const long = Array.from({ length: 30 }, (_, i) => `${i}`.padEnd(1900, 'x'));
+  const out = await Promise.all(long.map((t) => tr.translate(t, 'en', 'fr')));
+  assert.ok(out.every(Boolean));
+  assert.ok(posts.length >= 3);
+  assert.ok(posts.every((p) => p.reduce((a, n) => a + n, 0) <= 20000));
+  assert.equal(await tr.translate('refusé', 'en', 'fr'), null);
+  assert.equal(tr.available(), true);
+});
+
+test('traduction partagée : caractères d\'une autre écriture refusés, refaits par le modèle simple', async () => {
+  const { badScript } = await import('../shared/translation-check.js');
+  assert.equal(badScript('Laurent Mekies将继续 dans son rôle', 'fr'), true);
+  assert.equal(badScript('”阿吽の呼吸”で無線トラブル', 'fr'), true);
+  assert.equal(badScript('Câmara, Hülkenberg, Pérez : ça roule', 'fr'), false);
+  assert.equal(badScript('フェルスタッペン', 'ja'), false);
+  const f = fakeEnv();
+  const run = f.env.AI.run;
+  f.env.AI.run = async (model, input) => (model === MODEL
+    ? { response: JSON.stringify(['Mekies将继续 chez Red Bull', 'Bonne traduction']) }
+    : run(model, input));
+  const r = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Mekies stays at Red Bull', from: 'en' }, { text: 'Good one', from: 'en' }] }, 'd');
+  assert.deepEqual(r.out, ['[fr] Mekies stays at Red Bull', 'Bonne traduction']);
+  // Ancienne traduction suspecte dans le cache : ignorée et refaite
+  const k = await keyOf('en', 'fr', 'Cached');
+  f.tr.set(k, 'Mise en cache将');
+  const again = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Cached', from: 'en' }] }, 'd');
+  assert.deepEqual(again.out, ['[fr] Cached']);
+});

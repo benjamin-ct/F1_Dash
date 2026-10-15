@@ -3,16 +3,18 @@
 // Les demandes de l'interface sont regroupées (jusqu'à 40 par envoi). Serveur injoignable ou plafond
 // du jour atteint : pause de 10 minutes, l'interface traduit alors sur l'ordinateur comme avant.
 import { request } from './net.js';
+import { badScript } from '../shared/translation-check.js';
 
 export const TRANSLATE_URL = process.env.PADDOCK_TRANSLATE_URL ?? 'https://paddock-live-stats.paddock-live.workers.dev/t';
 export const LANGS = ['fr', 'en', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh'];
 const BATCH = 40;
+const BATCH_CHARS = 6000;   // résumés d'articles : envois plus courts, traduits avant le délai d'attente
 const WAIT_MS = 120;
 const PAUSE_MS = 10 * 60e3;
 
 async function postJSON(url, body) {
   const data = JSON.stringify(body);
-  const r = await request(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }, body: data, timeout: 30000 });
+  const r = await request(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) }, body: data, timeout: 90000 });
   let json = null;
   try { json = JSON.parse(r.body.toString('utf8')); } catch { /* réponse illisible */ }
   return { status: r.status, json };
@@ -31,18 +33,27 @@ export function createCloudTranslator({ url = TRANSLATE_URL, post = postJSON, no
     timers.delete(to);
     const list = pending.get(to) || [];
     pending.delete(to);
-    for (let i = 0; i < list.length; i += BATCH) {
-      const part = list.slice(i, i + BATCH);
+    // Envois de 40 textes au plus, et pas trop longs (résumés d'articles)
+    const parts = [];
+    let cur = [], size = 0;
+    for (const p of list) {
+      if (cur.length && (cur.length >= BATCH || size + p.text.length > BATCH_CHARS)) { parts.push(cur); cur = []; size = 0; }
+      cur.push(p);
+      size += p.text.length;
+    }
+    if (cur.length) parts.push(cur);
+    for (const part of parts) {
       let out = [];
       try {
         const r = await post(url, { to, items: part.map(({ text, from }) => ({ text, from })) });
-        if (r.status === 429 || r.status >= 500 || !Array.isArray(r.json?.out)) pausedUntil = now() + PAUSE_MS;
+        // Plafond du jour ou panne : pause ; envoi refusé (400) : seulement ces textes-là
+        if (r.status === 429 || r.status >= 500 || (r.status === 200 && !Array.isArray(r.json?.out))) pausedUntil = now() + PAUSE_MS;
         out = Array.isArray(r.json?.out) ? r.json.out : [];
       } catch {
         pausedUntil = now() + PAUSE_MS;
       }
       part.forEach((p, j) => {
-        const t = typeof out[j] === 'string' && out[j].trim() ? out[j] : null;
+        const t = typeof out[j] === 'string' && out[j].trim() && !badScript(out[j], to) ? out[j] : null;
         if (t) memo.set(`${p.from}|${to}|${p.text}`, t);
         p.resolve(t);
       });
