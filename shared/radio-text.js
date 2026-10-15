@@ -29,7 +29,9 @@ export function badReply(out, text) {
 
 // Petit modèle, radios : jargon F1 traduit mot à mot
 const FIX_RADIO_FR = [
+  [/\bbo[iî]te de bo[iî]te\b/gi, 'rentre aux stands, rentre aux stands'],   // traduction en ligne (m2m100)
   [/\b(la |une )?bo[iî]te,? (la |une )?bo[iî]te\b/gi, 'rentre aux stands, rentre aux stands'],
+  [/\b(la |une )?bo[iî]te (ce|au prochain|à ce) tour\b/gi, 'rentre aux stands $2 tour'],
   [/^(copie|copier|copié)\s*[.!]?$/i, 'Reçu.'], [/^(copie|copier|copié)( ça| cela)?\b/i, 'Reçu'],
   [/\bsoulever et (la )?c[ôo]te\b/gi, 'lever le pied'], [/\bdégager et (la )?c[ôo]te\b/gi, 'lever le pied'],
   [/\bvoiture de sécurité virtuelle\b/gi, 'VSC'], [/\bpneus? (difficiles?|durs?)\b/gi, (m) => (/s\b/.test(m) ? 'pneus durs' : 'pneu dur')],
