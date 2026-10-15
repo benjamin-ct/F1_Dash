@@ -199,6 +199,15 @@ Les versions sont lues sur les *Releases* de ce dépôt (public) : rien à confi
 - Sur un téléphone, seuls les réglages d'affichage du téléphone sont enregistrés et restaurés.
 
 
+## 📊 Statistiques d'utilisation anonymes
+
+Au premier lancement, Paddock Live demande s'il peut envoyer des **statistiques d'utilisation anonymes**, pour savoir quelles fonctions servent le plus ou le moins. Rien n'est envoyé sans votre accord, et le choix se change à tout moment dans ⚙ Réglages → Application → *Statistiques d'utilisation*.
+
+- **Ce qui est compté** : les panneaux, onglets et fonctions utilisés (Saison, Actu, replays, mini-classement, radios, transcription, synchro TV, pronostics…), la version de l'appli, le système (Windows, macOS, Linux), ordinateur, téléphone ou navigateur, la langue, les séances suivies en direct ou en replay, et les erreurs de l'interface (nom du fichier et ligne seulement).
+- **Ce qui n'est jamais envoyé** : la connexion F1 TV, un identifiant de l'appareil ou de la personne, le contenu (messages, radios, réglages, noms), et l'adresse IP n'est pas conservée.
+- **Comment** : l'appli additionne les compteurs sur l'ordinateur et envoie seulement des totaux, environ toutes les 15 minutes (gardés sur le disque d'ici là si internet manque). Les fenêtres du téléphone passent par l'ordinateur ; le choix se fait sur l'ordinateur.
+- Le petit serveur qui reçoit ces totaux est dans le dossier `analytics/` du projet. La variable `PADDOCK_STATS_URL` vide désactive complètement la fonction (aucune question posée).
+
 ## 📡 Positions GPS en live : jeton F1 TV (optionnel)
 
 Depuis 2025, la F1 réserve **les positions GPS et la télémétrie du flux live aux abonnés F1 TV**. Tout le reste (chronos, secteurs, écarts, drapeaux, direction de course, météo, radios, pneus…) est accessible sans compte.
@@ -229,6 +238,7 @@ Bouton **Moments** de la barre de lecture : la liste des moments clés de la sé
 | `F1TV_TOKEN` | — | Jeton F1 TV (sinon via l'interface) |
 | `PADDOCK_DATA_DIR` | dossier du projet | Où ranger `config.json`, `.cache/` et `recordings/` |
 | `NO_RECORDING` | — | Mettez `1` pour ne pas enregistrer les sessions live |
+| `PADDOCK_STATS_URL` | serveur du projet | Adresse d'envoi des statistiques anonymes ; vide = fonction désactivée |
 
 ## 🔧 Fonctionnement
 

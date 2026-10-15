@@ -205,6 +205,7 @@ export class LiveSource {
   onFeed(rawTopic, data, now) {
     if (this.pending) { this.pending.push([rawTopic, data, now]); return; }
     const topic = topicName(rawTopic);
+    if (topic === 'TimingData') this.lastTimingAt = Date.now();   // séance en cours (statistiques)
     if (rawTopic.endsWith('.z')) {
       this.addStream(topic, data, now);
       if (!this.status.authenticated) this.setStatus({ authenticated: true });

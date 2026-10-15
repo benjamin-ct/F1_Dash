@@ -1,0 +1,11 @@
+# Statistiques d'utilisation anonymes de Paddock Live (déployé par le workflow « Statistiques »)
+name = "paddock-live-stats"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+account_id = "96a41a5c3797a592a91ab5263c395f91"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "paddock-live-stats"
+database_id = "4f7c4a4a-4f02-4d00-812b-9cd37a3562fb"

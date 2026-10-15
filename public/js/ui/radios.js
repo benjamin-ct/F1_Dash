@@ -15,6 +15,7 @@ import { parseUtc } from '/shared/f1.js';
 import { radioEntry, requestTranscripts, setTranscribe, transcribeStatus } from './transcribe.js';
 import { icon } from '../icons.js';
 import { visibleOnboard, onboardStatus } from './onboard-radio.js';
+import { track } from './stats.js';
 
 const HEARD_KEY = 'paddock.radioHeard';
 const SPEEDS = [1, 1.25, 1.5, 2];
@@ -206,6 +207,7 @@ export function playRadio(url) {
     return;
   }
   const prev = cur;
+  track('feature.radio-play');
   cur = { url, num: ordered.find((x) => x.url === url)?.num };
   a.src = url;
   a.playbackRate = speed;

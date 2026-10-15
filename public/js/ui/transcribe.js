@@ -3,6 +3,7 @@
 // partagé) ; les textes sont partagés entre fenêtres et conservés d'une session à l'autre.
 import { storageGet, storageSet } from '../util.js';
 import { emit } from '../store.js';
+import { track } from './stats.js';
 
 const KEY = 'paddock.radioTexts';
 const MAX_KEEP = 400;
@@ -71,6 +72,7 @@ function save() {
 }
 
 export function setTranscribe(on, language, q = 'auto') {
+  if (on && !enabled) track('feature.transcribe');
   enabled = !!on;
   lang = language || 'none';
   if (q !== qualityPref) {

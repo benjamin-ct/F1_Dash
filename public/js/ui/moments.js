@@ -111,6 +111,7 @@ export function initMoments() {
     <div class="mo-list"></div>
     <label class="toggle small mo-spoil"><input type="checkbox" id="moSpoil"> Afficher le détail des moments à venir (spoiler)</label>`;
   document.body.appendChild(pop);
+  btn.dataset.track = 'feature.moments';
   btn.addEventListener('click', () => toggle());
   pop.addEventListener('click', (e) => {
     const f = e.target.closest('[data-mf]');

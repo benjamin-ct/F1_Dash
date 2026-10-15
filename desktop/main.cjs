@@ -402,6 +402,7 @@ async function start() {
   const port = await pickPort();
   process.env.PORT = String(port || 3000);
   process.env.PADDOCK_DATA_DIR = path.join(app.getPath('userData'), 'data');
+  process.env.PADDOCK_VERSION = app.getVersion();
   await import(pathToFileURL(path.join(__dirname, 'bundle', 'server', 'index.js')).href);
 
   // Pas de barre de menus sous Windows / Linux. Sous macOS, le menu système reste nécessaire pour

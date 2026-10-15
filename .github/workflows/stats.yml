@@ -1,0 +1,27 @@
+name: Statistiques
+
+# Déploie le petit serveur des statistiques d'utilisation anonymes (Cloudflare Worker, dossier
+# analytics/). À lancer à la main (onglet Actions → « Statistiques » → Run workflow) après une
+# modification du dossier. Secrets du dépôt nécessaires :
+# - CLOUDFLARE_API_TOKEN : jeton Cloudflare (modèle « Edit Cloudflare Workers ») ;
+# - STATS_KEY : mot de passe de la page des statistiques (/stats?key=…).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: analytics
+          command: deploy
+          secrets: |
+            STATS_KEY
+        env:
+          STATS_KEY: ${{ secrets.STATS_KEY }}

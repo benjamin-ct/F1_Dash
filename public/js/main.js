@@ -46,6 +46,7 @@ import { initRadar } from './ui/radar.js';
 import { initLights } from './ui/lights.js';
 import { initBackup } from './ui/backup.js';
 import { initSocial } from './ui/social-view.js';
+import { initStats } from './ui/stats.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -116,6 +117,7 @@ initUpdates();
 initChangelog();
 initBackup();
 initSocial();
+initStats();
 initCommentary();
 initAnalysis();
 initSeason();
