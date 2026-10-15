@@ -108,7 +108,7 @@ export async function hueDiscover() {
 
 // Association : bouton du pont pressé dans les 30 s précédentes
 export async function huePair(ip, base = `http://${ip}`) {
-  const r = await jsonRequest('POST', `${base}/api`, { devicetype: 'f1dash#ordinateur' });
+  const r = await jsonRequest('POST', `${base}/api`, { devicetype: 'paddocklive#ordinateur' });
   const ok = Array.isArray(r) ? r.find((x) => x.success)?.success?.username : null;
   if (!ok) {
     const err = Array.isArray(r) ? r.find((x) => x.error)?.error : null;

@@ -7,7 +7,7 @@
   "private": true,
   "author": {
     "name": "Paddock Live",
-    "email": "f1dash@users.noreply.github.com"
+    "email": "paddock-live@users.noreply.github.com"
   },
   "scripts": {
     "prepare-app": "node prepare.mjs",
@@ -97,7 +97,7 @@
       ],
       "category": "AudioVideo",
       "synopsis": "Dashboard Formule 1 en direct",
-      "maintainer": "Paddock Live <f1dash@users.noreply.github.com>",
+      "maintainer": "Paddock Live <paddock-live@users.noreply.github.com>",
       "artifactName": "Paddock-Live-${version}-linux-${arch}.${ext}",
       "syncDesktopName": true
     },
@@ -115,7 +115,7 @@
       "releaseType": "release"
     }
   },
-  "f1dash": {
+  "paddockLive": {
     "updateRepo": "benjamin-ct/F1_Dash"
   },
   "homepage": "https://github.com/benjamin-ct/F1_Dash"

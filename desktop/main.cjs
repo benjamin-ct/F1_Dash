@@ -192,8 +192,8 @@ function loginF1TV() {
     // Déjà connecté (session mémorisée) ? Sinon on surveille jusqu'à la connexion.
     const timer = setInterval(check, 1500);
     loginWindow.on('closed', () => finish({ ok: false, error: 'Fenêtre fermée avant la connexion' }));
-    // User-agent de Chrome standard (sans la mention Electron) pour la page de connexion.
-    const ua = loginWindow.webContents.getUserAgent().replace(/ Electron\/\S+/, '').replace(/ f1-dash-desktop\/\S+/i, '');
+    // User-agent de Chrome standard (sans la mention Electron ni le nom de l'appli) pour la page de connexion.
+    const ua = loginWindow.webContents.getUserAgent().replace(/ Electron\/\S+/, '').replace(/\) (?!Chrome\/)\S+\/\S+ (?=Chrome\/)/, ') ');
     loginWindow.loadURL(LOGIN_URL, { userAgent: ua });
   });
 }
@@ -398,7 +398,7 @@ async function start() {
   await widevineReady();
   const port = await pickPort();
   process.env.PORT = String(port || 3000);
-  process.env.F1DASH_DATA_DIR = path.join(app.getPath('userData'), 'data');
+  process.env.PADDOCK_DATA_DIR = path.join(app.getPath('userData'), 'data');
   await import(pathToFileURL(path.join(__dirname, 'bundle', 'server', 'index.js')).href);
 
   // Pas de barre de menus sous Windows / Linux. Sous macOS, le menu système reste nécessaire pour
