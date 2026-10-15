@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.4 — à venir
+## v1.27.4 — 2026-10-15
 
 ### Actu
 - **Les actualités sont traduites d'avance** : dès qu'un article arrive, même page fermée (et au lancement pour ceux des derniers jours), son titre et son résumé sont traduits par le serveur Paddock Live. La page Actu s'ouvre directement en français.
