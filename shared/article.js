@@ -1,0 +1,141 @@
+// Lecture d'un article dans l'appli (mode lecture) : à partir de la page web d'un article, on garde
+// le titre, la photo, la date et le texte (paragraphes et intertitres), sans menus ni publicités.
+// D'abord les données structurées de la page (JSON-LD « articleBody »), sinon les paragraphes du
+// bloc <article> (ou <main>) le plus fourni. Seul ce que le site sert à tout le monde est lu : un
+// article réservé aux abonnés reste tronqué, avec le lien vers le site.
+// Code pur (sans accès réseau), partagé par le serveur et les tests.
+import { decodeEntities } from './news.js';
+
+const MAX_PARAS = 80;
+const MAX_PARA = 2000;
+const BOILERPLATE = /cookie|newsletter|abonnez|abonnement|subscribe|sign up|inscrivez|tous droits|all rights reserved|publicit|advertis|follow us|suivez-nous|lire aussi|read more|also read|à lire aussi|related|partager|share this|copyright|©|getty images|motorsport images|photo ?:|photo de|crédit|lire aussi|voir aussi|en savoir plus/i;
+
+// Paragraphe gardé : une vraie phrase (pas une légende, une cellule de tableau, un lien « lire aussi »)
+const keepPara = (t) => t.length >= 15 && !(t.length < 90 && !/[.!?…»"”。！？」』]$/.test(t)) && !(t.length < 180 && BOILERPLATE.test(t));
+
+const text = (html) => decodeEntities(String(html || '')
+  .replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ' '))
+  .replace(/[ \s]+/g, ' ').replace(/\s+([,.!?:;…])/g, '$1').trim();
+
+function meta(html, name) {
+  const re = new RegExp(`<meta\\b[^>]*(?:property|name|itemprop)=["']${name}["'][^>]*>`, 'i');
+  const tag = html.match(re)?.[0];
+  const v = tag?.match(/\bcontent=["']([^"']*)["']/i)?.[1];
+  return v ? text(v) : '';
+}
+
+// Objets JSON-LD de la page (listes et « @graph » dépliés)
+function jsonLd(html) {
+  const out = [];
+  const walk = (o) => {
+    if (Array.isArray(o)) o.forEach(walk);
+    else if (o && typeof o === 'object') { out.push(o); if (o['@graph']) walk(o['@graph']); }
+  };
+  for (const m of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try { walk(JSON.parse(m[1].trim())); } catch { /* bloc illisible */ }
+  }
+  return out;
+}
+
+// Long texte d'un seul tenant (JSON-LD) : coupé en paragraphes de quelques phrases
+function splitBody(body) {
+  const parts = String(body).split(/\n\s*\n|\r?\n/).map((p) => text(p)).filter(Boolean);
+  const out = [];
+  for (const p of parts) {
+    if (p.length <= 700) { out.push(p); continue; }
+    let cur = '';
+    for (const s of p.match(/[^.!?…]+[.!?…]+["»”’)]*\s*|[^.!?…]+$/g) || [p]) {
+      if (cur && cur.length + s.length > 600) { out.push(cur.trim()); cur = ''; }
+      cur += s;
+    }
+    if (cur.trim()) out.push(cur.trim());
+  }
+  return out.filter(keepPara).map((p) => ({ p }));
+}
+
+// Bloc principal : le <article> (sinon <main>) qui contient le plus de paragraphes
+// Contenu de chaque élément <tag> (balises imbriquées comprises : un <article> peut en contenir d'autres)
+function elements(html, tag) {
+  const out = [];
+  const re = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'gi');
+  const open = [];
+  for (const m of html.matchAll(re)) {
+    if (!m[1]) open.push(m.index + m[0].length);
+    else if (open.length) {
+      const start = open.pop();
+      out.push(html.slice(start, m.index));
+    }
+  }
+  return out;
+}
+
+function mainBlock(html) {
+  const count = (s) => (s.match(/<p\b/gi) || []).length;
+  let best = null;
+  for (const tag of ['article', 'main']) {
+    for (const inner of elements(html, tag)) {
+      if (!best || count(inner) > count(best)) best = inner;
+    }
+    if (best && count(best) >= 3) return best;
+  }
+  return best && count(best) >= 3 ? best : (html.match(/<body\b[^>]*>([\s\S]*)<\/body>/i)?.[1] || html);
+}
+
+function htmlBlocks(html) {
+  const block = mainBlock(html)
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(script|style|noscript|svg|aside|nav|footer|header|form|iframe|figure|figcaption|button|template)\b[\s\S]*?<\/\1>/gi, ' ');
+  const out = [];
+  for (const m of block.matchAll(/<(p|h2|h3|blockquote)\b[^>]*>([\s\S]*?)<\/\1>/gi)) {
+    const t = text(m[2]);
+    if (!t) continue;
+    if (m[1] === 'h2' || m[1] === 'h3') {
+      if (t.length >= 3 && t.length <= 160 && !BOILERPLATE.test(t)) out.push({ h: t });
+      continue;
+    }
+    if (keepPara(t)) out.push({ p: t });
+  }
+  return out;
+}
+
+// Page HTML -> { title, site, author, published, image, blocks: [{ p } | { h }], description }
+export function extractArticle(html, url = '') {
+  html = String(html || '');
+  const ld = jsonLd(html);
+  const art = ld.find((o) => typeof o.articleBody === 'string' && o.articleBody.length > 300)
+    || ld.find((o) => /Article|Posting/i.test(String(o['@type'] || '')));
+  const imgOf = (v) => (typeof v === 'string' ? v : Array.isArray(v) ? imgOf(v[0]) : v?.url || '');
+  const authorOf = (v) => (Array.isArray(v) ? v.map(authorOf).filter(Boolean).join(', ') : typeof v === 'string' ? v : v?.name || '');
+
+  let blocks = art?.articleBody?.length > 300 ? splitBody(art.articleBody) : [];
+  const fromHtml = htmlBlocks(html);
+  // Données structurées tronquées (abonnés, résumé) : le texte de la page s'il est plus complet
+  const len = (list) => list.reduce((n, b) => n + (b.p || '').length, 0);
+  if (len(fromHtml) > len(blocks) * 1.3) blocks = fromHtml;
+  // Doublons (paragraphe répété dans un encadré) et tailles maximales
+  const seen = new Set();
+  blocks = blocks.filter((b) => { const k = b.p || b.h; if (seen.has(k)) return false; seen.add(k); return true; })
+    .slice(0, MAX_PARAS).map((b) => (b.p ? { p: b.p.slice(0, MAX_PARA) } : b));
+  // Intertitres en tête ou en fin sans paragraphe derrière : retirés
+  while (blocks.length && blocks[0].h) blocks.shift();
+  while (blocks.length && blocks.at(-1).h) blocks.pop();
+
+  const title = text(art?.headline) || meta(html, 'og:title') || text(html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1]);
+  let image = imgOf(art?.image) || meta(html, 'og:image') || meta(html, 'twitter:image');
+  try { image = image ? new URL(image, url || undefined).href : ''; } catch { image = ''; }
+  return {
+    title: title.slice(0, 300),
+    site: meta(html, 'og:site_name').slice(0, 80),
+    author: text(authorOf(art?.author) || meta(html, 'author')).slice(0, 120),
+    published: art?.datePublished || meta(html, 'article:published_time') || '',
+    image: /^https:\/\//i.test(image) ? image : '',
+    description: (text(art?.description) || meta(html, 'og:description') || meta(html, 'description')).slice(0, 600),
+    blocks,
+  };
+}
+
+// Vidéo YouTube : identifiant pour le lecteur intégré (youtube-nocookie.com), sinon null
+export function youtubeId(link) {
+  const m = String(link || '').match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})/i);
+  return m ? m[1] : null;
+}
