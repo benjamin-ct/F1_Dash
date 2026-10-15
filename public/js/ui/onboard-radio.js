@@ -139,7 +139,7 @@ async function startFeed(num) {
   feed.rs = new Resampler(a.sampleRate, SR);
   feed.tap.port.onmessage = ({ data }) => onAudio(feed, data);
   feed.state = 'on';
-  console.info('[radios embarquées]', num, feed.track);
+  console.info('[onboard-radio]', num, feed.track);
   try {
     await el.play();
   } catch {
