@@ -76,7 +76,9 @@ const PROFILE_DEFAULTS = { race: { hiddenPanels: [], hiddenCols: [] }, quali: { 
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
 let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
-const lkey = (win = WIN, prof = profile) => (prof === 'race' ? win : `${win}@${prof}`);
+// Fenêtre principale : une disposition par type de séance. Fenêtres secondaires (second écran) :
+// une seule, quelle que soit la séance (sinon un changement de séance leur reprenait des panneaux)
+const lkey = (win = WIN, prof = profile) => (prof === 'race' || win !== 'main' ? win : `${win}@${prof}`);
 
 function defaultLayout(prof = profile) {
   if (!isMain) return { cols: [] };
@@ -171,7 +173,7 @@ if (isMain) {
   } catch { /* version sans cette fonction */ }
 }
 
-let layout = normalize(allLayouts()[lkey()] || (profile !== 'race' && !isMain && allLayouts()[WIN]) || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
+let layout = normalize(allLayouts()[lkey()] || (!isMain && allLayouts()[`${WIN}@quali`]) || (legacyPanel ? { cols: [{ w: 1, items: [{ id: legacyPanel, h: 1 }] }] } : defaultLayout()));
 
 function save() {
   storeLayout(lkey(), layout);
@@ -821,8 +823,8 @@ function switchProfile(next, quiet = false) {
     setPref('hiddenCols', n.hiddenCols || []);
     setPref('extraCols', n.extraCols || []);
   } else profile = next;
-  // Fenêtre secondaire sans disposition pour ce type de séance : elle garde ses panneaux
-  layout = normalize(allLayouts()[lkey()] || (isMain ? defaultLayout() : layout));
+  // Fenêtre secondaire : elle garde ses panneaux (même disposition pour toutes les séances)
+  if (isMain) layout = normalize(allLayouts()[lkey()] || defaultLayout());
   unmaximize();
   render(true);
   save();
