@@ -48,6 +48,8 @@ test('posts : légendes Instagram et X', () => {
   assert.match(c.instagram, /@paddocklive/);
   assert.match(c.instagram, /#F1 #ItalianGP #Formula1 #Norris #F12026/);
   assert.ok(c.x.length <= 280);
+  assert.ok(c.threads.length <= 500);
+  assert.match(c.threads, /^Lando Norris remporte/);
   assert.match(c.x, /^Norris remporte le Grand Prix d'Italie devant Leclerc et Hamilton\./);
 });
 

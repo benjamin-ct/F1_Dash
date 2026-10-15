@@ -111,7 +111,7 @@ export function postData(state) {
 
 // Légendes prêtes à copier
 export function captions(d, signature = '') {
-  if (!d.rows.length) return { instagram: '', x: '', story: '' };
+  if (!d.rows.length) return { instagram: '', x: '', threads: '', story: '' };
   const [p1, p2, p3] = d.rows;
   const sig = signature ? `\n\n${signature}` : '';
   const tags = [hashtag('F1'), hashtag(`${d.gpEn.replace(/ Grand Prix$/i, '')}GP`), hashtag('Formula1'), ...(d.kind === 'race' ? [hashtag(p1.last)] : []), hashtag(`F1${d.year || ''}`)].filter((t) => t.length > 2);
@@ -132,5 +132,7 @@ export function captions(d, signature = '') {
   const instagram = `${head}\n\n${d.kind === 'quali' ? 'Grille de départ' : 'Podium'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.join(' ')}`;
   let x = `${short}\n\n${tags.slice(0, 3).join(' ')}`;
   if (x.length > 280) x = `${short.slice(0, 270 - tags[0].length)}… ${tags[0]}`;
-  return { instagram, x, story: head };
+  let threads = `${head}\n\n${podium}${sig}\n\n${tags.slice(0, 2).join(' ')}`;
+  if (threads.length > 500) threads = `${head}\n\n${tags.slice(0, 2).join(' ')}`.slice(0, 500);
+  return { instagram, x, threads, story: head };
 }

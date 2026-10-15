@@ -29,6 +29,7 @@ import { predictionsView, savePrediction } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
+import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 
@@ -281,6 +282,23 @@ async function handleApi(req, res, url) {
       return sendJSON(res, 200, importServerSettings(await readBody(req)));
     }
 
+    // Mode créateur : publication sur les réseaux sociaux (comptes, connexion TikTok, envoi)
+    case 'GET /api/social/accounts':
+    case 'POST /api/social/accounts':
+    case 'POST /api/social/tiktok/login':
+    case 'POST /api/social/publish': {
+      if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
+      try {
+        if (route === 'GET /api/social/accounts') return sendJSON(res, 200, accountsInfo());
+        if (route === 'POST /api/social/tiktok/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
+        const body = await readBody(req, route === 'POST /api/social/publish' ? 120e6 : 1e6);
+        if (route === 'POST /api/social/accounts') return sendJSON(res, 200, await saveAccount(String(body.network || ''), body));
+        return sendJSON(res, 200, await publishSocial(String(body.network || ''), body));
+      } catch (err) {
+        return sendJSON(res, 400, { error: err.message });
+      }
+    }
+
     // Mode créateur (générateur de posts) : depuis cet ordinateur uniquement
     case 'GET /api/creator':
       return sendJSON(res, 200, { enabled: isLoopback(req.socket.remoteAddress) && creatorEnabled() });
@@ -288,7 +306,7 @@ async function handleApi(req, res, url) {
     case 'POST /api/posts/save':
     case 'POST /api/posts/open': {
       if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
-      const body = await readBody(req, route === 'POST /api/posts/save' ? 25e6 : 1e6);
+      const body = await readBody(req, route === 'POST /api/posts/save' ? 120e6 : 1e6);
       if (route === 'POST /api/creator') {
         if (body.off) return sendJSON(res, 200, { enabled: setCreator(null, false) });
         return setCreator(body.code) ? sendJSON(res, 200, { enabled: true }) : sendJSON(res, 403, { error: 'Code incorrect' });
@@ -508,6 +526,14 @@ async function handler(req, res) {
     return;
   }
   const url = new URL(req.url, 'http://localhost');
+  // Retour de la connexion TikTok (mode créateur) : page ouverte par le navigateur depuis tiktok.com
+  if (url.pathname === '/tiktok-callback/' && isLoopback(req.socket.remoteAddress)) {
+    let msg = 'Compte TikTok connecté. Vous pouvez fermer cet onglet et revenir à Paddock Live.';
+    try { if (!creatorEnabled()) throw new Error('Mode créateur désactivé'); await tiktokCallback(url.searchParams); } catch (err) { msg = `Connexion TikTok impossible : ${err.message}`; }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(`<!doctype html><meta charset="utf-8"><title>Paddock Live</title><body style="font:16px system-ui;background:#0b0d12;color:#f3f5f9;display:grid;place-items:center;height:90vh"><p>${msg.replace(/[<>&]/g, '')}</p></body>`);
+    return;
+  }
   if (url.pathname.startsWith('/api/')) {
     try {
       await handleApi(req, res, url);

@@ -29,14 +29,18 @@ export function postsDir(folder) {
   return path.join(base, clean(folder) || 'Posts');
 }
 
+// Image PNG ou vidéo (MP4 / WebM), reconnue d'après son contenu
 export function savePostImage(folder, name, base64) {
-  const file = clean(name, 100).replace(/\.png$/i, '');
-  if (!file || typeof base64 !== 'string') throw new Error('Image invalide');
+  const file = clean(name, 100).replace(/\.(png|mp4|webm)$/i, '');
+  if (!file || typeof base64 !== 'string') throw new Error('Fichier invalide');
   const data = Buffer.from(base64, 'base64');
-  if (data.length < 8 || data.readUInt32BE(0) !== 0x89504e47) throw new Error('Image PNG attendue');
+  const ext = data.length > 12 && data.readUInt32BE(0) === 0x89504e47 ? 'png'
+    : data.length > 12 && data.toString('latin1', 4, 8) === 'ftyp' ? 'mp4'
+      : data.length > 12 && data.readUInt32BE(0) === 0x1a45dfa3 ? 'webm' : null;
+  if (!ext) throw new Error('Image PNG ou vidéo attendue');
   const dir = postsDir(folder);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, `${file}.png`), data);
+  fs.writeFileSync(path.join(dir, `${file}.${ext}`), data);
   return dir;
 }
 

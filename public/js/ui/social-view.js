@@ -9,6 +9,7 @@ import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions } from '/shared/social.js';
 import { FORMATS, slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
+import { openPublish } from './social-publish-view.js';
 
 const SIG_KEY = 'paddock.postSignature';
 const OPT_KEY = 'paddock.postOptions';
@@ -75,6 +76,7 @@ let renderId = 0;
 async function render(dlg) {
   const id = ++renderId;
   dlg.dataset.ready = '';
+  dlg.publish = null;
   const d = postData(store.state);
   const slides = slidesFor(d);
   const sig = storageGet(SIG_KEY, 'Paddock Live');
@@ -93,6 +95,8 @@ async function render(dlg) {
     </div>`;
   const o = { ...(await assets(d)), signature: sig };
   if (id !== renderId) return;   // format ou réglage changé entre-temps
+  // Publication : visuels de n'importe quel format, dessinés à part
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), render: async (f) => slides.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
   const canvases = [...body.querySelectorAll('canvas')];
   for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
   const count = $('[data-count]', body);
@@ -130,7 +134,8 @@ function open() {
         <label class="small muted">${t('Signature')} <input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
         <span class="spacer"></span>
         <button class="btn" data-open hidden>${icon('external')} ${t('Ouvrir le dossier')}</button>
-        <button class="btn btn-accent" data-all>${icon('save')} ${t('Enregistrer toutes les images')}</button>
+        <button class="btn" data-all>${icon('save')} ${t('Enregistrer toutes les images')}</button>
+        <button class="btn btn-accent" data-publish>${icon('megaphone')} ${t('Publier…')}</button>
       </div>
       <div class="posts-body"></div>`;
     document.body.appendChild(dlg);
@@ -144,6 +149,7 @@ function open() {
       const f = e.target.closest('[data-fmt]')?.dataset.fmt;
       if (f && f !== fmt) { fmt = f; sync(); render(dlg); }
       if (e.target.closest('[data-all]')) { try { await dlg.onSaveAll?.(); } catch (err) { toast(err.message, 5000, 'warning'); } }
+      if (e.target.closest('[data-publish]')) { if (dlg.publish) dlg.publish(); else toast(t('Visuels en préparation, réessayez dans un instant'), 3000); }
       if (e.target.closest('[data-open]')) fetch('/api/posts/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: dlg.dataset.folder }) });
     });
     $('[data-photos]', dlg).addEventListener('change', (e) => { withPhotos = e.target.checked; sync(); render(dlg); });
