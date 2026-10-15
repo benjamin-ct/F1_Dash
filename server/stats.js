@@ -9,8 +9,10 @@ import { DATA_DIR, getConfig, saveConfig } from './config.js';
 import { request } from './net.js';
 import { cleanBatch, EVENT_RE, DEVICES, MAX_COUNT } from '../shared/stats.js';
 
-// Adresse du serveur des statistiques ; PADDOCK_STATS_URL vide = fonction désactivée (aucune question)
-export const STATS_URL = process.env.PADDOCK_STATS_URL ?? 'https://paddock-live-stats.creusatbenjamin.workers.dev/e';
+// Adresse du serveur des statistiques (analytics/, workflow « Statistiques »). Vide = fonction
+// désactivée : aucune question posée, rien d'envoyé. À renseigner une fois le serveur déployé.
+const DEFAULT_URL = '';
+export const STATS_URL = process.env.PADDOCK_STATS_URL ?? DEFAULT_URL;
 const VERSION = process.env.PADDOCK_VERSION || 'dev';
 const OS = { win32: 'win', darwin: 'mac', linux: 'linux' }[process.platform] || 'other';
 const FLUSH_MS = 15 * 60e3;
