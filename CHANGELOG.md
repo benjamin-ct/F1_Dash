@@ -4,13 +4,14 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.24.0 — à venir
+## v1.24.0 — 2026-10-15
 
 ### Radios d'équipe façon MultiViewer
 - **Nouveau panneau des radios**, sur le modèle des transcriptions de MultiViewer (il remplace les onglets Transcriptions / Audio) :
   - en haut, **une carte par radio** (plus récentes à gauche) : photo du pilote, nom, **tour** et heure, durée, point bleu tant qu'elle n'a pas été écoutée. Un clic la joue : la carte se remplit en cyan de gauche à droite au fil de l'écoute, avec une barre pleine largeur en bas (clic dessus pour avancer) et le temps écoulé (« 0:03 / 0:08 ») ;
   - en dessous, le **fil des radios retranscrites** : photo, texte traduit en grand, anglais d'origine en petit, « pilote · tour · heure ». Un clic rejoue la radio.
 - Vitesse de lecture réglable (1× à 2×) ; la lecture automatique des nouvelles radios est toujours là (« Lecture auto »).
+- Dans un petit panneau, les réglages des radios tiennent sur une ligne : les cartes restent visibles.
 - **Photos des pilotes** (radios, duel) relayées par F1 Dash et gardées en cache : elles s'affichent même quand le site de la F1 refuse les images appelées depuis l'application, sur le téléphone et hors connexion.
 - **Toutes les radios, pas seulement celles publiées par la F1 (expérimental, F1 TV Pro)** : la F1 ne publie qu'une sélection des radios (une trentaine par course). Avec la case **Caméras embarquées**, F1 Dash écoute en direct le son de la caméra embarquée du pilote suivi et des pilotes du duel (ou de 3 favoris), y retrouve chaque radio, la retranscrit et la traduit sur cet ordinateur, et l'ajoute au fil (repère « caméra embarquée »), au rythme de votre délai TV : rien n'est dévoilé en avance. Séances en direct ; nécessite les caméras embarquées F1 TV (offre Pro, incluse avec certaines offres Canal+). Si le son embarqué est protégé (DRM), F1 Dash l'indique : il ne peut alors pas être retranscrit.
 
