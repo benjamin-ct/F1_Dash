@@ -23,7 +23,7 @@ const WIN_S = 30;            // fenêtre envoyée à la reconnaissance vocale
 const STEP_S = 22;           // une nouvelle fenêtre toutes les 22 s (8 s de chevauchement)
 const MAX_BUF_S = 50;        // reconnaissance en retard : le son plus ancien est abandonné
 const MAX_DRIVERS = 3;
-const KEY = 'f1dash.obRadio';
+const KEY = 'paddock.obRadio';
 const MAX_KEEP = 300;
 
 let entries = storageGet(KEY, []);       // [{ id, num, utc, en, tr: { fr… } }]
@@ -294,7 +294,7 @@ export function initOnboardRadio() {
     if (prefs.obRadio) reconcile();
   });
   // Une seule fenêtre écoute (les radios sont partagées avec les autres)
-  navigator.locks?.request('f1dash-onboard-radio', () => {
+  navigator.locks?.request('paddock-onboard-radio', () => {
     isCapturer = true;
     reconcile();
     return new Promise(() => {});

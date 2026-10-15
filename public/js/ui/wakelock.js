@@ -24,7 +24,7 @@ function makeVideo() {
   v.setAttribute('playsinline', '');
   v.setAttribute('muted', '');
   v.muted = true;
-  v.setAttribute('title', 'F1 Dash');
+  v.setAttribute('title', 'Paddock Live');
   v.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0.01;pointer-events:none;left:0;top:0';
   for (const [type, src] of [['webm', webm], ['mp4', mp4]]) {
     const s = document.createElement('source');

@@ -14,7 +14,7 @@ const DEFAULT_PRESETS = [
 ];
 
 function customPresets() {
-  return storageGet('f1dash.presets', []);
+  return storageGet('paddock.presets', []);
 }
 
 function allPresets() {
@@ -161,7 +161,7 @@ export function initDelay() {
     const name = $('#presetName').value.trim() || `Mon délai ${fmtDelay(store.delay)}`;
     const list = customPresets().filter((p) => p.name !== name);
     list.push({ name, ms: store.delay });
-    storageSet('f1dash.presets', list);
+    storageSet('paddock.presets', list);
     $('#presetName').value = '';
     renderPresets();
     toast(`Préréglage « ${name} » enregistré`);
@@ -171,7 +171,7 @@ export function initDelay() {
     if (!b) return;
     const list = customPresets();
     list.splice(Number(b.dataset.del), 1);
-    storageSet('f1dash.presets', list);
+    storageSet('paddock.presets', list);
     renderPresets();
   });
 
@@ -192,7 +192,7 @@ export function initDelay() {
 
   // Plusieurs fenêtres (mode deux écrans) : le délai reste identique partout.
   window.addEventListener('storage', (e) => {
-    if (e.key === 'f1dash.delayMs' && e.newValue !== null) {
+    if (e.key === 'paddock.delayMs' && e.newValue !== null) {
       const ms = Number(JSON.parse(e.newValue));
       if (Number.isFinite(ms) && ms !== store.delay) setDelay(ms);
     }

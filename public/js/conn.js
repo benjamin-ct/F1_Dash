@@ -67,7 +67,7 @@ export function connect() {
 }
 
 function followHost(ms) {
-  if (store.isHost || !storageGet('f1dash.followHost', true) || ms === store.delay) return;
+  if (store.isHost || !storageGet('paddock.followHost', true) || ms === store.delay) return;
   setDelay(ms);
   toast(`Délai calé sur l'ordinateur : ${fmtDelay(store.delay)}`, 3500);
 }

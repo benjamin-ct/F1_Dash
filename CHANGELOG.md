@@ -1,8 +1,22 @@
 # Journal des modifications
 
-Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version publiée doit avoir
+Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle version publiée doit avoir
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
+
+## v1.25.0 — 2026-10-15
+
+### Nouveau nom : Paddock Live
+- **F1 Dash s'appelle désormais Paddock Live**, avec un nouveau logo « F1 PL » (même style rouge). Le nom change partout : fenêtres, raccourcis, appli du téléphone, page GitHub (`github.com/benjamin-ct/paddock-live`), fichiers à télécharger (`Paddock-Live-…`), images exportées des graphiques (`paddock-live-…png`), documentation et captures d'écran.
+- **Vos données suivent** : au premier lancement, le dossier de l'ancienne application (réglages, connexion F1 TV, enregistrements, dispositions, position des fenêtres) est repris par Paddock Live.
+- **Windows (version installée)** : Paddock Live s'installe à côté de l'ancienne application. Une fois Paddock Live lancé une première fois, désinstallez « F1 Dash » (Paramètres → Applications) et supprimez son raccourci s'il reste. Version portable : supprimez l'ancien fichier `.exe`.
+- **Téléphone** : rescannez le QR code (Réglages → Application → « Sur votre téléphone ou tablette »), puis supprimez l'ancienne icône de l'écran d'accueil et rajoutez la nouvelle.
+- Calendrier exporté (.ics) : réimporté, il peut doubler les séances déjà ajoutées sous l'ancien nom ; supprimez les anciennes.
+- Pour ceux qui lancent le serveur à la main : la variable `F1DASH_DATA_DIR` devient `PADDOCK_DATA_DIR`.
+
+### Corrections
+- Capture d'écran « Apparence » de la documentation : le côté sombre montrait le thème clair.
+- Fenêtre de connexion F1 TV (appli de bureau) : elle se présente comme un Chrome ordinaire, sans le nom de l'application.
 
 ## v1.24.0 — 2026-10-15
 
@@ -12,8 +26,8 @@ l'application (Réglages → Application → Nouveautés).
   - en dessous, le **fil des radios retranscrites** : photo, texte traduit en grand, anglais d'origine en petit, « pilote · tour · heure ». Un clic rejoue la radio.
 - Vitesse de lecture réglable (1× à 2×) ; la lecture automatique des nouvelles radios est toujours là (« Lecture auto »).
 - Dans un petit panneau, les réglages des radios tiennent sur une ligne : les cartes restent visibles.
-- **Photos des pilotes** (radios, duel) relayées par F1 Dash et gardées en cache : elles s'affichent même quand le site de la F1 refuse les images appelées depuis l'application, sur le téléphone et hors connexion.
-- **Toutes les radios, pas seulement celles publiées par la F1 (expérimental, F1 TV Pro)** : la F1 ne publie qu'une sélection des radios (une trentaine par course). Avec la case **Caméras embarquées**, F1 Dash écoute en direct le son de la caméra embarquée du pilote suivi et des pilotes du duel (ou de 3 favoris), y retrouve chaque radio, la retranscrit et la traduit sur cet ordinateur, et l'ajoute au fil (repère « caméra embarquée »), au rythme de votre délai TV : rien n'est dévoilé en avance. Séances en direct ; nécessite les caméras embarquées F1 TV (offre Pro, incluse avec certaines offres Canal+). Si le son embarqué est protégé (DRM), F1 Dash l'indique : il ne peut alors pas être retranscrit.
+- **Photos des pilotes** (radios, duel) relayées par Paddock Live et gardées en cache : elles s'affichent même quand le site de la F1 refuse les images appelées depuis l'application, sur le téléphone et hors connexion.
+- **Toutes les radios, pas seulement celles publiées par la F1 (expérimental, F1 TV Pro)** : la F1 ne publie qu'une sélection des radios (une trentaine par course). Avec la case **Caméras embarquées**, Paddock Live écoute en direct le son de la caméra embarquée du pilote suivi et des pilotes du duel (ou de 3 favoris), y retrouve chaque radio, la retranscrit et la traduit sur cet ordinateur, et l'ajoute au fil (repère « caméra embarquée »), au rythme de votre délai TV : rien n'est dévoilé en avance. Séances en direct ; nécessite les caméras embarquées F1 TV (offre Pro, incluse avec certaines offres Canal+). Si le son embarqué est protégé (DRM), Paddock Live l'indique : il ne peut alors pas être retranscrit.
 
 ### Transcriptions et traductions
 - **La liste ne se recharge plus sans arrêt** : une traduction terminée ou le chargement d'un modèle ne met à jour que la ligne concernée (le défilement et l'écoute ne sont plus interrompus).
@@ -35,15 +49,15 @@ l'application (Réglages → Application → Nouveautés).
 ### Corrections
 - **Synchro TV par le son** : si le calcul de reconnaissance ne peut pas démarrer (fichier bloqué, mémoire…), l'écoute ne reste plus figée indéfiniment sur « En écoute ».
 - **Pronostics** : un pseudo comme « constructor » ou « __proto__ » est refusé avec un message clair au lieu de faire échouer l'enregistrement.
-- Une année invalide demandée à F1 Dash (« 99999 », « 1800 », « 2025.5 ») ouvre la saison en cours au lieu d'afficher une erreur des serveurs de résultats ou de créer une saison vide sur le disque.
-- Une requête mal formée envoyée au serveur de F1 Dash est refusée proprement (erreur 400) au lieu de provoquer une erreur interne, y compris pour l'adresse d'une radio en ligne vide ou invalide.
+- Une année invalide demandée à Paddock Live (« 99999 », « 1800 », « 2025.5 ») ouvre la saison en cours au lieu d'afficher une erreur des serveurs de résultats ou de créer une saison vide sur le disque.
+- Une requête mal formée envoyée au serveur de Paddock Live est refusée proprement (erreur 400) au lieu de provoquer une erreur interne, y compris pour l'adresse d'une radio en ligne vide ou invalide.
 - Sécurité : des données de course ou des traductions contenant des noms réservés du langage JavaScript ne peuvent plus modifier le fonctionnement interne de l'application.
 
 ## v1.23.0 — 2026-10-14
 
 ### Interface en anglais
-- **F1 Dash existe maintenant en anglais** : Réglages → Affichage → **Langue / Language** (Français ou English). Toute l'interface suit : menus, panneaux, légendes, infobulles, graphiques, carte, Saison, Actu, réglages, messages et alertes, mini-classement, téléphone, écran de démarrage de l'application.
-- En anglais, les textes rédigés par F1 Dash le sont directement en anglais : résumé de la séance, moments clés du replay, calendrier à ajouter à l'agenda. Les actualités sont traduites en anglais, les radios restent en version originale (anglais) par défaut, et les documents de la FIA et les communiqués de Pirelli s'affichent tels quels.
+- **Paddock Live existe maintenant en anglais** : Réglages → Affichage → **Langue / Language** (Français ou English). Toute l'interface suit : menus, panneaux, légendes, infobulles, graphiques, carte, Saison, Actu, réglages, messages et alertes, mini-classement, téléphone, écran de démarrage de l'application.
+- En anglais, les textes rédigés par Paddock Live le sont directement en anglais : résumé de la séance, moments clés du replay, calendrier à ajouter à l'agenda. Les actualités sont traduites en anglais, les radios restent en version originale (anglais) par défaut, et les documents de la FIA et les communiqués de Pirelli s'affichent tels quels.
 - Nombres et dates au format anglais (0.5 s, 14 Oct).
 - Première ouverture : l'interface prend la langue de l'ordinateur ou du téléphone (français, sinon anglais). Les installations existantes restent en français.
 
@@ -58,7 +72,7 @@ l'application (Réglages → Application → Nouveautés).
 ## v1.22.0 — 2026-10-14
 
 ### Synchro TV par le son (expérimental)
-- **Le délai se règle tout seul** : dans la fenêtre Synchro TV, bouton **Écouter la TV**. Le micro de l'ordinateur écoute votre TV et, dès qu'une **radio d'équipe** passe à l'antenne, F1 Dash la reconnaît (même avec les commentateurs qui parlent par-dessus) et en déduit le retard exact de votre diffusion. Plus besoin de guetter le compteur de tours pour cliquer au bon moment.
+- **Le délai se règle tout seul** : dans la fenêtre Synchro TV, bouton **Écouter la TV**. Le micro de l'ordinateur écoute votre TV et, dès qu'une **radio d'équipe** passe à l'antenne, Paddock Live la reconnaît (même avec les commentateurs qui parlent par-dessus) et en déduit le retard exact de votre diffusion. Plus besoin de guetter le compteur de tours pour cliquer au bon moment.
 - L'écoute continue ensuite pour confirmer avec les radios suivantes (15 minutes au plus) ; un point clignotant sur le bouton Synchro TV indique qu'elle est en cours.
 - **Correction** de ±0,5 s si le calage par le son est toujours un peu en avance ou en retard sur votre image.
 - Le son reste sur l'ordinateur : rien n'est enregistré ni envoyé. Disponible dans l'application et le navigateur de l'ordinateur (pas sur le téléphone).
@@ -75,7 +89,7 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Week-ends
 - **Rappel avant chaque séance** (Réglages → Alertes) : message, son et notification, de 5 min à 1 h avant (15 min par défaut).
-- **Calendrier** : toutes les séances de la saison ou d'un week-end à ajouter à votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant chaque séance, même F1 Dash fermé.
+- **Calendrier** : toutes les séances de la saison ou d'un week-end à ajouter à votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant chaque séance, même Paddock Live fermé.
 - **Pronostics entre amis** (Saison → Pronostics) : pole et podium de chaque Grand Prix, sur l'ordinateur ou le téléphone, choix cachés jusqu'à la fermeture, points et classement de la saison.
 
 ### Lumières connectées (expérimental)
@@ -131,7 +145,7 @@ l'application (Réglages → Application → Nouveautés).
 - Colonne de droite : sujets à la une (48 h), pilotes et écuries qui font l'actu (24 h, un clic pour ne voir que leurs sujets) et dernières vidéos.
 
 ### Design
-- Plus aucun emoji ni symbole de police dans l'application : toutes les icônes (menus, boutons, réglages, alertes, carte, téléphone…), les flèches et les triangles des places gagnées ou perdues sont dessinés pour F1 Dash, dans le même style que la barre latérale.
+- Plus aucun emoji ni symbole de police dans l'application : toutes les icônes (menus, boutons, réglages, alertes, carte, téléphone…), les flèches et les triangles des places gagnées ou perdues sont dessinés pour Paddock Live, dans le même style que la barre latérale.
 - Nouvelles cases à cocher : interrupteurs aux couleurs du thème pour les options, cases et boutons radio redessinés.
 - Téléphone : boutons du haut resserrés pour tenir sur une ligne.
 - Animations légères pour une interface plus moderne : panneaux qui apparaissent en cascade au démarrage, fenêtres et menus qui s'ouvrent en douceur, cartes de l'Actu et de la Saison en cascade, cartes qui se soulèvent au survol, boutons qui s'enfoncent au clic, nouvelles actualités surlignées, pastille qui rebondit, onde autour du point du direct. Désactivables dans Réglages, onglet Affichage (« Animations de l'interface »), et coupées automatiquement si le système demande moins d'animations.

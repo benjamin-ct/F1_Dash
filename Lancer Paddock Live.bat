@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title F1 Dash
+title Paddock Live
 cd /d "%~dp0"
 
 where node >nul 2>nul

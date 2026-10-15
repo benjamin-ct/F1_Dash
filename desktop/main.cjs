@@ -1,4 +1,4 @@
-// Application de bureau F1 Dash : lance le serveur local dans le processus Electron
+// Application de bureau Paddock Live : lance le serveur local dans le processus Electron
 // et affiche le dashboard dans une fenêtre, sans installer Node.js.
 const { app, BrowserWindow, shell, Menu, screen, ipcMain, session, components, nativeTheme } = require('electron');
 // Fond des fenêtres avant l'affichage de la page : clair ou sombre comme le système (apparence automatique)
@@ -8,6 +8,18 @@ const APP_ICON = path.join(__dirname, 'icon.png');
 const net = require('node:net');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
+
+// Dossier des données (réglages, jeton F1 TV, enregistrements, fenêtres). Migration unique : le
+// dossier de l'ancien nom de l'application (jusqu'à la v1.24) est renommé. À retirer en v1.26.
+{
+  const current = path.join(app.getPath('appData'), 'Paddock Live');
+  const old = path.join(app.getPath('appData'), 'F1 Dash');
+  let dir = current;
+  if (!fs.existsSync(current) && fs.existsSync(old)) {
+    try { fs.renameSync(old, current); } catch { dir = old; }   // dossier encore verrouillé : on réessaiera
+  }
+  app.setPath('userData', dir);
+}
 
 // Portables à deux cartes graphiques : la plus puissante, pour la transcription et la traduction
 // des radios en haute qualité (grands modèles qui tournent sur la carte graphique)
@@ -183,8 +195,8 @@ function loginF1TV() {
     // Déjà connecté (session mémorisée) ? Sinon on surveille jusqu'à la connexion.
     const timer = setInterval(check, 1500);
     loginWindow.on('closed', () => finish({ ok: false, error: 'Fenêtre fermée avant la connexion' }));
-    // User-agent de Chrome standard (sans la mention Electron) pour la page de connexion.
-    const ua = loginWindow.webContents.getUserAgent().replace(/ Electron\/\S+/, '').replace(/ f1-dash-desktop\/\S+/i, '');
+    // User-agent de Chrome standard (sans la mention Electron ni le nom de l'appli) pour la page de connexion.
+    const ua = loginWindow.webContents.getUserAgent().replace(/ Electron\/\S+/, '').replace(/\) (?!Chrome\/)\S+\/\S+ (?=Chrome\/)/, ') ');
     loginWindow.loadURL(LOGIN_URL, { userAgent: ua });
   });
 }
@@ -218,7 +230,7 @@ function setupContents(wc, url) {
         action: 'allow',
         overrideBrowserWindowOptions: {
           width: 300, height: 540, minWidth: 220, minHeight: 200, alwaysOnTop: true, autoHideMenuBar: true,
-          icon: APP_ICON, backgroundColor: winBg(), title: 'F1 Dash — mini-classement', webPreferences: childPrefs(),
+          icon: APP_ICON, backgroundColor: winBg(), title: 'Paddock Live — mini-classement', webPreferences: childPrefs(),
         },
       };
     }
@@ -265,7 +277,7 @@ function createSplash() {
     center: true,
     show: false,
     backgroundColor: '#0b0b0f',
-    title: 'F1 Dash',
+    title: 'Paddock Live',
     icon: APP_ICON,
     webPreferences: { contextIsolation: true, sandbox: true, javascript: true },
   });
@@ -313,7 +325,7 @@ function splashAsk(win, version) {
     win.webContents.executeJavaScript('ask(true)').catch(() => {});
     const onNav = (e, target) => {
       e.preventDefault();
-      if (!/^f1dash:/.test(target)) return;
+      if (!/^paddock:/.test(target)) return;
       win.webContents.removeListener('will-navigate', onNav);
       win.webContents.executeJavaScript('ask(false)').catch(() => {});
       resolve(target.includes('download') ? 'download' : 'continue');
@@ -389,7 +401,7 @@ async function start() {
   await widevineReady();
   const port = await pickPort();
   process.env.PORT = String(port || 3000);
-  process.env.F1DASH_DATA_DIR = path.join(app.getPath('userData'), 'data');
+  process.env.PADDOCK_DATA_DIR = path.join(app.getPath('userData'), 'data');
   await import(pathToFileURL(path.join(__dirname, 'bundle', 'server', 'index.js')).href);
 
   // Pas de barre de menus sous Windows / Linux. Sous macOS, le menu système reste nécessaire pour
@@ -407,7 +419,7 @@ async function start() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: winBg(),
-    title: 'F1 Dash',
+    title: 'Paddock Live',
     autoHideMenuBar: true,
     icon: APP_ICON,
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },

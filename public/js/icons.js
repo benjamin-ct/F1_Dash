@@ -1,4 +1,4 @@
-// Icônes de l'application, dessinées pour F1 Dash (traits de 24 × 24, couleur du texte) : elles
+// Icônes de l'application, dessinées pour Paddock Live (traits de 24 × 24, couleur du texte) : elles
 // remplacent les emojis partout. Dans le HTML : <svg class="ic"><use href="#i-nom"/></svg> ;
 // en JavaScript : icon('nom').
 const P = {

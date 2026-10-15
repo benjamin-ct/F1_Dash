@@ -230,7 +230,7 @@ async function start() {
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
   } catch (err) {
     setStatus(err.name === 'NotAllowedError'
-      ? 'Accès au micro refusé : autorisez le micro pour F1 Dash (réglages de confidentialité du système ou du navigateur).'
+      ? 'Accès au micro refusé : autorisez le micro pour Paddock Live (réglages de confidentialité du système ou du navigateur).'
       : `Micro indisponible (${err.message}).`, 'err');
     return;
   }

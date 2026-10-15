@@ -22,11 +22,11 @@ async function load() {
 
 function check() {
   if (Date.now() - loadedAt > 6 * 3600e3) load();
-  const done = storageGet('f1dash.reminded', []);
+  const done = storageGet('paddock.reminded', []);
   const due = dueReminders(schedule, Date.now(), Number(prefs.remindMin) || 0, done);
   if (!due.length) return;
   // Mémorisé avant d'alerter : une seule alerte même avec plusieurs fenêtres ouvertes
-  storageSet('f1dash.reminded', [...done, ...due.map((s) => `${s.t}|${s.label}`)].slice(-60));
+  storageSet('paddock.reminded', [...done, ...due.map((s) => `${s.t}|${s.label}`)].slice(-60));
   for (const s of due) {
     const min = Math.max(1, Math.round((s.t - Date.now()) / 60e3));
     notifyReminder(`${s.name.replace(' Grand Prix', ' GP')} — ${s.label}`, `début dans ${min} min (${new Date(s.t).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' })})`);

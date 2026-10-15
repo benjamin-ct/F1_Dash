@@ -7,7 +7,7 @@ import { prefs, isFav } from '../prefs.js';
 import { renderCompare, initCompare, openCompareLap } from './compare.js';
 import { tx } from '../i18n.js';
 
-const OPTS_KEY = 'f1dash.analysis';
+const OPTS_KEY = 'paddock.analysis';
 const opts = { trace: 'leader', ref: null, scope: 'top10', clamp: 60, lapsSlow: true, cutoff: 107, sort: 'ideal', ...storageGet(OPTS_KEY, {}) };
 const saveOpts = () => storageSet(OPTS_KEY, opts);
 // Clés de rendu par onglet (un onglet d'analyse peut être déplacé dans un autre panneau : plusieurs
@@ -506,7 +506,7 @@ export function initAnalysis() {
     c.fillRect(0, 0, out.width, out.height);
     c.drawImage(src, 0, 0);
     const a = document.createElement('a');
-    a.download = `f1dash-${b.closest('.tabpane').dataset.pane}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.png`;
+    a.download = `paddock-live-${b.closest('.tabpane').dataset.pane}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.png`;
     a.href = out.toDataURL('image/png');
     a.click();
   });

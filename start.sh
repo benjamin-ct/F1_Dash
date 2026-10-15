@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lance F1 Dash (macOS / Linux) puis ouvre le navigateur.
+# Lance Paddock Live (macOS / Linux) puis ouvre le navigateur.
 cd "$(dirname "$0")"
 command -v node >/dev/null || { echo "Node.js n'est pas installé : https://nodejs.org"; exit 1; }
 [ -d node_modules ] || npm install --omit=dev

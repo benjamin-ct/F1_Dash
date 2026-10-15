@@ -7,7 +7,7 @@ import path from 'node:path';
 import { lightState } from '../shared/lights-state.js';
 
 // Réglages écrits dans un dossier temporaire (pas dans le config.json du projet)
-process.env.F1DASH_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'f1dash-lights-'));
+process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-lights-'));
 const L = await import('../server/lights.js');
 const { saveConfig } = await import('../server/config.js');
 

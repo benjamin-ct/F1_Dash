@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // Dossier de données temporaire : le test ne touche pas à la config de l'utilisateur
-process.env.F1DASH_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'f1dash-test-'));
+process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-test-'));
 delete process.env.F1TV_TOKEN;
 const { sessionOf, renew, state } = await import('../server/f1tv-auth.js');
 const { getConfig, saveConfig } = await import('../server/config.js');

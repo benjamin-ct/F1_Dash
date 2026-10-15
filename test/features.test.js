@@ -7,8 +7,8 @@ import { Track } from '../shared/track.js';
 import { calibrateLoops } from '../shared/calibrate.js';
 import { applyEvent, createDerived } from '../shared/derive.js';
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'f1dash-'));
-process.env.F1DASH_DATA_DIR = tmp;
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-'));
+process.env.PADDOCK_DATA_DIR = tmp;
 const { Recorder, readRecording, listRecordings } = await import('../server/recorder.js');
 const { Hub } = await import('../server/hub.js');
 

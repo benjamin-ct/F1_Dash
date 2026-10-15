@@ -132,5 +132,5 @@ on('duel', () => renderTower(true));
 connect();
 loop();
 
-// Accès debug depuis la console : window.f1dash
-window.f1dash = store;
+// Accès debug depuis la console : window.paddock
+window.paddock = store;

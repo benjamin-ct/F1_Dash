@@ -21,8 +21,8 @@ test('Accès réseau : autorisation par clé (adresse ou cookie)', () => {
   assert.equal(authorized(req('192.168.1.20'), key), false);
   assert.equal(authorized(req('192.168.1.20', '/?k=mauvaise'), key), false);
   assert.equal(authorized(req('192.168.1.20', '/?k=abcdefghjk'), key), true);
-  assert.equal(authorized(req('192.168.1.20', '/ws', 'theme=x; f1dash_key=abcdefghjk'), key), true);
-  assert.equal(authorized(req('192.168.1.20', '/ws', 'f1dash_key=abcdefghj'), key), false);
+  assert.equal(authorized(req('192.168.1.20', '/ws', 'theme=x; paddock_key=abcdefghjk'), key), true);
+  assert.equal(authorized(req('192.168.1.20', '/ws', 'paddock_key=abcdefghj'), key), false);
   // Sans clé configurée, personne d'autre que cet ordinateur
   assert.equal(authorized(req('192.168.1.20', '/?k='), ''), false);
 });

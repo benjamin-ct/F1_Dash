@@ -1,10 +1,10 @@
 // Mise à jour automatique de l'application (Windows, Linux AppImage, macOS).
-// Les versions sont lues sur les Releases du dépôt public (package.json → f1dash.updateRepo),
+// Les versions sont lues sur les Releases du dépôt public (package.json → paddockLive.updateRepo),
 // téléchargées en arrière-plan, vérifiées (empreinte SHA-256 fournie par GitHub), puis installées :
 // - Windows, installateur : exécution silencieuse du nouvel installateur, puis relance de l'appli ;
 // - Windows portable / Linux AppImage : remplacement du fichier (l'ancien est renommé puis
 //   supprimé au démarrage suivant) ;
-// - macOS : l'archive .zip est décompressée à la place de « F1 Dash.app » une fois l'appli fermée.
+// - macOS : l'archive .zip est décompressée à la place de « Paddock Live.app » une fois l'appli fermée.
 // Paquet .deb (Linux) : pas de mise à jour automatique (installer le nouveau paquet).
 // Au lancement (startup), l'écran de démarrage vérifie s'il existe une nouvelle version et
 // l'installe avant d'ouvrir l'appli ; sans connexion ou en cas d'échec, l'appli s'ouvre quand même.
@@ -15,12 +15,12 @@ const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
 
 const pkg = require('./package.json');
-const REPO = process.env.F1DASH_UPDATE_REPO || pkg.f1dash?.updateRepo || 'benjamin-ct/F1_Dash';
+const REPO = process.env.PADDOCK_UPDATE_REPO || pkg.paddockLive?.updateRepo || 'benjamin-ct/paddock-live';
 const CHECK_EVERY_MS = 6 * 3600 * 1000;
 const CHECK_TIMEOUT_MS = 10000;     // réponse de GitHub
 const STALL_TIMEOUT_MS = 30000;     // téléchargement sans aucune donnée reçue
 
-// Bundle « F1 Dash.app » de l'appli macOS, s'il peut être remplacé (pas lancé depuis l'image disque)
+// Bundle « Paddock Live.app » de l'appli macOS, s'il peut être remplacé (pas lancé depuis l'image disque)
 function macBundle() {
   if (process.platform !== 'darwin') return null;
   const bundle = path.resolve(path.dirname(process.execPath), '..', '..');
@@ -30,7 +30,7 @@ function macBundle() {
 
 function detectKind() {
   // Appli lancée depuis les sources (développement) : rien à remplacer
-  if (!app.isPackaged && !process.env.F1DASH_UPDATER_DEV) return 'unsupported';
+  if (!app.isPackaged && !process.env.PADDOCK_UPDATER_DEV) return 'unsupported';
   if (process.env.PORTABLE_EXECUTABLE_FILE) return 'portable';
   if (process.platform === 'win32') return 'installer';
   if (process.platform === 'linux' && process.env.APPIMAGE) return 'appimage';
@@ -135,7 +135,7 @@ function within(promise, ms, ctrl) {
 
 async function fetchTo(asset, tmp, ctrl) {
   // Lien public direct, sinon l'API GitHub (qui redirige vers le même fichier).
-  const get = (url, headers) => within(fetch(url, { headers: { 'User-Agent': 'F1-Dash-updater', ...headers }, signal: ctrl.signal }), STALL_TIMEOUT_MS, ctrl);
+  const get = (url, headers) => within(fetch(url, { headers: { 'User-Agent': 'Paddock-Live-updater', ...headers }, signal: ctrl.signal }), STALL_TIMEOUT_MS, ctrl);
   let res = await get(asset.browser_download_url);
   if (!res.ok && asset.url) res = await get(asset.url, { Accept: 'application/octet-stream' });
   if (!res.ok || !res.body) throw new Error(`Téléchargement impossible (HTTP ${res.status})`);
@@ -177,7 +177,7 @@ async function check({ manual = false } = {}) {
     set({ status: state.status === 'ready' ? 'ready' : 'checking', error: null });
     try {
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'F1-Dash-updater' },
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Paddock-Live-updater' },
         signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
       });
       if (res.status === 404) throw new Error(`Aucune version publiée sur ${REPO}`);
@@ -270,10 +270,10 @@ async function startup(onState = () => {}) {
   listeners.add(onState);
   try {
     if (state.kind === 'unsupported') {
-      if (!app.isPackaged && !process.env.F1DASH_UPDATER_DEV) return { action: 'open' };
+      if (!app.isPackaged && !process.env.PADDOCK_UPDATER_DEV) return { action: 'open' };
       // Pas d'installation automatique possible : on signale seulement la nouvelle version
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'F1-Dash-updater' },
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Paddock-Live-updater' },
         signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
       }).catch(() => null);
       const release = res?.ok ? await res.json().catch(() => null) : null;

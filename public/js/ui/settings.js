@@ -70,7 +70,7 @@ function renderAuthPill(a) {
     else if (a.sessionExpiresAt && a.sessionExpiresAt - now < SESSION_WARN) msg = `Connexion F1 TV : la session formula1.com se termine ${fmtWhen(a.sessionExpiresAt)}. Reconnectez-vous pour 30 jours de plus.`;
   }
   const key = msg ? `${new Date().toDateString()}|${msg.slice(0, 40)}` : '';
-  pill.hidden = !msg || storageGet('f1dash.authPillClosed', '') === key;
+  pill.hidden = !msg || storageGet('paddock.authPillClosed', '') === key;
   if (msg) { $('#authPillText').textContent = msg; pill.dataset.k = key; }
 }
 
@@ -244,8 +244,8 @@ export function initSettings() {
   on('prefs', (k) => { if (k === 'logoColor') $('#logoColor').checked = prefs.logoColor; });
   // Téléphone ou tablette connecté à l'ordinateur : suivre son délai TV
   on('role', (host) => { $('#followHostBlock').hidden = host; });
-  $('#followHost').checked = storageGet('f1dash.followHost', true);
-  $('#followHost').addEventListener('change', (e) => storageSet('f1dash.followHost', e.target.checked));
+  $('#followHost').checked = storageGet('paddock.followHost', true);
+  $('#followHost').addEventListener('change', (e) => storageSet('paddock.followHost', e.target.checked));
   $('#motionOpt').checked = prefs.motion !== false;
   $('#motionOpt').addEventListener('change', (e) => setPref('motion', e.target.checked));
   $('#keepAwake').checked = prefs.keepAwake;
@@ -275,7 +275,7 @@ export function initSettings() {
     refreshAuth();
   });
   $('#authPillBtn')?.addEventListener('click', reconnectF1TV);
-  $('#authPillClose')?.addEventListener('click', () => { storageSet('f1dash.authPillClosed', $('#authPill').dataset.k || ''); $('#authPill').hidden = true; });
+  $('#authPillClose')?.addEventListener('click', () => { storageSet('paddock.authPillClosed', $('#authPill').dataset.k || ''); $('#authPill').hidden = true; });
   refreshAuth();
   setInterval(refreshAuth, 30 * 60 * 1000);
 
@@ -299,7 +299,7 @@ export function initSettings() {
 
   // Jeton F1 TV en un clic : favori à glisser dans la barre du navigateur. Exécuté sur formula1.com,
   // il lit le cookie de session et revient sur le dashboard avec le jeton dans l'URL (#f1tv=…).
-  const code = `(()=>{const c=document.cookie.split('; ').find(x=>x.startsWith('login-session='));if(!c){alert('F1 Dash : cookie introuvable. Connectez-vous sur formula1.com, ou utilisez la méthode manuelle.');return}location.href='${location.origin}/#f1tv='+encodeURIComponent(c.slice(14))})()`;
+  const code = `(()=>{const c=document.cookie.split('; ').find(x=>x.startsWith('login-session='));if(!c){alert('Paddock Live : cookie introuvable. Connectez-vous sur formula1.com, ou utilisez la méthode manuelle.');return}location.href='${location.origin}/#f1tv='+encodeURIComponent(c.slice(14))})()`;
   $('#bookmarklet').href = `javascript:${code}`;
   $('#bookmarklet').addEventListener('click', (e) => { e.preventDefault(); toast('Glissez ce bouton dans votre barre de favoris, puis cliquez dessus depuis formula1.com', 5000); });
   const m = /[#&]f1tv=([^&]+)/.exec(location.hash);

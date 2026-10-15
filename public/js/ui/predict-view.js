@@ -10,7 +10,7 @@ let view = null;
 let viewYear = null;
 let loading = false;
 
-const me = () => storageGet('f1dash.player', '');
+const me = () => storageGet('paddock.player', '');
 const fmt = (t) => (t ? new Date(t).toLocaleString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
 
 async function load(year, force = false) {
@@ -95,7 +95,7 @@ export function initPredict() {
     if (!f) return;
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f));
-    storageSet('f1dash.player', v.name.trim());
+    storageSet('paddock.player', v.name.trim());
     try {
       await api('/api/predictions', { method: 'POST', body: { year: viewYear, round: Number(f.dataset.round), name: v.name, pole: v.pole || null, p1: v.p1 || null, p2: v.p2 || null, p3: v.p3 || null } });
       toast('Pronostic enregistré', 3000, 'check');

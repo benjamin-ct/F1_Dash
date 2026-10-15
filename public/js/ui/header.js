@@ -21,7 +21,7 @@ export function renderHeader() {
     $('#sessionSub').textContent = info
       ? [info.Meeting?.Circuit?.ShortName, info.Meeting?.Country?.Name, status ? SESSION_STATUS_FR[status] || status : null].filter(Boolean).join(' · ')
       : '';
-    document.title = info ? `F1 Dash · ${info.Meeting?.Name || ''} ${info.Name || ''}` : 'F1 Dash';
+    document.title = info ? `Paddock Live · ${info.Meeting?.Name || ''} ${info.Name || ''}` : 'Paddock Live';
 
     // Drapeau / état de piste
     const ts = $('#trackStatus');

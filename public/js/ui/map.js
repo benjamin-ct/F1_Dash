@@ -1312,10 +1312,10 @@ function drawCars(dt) {
 const MAP_OPTS = ['mapLabels', 'mapCorners', 'mapSectors', 'mapMiniNums', 'mapZones', 'mapPit', 'mapFlagText', 'mapShowOut', 'mapTrails', 'mapGrid', 'mapPosBadges', 'mapGaps', 'mapFocusCard', 'mapRibbon2'];
 
 function initMapOptions() {
-  const saved = storageGet('f1dash.mapOpts', {});
+  const saved = storageGet('paddock.mapOpts', {});
   // Nouveau dessin de la carte (v2) : fond uni par défaut, l'ancien choix du fond est oublié
   if (saved.v !== 2) delete saved.mapGrid;
-  const save = () => storageSet('f1dash.mapOpts', { v: 2, ...Object.fromEntries(MAP_OPTS.map((k) => [k, $(`#${k}`).checked])) });
+  const save = () => storageSet('paddock.mapOpts', { v: 2, ...Object.fromEntries(MAP_OPTS.map((k) => [k, $(`#${k}`).checked])) });
   for (const id of MAP_OPTS) {
     const el = $(`#${id}`);
     if (typeof saved[id] === 'boolean') el.checked = saved[id];

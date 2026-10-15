@@ -17,8 +17,8 @@ const LANG = EN ? 'en' : 'fr';   // langue cible des traductions = langue de l'i
 const CAT_LABEL = { official: 'Officiel', team: 'Écurie', driver: 'Pilote', media: 'Média' };
 const LANG_LABEL = { en: 'Anglais', fr: 'Français', es: 'Espagnol', it: 'Italien', de: 'Allemand', nl: 'Néerlandais', pt: 'Portugais', ja: 'Japonais', zh: 'Chinois' };
 const TEAM_NAME = Object.fromEntries(NEWS_TEAMS.map(([k, name]) => [k, name]));
-const SEEN_KEY = 'f1dash.newsSeen';
-const ALERTED_KEY = 'f1dash.newsAlerted';
+const SEEN_KEY = 'paddock.newsSeen';
+const ALERTED_KEY = 'paddock.newsAlerted';
 const PAGE = 60;
 
 let items = [];                // du plus récent au plus ancien
@@ -38,7 +38,7 @@ const justArrived = new Set();  // nouvelles reçues pendant que l'espace est ou
 let alertOwner = !navigator.locks;   // une seule fenêtre par appareil donne les alertes
 const open = () => !$('#newsView').hidden;
 
-navigator.locks?.request('f1dash-news-alerts', () => { alertOwner = true; return new Promise(() => {}); });
+navigator.locks?.request('paddock-news-alerts', () => { alertOwner = true; return new Promise(() => {}); });
 
 // ---- Traductions (gardées par le serveur, partagées avec le téléphone) ----
 let cache = {};

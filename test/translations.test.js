@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // Dossier de données temporaire : le test ne touche pas au cache de l'utilisateur
-process.env.F1DASH_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'f1dash-test-'));
+process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-test-'));
 const { getTranslations, addTranslations } = await import('../server/translations.js');
 
 test('traductions FIA : ajout, priorité au modèle de langage, entrées invalides', () => {

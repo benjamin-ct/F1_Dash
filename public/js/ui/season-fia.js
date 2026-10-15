@@ -48,7 +48,7 @@ const compFr = (c) => COMP_FR[compKey(c)] || null;
 
 // Texte traduit (ou original en attendant), mis à jour sur place quand la traduction arrive
 // Interface en anglais : les textes de la FIA sont déjà dans la langue de l'interface
-const showOriginal = () => EN || storageGet('f1dash.techOriginal', false);
+const showOriginal = () => EN || storageGet('paddock.techOriginal', false);
 const trSpan = (en) => {
   if (!en) return '';
   const fr = showOriginal() ? null : translated(en);
@@ -80,7 +80,7 @@ onTranslation((en) => {
 });
 
 export function toggleTechOriginal(v) {
-  storageSet('f1dash.techOriginal', v);
+  storageSet('paddock.techOriginal', v);
 }
 
 // Limites d'éléments moteur par saison (règlement sportif FIA)
