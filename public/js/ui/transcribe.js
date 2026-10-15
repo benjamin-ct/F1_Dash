@@ -4,7 +4,7 @@
 import { storageGet, storageSet } from '../util.js';
 import { emit } from '../store.js';
 import { track } from './stats.js';
-import { cloudOn, cloudTranslate } from '../cloud.js';
+import { cloudOn, cloudAsrOn, cloudTranslate, cloudTranscribe } from '../cloud.js';
 import { fixRadio } from '/shared/radio-text.js';
 
 const KEY = 'paddock.radioTexts';
@@ -25,6 +25,7 @@ let qualityPref = 'auto';     // 'auto' | 'high' | 'light'
 let gpuInfo = null;                           // { ok, name, why }
 const highFail = { asr: null, mt: null };     // { msg, at, wait }
 const effective = { asr: null, mt: null };    // niveau utilisé en dernier ('high' | 'light')
+const noCloud = new Set();                      // radios que le serveur Paddock Live n'a pas pu transcrire
 const RETRY_MS = { pref: 2 * 60000, auto: 10 * 60000 };
 let isTranscriber = !navigator.locks;
 let status = { state: 'idle', msg: '' };
@@ -144,7 +145,7 @@ function describe() {
     return '';
   };
   const part = (label, use, hi) => {
-    if (use === 'mt' && cloudOn()) return `${label} : serveur Paddock Live (rien à calculer ici)`;
+    if (use === 'mt' ? cloudOn() : cloudAsrOn()) return `${label} : serveur Paddock Live (rien à calculer ici)`;
     const q = effective[use];
     if (!q) return '';
     if (q === 'high') return `${label} : haute qualité (${hi})`;
@@ -166,8 +167,9 @@ export function requestTranscripts(items) {
     const t = texts[url];
     // Haute qualité disponible : les radios faites en qualité légère sont refaites (transcription,
     // ou seulement la traduction si la transcription est déjà en haute qualité)
-    const redoAsr = t && effective.asr === 'high' && t.q !== 'high';
-    const redoMt = t && t.en && lang !== 'none' && effective.mt === 'high' && t.tr?.[lang] !== undefined && t.tq?.[lang] !== 'high';
+    // Transcription en ligne disponible : les radios faites sur l'ordinateur en qualité légère sont refaites
+    const redoAsr = t && t.q !== 'high' && t.q !== 'cloud' && (effective.asr === 'high' || (t.q === 'light' && cloudAsrOn() && !noCloud.has(url)));
+    const redoMt = t && t.en && lang !== 'none' && effective.mt === 'high' && t.tr?.[lang] !== undefined && t.tq?.[lang] !== 'high' && t.tq?.[lang] !== 'cloud';
     const kind = !t || redoAsr ? 'asr' : (lang !== 'none' && t.en && (t.tr?.[lang] === undefined || redoMt) ? 'mt' : null);
     if (!kind) continue;
     const k = `${kind}|${url}|${lang}`;
@@ -314,13 +316,23 @@ async function pump() {
   }
   try {
     if (task.kind === 'asr') {
-      const q = task.q = await qualityFor('asr');
-      effective.asr = q;
-      const audio = await decode(task.url);
-      if (status.state !== 'ready') setStatus('loading', 'Préparation de la transcription…');
-      const d = Math.round(audio.length / 1600) / 10;
-      const en = await run({ kind: 'asr', audio, quality: q }, [audio.buffer]);
-      texts[task.url] = { en, tr: {}, tq: {}, q, d };
+      // Serveur Paddock Live d'abord (rien à calculer ici), sinon Whisper sur l'ordinateur
+      const c = await cloudTranscribe(task.url);
+      let en;
+      if (c) {
+        task.q = 'cloud';
+        en = c.text;
+        texts[task.url] = { en, tr: {}, tq: {}, q: 'cloud', ...(c.d ? { d: c.d } : {}) };
+      } else {
+        if (cloudAsrOn()) noCloud.add(task.url);   // refusée par le serveur : pas de nouvel essai
+        const q = task.q = await qualityFor('asr');
+        effective.asr = q;
+        const audio = await decode(task.url);
+        if (status.state !== 'ready') setStatus('loading', 'Préparation de la transcription…');
+        const d = Math.round(audio.length / 1600) / 10;
+        en = await run({ kind: 'asr', audio, quality: q }, [audio.buffer]);
+        texts[task.url] = { en, tr: {}, tq: {}, q, d };
+      }
       // Traduction juste après, avant les radios plus anciennes
       if (en && task.lang !== 'none') {
         const k = `mt|${task.url}|${task.lang}`;

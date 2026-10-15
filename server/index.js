@@ -35,6 +35,7 @@ import { localHost, sameSiteRequest, decodePath } from './guard.js';
 import { stats, startStats } from './stats.js';
 import { archivePath, sendArchiveFile } from './archive.js';
 import { cloud } from './cloud-translate.js';
+import { cloudRadio } from './cloud-transcribe.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -311,6 +312,19 @@ async function handleApi(req, res, url) {
       // Plafond du jour atteint ou serveur injoignable pendant l'envoi : l'interface traduit elle-même
       if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible', out });
       return sendJSON(res, 200, { out });
+    }
+
+    // Transcription d'une radio d'équipe par le serveur Paddock Live : ?u=<adresse d'archive> -> { text, d }
+    case 'GET /api/radio-text': {
+      const rel = archivePath(url.searchParams.get('u') || '');
+      if (!rel || !/^\d{4}\/[\w\-./]+\.(mp3|m4a|aac)$/i.test(rel) || rel.includes('..')) return sendJSON(res, 400, { error: 'Radio invalide' });
+      if (!cloudRadio.available()) return sendJSON(res, 503, { error: 'Transcription en ligne indisponible' });
+      try {
+        const r = await cloudRadio.transcribe(rel);
+        return r ? sendJSON(res, 200, r) : sendJSON(res, 503, { error: 'Transcription en ligne indisponible' });
+      } catch (err) {
+        return sendJSON(res, err.status || 502, { error: err.message });
+      }
     }
 
     // Statistiques d'utilisation anonymes : l'accord se donne sur l'ordinateur ; toutes les

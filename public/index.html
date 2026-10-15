@@ -272,19 +272,19 @@
           <div class="subbar rd-bar">
             <select id="radioFilter" aria-label="Filtrer les radios"><option value="all">Tous les pilotes</option><option value="fav">Mes favoris</option><option value="duel">Pilotes du duel</option></select>
             <label class="toggle" title="Joue chaque nouvelle radio dès qu'elle arrive (au rythme du délai TV)"><input type="checkbox" id="radioAuto"> Lecture auto</label>
-            <label class="toggle" title="Retranscrit chaque radio d'équipe en texte, directement sur cet ordinateur. Premier usage : téléchargement des modèles (haute qualité ~4,5 Go, légère ~130 Mo), puis tout reste en local."><input type="checkbox" id="radioText"> Texte</label>
+            <label class="toggle" title="Retranscrit chaque radio d'équipe en texte. Avec le serveur Paddock Live (Réglages → Application), chaque radio n'est transcrite qu'une fois pour tous : rien à calculer ici. Sinon, la transcription se fait sur cet ordinateur (premier usage : téléchargement des modèles, haute qualité ~4,5 Go, légère ~130 Mo)."><input type="checkbox" id="radioText"> Texte</label>
             <label class="toggle" hidden title="Expérimental, F1 TV Pro : écoute le son des caméras embarquées (pilote suivi et pilotes du duel, ou vos favoris) et retranscrit toutes leurs radios, pas seulement celles publiées par la F1. Séances en direct ; tout est fait sur cet ordinateur."><input type="checkbox" id="obRadio"> Caméras embarquées</label>
             <span class="rd-opts" id="obRadioOpts" hidden><select id="obRadioWho" aria-label="Pilotes écoutés"><option value="auto">Pilote suivi + duel</option><option value="favs">Mes favoris (3 max)</option></select></span>
             <span class="rd-opts" id="radioOpts">
               <label class="small">Traduction <select id="radioLang" aria-label="Langue de traduction"><option value="fr">Français</option><option value="es">Español</option><option value="de">Deutsch</option><option value="it">Italiano</option><option value="none">Aucune (anglais)</option></select></label>
-              <label class="small" title="Légère (par défaut) : petits modèles sur le processeur, environ 1 Go de mémoire, textes plus approximatifs. Haute : Whisper large-v3-turbo + modèle de langage (Qwen3-4B) qui connaît le contexte F1 ; nécessite une carte graphique (environ 4,5 Go téléchargés une fois) et occupe 10 à 15 Go de mémoire pendant la transcription (libérés après 5 minutes sans radio).">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Légère (≈ 1 Go)</option><option value="high">Haute (carte graphique, 10 à 15 Go)</option></select></label>
+              <label class="small" title="Transcription sur cet ordinateur (serveur Paddock Live désactivé ou indisponible). Légère (par défaut) : petits modèles sur le processeur, environ 1 Go de mémoire, textes plus approximatifs. Haute : Whisper large-v3-turbo + modèle de langage (Qwen3-4B) qui connaît le contexte F1 ; nécessite une carte graphique (environ 4,5 Go téléchargés une fois) et occupe 10 à 15 Go de mémoire pendant la transcription (libérés après 5 minutes sans radio).">Qualité <select id="radioQuality" aria-label="Qualité de transcription"><option value="auto">Légère (≈ 1 Go)</option><option value="high">Haute (carte graphique, 10 à 15 Go)</option></select></label>
             </span>
           </div>
           <div class="muted small rd-status" id="radioTextStatus"></div>
           <div class="muted small rd-status" id="obRadioStatus"></div>
           <div class="rd-strip" id="radioStrip" aria-label="Radios d'équipe"></div>
           <div class="note rd-empty" id="radioEmpty" hidden></div>
-          <div class="rd-feed-head"><b>Radios retranscrites</b><span class="muted small">faites sur cet ordinateur</span><button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></div>
+          <div class="rd-feed-head"><b>Radios retranscrites</b><span class="muted small">texte et traduction</span><button class="rd-speed" id="radioSpeed" title="Vitesse de lecture des radios">1×</button></div>
           <div class="note rd-text-off" id="radioTextOff" hidden>Activez la transcription pour lire chaque radio en texte, traduite dans votre langue. <button class="btn small btn-accent" id="radioTextOn">Activer</button></div>
           <ul class="rd-list" id="radioList"></ul>
         </div>
@@ -560,8 +560,8 @@
 
       <section class="set-block" data-sgroup="app">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-globe"/></svg> Traductions</h4>
-        <div class="row"><label class="toggle small"><input type="checkbox" id="cloudTranslate"> Traduire avec le serveur Paddock Live (recommandé)</label></div>
-        <p class="small muted">Actualités, radios d'équipe et documents FIA sont traduits en ligne, une seule fois pour tous les utilisateurs : rien à calculer sur cet ordinateur. Seuls les textes à traduire sont envoyés. Décoché, ou si le serveur ne répond pas, la traduction se fait sur cet ordinateur.</p>
+        <div class="row"><label class="toggle small"><input type="checkbox" id="cloudTranslate"> Traduire et transcrire avec le serveur Paddock Live (recommandé)</label></div>
+        <p class="small muted">Actualités, radios d'équipe et documents FIA sont traduits en ligne, et les radios d'équipe transcrites, une seule fois pour tous les utilisateurs : rien à calculer sur cet ordinateur. Seuls les textes à traduire et le son des radios sont envoyés. Décoché, ou si le serveur ne répond pas, tout se fait sur cet ordinateur.</p>
       </section>
 
       <section class="set-block" data-sgroup="app" id="statsBlock" hidden>

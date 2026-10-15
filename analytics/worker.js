@@ -2,12 +2,14 @@
 // - POST /e : lot de compteurs anonymes envoyé par l'appli (avec l'accord de l'utilisateur).
 //   Seuls le jour (pris ici, pas chez l'utilisateur), la version, le système, le type d'appareil,
 //   le nom de la fonction et un nombre sont gardés : ni adresse IP, ni identifiant, ni contenu.
+// - POST /t : traduction partagée ; GET /r/<empreinte> et POST /r : transcription partagée des radios.
 // - GET / : connexion (mot de passe = secret STATS_KEY du Worker), puis tableau de bord sur /stats.
 //   Session : cookie signé (HMAC du mot de passe), valable 30 jours.
 // - GET /stats.json : les mêmes chiffres en JSON (connecté, ou ?key=…).
 import { cleanBatch, LABELS, FEATURE_GROUPS } from '../shared/stats.js';
 import { loginPage, dashboardPage } from './page.js';
 import { cleanRequest, translateBatch } from './translate.js';
+import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
 
 const MAX_BODY = 32 * 1024;
 const COOKIE = 'pl_stats';
@@ -160,6 +162,23 @@ export default {
       try {
         const res = await translateBatch(env, r);
         return json(res, res.limited ? 429 : 200);
+      } catch { return json({ error: 'Erreur' }, 500); }
+    }
+    // Transcription partagée des radios : déjà faite (empreinte du fichier son), sinon envoi du son
+    if (url.pathname === '/r' || url.pathname.startsWith('/r/')) {
+      if (!env.AI) return json({ error: 'Transcription indisponible' }, 503);
+      try {
+        if (req.method === 'GET' && HASH_RE.test(url.pathname.slice(3))) {
+          const hit = await cachedRadio(env, url.pathname.slice(3));
+          return hit ? json(hit) : json({ error: 'Pas encore transcrite' }, 404);
+        }
+        if (req.method === 'POST' && url.pathname === '/r') {
+          if (Number(req.headers.get('Content-Length') || 0) > MAX_AUDIO) return json({ error: 'Trop volumineux' }, 413);
+          const r = await transcribeRadio(env, new Uint8Array(await req.arrayBuffer()));
+          if (r.invalid) return json({ error: 'Fichier son invalide' }, 400);
+          if (r.limited) return json({ error: 'Plafond du jour atteint' }, 429);
+          return json({ text: r.text, d: r.d });
+        }
       } catch { return json({ error: 'Erreur' }, 500); }
     }
     if (!env.STATS_KEY) return json({ error: 'Mot de passe STATS_KEY non configuré' }, 503);
