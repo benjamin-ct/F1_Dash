@@ -1,5 +1,6 @@
 // Légendes affichées sous chaque panneau : à quoi correspondent les couleurs, les colonnes et
 // les graphiques. Elles changent avec l'onglet actif et se masquent dans Réglages → Affichage.
+import { tabOrigin } from './tabmove.js';
 import { prefs, setPref } from '../prefs.js';
 import { on } from '../store.js';
 import { toast } from './delay.js';
@@ -36,8 +37,7 @@ const L = {
     tracklimits: [txt('Tours et temps supprimés pour non-respect des limites de piste, par pilote. Les avertissements répétés peuvent entraîner une pénalité.')],
   },
   radio: {
-    transcripts: [txt('Radios d\'équipe retranscrites en texte (en grand : la traduction, en petit : l\'anglais d\'origine). Tout est fait sur cet ordinateur ; bouton lecture : réécouter la radio.')],
-    radio: [txt('Radios d\'équipe audio, des plus récentes aux plus anciennes · bouton lecture : écouter.')],
+    radios: [txt('En haut, une carte par radio d\'équipe (plus récentes à gauche) : clic pour écouter, point bleu = pas encore écoutée · en dessous, les radios retranscrites et traduites sur cet ordinateur (en petit : l\'anglais d\'origine) ; clic pour réécouter · « caméra embarquée » : radio captée sur le son embarqué F1 TV.')],
   },
   duel: {
     _: [
@@ -50,7 +50,7 @@ const L = {
     positions: [txt('Position de chaque pilote à la fin de chaque tour. Les sauts correspondent aux arrêts et aux dépassements.')],
     laptimes: [txt('Temps de chaque tour, par pilote (plus bas = plus rapide). Les tours d\'arrêt ou sous drapeau jaune / safety car ressortent nettement plus lents. Clic sur un point : comparer ce tour (onglet Comparaison).')],
     pace: [txt('Rythme sur les tours « propres » : boîte = la moitié des tours du pilote, trait = médiane, moustaches = tour le plus rapide / le plus lent. À droite : les 20 meilleurs tours de la séance.')],
-    tyrehist: [txt('Chaque case est un tour, colorée selon le pneu utilisé ; cadre blanc = arrêt au stand ; violet = meilleur tour du pilote. Clic sur un temps : comparer ce tour.')],
+    tyrehist: [txt('Chaque case est un tour, colorée selon le pneu utilisé ; case encadrée = arrêt au stand ; violet = meilleur tour du pilote. Clic sur un temps : comparer ce tour.')],
     sectors: [txt('Meilleur temps de chaque pilote dans chaque secteur, tour idéal (somme des 3 meilleurs secteurs) et vitesses de pointe. Violet = meilleur de la séance. En haut : pole et meilleur tour en course des éditions précédentes sur ce circuit (archives F1), comparés au meilleur temps de la séance.')],
     compare: [sw('var(--blue)', 'pilote A plus rapide'), sw('var(--orange)', 'pilote B plus rapide'), txt('· tours comparés (meilleurs par défaut, ou au choix ; clic sur un temps dans Temps / Pneus) : secteurs officiels, mini-secteurs mesurés au GPS ; courbe = écart cumulé le long du tour ; pointillés = emplacement de boucle estimé')],
     telemetry: [txt('Compteurs du pilote suivi (clic sur un pilote du classement) et d\'un second pilote au choix (« + Comparer », par défaut le pilote B du duel) : vitesse sur l\'anneau, accélérateur (vert, à gauche) et frein (rouge, à droite), régime et rapport au centre ; courbe de vitesse des 30 dernières secondes. En live, nécessite un compte F1 TV.')],
@@ -72,7 +72,8 @@ function update(panel, id) {
   let el = panel.querySelector(':scope > .panel-legend');
   if (!prefs.legends) { el?.remove(); return; }
   const tab = panel.querySelector('.panel-head [data-tab].active')?.dataset.tab || '_';
-  const items = L[id]?.[tab] || L[id]?._;
+  // Onglet venu d'un autre panneau : sa légende le suit
+  const items = L[id]?.[tab] || L[tabOrigin(tab)]?.[tab] || L[id]?._;
   if (!items) { el?.remove(); return; }
   if (!el) {
     el = document.createElement('div');
@@ -98,6 +99,7 @@ export function initLegends() {
   }
   on('prefs', (k) => { if (k === 'legends') updateAll(); });
   on('scheme', () => updateAll());
+  on('tabsMoved', () => updateAll());
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.lg-hide')) return;
     setPref('legends', false);

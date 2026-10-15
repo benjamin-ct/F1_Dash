@@ -23,6 +23,7 @@ import { circuitRecords } from './records.js';
 import { startNews, refreshNews, newsSnapshot, onNews, addNewsSource, removeNewsSource, setNewsSourceEnabled } from './news.js';
 import { parseChangelog } from '../shared/changelog.js';
 import { buildIcs } from '../shared/ics.js';
+import { headshot } from './headshots.js';
 import { osmTile } from './tiles.js';
 import { predictionsView, savePrediction } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
@@ -293,6 +294,17 @@ async function handleApi(req, res, url) {
         return res.end(png);
       } catch (err) {
         return sendJSON(res, 404, { error: err.message });
+      }
+    }
+
+    // Photos des pilotes (site de la F1), en cache
+    case 'GET /api/headshot': {
+      try {
+        const img = await headshot(url.searchParams.get('u') || '');
+        res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'max-age=604800' });
+        return res.end(img.body);
+      } catch (err) {
+        return sendJSON(res, err.message === 'Photo invalide' ? 400 : 404, { error: err.message });
       }
     }
 

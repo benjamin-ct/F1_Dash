@@ -37,3 +37,20 @@ test('radio : lecture des listes de lecture .pls / .m3u', async () => {
     srv.close();
   }
 });
+
+test('F1 TV : canaux de commentaires et caméras embarquées', () => {
+  const md = { additionalStreams: [
+    { type: 'additional', title: 'INTERNATIONAL', channelId: 1, playbackUrl: 'CONTENT/PLAY?contentId=1000' },
+    { type: 'additional', title: 'F1 LIVE', channelId: 2, playbackUrl: 'CONTENT/PLAY?contentId=1000&channelId=2' },
+    { type: 'additional', title: 'TRACKER', channelId: 3 },
+    { type: 'obc', title: 'VER', channelId: 10, racingNumber: 1, driverFirstName: 'Max', driverLastName: 'Verstappen' },
+    { type: 'obc', title: 'HAD', channelId: 11, racingNumber: 6 },
+    { type: 'obc', title: 'SANS NUMÉRO', channelId: 12 },
+  ] };
+  assert.deepEqual(_test.channelsOf(md).map((c) => [c.title, c.main]), [['INTERNATIONAL', true], ['F1 LIVE', false]]);
+  assert.deepEqual(_test.onboardsOf(md), [
+    { channelId: 10, num: '1', tla: 'VER', name: 'Max Verstappen' },
+    { channelId: 11, num: '6', tla: 'HAD', name: null },
+  ]);
+  assert.deepEqual(_test.onboardsOf({}), []);
+});

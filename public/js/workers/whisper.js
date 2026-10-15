@@ -8,6 +8,7 @@
 //  - « light » (processeur) : Whisper base.en et OPUS-MT, plus légers mais plus approximatifs.
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1';
 import { prefetch } from './hf-download.js';
+import { clean, words, tidy, badReply, fixRadio } from '/shared/radio-text.js';
 
 env.allowLocalModels = false;
 // Ordinateur portable avec deux cartes graphiques : la plus puissante (mémoire suffisante pour
@@ -17,6 +18,8 @@ try { env.backends.onnx.webgpu.powerPreference = 'high-performance'; } catch { /
 const MODELS = {
   asrHigh: 'onnx-community/whisper-large-v3-turbo',
   asrLight: 'onnx-community/whisper-base.en',
+  // Son embarqué : il faut l'horodatage des phrases, que les modèles « anglais seul » ne donnent pas
+  asrTimed: 'onnx-community/whisper-base',
   llm: 'onnx-community/Qwen3-4B-Instruct-2507-ONNX',
   mt: { fr: 'Xenova/opus-mt-en-fr', es: 'Xenova/opus-mt-en-es', de: 'Xenova/opus-mt-en-de', it: 'Xenova/opus-mt-en-it' },
 };
@@ -28,14 +31,28 @@ const MT_DIRECT = { 'de-fr': 'Xenova/opus-mt-de-fr', 'es-fr': 'Xenova/opus-mt-es
 const MT_TO_EN = { de: 'Xenova/opus-mt-de-en', es: 'Xenova/opus-mt-es-en', it: 'Xenova/opus-mt-it-en', nl: 'Xenova/opus-mt-nl-en', fr: 'Xenova/opus-mt-fr-en', ja: 'Xenova/opus-mt-ja-en', zh: 'Xenova/opus-mt-zh-en', pt: 'Xenova/opus-mt-ROMANCE-en' };
 const loaded = {};
 
-// Progression globale du téléchargement (somme de tous les fichiers en cours)
+// Progression globale du chargement (somme de tous les fichiers en cours). transformers.js la
+// signale aussi quand il relit un modèle déjà téléchargé (cache du disque) : « cached » permet
+// de l'afficher comme un simple chargement. Au plus 4 messages par seconde : chaque message
+// met à jour l'interface.
 const files = new Map();
-const progress = (what) => (p) => {
+const inCache = {};           // modèle -> déjà téléchargé ?
+let lastProgress = 0;
+async function cachedModel(model) {
+  if (inCache[model] === undefined) {
+    try { inCache[model] = (await (await caches.open('transformers-cache')).keys()).some((r) => r.url.includes(`/${model}/`)); } catch { inCache[model] = false; }
+  }
+  return inCache[model];
+}
+const progress = (what, model) => (p) => {
   if (p.status === 'progress' && p.total) {
     files.set(p.file, { loaded: p.loaded, total: p.total });
+    const now = Date.now();
+    if (now - lastProgress < 250 && p.loaded < p.total) return;
+    lastProgress = now;
     let l = 0, t = 0;
     for (const f of files.values()) { l += f.loaded; t += f.total; }
-    self.postMessage({ type: 'progress', what, loaded: l, total: t });
+    self.postMessage({ type: 'progress', what, loaded: l, total: t, cached: !!inCache[model] });
   } else if (p.status === 'done') {
     files.delete(p.file);
   }
@@ -51,32 +68,42 @@ const BIG = {
   asrHigh: ['onnx/encoder_model_fp16.onnx', 'onnx/decoder_model_merged_fp16.onnx'],
   llm: ['onnx/model_q4f16.onnx_data', 'onnx/model_q4f16.onnx_data_1'],
 };
-const prefetchBig = (key, what) => {
-  const cb = progress(what);
+const prefetchBig = async (key, what) => {
+  await cachedModel(MODELS[key]);
+  const cb = progress(what, MODELS[key]);
   return prefetch(MODELS[key], BIG[key], (file, loaded, total) => cb(loaded == null ? { status: 'done', file } : { status: 'progress', file, loaded, total }));
 };
 
 const asrHigh = () => load('asrHigh', async () => {
   await prefetchBig('asrHigh', 'asr');
   return pipeline('automatic-speech-recognition', MODELS.asrHigh,
-    { device: 'webgpu', dtype: { encoder_model: 'fp16', decoder_model_merged: 'fp16' }, progress_callback: progress('asr') });
+    { device: 'webgpu', dtype: { encoder_model: 'fp16', decoder_model_merged: 'fp16' }, progress_callback: progress('asr', MODELS.asrHigh) });
 });
-const asrLight = (gpu) => load(`asrLight${gpu}`, () => pipeline('automatic-speech-recognition', MODELS.asrLight, gpu
-  ? { device: 'webgpu', dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' }, progress_callback: progress('asr') }
-  : { device: 'wasm', dtype: 'q8', progress_callback: progress('asr') }));
+const asrLight = (gpu) => load(`asrLight${gpu}`, async () => {
+  await cachedModel(MODELS.asrLight);
+  return pipeline('automatic-speech-recognition', MODELS.asrLight, gpu
+    ? { device: 'webgpu', dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' }, progress_callback: progress('asr', MODELS.asrLight) }
+    : { device: 'wasm', dtype: 'q8', progress_callback: progress('asr', MODELS.asrLight) });
+});
+const asrTimedLight = () => load('asrTimed', async () => {
+  await cachedModel(MODELS.asrTimed);
+  return pipeline('automatic-speech-recognition', MODELS.asrTimed, { device: 'wasm', dtype: 'q8', progress_callback: progress('asr', MODELS.asrTimed) });
+});
 const llm = () => load('llm', async () => {
   await prefetchBig('llm', 'mt');
-  return pipeline('text-generation', MODELS.llm, { device: 'webgpu', dtype: 'q4f16', progress_callback: progress('mt') });
+  return pipeline('text-generation', MODELS.llm, { device: 'webgpu', dtype: 'q4f16', progress_callback: progress('mt', MODELS.llm) });
 });
-const mt = (lang) => load(`mt-${lang}`, () => {
+const mt = (lang) => load(`mt-${lang}`, async () => {
   if (!MODELS.mt[lang]) throw new Error(`langue non prise en charge : ${lang}`);
-  return pipeline('translation', MODELS.mt[lang], { device: 'wasm', dtype: 'q8', progress_callback: progress('mt') });
+  await cachedModel(MODELS.mt[lang]);
+  return pipeline('translation', MODELS.mt[lang], { device: 'wasm', dtype: 'q8', progress_callback: progress('mt', MODELS.mt[lang]) });
 });
 
-const mtPair = (model) => load(`mt-${model}`, () => pipeline('translation', model, { device: 'wasm', dtype: 'q8', progress_callback: progress('mt') }));
+const mtPair = (model) => load(`mt-${model}`, async () => {
+  await cachedModel(model);
+  return pipeline('translation', model, { device: 'wasm', dtype: 'q8', progress_callback: progress('mt', model) });
+});
 
-const clean = (t) => String(t || '').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').replace(/\s+/g, ' ').trim();
-const words = (t) => (t.match(/[A-Za-z']+/g) || []).length;
 
 async function transcribe(audio, quality) {
   const secs = audio.length / 16000;
@@ -90,6 +117,15 @@ async function transcribe(audio, quality) {
     if (words(small) > words(big) * 1.5) return small;
   }
   return big;
+}
+
+// Fenêtre de son embarqué : segments horodatés (secondes depuis le début de la fenêtre)
+async function transcribeTimed(audio, quality) {
+  const opts = { return_timestamps: true, chunk_length_s: 30, stride_length_s: 5 };
+  const r = await (await (quality === 'high' ? asrHigh() : asrTimedLight()))(audio, { ...opts, language: 'english', task: 'transcribe' });
+  const chunks = (r?.chunks || []).map((c) => ({ timestamp: c.timestamp, text: c.text }));
+  // Sans horodatage (modèle qui n'en donne pas) : un seul segment pour toute la fenêtre
+  return chunks.length || !clean(r?.text) ? chunks : [{ timestamp: [0, audio.length / 16000], text: r.text }];
 }
 
 function systemPrompt(lang, who) {
@@ -130,6 +166,7 @@ const FIX_FR = [
   [/\b(la|une) veille\b/gi, (m, a) => (a.toLowerCase() === 'la' ? 'le sillage' : 'un sillage')], [/\bveille\b/gi, 'sillage'], [/\baccords\b/gi, 'cordes'], [/\b(duct|conduite)(s?) de frein/gi, 'écope$2 de frein'], [/\bduct\b/gi, 'conduit'],
   [/\blavage du sol\b/gi, 'downwash'], [/\b(la|le) appui\b/gi, "l'appui"], [/\breprogramm(é|ée|és|ées)\b/gi, 'reprofil$1'],
 ];
+
 const fixJargon = (t, lang) => {
   if (lang !== 'fr') return t;
   const out = FIX_FR.reduce((x, [re, by]) => x.replace(re, by), t);
@@ -170,16 +207,8 @@ async function newsLight(text, lang, from) {
   return parts.join(' ');
 }
 
-async function translate(text, lang, quality, who, domain, from = 'en') {
-  if (domain === 'news' && from === lang) return text;
-  if (quality === 'high') {
-    const gen = await llm();
-    const sys = domain === 'tech' ? techPrompt(lang) : domain === 'news' ? newsPrompt(lang, from) : systemPrompt(lang, who);
-    const out = await gen([{ role: 'system', content: sys }, { role: 'user', content: text }],
-      { max_new_tokens: Math.min(600, 60 + words(text) * 4), do_sample: false });
-    const reply = out?.[0]?.generated_text?.at?.(-1)?.content ?? '';
-    return String(reply).replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^["«»\s]+|["«»\s]+$/g, '').trim();
-  }
+
+async function translateLight(text, lang, domain, from) {
   if (domain === 'news') return newsLight(text, lang, from);
   // Phrase par phrase : plus rapide et plus fidèle (le petit modèle s'égare sur les textes longs)
   const run = await mt(lang);
@@ -189,18 +218,50 @@ async function translate(text, lang, quality, who, domain, from = 'en') {
     const r = await run(part, { max_new_tokens: Math.min(160, 24 + part.split(/\s+/).length * 3) });
     out.push(String(r?.[0]?.translation_text || '').trim());
   }
-  return domain === 'tech' ? fixJargon(out.join(' '), lang) : out.join(' ');
+  const joined = out.join(' ');
+  return domain === 'tech' ? fixJargon(joined, lang) : domain === 'radio' || !domain ? fixRadio(joined, lang) : joined;
 }
+
+async function translate(text, lang, quality, who, domain, from = 'en') {
+  if (domain === 'news' && from === lang) return text;
+  if (quality === 'high') {
+    const gen = await llm();
+    const sys = domain === 'tech' ? techPrompt(lang) : domain === 'news' ? newsPrompt(lang, from) : systemPrompt(lang, who);
+    const ask = async (content) => {
+      const out = await gen([{ role: 'system', content: sys }, { role: 'user', content }],
+        { max_new_tokens: Math.min(600, 60 + words(text) * 4), do_sample: false });
+      return tidy(out?.[0]?.generated_text?.at?.(-1)?.content);
+    };
+    let out = await ask(text);
+    // Réponse inutilisable : nouvel essai avec une consigne explicite, sinon le petit modèle
+    if (badReply(out, text)) out = await ask(`Translate into ${LANG_NAME[lang]}, answer with the translation only:\n${text}`);
+    if (badReply(out, text)) out = await translateLight(text, lang, domain, from).catch(() => '');
+    return out;
+  }
+  return translateLight(text, lang, domain, from);
+}
+
+// Erreur échappée au moteur (carte graphique perdue…) : la tâche en cours échoue proprement au
+// lieu de faire planter le fil de calcul (qui serait relancé et rechargerait tous les modèles)
+let currentId = null;
+self.addEventListener('unhandledrejection', (e) => {
+  e.preventDefault();
+  if (currentId !== null) self.postMessage({ type: 'error', id: currentId, error: e.reason?.message || String(e.reason) });
+});
 
 self.onmessage = async (e) => {
   const { id, kind, quality } = e.data;
+  currentId = id;
   try {
     const text = kind === 'translate'
       ? await translate(e.data.text, e.data.lang, quality, e.data.who, e.data.domain, e.data.from)
-      : await transcribe(e.data.audio, quality);
+      : kind === 'asr-ts' ? await transcribeTimed(e.data.audio, quality)
+        : await transcribe(e.data.audio, quality);
     if (kind !== 'translate') self.postMessage({ type: 'ready', device: quality === 'high' ? 'webgpu' : 'wasm' });
     self.postMessage({ type: 'result', id, text });
   } catch (err) {
     self.postMessage({ type: 'error', id, error: err?.message || String(err) });
+  } finally {
+    currentId = null;
   }
 };

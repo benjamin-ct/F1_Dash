@@ -16,7 +16,10 @@ import { initAutoSync } from './ui/autosync.js';
 import { initTower, renderTower } from './ui/tower.js';
 import { initMap } from './ui/map.js';
 import { initDuel, renderDuel } from './ui/duel.js';
-import { renderRcm, renderRadio, renderPits, renderTranscripts } from './ui/feed.js';
+import { renderRcm, renderPits } from './ui/feed.js';
+import { renderRadios, initRadios } from './ui/radios.js';
+import { initTabMove } from './ui/tabmove.js';
+import { initOnboardRadio } from './ui/onboard-radio.js';
 import { renderTelemetry, renderStrategy, renderWeather, renderChampionship } from './ui/extra.js';
 import { initSettings } from './ui/settings.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
@@ -24,7 +27,7 @@ import { initAlerts } from './ui/alerts.js';
 import { initWakeLock } from './ui/wakelock.js';
 import { initSelects } from './ui/select.js';
 import { initLegends, legendsToggle } from './ui/legends.js';
-import { initRadio, initStewards, renderStewards, initRcmFilters } from './ui/feed.js';
+import { initStewards, renderStewards, initRcmFilters } from './ui/feed.js';
 import { initLayout } from './ui/layout.js';
 import { initUpdates } from './ui/updates.js';
 import { initChangelog } from './ui/changelog.js';
@@ -72,8 +75,7 @@ function loop() {
   safe(renderTower);
   safe(renderDuel);
   safe(renderRcm);
-  safe(renderRadio);
-  safe(renderTranscripts);
+  safe(renderRadios);
   safe(renderPits);
   safe(renderTelemetry);
   safe(renderStrategy);
@@ -90,6 +92,7 @@ function loop() {
 }
 
 initTabs();
+initTabMove();
 initDelay();
 initAutoSync();
 initTower();
@@ -102,7 +105,8 @@ initWakeLock();
 initSelects();
 initLegends();
 legendsToggle(document.querySelector('#legendsOn'));
-initRadio();
+initRadios();
+initOnboardRadio();
 initRcmFilters();
 initStewards();
 initLayout();

@@ -179,7 +179,7 @@ export function openCompareLap(num, lap) {
   if (!sel.b || sel.b === num) sel.b = num === b ? a : b;
   storageSet(KEY, { a: sel.a, b: sel.b });
   data = null;
-  document.querySelector('.p-analysis [data-tab="compare"]')?.click();
+  document.querySelector('[data-tab="compare"]')?.click();
   renderCompare(true);
 }
 

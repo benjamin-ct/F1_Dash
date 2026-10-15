@@ -6,7 +6,7 @@ import { emit } from '../store.js';
 
 const KEY = 'f1dash.radioTexts';
 const MAX_KEEP = 400;
-let texts = storageGet(KEY, {});           // url -> { en, tr: { fr, es… } }
+let texts = cleanTexts(storageGet(KEY, {}));   // url -> { en, tr: { fr, es… }, d: durée (s) }
 const queue = [];                          // tâches { url, kind: 'asr' | 'mt' } (plus récentes d'abord)
 const queued = new Set();
 let worker = null;
@@ -29,6 +29,12 @@ let retryAt = 0;
 let current = null;   // tâche en cours {id, resolve, reject}
 let nextId = 1;
 
+// Anciennes transcriptions sans aucun mot (« - ») : comptées comme « pas de parole reconnue »
+function cleanTexts(o) {
+  for (const t of Object.values(o || {})) if (t?.en && !/[A-Za-z]{2}|\d/.test(t.en)) { t.en = ''; t.tr = {}; }
+  return o || {};
+}
+
 navigator.locks?.request('f1dash-radio-transcriber', () => {
   isTranscriber = true;
   pump();
@@ -38,7 +44,7 @@ navigator.locks?.request('f1dash-radio-transcriber', () => {
 // Textes reçus d'une autre fenêtre
 window.addEventListener('storage', (e) => {
   if (e.key !== KEY || !e.newValue) return;
-  try { texts = JSON.parse(e.newValue) || {}; } catch { return; }
+  try { texts = cleanTexts(JSON.parse(e.newValue)); } catch { return; }
   emit('radioText');
 });
 
@@ -50,9 +56,12 @@ export function transcribeStatus() {
   return status;
 }
 
+// L'état (téléchargement, niveau de qualité…) a son propre évènement : il ne doit pas faire
+// redessiner la liste des radios
 function setStatus(state, msg = '') {
+  if (status.state === state && status.msg === msg) return;
   status = { state, msg };
-  emit('radioText');
+  emit('radioStatus');
 }
 
 function save() {
@@ -103,12 +112,14 @@ async function refreshEffective() {
   effective.asr = await qualityFor('asr');
   effective.mt = await qualityFor('mt');
   if (status.state !== 'loading') setStatus(status.state === 'idle' ? 'idle' : 'ready', describe());
-  else emit('radioText');
 }
 
-// Échec d'un grand modèle : qualité légère pour ce modèle, nouvel essai plus tard
+// Échec d'un grand modèle : qualité légère pour ce modèle, nouvel essai plus tard, de plus en plus
+// espacé si l'échec se répète (sinon le modèle de 2 Go est rechargé toutes les 2 minutes)
 function markHighFailed(use, err) {
-  highFail[use] = { msg: err.message, at: Date.now(), wait: qualityPref === 'high' ? RETRY_MS.pref : RETRY_MS.auto };
+  const n = (highFail[use]?.n || 0) + 1;
+  const base = qualityPref === 'high' ? RETRY_MS.pref : RETRY_MS.auto;
+  highFail[use] = { msg: err.message, at: Date.now(), n, wait: Math.min(60 * 60000, base * 2 ** (n - 1)) };
   effective[use] = 'light';
   console.warn(`[transcription] ${use === 'asr' ? 'reconnaissance vocale' : 'traduction'} en haute qualité impossible :`, err.message);
 }
@@ -161,19 +172,24 @@ export function requestTranscripts(items) {
 
 function getWorker() {
   if (worker) return worker;
-  worker = new Worker(new URL('../workers/whisper.js', import.meta.url), { type: 'module' });
-  // Échec du chargement (pas de connexion pour télécharger le moteur / le modèle…)
-  worker.onerror = (e) => {
+  const w = worker = new Worker(new URL('../workers/whisper.js', import.meta.url), { type: 'module' });
+  // Échec du moteur (pas de connexion pour le télécharger, plantage…) : il est arrêté pour de bon
+  // (sinon l'ancien continue en mémoire, avec ses modèles, à côté du nouveau)
+  w.onerror = (e) => {
     e.preventDefault?.();
-    worker = null;
+    w.terminate();
+    if (worker === w) worker = null;
     current?.reject(new Error(e.message || 'moteur de transcription indisponible (connexion ?)'));
   };
-  worker.onmessage = (e) => {
+  w.onmessage = (e) => {
+    if (worker !== w) return;
     const m = e.data;
     if (m.type === 'progress') {
       const what = m.what === 'mt' ? 'traduction' : 'reconnaissance vocale';
       const mb = (x) => Math.round(x / 1e6);
-      setStatus('loading', `Téléchargement du modèle de ${what} (première fois) : ${mb(m.loaded)} / ${mb(m.total)} Mo`);
+      setStatus('loading', m.cached
+        ? `Chargement du modèle de ${what} : ${mb(m.loaded)} / ${mb(m.total)} Mo`
+        : `Téléchargement du modèle de ${what} (première fois) : ${mb(m.loaded)} / ${mb(m.total)} Mo`);
       return;
     }
     if (m.type === 'ready') { setStatus('ready', describe()); return; }
@@ -215,6 +231,26 @@ export function translateText(text, language, domain, from = 'en') {
   });
 }
 
+// Fenêtre de son (16 kHz) des caméras embarquées : segments horodatés [{ timestamp: [a, b], text }].
+// Passe avant les radios officielles (c'est du direct).
+export function transcribeWindow(audio) {
+  return new Promise((resolve, reject) => {
+    queue.unshift({ kind: 'win', audio, resolve, reject, k: `win|${nextId}` });
+    pump();
+  });
+}
+
+async function runWindow(task) {
+  const q = await qualityFor('asr');
+  try {
+    task.resolve(await run({ kind: 'asr-ts', audio: task.audio, quality: q }, q === 'high' ? [] : [task.audio.buffer]));
+  } catch (err) {
+    if (q !== 'high') throw err;
+    markHighFailed('asr', err);
+    task.resolve(await run({ kind: 'asr-ts', audio: task.audio, quality: 'light' }, [task.audio.buffer]));
+  }
+}
+
 async function textQuality() {
   if ((await qualityFor('mt')) !== 'high') return 'light';
   try {
@@ -240,12 +276,12 @@ async function pump() {
   if (busy || !queue.length || Date.now() < retryAt) return;
   // Radios : seulement si la transcription est activée, dans la fenêtre qui en est chargée
   const radios = enabled && isTranscriber;
-  const i = queue.findIndex((t) => t.kind === 'text' || radios);
+  const i = queue.findIndex((t) => t.kind === 'text' || t.kind === 'win' || radios);
   if (i < 0) return;
   busy = true;
   const task = queue.splice(i, 1)[0];
-  if (task.kind === 'text') {
-    try { await runText(task); } catch (err) { task.reject(err); }
+  if (task.kind === 'text' || task.kind === 'win') {
+    try { await (task.kind === 'win' ? runWindow(task) : runText(task)); } catch (err) { task.reject(err); }
     busy = false;
     setTimeout(pump, 50);
     return;
@@ -256,8 +292,9 @@ async function pump() {
       effective.asr = q;
       const audio = await decode(task.url);
       if (status.state !== 'ready') setStatus('loading', 'Préparation de la transcription…');
+      const d = Math.round(audio.length / 1600) / 10;
       const en = await run({ kind: 'asr', audio, quality: q }, [audio.buffer]);
-      texts[task.url] = { en, tr: {}, tq: {}, q };
+      texts[task.url] = { en, tr: {}, tq: {}, q, d };
       // Traduction juste après, avant les radios plus anciennes
       if (en && task.lang !== 'none') {
         const k = `mt|${task.url}|${task.lang}`;

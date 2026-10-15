@@ -354,9 +354,6 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .flag-SC { background: var(--sc); }
 .flag-DRS { background: var(--green); opacity: .7; }
 
-.radio li { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
-.radio audio { height: 30px; flex: 1; min-width: 0; }
-.radio .r-drv { min-width: 88px; display: flex; align-items: center; gap: 6px; font-weight: 700; }
 
 .pits { width: 100%; border-collapse: collapse; }
 .pits td, .pits th { padding: 5px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; }
@@ -884,15 +881,60 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 /* Fluidité : les mises à jour d'un panneau ne forcent pas le recalcul des autres */
 .panel-body, .tabpane { contain: layout paint; }
 
-/* Transcriptions des radios */
-.transcripts { list-style: none; margin: 0; padding: 0; }
-.transcripts li { padding: 8px 12px; border-bottom: 1px solid var(--line); }
-.transcripts .t-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
-.transcripts .t-play { margin-left: auto; background: var(--panel-3); border: 1px solid var(--border); color: var(--text); border-radius: 50%; width: 24px; height: 24px; font-size: 10px; cursor: pointer; }
-.transcripts .t-play:hover { border-color: var(--blue); }
-.transcripts .t-main { font-size: 14px; line-height: 1.35; }
-.transcripts .t-orig { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 2px; }
-.transcripts .pending { color: var(--muted); font-style: normal; }
+/* Radios d'équipe (façon MultiViewer) : bande de cartes audio + fil des radios retranscrites */
+.tabpane.rd-pane.active { display: flex; flex-direction: column; height: 100%; }
+/* Réglages sur une seule ligne (défilable) : les cartes des radios restent visibles dans un petit panneau */
+.rd-bar { flex: none; gap: 8px 12px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.rd-bar::-webkit-scrollbar { display: none; }
+.rd-bar > *, .rd-bar label { white-space: nowrap; flex: none; }
+.rd-opts { display: contents; }
+.rd-opts[hidden] { display: none; }
+.rd-status:empty { display: none; }
+.rd-status { flex: none; padding: 4px 12px; border-bottom: 1px solid var(--line); }
+.rd-empty { padding: 10px 12px; }
+.rd-av { position: relative; flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--tc); display: grid; place-items: center; }
+.rd-av > b { font-size: 11px; color: #fff; letter-spacing: .02em; text-shadow: 0 1px 2px rgba(0, 0, 0, .4); }
+.rd-av img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; object-position: top; background: color-mix(in srgb, var(--tc) 80%, #000); }
+.rd-mic { position: absolute; right: -3px; bottom: -3px; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; border: 2px solid var(--panel); }
+.rd-mic .ic { width: 9px; height: 9px; }
+/* Bande du haut */
+.rd-strip { flex: none; display: flex; gap: 8px; padding: 8px 10px; overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
+.rd-strip:empty { display: none; }
+.rd-card { position: relative; flex: none; display: flex; align-items: center; gap: 10px; min-width: 210px; max-width: 260px; padding: 8px 12px 8px 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); text-align: left; font: inherit; cursor: pointer; overflow: hidden; }
+.rd-card:hover { border-color: var(--line-2); background: var(--hover); }
+.rd-card.playing { border-color: var(--rd-prog); }
+.rd-card.playing .rd-mic { background: var(--accent); }
+.rd-card.unheard::after { content: ''; position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+.rd-c-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rd-c-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rd-c-when { font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rd-c-dur { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* Progression de la radio en cours : la carte entière se remplit (cyan), barre pleine largeur en bas */
+.rd-strip { --rd-prog: #22d3ee; }
+:root[data-scheme="light"] .rd-strip { --rd-prog: #0891b2; }
+.rd-card > :not(.rd-fill):not(.rd-prog) { position: relative; z-index: 1; }
+.rd-fill { position: absolute; inset: 0; z-index: 0; background: color-mix(in srgb, var(--rd-prog) 30%, transparent); transform-origin: left; transform: scaleX(0); display: none; pointer-events: none; }
+.rd-prog { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: none; }
+.rd-card.playing .rd-fill { display: block; }
+.rd-card.playing .rd-prog { display: block; height: 5px; background: color-mix(in srgb, var(--rd-prog) 25%, var(--line)); cursor: pointer; }
+.rd-prog i { display: block; height: 100%; background: var(--rd-prog); transform-origin: left; transform: scaleX(0); }
+.rd-card.playing .rd-c-dur { color: var(--rd-prog); }
+/* Fil des radios retranscrites */
+.rd-feed-head { flex: none; display: flex; align-items: baseline; gap: 8px; padding: 8px 14px 4px; }
+.rd-feed-head b { font-size: 13.5px; }
+.rd-speed { margin-left: auto; min-width: 36px; height: 22px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-3); color: var(--text); font-size: 12px; cursor: pointer; }
+.rd-text-off { margin: 4px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rd-list { list-style: none; margin: 0; padding: 0 4px 6px; flex: 1; min-height: 0; overflow-y: auto; }
+.rd-line { display: flex; align-items: flex-start; gap: 12px; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
+.rd-line:hover { background: var(--hover); }
+.rd-line.playing { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.rd-l-main { flex: 1; min-width: 0; padding-top: 1px; }
+.rd-text { font-size: 14.5px; line-height: 1.4; }
+.rd-orig { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 2px; }
+.rd-l-who { font-size: 12px; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.rd-line .pending { color: var(--muted); font-style: normal; }
+.rd-line.ob { cursor: default; }
+.rd-ob { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); vertical-align: 1px; }
 
 /* ---------- Panneau Analyse (race trace, positions, temps, pneus, secteurs) ---------- */
 .tabpane.ana-pane.active { display: flex; flex-direction: column; height: 100%; }
@@ -911,6 +953,9 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tyre-hist td { padding: 2px 5px; text-align: center; border-radius: 3px; white-space: nowrap; background: color-mix(in srgb, var(--tc) 22%, transparent); border-bottom: 2px solid var(--tc); }
 .tyre-hist td:empty { background: none; border: 0; }
 .tyre-hist td.pit { outline: 1px solid #fff; }
+:root[data-scheme="light"] .tyre-hist td { background: color-mix(in srgb, var(--tc) 30%, transparent); }
+:root[data-scheme="light"] .tyre-hist td.pit { outline: 1.5px solid var(--text); }
+:root[data-scheme="light"] .tyre-hist td.best { color: var(--purple); }
 .tyre-hist td.best { color: #d58cff; font-weight: 700; }
 .tyre-legend { padding: 6px 4px; display: flex; gap: 10px; flex-wrap: wrap; }
 .tyre-legend span { border-bottom: 2px solid var(--tc); }
@@ -932,7 +977,13 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .set-tab.active { color: var(--text); border-bottom-color: var(--red); }
 #settingsModal .set-block.set-hidden { display: none; }
 /* Panneaux à nombreux onglets : onglets plus compacts pour tenir sur une ligne */
-.p-analysis .tab, .p-extra .tab { padding: 4px 7px; letter-spacing: .2px; font-size: 12px; }
+.panel-head.tabs.many .tab { padding: 4px 7px; letter-spacing: .2px; font-size: 12px; }
+/* Onglets déplaçables (glisser vers un autre panneau ou une autre place) */
+body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-select: none; }
+.tab-ghost { position: fixed; left: 0; top: 0; z-index: 10000; pointer-events: none; box-shadow: 0 6px 20px rgba(0, 0, 0, .35); opacity: .95; }
+.tab-marker { position: fixed; z-index: 10001; width: 3px; border-radius: 2px; background: var(--accent); pointer-events: none; }
+.panel.tab-drop { box-shadow: inset 0 0 0 2px var(--accent); }
+.tab-empty { margin: 16px; text-align: center; }
 
 /* ---------- Espace Saison ---------- */
 .season-btn { font-weight: 700; }

@@ -18,7 +18,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Duels, bagarres et simulateur d'arrêt** : écart en temps réel, tendance, « s'il s'arrête maintenant, il ressort P8 ».
 - **Analyse** : race trace, positions, temps au tour, rythme, pneus, secteurs, télémétrie.
 - **Direction de course et enquêtes**, avec les documents officiels de la FIA.
-- **Radios d'équipe** retranscrites et traduites en français, sur votre ordinateur.
+- **Radios d'équipe** façon MultiViewer : photo du pilote, écoute avec progression, chaque radio retranscrite et traduite en français sur votre ordinateur ; en expérimental, toutes les radios captées sur le son des caméras embarquées F1 TV.
 - **Commentaires F1 TV Pro** ou radio de votre choix, synchronisés sur le dashboard.
 - **Espace Actu** : toute l'actualité de la F1 au même endroit (F1, FIA, chaînes officielles des écuries et des pilotes, une trentaine de médias en 8 langues), traduite en français, regroupée par sujet, avec alertes et anti-spoiler.
 - **Espace Saison** : calendrier, classements, notes des pilotes (S à F), écart en qualification entre coéquipiers, statistiques par pilote, régularité, arrêts, vitesses, profils des circuits, évolutions techniques et éléments moteur (documents FIA).
@@ -36,6 +36,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 | ![Saison : fiche pilote](docs/screenshots/saison-pilote.png) | ![Saison : évolutions techniques](docs/screenshots/saison-evolutions-techniques.png) |
 | ![Replay : moments clés](docs/screenshots/moments.png) | ![Résumé automatique de la séance](docs/screenshots/resume.png) |
 | ![Météo : radar de la pluie autour du circuit](docs/screenshots/radar.png) | ![Saison : pronostics entre amis](docs/screenshots/pronostics.png) |
+| ![Radios d'équipe retranscrites et traduites](docs/screenshots/radios.png) | ![Analyse : race trace](docs/screenshots/analyse-race-trace.png) |
 
 <img src="docs/screenshots/mini-classement.png" alt="Mini-classement flottant, toujours au premier plan" width="380" align="right">
 

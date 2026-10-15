@@ -1,9 +1,8 @@
 // Direction de course, radios d'équipe, arrêts aux stands.
 import { store, versionOf, on, f1Now, displayNow } from '../store.js';
-import { prefs, setPref, isFav } from '../prefs.js';
+import { prefs, setPref } from '../prefs.js';
 import { $, esc, drivers, teamColor, fmtClock, fmtLap, api, stintsOf, tyreBadge, orderedNumbers } from '../util.js';
 import { parseUtc, parseLapTime } from '/shared/f1.js';
-import { radioEntry, requestTranscripts, setTranscribe, transcribeStatus } from './transcribe.js';
 import { analyzeStewards, isOpen, STATUS_LABEL, linkFiaDocs, parseFiaDoc, deletedLapsDoc } from '/shared/stewards.js';
 import { icon } from '../icons.js';
 import { DEC } from '../i18n.js';
@@ -20,7 +19,6 @@ const FLAG_FR = {
 };
 
 let rcmVer = -1, rcmCount = 0;
-let radioVer = -1;
 let pitVer = -1;
 
 function rcmFlagClass(m) {
@@ -67,67 +65,6 @@ export function renderRcm() {
         <div class="rcm-flag ${rcmFlagClass(m)}" title="${esc(title)}"></div><div class="rcm-msg">${esc(m.Message)}</div></li>`;
     }).join('')
     : '<li class="note">Aucun message de la direction de course.</li>';
-}
-
-let textVer = 0;
-let transcriptVer = '';
-
-// Onglet Transcriptions : radios retranscrites en texte (et traduites), plus récentes en haut.
-export function renderTranscripts() {
-  const v = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${prefs.radioFilter}|${prefs.radioText}|${prefs.radioLang}|${prefs.radioQuality}|${textVer}`;
-  if (v === transcriptVer) return;
-  transcriptVer = v;
-  const dl = drivers(store.state);
-  const base = store.state.SessionInfo?.Path ? `https://livetiming.formula1.com/static/${store.state.SessionInfo.Path}` : null;
-  const caps = list(store.state.TeamRadio?.Captures).filter((c) => radioAllowed(c.RacingNumber)).sort((a, b) => parseUtc(b.Utc) - parseUtc(a.Utc));
-  const el = $('#transcriptList');
-  $('#radioTextStatus').textContent = prefs.radioText ? transcribeStatus().msg : '';
-  if (!prefs.radioText) {
-    el.innerHTML = '<li class="note">Cochez « Transcrire les radios » pour afficher chaque radio d\'équipe en texte, traduite dans la langue choisie. La reconnaissance vocale et la traduction se font sur cet ordinateur (modèles téléchargés une seule fois au premier usage).</li>';
-    return;
-  }
-  if (!caps.length || !base) { el.innerHTML = '<li class="note">Aucune radio d\'équipe pour l\'instant.</li>'; return; }
-  requestTranscripts(caps.slice(0, 40).map((c) => {
-    const d = dl[c.RacingNumber] || {};
-    return { url: base + c.Path, who: [d.FullName || d.Tla, d.TeamName].filter(Boolean).join(', ') };
-  }));
-  const lang = prefs.radioLang;
-  // Ne pas reconstruire la liste pendant une lecture audio.
-  if ([...el.querySelectorAll('audio')].some((a) => !a.paused)) { transcriptVer = ''; return; }
-  el.innerHTML = caps.map((c) => {
-    const d = dl[c.RacingNumber] || {};
-    const e = radioEntry(base + c.Path);
-    let body;
-    if (!e) body = '<div class="t-main pending">transcription…</div>';
-    else if (!e.en) body = '<div class="t-main muted">(pas de parole reconnue)</div>';
-    else if (lang === 'none') body = `<div class="t-main">« ${esc(e.en)} »</div>`;
-    else body = e.tr?.[lang] !== undefined
-      ? `<div class="t-main">« ${esc(e.tr[lang])} »</div><div class="t-orig">${esc(e.en)}</div>`
-      : `<div class="t-main">« ${esc(e.en)} »</div><div class="t-orig pending">traduction…</div>`;
-    return `<li><div class="t-head"><span class="drv"><span class="drv-bar" style="background:${teamColor(d)}"></span><b>${esc(d.Tla || c.RacingNumber)}</b></span>
-      <span class="muted small">${esc(d.LastName || '')} · ${fmtClock(parseUtc(c.Utc))}</span>
-      <button class="t-play" data-src="${esc(base + c.Path)}" title="Écouter">${icon('play')}</button></div>${body}</li>`;
-  }).join('');
-}
-
-export function renderRadio() {
-  const v = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${prefs.radioFilter}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
-  if (v === radioVer) return;
-  radioVer = v;
-  const dl = drivers(store.state);
-  const base = store.state.SessionInfo?.Path ? `https://livetiming.formula1.com/static/${store.state.SessionInfo.Path}` : null;
-  const caps = list(store.state.TeamRadio?.Captures).filter((c) => radioAllowed(c.RacingNumber)).sort((a, b) => parseUtc(b.Utc) - parseUtc(a.Utc));
-  const el = $('#radioList');
-  // Ne pas reconstruire la liste pendant une lecture audio.
-  if ([...el.querySelectorAll('audio')].some((a) => !a.paused)) { radioVer = -1; return; }
-  el.innerHTML = caps.length && base
-    ? caps.map((c) => {
-      const d = dl[c.RacingNumber] || {};
-      return `<li><div class="r-drv"><span class="drv-bar" style="background:${teamColor(d)}"></span>${esc(d.Tla || c.RacingNumber)}</div>
-        <span class="muted small">${fmtClock(parseUtc(c.Utc))}</span>
-        <audio controls preload="none" src="${esc(base + c.Path)}"></audio></li>`;
-    }).join('')
-    : '<li class="note">Aucune radio d\'équipe pour l\'instant.</li>';
 }
 
 // Immobilisation estimée par la télémétrie (vitesse nulle) quand la F1 ne fournit pas le temps
@@ -276,36 +213,6 @@ export function renderPits() {
   for (const r of document.querySelectorAll('input[name=pitView]')) r.onchange = (e) => setPref('pitView', e.target.value);
 }
 
-function radioAllowed(num) {
-  num = String(num);
-  if (prefs.radioFilter === 'fav') return isFav(num);
-  if (prefs.radioFilter === 'duel') return num === store.duel.a || num === store.duel.b;
-  return true;
-}
-
-// ---- Lecture automatique des nouvelles radios (au rythme du délai TV) ----
-// Une seule fenêtre joue les radios (sinon chaque fenêtre ouverte — principale, détachées,
-// onglets — les lit aussi et le son est en double) : verrou partagé entre fenêtres, repris
-// automatiquement par une autre fenêtre si celle qui le détient se ferme.
-const queue = [];
-const seen = new Set();        // radios déjà jouées ou en file (les captures peuvent être renvoyées)
-let player = null;
-let isRadioPlayer = !navigator.locks;
-navigator.locks?.request('f1dash-radio-player', () => {
-  isRadioPlayer = true;
-  return new Promise(() => {}); // conservé jusqu'à la fermeture de la fenêtre
-});
-
-function playNext() {
-  if (player && !player.paused && !player.ended) return;
-  const next = queue.shift();
-  if (!next) return;
-  player ||= new Audio();
-  player.src = next;
-  player.play().catch(() => { /* le navigateur exige une interaction préalable */ });
-  player.onended = playNext;
-}
-
 export function initRcmFilters() {
   for (const [id, key] of [['rcmBlue', 'rcmBlue'], ['rcmDeleted', 'rcmDeleted']]) {
     $(`#${id}`).checked = prefs[key];
@@ -316,52 +223,6 @@ export function initRcmFilters() {
   type.value = prefs.rcmType || 'all';
   type.addEventListener('change', (e) => setPref('rcmType', e.target.value));
   on('prefs', (k) => { if (k === 'rcmType') type.value = prefs.rcmType; });
-}
-
-export function initRadio() {
-  $('#radioFilter').value = prefs.radioFilter;
-  $('#radioAuto').checked = prefs.radioAuto;
-  $('#radioFilter').addEventListener('change', (e) => setPref('radioFilter', e.target.value));
-  $('#radioAuto').addEventListener('change', (e) => setPref('radioAuto', e.target.checked));
-  $('#radioText').checked = prefs.radioText;
-  $('#radioLang').value = prefs.radioLang;
-  $('#radioQuality').value = prefs.radioQuality;
-  setTranscribe(prefs.radioText, prefs.radioLang, prefs.radioQuality);
-  $('#radioText').addEventListener('change', (e) => setPref('radioText', e.target.checked));
-  $('#radioLang').addEventListener('change', (e) => setPref('radioLang', e.target.value));
-  $('#radioQuality').addEventListener('change', (e) => setPref('radioQuality', e.target.value));
-  on('prefs', (k) => {
-    if (!['radioText', 'radioLang', 'radioQuality'].includes(k)) return;
-    $('#radioText').checked = prefs.radioText;
-    $('#radioLang').value = prefs.radioLang;
-    $('#radioQuality').value = prefs.radioQuality;
-    setTranscribe(prefs.radioText, prefs.radioLang, prefs.radioQuality);
-  });
-  // Écoute d'une radio depuis l'onglet Transcriptions
-  let tPlayer = null;
-  $('#transcriptList').addEventListener('click', (e) => {
-    const b = e.target.closest('.t-play');
-    if (!b) return;
-    tPlayer ||= new Audio();
-    if (tPlayer.src === b.dataset.src && !tPlayer.paused) { tPlayer.pause(); return; }
-    tPlayer.src = b.dataset.src;
-    tPlayer.play().catch(() => {});
-  });
-  on('radioText', () => { textVer++; });
-  on('events', (events) => {
-    if (!prefs.radioAuto || !isRadioPlayer) return;
-    const base = store.state.SessionInfo?.Path ? `https://livetiming.formula1.com/static/${store.state.SessionInfo.Path}` : null;
-    if (!base) return;
-    for (const [topic, data] of events) {
-      if (topic !== 'TeamRadio' || !data?.Captures) continue;
-      for (const c of list(data.Captures)) {
-        if (!c?.Path || !radioAllowed(c.RacingNumber) || seen.has(c.Path)) continue;
-        seen.add(c.Path);
-        queue.push(base + c.Path);
-      }
-    }
-    playNext();
-  });
 }
 
 // ---- Enquêtes des commissaires et limites de piste ----
