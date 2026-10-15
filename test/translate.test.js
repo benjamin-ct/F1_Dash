@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanRequest, translateBatch, keyOf } from '../analytics/translate.js';
+import { cleanRequest, translateBatch, keyOf, parseList, MODEL, FALLBACK } from '../analytics/translate.js';
 import { createCloudTranslator } from '../server/cloud-translate.js';
 
 // Base D1 simulée pour les traductions et le plafond du jour
-function fakeEnv({ limit = 100, fail = false } = {}) {
+function fakeEnv({ limit = 100, fail = false, garbled = false } = {}) {
   const tr = new Map();
   const usage = new Map();
   const calls = [];
@@ -20,7 +20,18 @@ function fakeEnv({ limit = 100, fail = false } = {}) {
     env: {
       AI_DAILY_LIMIT: String(limit),
       DB: { prepare: (sql) => stmt(sql), async batch(list) { for (const s of list) s.exec(); } },
-      AI: { async run(model, input) { calls.push(input); if (fail) throw new Error('ia'); return { translated_text: `[${input.target_lang}] ${input.text}` }; } },
+      AI: {
+        async run(model, input) {
+          calls.push({ model, input });
+          if (fail) throw new Error('ia');
+          if (model === MODEL) {
+            const list = JSON.parse(input.messages[1].content);
+            return { response: garbled ? 'Désolé, je ne peux pas.' : `Voici : ${JSON.stringify(list.map((t) => `[fr] ${t}`))}` };
+          }
+          assert.equal(model, FALLBACK);
+          return { translated_text: `[${input.target_lang}] ${input.text}` };
+        },
+      },
     },
   };
 }
@@ -76,4 +87,18 @@ test('appli : demandes regroupées, mémoire, pause si le serveur refuse', async
   assert.equal(await tr.translate('autre', 'en', 'fr'), null);
   t += 11 * 60e3;
   assert.equal(tr.available(), true);
+});
+
+test('traduction partagée : consignes F1 envoyées, réponse mal formée -> traduction simple', async () => {
+  const f = fakeEnv();
+  await translateBatch(f.env, { to: 'fr', items: [{ text: 'Câmara joins Haas', from: 'en' }] }, 'd');
+  const sys = f.calls[0].input.messages[0].content;
+  assert.match(sys, /Keep names of drivers/);
+  assert.match(sys, /rentre aux stands/);
+  const g = fakeEnv({ garbled: true });
+  const r = await translateBatch(g.env, { to: 'fr', items: [{ text: 'a', from: 'en' }, { text: 'b', from: 'de' }] }, 'd');
+  assert.deepEqual(r.out, ['[fr] a', '[fr] b']);
+  assert.deepEqual(g.calls.map((c) => c.model), [MODEL, FALLBACK, FALLBACK]);
+  assert.equal(parseList('["x"]', 2), null);
+  assert.deepEqual(parseList('ok ["x", " y "]', 2), ['x', 'y']);
 });

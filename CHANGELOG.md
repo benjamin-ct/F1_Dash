@@ -8,6 +8,7 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Traductions en ligne
 - **Les traductions passent maintenant par le serveur Paddock Live** (actualités, radios d'équipe, documents FIA) : plus aucun modèle de traduction à faire tourner sur l'ordinateur ou le téléphone, et chaque texte n'est traduit qu'une fois pour tous les utilisateurs, donc souvent instantanément.
+- Traductions faites par un modèle de langage (Mistral Small 3.1) qui connaît la F1 : noms des pilotes et des écuries gardés tels quels, vocabulaire des fans (« rentre aux stands », « tendres »…).
 - Seuls les textes à traduire sont envoyés (titres et résumés d'articles, texte des radios), rien d'autre. Désactivable dans Réglages → Application → *Traductions* ; si le serveur ne répond pas, la traduction se fait sur l'ordinateur comme avant.
 - Sur le téléphone, les actualités sont traduites directement, sans attendre l'ordinateur.
 

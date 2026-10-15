@@ -210,7 +210,7 @@ Au premier lancement, Paddock Live demande s'il peut envoyer des **statistiques 
 
 ## 🌍 Traductions
 
-Les actualités, le texte des radios d'équipe et les documents FIA sont traduits par le **serveur Paddock Live** (Cloudflare Workers AI, modèle m2m100) : chaque texte n'y est traduit qu'une fois, puis gardé pour tous les utilisateurs. Rien n'est calculé sur l'ordinateur.
+Les actualités, le texte des radios d'équipe et les documents FIA sont traduits par le **serveur Paddock Live** (Cloudflare Workers AI, modèle de langage Mistral Small 3.1 avec des consignes F1 : noms des pilotes et des écuries gardés, vocabulaire des fans) : chaque texte n'y est traduit qu'une fois, puis gardé pour tous les utilisateurs. Rien n'est calculé sur l'ordinateur.
 
 - Seuls les textes à traduire sont envoyés : titres et résumés d'articles, texte des radios, extraits des documents FIA. Aucun identifiant, aucun réglage.
 - ⚙ Réglages → Application → *Traductions* : décocher pour tout traduire sur l'ordinateur (modèles téléchargés une fois, plus lourd).
