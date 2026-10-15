@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.3 — à venir
+## v1.27.3 — 2026-10-15
 
 ### Radios d'équipe
 - **La transcription des radios passe aussi par le serveur Paddock Live** : plus aucun modèle de reconnaissance vocale à faire tourner sur l'ordinateur, l'appli reste légère même pendant un replay riche en radios. Chaque radio n'est transcrite qu'une fois pour tous les utilisateurs (Whisper large-v3-turbo, le modèle de la haute qualité), donc souvent instantanément.
