@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.5 — à venir
+## v1.27.5 — 2026-10-15
 
 ### Actu
 - **Les articles s'ouvrent dans l'appli** : un clic sur un titre affiche l'article directement dans Paddock Live (titre, photo, auteur, date et texte complet, sans menus ni publicités), avec le titre et le résumé traduits en français, puis le texte de l'article en version originale. Bouton *VO* pour le titre et le résumé d'origine, *Ouvrir sur le site* si besoin. Échap ou *Retour à l'actu* pour revenir à la liste, au même endroit.
