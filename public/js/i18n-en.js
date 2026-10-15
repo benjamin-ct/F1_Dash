@@ -1222,8 +1222,6 @@ export default {
   "Radio de {} entendue, mais elle donne un délai impossible ({}) : sans doute rediffusée. Toujours à l'écoute.": "{}'s radio heard, but it gives an impossible delay ({}): probably a replay. Still listening.",
   "Radios (transcriptions, audio)": "Radios (transcripts, audio)",
   "Radios d'équipe (audio)": "Team radios (audio)",
-  "Radios d'équipe audio, des plus récentes aux plus anciennes · bouton lecture : écouter.": "Team radio audio, newest first · play button: listen.",
-  "Radios d'équipe retranscrites en texte (en grand : la traduction, en petit : l'anglais d'origine). Tout est fait sur cet ordinateur ; bouton lecture : réécouter la radio.": "Team radios transcribed to text (large: the translation, small: the original English). Everything runs on this computer; play button: listen again.",
   "Radios d'équipe retranscrites en texte et traduites": "Team radios transcribed to text and translated",
   "Raison principale": "Main reason",
   "Raison principale déclarée": "Main reason declared",
@@ -1604,7 +1602,7 @@ export default {
   "Zones indisponibles": "Zones unavailable",
   "Zones LD / détection": "Straight / detection zones",
   "Zoomer (ou molette)": "Zoom in (or mouse wheel)",
-  "Radios d'équipe, des plus récentes aux plus anciennes · bouton lecture ou clic sur la radio : écouter (point bleu : pas encore écoutée) · « Texte » : retranscription en texte et traduction (en grand : la traduction, en petit : l'anglais d'origine), faites sur cet ordinateur.": "Team radios, newest first · play button or click on the radio: listen (blue dot: not heard yet) · “Text”: transcription and translation (large: the translation, small: the original English), done on this computer.",
+
   "Pas de séance en cours.": "No session in progress.",
   "Panneau vide : glissez ici un onglet d'un autre panneau (ou masquez ce panneau).": "Empty panel: drag a tab here from another panel (or hide this panel).",
   "Onglet « {} » déplacé. Pour tout remettre en place : Réglages → Affichage.": "Tab “{}” moved. To put everything back: Settings → Display.",
@@ -1622,4 +1620,10 @@ export default {
   "transcription…": "transcribing…",
   "traduction…": "translating…",
   "Pause": "Pause",
+  "En haut, une carte par radio d'équipe (plus récentes à gauche) : clic pour écouter, point bleu = pas encore écoutée · en dessous, les radios retranscrites et traduites sur cet ordinateur (en petit : l'anglais d'origine) ; clic pour réécouter.": "At the top, one card per team radio (newest on the left): click to listen, blue dot = not heard yet · below, the radios transcribed and translated on this computer (small: the original English); click to listen again.",
+  "Radios retranscrites": "Transcribed radios",
+  "faites sur cet ordinateur": "done on this computer",
+  "Vitesse de lecture des radios": "Radio playback speed",
+  "Activez la transcription pour lire chaque radio en texte, traduite dans votre langue.": "Turn on transcription to read each radio as text, translated into your language.",
+  "Activer": "Turn on",
 };

@@ -7,9 +7,10 @@ l'application (Réglages → Application → Nouveautés).
 ## v1.24.0 — à venir
 
 ### Radios d'équipe façon MultiViewer
-- **Nouveau lecteur des radios** : une seule liste au lieu des onglets Transcriptions / Audio. Chaque radio affiche la couleur de l'écurie, le pilote, le **tour**, l'heure et sa durée, avec un point bleu tant qu'elle n'a pas été écoutée. Un clic sur la radio (ou sur ▶) la joue, avec une **barre de progression** cliquable dans la ligne.
-- **Lecteur en bas de la liste** : pilote en cours, progression, **vitesse de lecture** (1× à 2×) et radio suivante. La lecture automatique des nouvelles radios est toujours là (« Lecture auto »).
-- Case **Texte** : la transcription et la traduction s'affichent directement sous chaque radio.
+- **Nouveau panneau des radios**, sur le modèle des transcriptions de MultiViewer (il remplace les onglets Transcriptions / Audio) :
+  - en haut, **une carte par radio** (plus récentes à gauche) : photo du pilote, nom, **tour** et heure, durée, point bleu tant qu'elle n'a pas été écoutée. Un clic la joue, avec une barre de progression dans la carte ;
+  - en dessous, le **fil des radios retranscrites** : photo, texte traduit en grand, anglais d'origine en petit, « pilote · tour · heure ». Un clic rejoue la radio.
+- Vitesse de lecture réglable (1× à 2×) ; la lecture automatique des nouvelles radios est toujours là (« Lecture auto »).
 
 ### Transcriptions et traductions
 - **La liste ne se recharge plus sans arrêt** : une traduction terminée ou le chargement d'un modèle ne met à jour que la ligne concernée (le défilement et l'écoute ne sont plus interrompus).

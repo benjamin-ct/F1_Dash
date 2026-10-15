@@ -1,11 +1,13 @@
-// Radios d'équipe, façon MultiViewer : une seule liste (plus récentes en haut) où chaque radio a
-// sa couleur d'équipe, son tour, sa durée, un bouton lecture avec barre de progression et, si
-// la transcription est activée, son texte et sa traduction. Un lecteur en bas de la liste
-// (pilote, progression cliquable, vitesse, radio suivante) et la lecture automatique des
-// nouvelles radios au rythme du délai TV.
+// Radios d'équipe, façon MultiViewer :
+// - en haut, une bande de cartes (plus récentes à gauche) : photo du pilote, nom, tour et heure,
+//   durée ; un clic joue la radio (barre de progression dans la carte, point tant qu'elle n'a pas
+//   été écoutée) ;
+// - en dessous, le fil des radios retranscrites (et traduites) : photo, texte en grand,
+//   « pilote · tour · heure » ; un clic rejoue la radio.
+// Lecture automatique des nouvelles radios au rythme du délai TV.
 //
-// La liste est mise à jour ligne par ligne : une traduction terminée ou une radio qui démarre
-// ne redessine que sa ligne (la liste ne « se recharge » plus, le défilement reste en place).
+// Les deux listes sont mises à jour élément par élément : une traduction terminée ou une radio
+// qui démarre ne redessine que son élément (rien ne « se recharge », le défilement reste en place).
 import { store, versionOf, on, utcToLocal } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
 import { $, esc, drivers, teamColor, fmtClock, storageGet, storageSet } from '../util.js';
@@ -28,7 +30,8 @@ let speed = 1;
 let textVer = 0;
 let renderKey = '';
 let ordered = [];                      // radios affichées, dans l'ordre : [{ url, num, utc }]
-const rows = new Map();                // url -> { li, html }
+const cards = new Map();               // url -> { el, html } (bande du haut)
+const lines = new Map();               // url -> { el, html } (fil des transcriptions)
 
 export function radioAllowed(num) {
   num = String(num);
@@ -56,42 +59,67 @@ function lapAt(num, utc) {
   return n + 1;
 }
 
-function textHtml(url) {
-  if (!prefs.radioText) return '';
-  const e = radioEntry(url);
-  const lang = prefs.radioLang;
-  if (!e) return '<div class="rd-text pending">transcription…</div>';
-  if (!e.en) return '<div class="rd-text muted">(pas de parole reconnue)</div>';
-  if (lang === 'none') return `<div class="rd-text">« ${esc(e.en)} »</div>`;
-  return e.tr?.[lang] !== undefined && e.tr[lang] !== ''
-    ? `<div class="rd-text">« ${esc(e.tr[lang])} »</div><div class="rd-orig">${esc(e.en)}</div>`
-    : `<div class="rd-text">« ${esc(e.en)} »</div><div class="rd-orig pending">traduction…</div>`;
+// Photo du pilote (initiales sur la couleur de l'écurie si elle manque) avec le micro
+function avatar(d, num, playing) {
+  const photo = d.HeadshotUrl ? `<img src="${esc(d.HeadshotUrl)}" alt="" loading="lazy" onerror="this.remove()">` : '';
+  return `<span class="rd-av" style="--tc:${teamColor(d)}"><b>${esc(d.Tla || num)}</b>${photo}<i class="rd-mic">${icon(playing ? 'pause' : 'mic')}</i></span>`;
 }
 
-function rowHtml(c, dl) {
-  const d = dl[c.num] || {};
-  const lap = lapAt(c.num, c.utc);
+const fullName = (d, num) => esc([d.FirstName, d.LastName].filter(Boolean).join(' ') || d.FullName || d.Tla || num);
+const when = (c) => { const lap = lapAt(c.num, c.utc); return `${lap ? `Tour ${lap} · ` : ''}${fmtClock(c.utc)}`; };
+const isPlaying = (url) => cur?.url === url && audio && !audio.paused;
+
+function cardHtml(c, d) {
   const dur = durations.get(c.url) ?? radioEntry(c.url)?.d;
-  const playing = cur?.url === c.url;
-  return `<span class="rd-team" style="background:${teamColor(d)}"></span>
-    <button class="rd-play" title="${playing && !audio?.paused ? 'Pause' : 'Écouter'}">${icon(playing && !audio?.paused ? 'pause' : 'play')}</button>
-    <div class="rd-main">
-      <div class="rd-head"><b class="rd-tla">${esc(d.Tla || c.num)}</b><span class="rd-name">${esc(d.LastName || '')}</span>
-        <span class="rd-meta">${lap ? `Tour ${lap} · ` : ''}${fmtClock(c.utc)}</span>${dur ? `<span class="rd-dur">${fmtDur(dur)}</span>` : ''}</div>
-      <div class="rd-prog"><i></i></div>
-      ${textHtml(c.url)}
-    </div>`;
+  return `${avatar(d, c.num, isPlaying(c.url))}<span class="rd-c-main"><b class="rd-c-name">${fullName(d, c.num)}</b><span class="rd-c-when">${when(c)}</span></span>
+    <span class="rd-c-dur">${fmtDur(dur)}</span><span class="rd-prog"><i></i></span>`;
 }
 
-function rowClass(c) {
-  return `rd${cur?.url === c.url ? ' playing' : ''}${heard.has(c.url) ? '' : ' unheard'}`;
+function lineHtml(c, d) {
+  const e = radioEntry(c.url);
+  const lang = prefs.radioLang;
+  let text;
+  if (!e) text = '<div class="rd-text pending">transcription…</div>';
+  else if (!e.en) text = '<div class="rd-text muted">(pas de parole reconnue)</div>';
+  else if (lang === 'none') text = `<div class="rd-text">${esc(e.en)}</div>`;
+  else if (e.tr?.[lang]) text = `<div class="rd-text">${esc(e.tr[lang])}</div><div class="rd-orig">${esc(e.en)}</div>`;
+  else text = `<div class="rd-text">${esc(e.en)}</div><div class="rd-orig pending">traduction…</div>`;
+  return `${avatar(d, c.num, isPlaying(c.url))}<div class="rd-l-main">${text}<div class="rd-l-who">${fullName(d, c.num)} · ${when(c)}</div></div>`;
+}
+
+const cardClass = (c) => `rd-card${cur?.url === c.url ? ' playing' : ''}${heard.has(c.url) ? '' : ' unheard'}`;
+const lineClass = (c) => `rd-line${cur?.url === c.url ? ' playing' : ''}`;
+
+// Met une liste en conformité avec les radios (créées, mises à jour si leur contenu change, remises
+// dans l'ordre, retirées)
+function sync(container, store_, items, tag, html, cls) {
+  const keep = new Set();
+  let prev = null;
+  for (const c of items) {
+    keep.add(c.url);
+    let r = store_.get(c.url);
+    if (!r) {
+      const el = document.createElement(tag);
+      el.dataset.url = c.url;
+      el.dataset.num = c.num;
+      r = { el, html: '' };
+      store_.set(c.url, r);
+    }
+    const h = html(c);
+    if (r.html !== h) { r.el.innerHTML = h; r.html = h; }
+    r.el.className = cls(c);
+    const want = prev ? prev.nextSibling : container.firstChild;
+    if (want !== r.el) container.insertBefore(r.el, want);
+    prev = r.el;
+  }
+  for (const [url, r] of store_) if (!keep.has(url)) { r.el.remove(); store_.delete(url); }
 }
 
 export function renderRadios(force = false) {
-  const el = $('#radioList');
-  if (!el) return;
+  const strip = $('#radioStrip'), feed = $('#radioList');
+  if (!strip || !feed) return;
   // Tours des radios revus toutes les 5 s (pas à chaque mise à jour des chronos)
-  const key = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${Math.floor(performance.now() / 5000)}|${prefs.radioFilter}|${prefs.radioText}|${prefs.radioLang}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}|${textVer}`;
+  const key = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${Math.floor(performance.now() / 5000)}|${prefs.radioFilter}|${prefs.radioText}|${prefs.radioLang}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}|${textVer}|${document.documentElement.dataset.scheme}`;
   if (key === renderKey && !force) return;
   renderKey = key;
   $('#radioOpts').hidden = !prefs.radioText;
@@ -101,49 +129,34 @@ export function renderRadios(force = false) {
     .filter((c) => c.Path && radioAllowed(c.RacingNumber))
     .map((c) => ({ url: b + c.Path, num: String(c.RacingNumber), utc: parseUtc(c.Utc) }))
     .sort((x, y) => y.utc - x.utc) : [];
-  if (!ordered.length) {
-    rows.clear();
-    el.innerHTML = `<li class="note">${b ? 'Aucune radio d\'équipe pour l\'instant.' : 'Pas de séance en cours.'}</li>`;
-    return;
-  }
-  el.querySelector(':scope > .note')?.remove();
+  const empty = $('#radioEmpty');
+  empty.hidden = !!ordered.length;
+  empty.textContent = b ? 'Aucune radio d\'équipe pour l\'instant.' : 'Pas de séance en cours.';
+  sync(strip, cards, ordered, 'button', (c) => cardHtml(c, dl[c.num] || {}), cardClass);
+
+  // Fil des transcriptions
+  $('#radioTextOff').hidden = prefs.radioText || !ordered.length;
   if (prefs.radioText) {
     requestTranscripts(ordered.slice(0, 40).map((c) => {
       const d = dl[c.num] || {};
       return { url: c.url, who: [d.FullName || d.Tla, d.TeamName].filter(Boolean).join(', ') };
     }));
   }
-  // Lignes : créées, mises à jour seulement si leur contenu change, puis remises dans l'ordre
-  const keep = new Set();
-  let prev = null;
-  for (const c of ordered) {
-    keep.add(c.url);
-    let r = rows.get(c.url);
-    const html = rowHtml(c, dl);
-    if (!r) {
-      const li = document.createElement('li');
-      li.dataset.url = c.url;
-      li.dataset.num = c.num;
-      r = { li, html: '' };
-      rows.set(c.url, r);
-    }
-    if (r.html !== html) { r.li.innerHTML = html; r.html = html; }
-    r.li.className = rowClass(c);
-    const want = prev ? prev.nextSibling : el.firstChild;
-    if (want !== r.li) el.insertBefore(r.li, want);
-    prev = r.li;
-  }
-  for (const [url, r] of rows) if (!keep.has(url)) { r.li.remove(); rows.delete(url); }
+  sync(feed, lines, prefs.radioText ? ordered.slice(0, 60) : [], 'li', (c) => lineHtml(c, dl[c.num] || {}), lineClass);
   paintProgress();
 }
 
-function refreshRow(url) {
-  const r = rows.get(url);
+function refresh(url) {
   const c = ordered.find((x) => x.url === url);
-  if (!r || !c) return;
-  const html = rowHtml(c, drivers(store.state));
-  if (r.html !== html) { r.li.innerHTML = html; r.html = html; }
-  r.li.className = rowClass(c);
+  if (!c) return;
+  const d = drivers(store.state)[c.num] || {};
+  for (const [m, html, cls] of [[cards, cardHtml, cardClass], [lines, lineHtml, lineClass]]) {
+    const r = m.get(url);
+    if (!r) continue;
+    const h = html(c, d);
+    if (r.html !== h) { r.el.innerHTML = h; r.html = h; }
+    r.el.className = cls(c);
+  }
 }
 
 // ---------- Lecteur ----------
@@ -152,16 +165,16 @@ function player() {
   audio = new Audio();
   audio.preload = 'auto';
   audio.addEventListener('loadedmetadata', () => {
-    if (cur && Number.isFinite(audio.duration)) { durations.set(cur.url, audio.duration); refreshRow(cur.url); }
+    if (cur && Number.isFinite(audio.duration)) { durations.set(cur.url, audio.duration); refresh(cur.url); }
   });
-  audio.addEventListener('play', () => { if (cur) refreshRow(cur.url); renderNow(); tick(); });
-  audio.addEventListener('pause', () => { if (cur) refreshRow(cur.url); renderNow(); });
+  audio.addEventListener('play', () => { if (cur) refresh(cur.url); tick(); });
+  audio.addEventListener('pause', () => { if (cur) refresh(cur.url); });
   audio.addEventListener('ended', () => {
     const done = cur;
-    if (done) refreshRow(done.url);
-    if (!playQueued()) { cur = null; if (done) refreshRow(done.url); renderNow(); }
+    if (!playQueued()) { cur = null; if (done) refresh(done.url); }
+    else if (done) refresh(done.url);
   });
-  audio.addEventListener('error', () => { if (cur) refreshRow(cur.url); renderNow(); });
+  audio.addEventListener('error', () => { if (cur) refresh(cur.url); });
   return audio;
 }
 
@@ -172,25 +185,20 @@ export function playRadio(url) {
     return;
   }
   const prev = cur;
-  cur = { url, num: ordered.find((x) => x.url === url)?.num || rows.get(url)?.li.dataset.num };
+  cur = { url, num: ordered.find((x) => x.url === url)?.num };
   a.src = url;
   a.playbackRate = speed;
   markHeard(url);
-  if (prev) refreshRow(prev.url);
-  refreshRow(url);
+  if (prev) refresh(prev.url);
+  refresh(url);
   a.play().catch(() => { /* le navigateur exige une interaction préalable */ });
-  renderNow();
 }
 
 function paintProgress() {
   if (!cur || !audio) return;
   const p = audio.duration > 0 ? Math.min(1, audio.currentTime / audio.duration) : 0;
-  const bar = rows.get(cur.url)?.li.querySelector('.rd-prog i');
+  const bar = cards.get(cur.url)?.el.querySelector('.rd-prog i');
   if (bar) bar.style.transform = `scaleX(${p})`;
-  const nb = $('#radioNowBar i');
-  if (nb) nb.style.transform = `scaleX(${p})`;
-  const t = $('#radioNowTime');
-  if (t) t.textContent = `${fmtDur(audio.currentTime) || '0:00'} / ${fmtDur(audio.duration) || '–:––'}`;
 }
 
 let ticking = false;
@@ -203,18 +211,6 @@ function tick() {
     else ticking = false;
   };
   requestAnimationFrame(step);
-}
-
-function renderNow() {
-  const box = $('#radioNow');
-  if (!box) return;
-  box.hidden = !cur;
-  if (!cur) return;
-  const d = drivers(store.state)[cur.num] || {};
-  $('#radioNowPlay').innerHTML = icon(audio && !audio.paused ? 'pause' : 'play');
-  $('#radioNowWho').innerHTML = `<span class="drv-bar" style="background:${teamColor(d)}"></span><b>${esc(d.Tla || cur.num || '')}</b> <span class="muted">${esc(d.LastName || '')}</span>`;
-  $('#radioNowSpeed').textContent = `${String(speed).replace('.', ',')}×`;
-  paintProgress();
 }
 
 // ---------- Lecture automatique des nouvelles radios ----------
@@ -248,6 +244,7 @@ export function initRadios() {
   $('#radioText').addEventListener('change', (e) => setPref('radioText', e.target.checked));
   $('#radioLang').addEventListener('change', (e) => setPref('radioLang', e.target.value));
   $('#radioQuality').addEventListener('change', (e) => setPref('radioQuality', e.target.value));
+  $('#radioTextOn').addEventListener('click', () => setPref('radioText', true));
   on('prefs', (k) => {
     if (k === 'radioAuto') $('#radioAuto').checked = prefs.radioAuto;
     if (k === 'radioFilter') $('#radioFilter').value = prefs.radioFilter;
@@ -263,36 +260,32 @@ export function initRadios() {
   showStatus();
   on('radioText', () => { textVer++; });
 
-  $('#radioList').addEventListener('click', (e) => {
-    const li = e.target.closest('li.rd');
-    if (!li || e.target.closest('a')) return;
+  $('#radioStrip').addEventListener('click', (e) => {
+    const card = e.target.closest('.rd-card');
+    if (!card) return;
     // Clic sur la barre de progression de la radio en cours : saut à cet endroit
     const bar = e.target.closest('.rd-prog');
-    if (bar && cur?.url === li.dataset.url && audio?.duration > 0) {
+    if (bar && cur?.url === card.dataset.url && audio?.duration > 0) {
       const r = bar.getBoundingClientRect();
       audio.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * audio.duration;
       paintProgress();
       return;
     }
-    playRadio(li.dataset.url);
+    playRadio(card.dataset.url);
   });
-  $('#radioNowPlay').addEventListener('click', () => { if (cur) playRadio(cur.url); });
-  $('#radioNowBar').addEventListener('click', (e) => {
-    if (!audio?.duration) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    audio.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * audio.duration;
-    paintProgress();
+  // Molette verticale : défilement horizontal de la bande
+  $('#radioStrip').addEventListener('wheel', (e) => {
+    const s = e.currentTarget;
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && s.scrollWidth > s.clientWidth) { s.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive: false });
+  $('#radioList').addEventListener('click', (e) => {
+    const li = e.target.closest('li.rd-line');
+    if (li) playRadio(li.dataset.url);
   });
-  $('#radioNowSpeed').addEventListener('click', () => {
+  $('#radioSpeed').addEventListener('click', () => {
     speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
     if (audio) audio.playbackRate = speed;
-    renderNow();
-  });
-  $('#radioNowNext').addEventListener('click', () => {
-    if (playQueued()) return;
-    const i = ordered.findIndex((x) => x.url === cur?.url);
-    const next = ordered[i + 1];
-    if (next) playRadio(next.url);
+    $('#radioSpeed').textContent = `${String(speed).replace('.', ',')}×`;
   });
 
   // Nouvelles radios (au rythme du délai TV) : lecture automatique, l'une après l'autre
