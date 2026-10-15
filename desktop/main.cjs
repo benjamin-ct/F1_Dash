@@ -219,33 +219,41 @@ async function widevineReady() {
   }
 }
 
-// Publication sur X sans accès payant (mode créateur) : la page officielle de X pour écrire un post
-// (« intent »), préremplie avec le texte, dans une fenêtre de l'appli. La connexion au compte X y est
-// gardée (session à part, sans accès à l'appli) ; l'image se colle avec Ctrl+V (Cmd+V sur Mac).
-const isXCompose = (u) => /^https:\/\/(x|twitter)\.com\/intent\/(post|tweet)\?/i.test(String(u || ''));
-let xWindow = null;
-function openXCompose(url) {
-  if (xWindow && !xWindow.isDestroyed()) {
-    xWindow.loadURL(url, { userAgent: xWindow.webContents.getUserAgent() });
-    if (xWindow.isMinimized()) xWindow.restore();
-    xWindow.focus();
+// Publication sans accès payant (mode créateur) : la page officielle de X, Threads ou Bluesky pour
+// écrire un post (« intent »), préremplie avec le texte, dans une fenêtre de l'appli. La connexion au
+// compte y est gardée (une session à part par réseau, sans accès à l'appli) ; l'image se colle avec
+// Ctrl+V (Cmd+V sur Mac).
+const COMPOSE = [
+  ['x', /^https:\/\/(x|twitter)\.com\/intent\/(post|tweet)\?/i, 'Publier sur X'],
+  ['threads', /^https:\/\/(www\.)?threads\.(com|net)\/intent\/post\?/i, 'Publier sur Threads'],
+  ['bsky', /^https:\/\/bsky\.app\/intent\/compose\?/i, 'Publier sur Bluesky'],
+];
+const composeOf = (u) => COMPOSE.find(([, re]) => re.test(String(u || '')));
+const composeWindows = new Map();
+function openCompose(url) {
+  const [net, , title] = composeOf(url);
+  const old = composeWindows.get(net);
+  if (old && !old.isDestroyed()) {
+    old.loadURL(url, { userAgent: old.webContents.getUserAgent() });
+    if (old.isMinimized()) old.restore();
+    old.focus();
     return;
   }
-  xWindow = new BrowserWindow({
-    width: 720, height: 780, title: 'Publier sur X', autoHideMenuBar: true, icon: APP_ICON,
-    backgroundColor: '#000000',
-    webPreferences: { partition: 'persist:x', contextIsolation: true, sandbox: true },
+  const win = new BrowserWindow({
+    width: 720, height: 780, title, autoHideMenuBar: true, icon: APP_ICON, backgroundColor: '#000000',
+    webPreferences: { partition: `persist:${net}`, contextIsolation: true, sandbox: true },
   });
+  composeWindows.set(net, win);
   // Liens vers d'autres sites : navigateur par défaut
-  xWindow.webContents.setWindowOpenHandler(({ url: target }) => {
+  win.webContents.setWindowOpenHandler(({ url: target }) => {
     if (/^https?:\/\//i.test(target)) shell.openExternal(target);
     return { action: 'deny' };
   });
-  xWindow.on('closed', () => { xWindow = null; });
+  win.on('closed', () => { if (composeWindows.get(net) === win) composeWindows.delete(net); });
   // User-agent de Chrome standard (sans la mention Electron ni le nom de l'appli), comme pour F1 TV
-  const ua = xWindow.webContents.getUserAgent().replace(/ Electron\/\S+/, '').replace(/\) (?!Chrome\/)\S+\/\S+ (?=Chrome\/)/, ') ');
-  xWindow.webContents.setUserAgent(ua);
-  xWindow.loadURL(url, { userAgent: ua });
+  const ua = win.webContents.getUserAgent().replace(/ Electron\/\S+/, '').replace(/\) (?!Chrome\/)\S+\/\S+ (?=Chrome\/)/, ') ');
+  win.webContents.setUserAgent(ua);
+  win.loadURL(url, { userAgent: ua });
 }
 
 // Ouverture de fenêtres depuis une page de l'appli : panneaux détachés = nouvelle fenêtre de l'appli
@@ -277,8 +285,8 @@ function setupContents(wc, url) {
         },
       };
     }
-    // Mode créateur : fenêtre de publication de X préremplie, ouverte dans l'appli
-    if (isXCompose(target)) { openXCompose(target); return { action: 'deny' }; }
+    // Mode créateur : page de publication (X, Threads, Bluesky) préremplie, ouverte dans l'appli
+    if (composeOf(target)) { openCompose(target); return { action: 'deny' }; }
     // Navigateur par défaut, pour les adresses web seulement (pas de file:, ni de protocole
     // système qui lancerait un autre programme)
     if (/^https?:\/\//i.test(target)) shell.openExternal(target);
