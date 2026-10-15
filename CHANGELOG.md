@@ -4,6 +4,13 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.26.0 — 2026-10-15
+
+### Sauvegarde des réglages
+- **Enregistrer ses réglages dans un fichier et les restaurer** (Réglages → Application → *Sauvegarde des réglages*) : affichage, dispositions et fenêtres, colonnes, délais TV mémorisés, carte, analyse, sources d'actualités, lumières connectées. Pratique après une réinstallation ou sur un autre ordinateur.
+- La restauration remplace les réglages actuels et recharge toutes les fenêtres ouvertes. Un fichier qui n'est pas une sauvegarde de Paddock Live est refusé avec un message clair.
+- Le fichier ne contient ni la connexion F1 TV, ni la clé d'accès du téléphone, ni les clés des lumières connectées.
+
 ## v1.25.0 — 2026-10-15
 
 ### Nouveau nom : Paddock Live

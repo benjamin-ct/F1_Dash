@@ -189,6 +189,16 @@ Le délai peut aller jusqu'à 10 minutes (modifiable avec `MAX_DELAY_SECONDS`). 
 Les versions sont lues sur les *Releases* de ce dépôt (public) : rien à configurer. Chaque version publiée (Actions → *Application de bureau* → *Run workflow* avec « Version à publier », ou tag `v*`) est proposée automatiquement à toutes les applis installées (Windows à partir de la v1.2.1, macOS et AppImage à partir de la v1.12.0).
 
 
+## 💾 Sauvegarde des réglages
+
+⚙ Réglages → Application → *Sauvegarde des réglages* :
+
+- **Enregistrer mes réglages** crée un fichier `paddock-live-reglages-AAAA-MM-JJ.json` avec l'affichage, les dispositions (course / qualif, fenêtres secondaires), les colonnes, les délais TV mémorisés, la carte, l'analyse, les sources d'actualités et les lumières connectées.
+- **Restaurer une sauvegarde** remplace les réglages actuels par ceux du fichier, puis recharge l'application (toutes les fenêtres ouvertes).
+- Le fichier ne contient **ni la connexion F1 TV, ni la clé d'accès du téléphone, ni les clés des lumières** (pont Hue, Home Assistant) : à refaire sur un autre ordinateur. Ni les caches (radios écoutées, transcriptions, actus lues).
+- Sur un téléphone, seuls les réglages d'affichage du téléphone sont enregistrés et restaurés.
+
+
 ## 📡 Positions GPS en live : jeton F1 TV (optionnel)
 
 Depuis 2025, la F1 réserve **les positions GPS et la télémétrie du flux live aux abonnés F1 TV**. Tout le reste (chronos, secteurs, écarts, drapeaux, direction de course, météo, radios, pneus…) est accessible sans compte.
