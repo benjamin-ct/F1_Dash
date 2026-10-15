@@ -80,3 +80,4 @@ export async function requestTranslations(texts) {
 }
 
 on('radioText', () => { if (queued.size) notify(null); });
+on('radioStatus', () => { if (queued.size) notify(null); });

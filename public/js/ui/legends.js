@@ -36,8 +36,7 @@ const L = {
     tracklimits: [txt('Tours et temps supprimés pour non-respect des limites de piste, par pilote. Les avertissements répétés peuvent entraîner une pénalité.')],
   },
   radio: {
-    transcripts: [txt('Radios d\'équipe retranscrites en texte (en grand : la traduction, en petit : l\'anglais d\'origine). Tout est fait sur cet ordinateur ; bouton lecture : réécouter la radio.')],
-    radio: [txt('Radios d\'équipe audio, des plus récentes aux plus anciennes · bouton lecture : écouter.')],
+    radios: [txt('Radios d\'équipe, des plus récentes aux plus anciennes · bouton lecture ou clic sur la radio : écouter (point bleu : pas encore écoutée) · « Texte » : retranscription en texte et traduction (en grand : la traduction, en petit : l\'anglais d\'origine), faites sur cet ordinateur.')],
   },
   duel: {
     _: [

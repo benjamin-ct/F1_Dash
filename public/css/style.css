@@ -354,9 +354,6 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .flag-SC { background: var(--sc); }
 .flag-DRS { background: var(--green); opacity: .7; }
 
-.radio li { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
-.radio audio { height: 30px; flex: 1; min-width: 0; }
-.radio .r-drv { min-width: 88px; display: flex; align-items: center; gap: 6px; font-weight: 700; }
 
 .pits { width: 100%; border-collapse: collapse; }
 .pits td, .pits th { padding: 5px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: 13px; }
@@ -884,15 +881,48 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 /* Fluidité : les mises à jour d'un panneau ne forcent pas le recalcul des autres */
 .panel-body, .tabpane { contain: layout paint; }
 
-/* Transcriptions des radios */
-.transcripts { list-style: none; margin: 0; padding: 0; }
-.transcripts li { padding: 8px 12px; border-bottom: 1px solid var(--line); }
-.transcripts .t-head { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
-.transcripts .t-play { margin-left: auto; background: var(--panel-3); border: 1px solid var(--border); color: var(--text); border-radius: 50%; width: 24px; height: 24px; font-size: 10px; cursor: pointer; }
-.transcripts .t-play:hover { border-color: var(--blue); }
-.transcripts .t-main { font-size: 14px; line-height: 1.35; }
-.transcripts .t-orig { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 2px; }
-.transcripts .pending { color: var(--muted); font-style: normal; }
+/* Radios d'équipe (façon MultiViewer) : liste + lecteur en bas */
+.tabpane.rd-pane.active { display: flex; flex-direction: column; height: 100%; }
+.rd-bar { gap: 8px 12px; }
+.rd-opts { display: contents; }
+.rd-opts[hidden] { display: none; }
+.rd-status:empty { display: none; }
+.rd-status { padding: 4px 12px; border-bottom: 1px solid var(--line); }
+.rd-list { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto; }
+.rd-list > .note { padding: 10px 12px; }
+.rd { position: relative; display: flex; align-items: flex-start; gap: 9px; padding: 7px 12px 7px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.rd:hover { background: var(--hover); }
+.rd.playing { background: color-mix(in srgb, var(--blue) 10%, transparent); }
+.rd-team { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+.rd-play { flex: none; width: 28px; height: 28px; margin-top: 1px; border-radius: 50%; border: 1px solid var(--border); background: var(--panel-3); color: var(--text); display: grid; place-items: center; cursor: pointer; padding: 0; }
+.rd-play .ic { width: 12px; height: 12px; }
+.rd:hover .rd-play, .rd.playing .rd-play { border-color: var(--blue); }
+.rd.playing .rd-play { background: var(--blue); color: #fff; }
+.rd-main { flex: 1; min-width: 0; }
+.rd-head { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.rd-tla { font-weight: 700; letter-spacing: .02em; position: relative; }
+.rd.unheard .rd-tla::after { content: ''; position: absolute; right: -7px; top: 1px; width: 5px; height: 5px; border-radius: 50%; background: var(--blue); }
+.rd.unheard .rd-name { margin-left: 4px; }
+.rd-name { color: var(--text-2); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-meta { margin-left: auto; color: var(--muted); font-size: 11.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rd-dur { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; padding: 0 5px; border: 1px solid var(--line-2); border-radius: 4px; }
+.rd-prog { height: 3px; margin: 5px 0 2px; background: var(--line); border-radius: 2px; overflow: hidden; display: none; }
+.rd.playing .rd-prog { display: block; height: 5px; cursor: pointer; }
+.rd-prog i { display: block; height: 100%; background: var(--blue); transform-origin: left; transform: scaleX(0); }
+.rd-text { font-size: 14px; line-height: 1.35; margin-top: 3px; }
+.rd-orig { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 2px; }
+.rd .pending { color: var(--muted); font-style: normal; }
+.rd-now { flex: none; display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-top: 1px solid var(--border); background: var(--panel-2); }
+.rd-now[hidden] { display: none; }
+.rd-now-play { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--blue); color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.rd-now-play .ic { width: 14px; height: 14px; }
+.rd-now-main { flex: 1; min-width: 0; }
+.rd-now-who { display: flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; }
+.rd-now-who .drv-bar { height: 14px; width: 4px; }
+.rd-now-bar { height: 6px; margin-top: 5px; background: var(--line); border-radius: 3px; overflow: hidden; cursor: pointer; }
+.rd-now-bar i { display: block; height: 100%; background: var(--blue); transform-origin: left; transform: scaleX(0); }
+.rd-now-time { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rd-now-speed { flex: none; min-width: 38px; height: 24px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-3); color: var(--text); font-size: 12px; cursor: pointer; }
 
 /* ---------- Panneau Analyse (race trace, positions, temps, pneus, secteurs) ---------- */
 .tabpane.ana-pane.active { display: flex; flex-direction: column; height: 100%; }
