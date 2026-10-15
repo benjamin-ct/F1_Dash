@@ -27,6 +27,7 @@ import { headshot } from './headshots.js';
 import { osmTile } from './tiles.js';
 import { predictionsView, savePrediction } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
+import { exportServerSettings, importServerSettings } from './backup.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 
@@ -269,6 +270,14 @@ async function handleApi(req, res, url) {
       } catch (err) {
         return sendJSON(res, 400, { error: err.message });
       }
+    }
+
+    // Sauvegarde des réglages (partie serveur, sans jeton ni clé) : depuis cet ordinateur uniquement
+    case 'GET /api/backup':
+    case 'POST /api/backup': {
+      if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
+      if (route === 'GET /api/backup') return sendJSON(res, 200, exportServerSettings());
+      return sendJSON(res, 200, importServerSettings(await readBody(req)));
     }
 
     // Pronostics entre amis (pole et podium de chaque Grand Prix)

@@ -540,6 +540,17 @@
       </section>
 
       <section class="set-block" data-sgroup="app">
+        <h4><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Sauvegarde des réglages</h4>
+        <p class="small muted">Enregistre vos réglages dans un fichier, pour les retrouver après une réinstallation ou sur un autre ordinateur : affichage, dispositions et fenêtres, colonnes, délais TV mémorisés, carte, analyse, sources d'actualités, lumières connectées.</p>
+        <div class="row">
+          <button class="btn" id="backupExport"><svg class="ic" aria-hidden="true"><use href="#i-save"/></svg> Enregistrer mes réglages</button>
+          <button class="btn" id="backupImport"><svg class="ic" aria-hidden="true"><use href="#i-history"/></svg> Restaurer une sauvegarde</button>
+          <input type="file" id="backupFile" accept=".json,application/json" hidden>
+        </div>
+        <p class="small muted">Le fichier ne contient ni la connexion F1 TV, ni la clé d'accès du téléphone, ni les clés des lumières connectées : à refaire si besoin sur un autre ordinateur.</p>
+      </section>
+
+      <section class="set-block" data-sgroup="app">
         <h4><svg class="ic" aria-hidden="true"><use href="#i-note"/></svg> Nouveautés (journal des modifications)</h4>
         <div class="cl-list" id="changelog"><p class="muted">Chargement…</p></div>
       </section>

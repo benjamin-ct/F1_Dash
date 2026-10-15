@@ -44,6 +44,7 @@ import { initMoments } from './ui/moments.js';
 import { initSummary } from './ui/summary-view.js';
 import { initRadar } from './ui/radar.js';
 import { initLights } from './ui/lights.js';
+import { initBackup } from './ui/backup.js';
 
 function initTabs() {
   for (const head of $$('[data-tabs]')) {
@@ -112,6 +113,7 @@ initStewards();
 initLayout();
 initUpdates();
 initChangelog();
+initBackup();
 initCommentary();
 initAnalysis();
 initSeason();

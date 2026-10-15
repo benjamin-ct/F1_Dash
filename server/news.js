@@ -365,6 +365,29 @@ export async function addNewsSource(input, cat = 'media', lang = null) {
   return src;
 }
 
+// Restauration d'une sauvegarde des réglages : sources désactivées et sources ajoutées, revérifiées
+// (adresses https publiques, catégories et langues connues). Remplace les réglages actuels.
+export function importNewsConfig(data) {
+  const ids = new Set([...DEFAULT_SOURCES.map((s) => s.id)]);
+  const custom = [];
+  for (const s of Array.isArray(data?.custom) ? data.custom.slice(0, 100) : []) {
+    if (!s || typeof s !== 'object' || !/^c-[\w-]{1,40}$/.test(s.id) || ids.has(s.id)) continue;
+    const base = { id: s.id, name: String(s.name || '').slice(0, 80) || s.id, cat: CATS.has(s.cat) ? s.cat : 'media', lang: LANGS.has(s.lang) ? s.lang : 'en' };
+    if (s.kind === 'rss' && safeUrl(s.url)) custom.push({ ...base, kind: 'rss', url: safeUrl(s.url).toString() });
+    else if (s.kind === 'youtube' && /^[\w-]{3,40}$/.test(s.channel)) custom.push({ ...base, kind: 'youtube', channel: s.channel });
+    else if (s.kind === 'bsky' && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(s.handle)) custom.push({ ...base, kind: 'bsky', handle: s.handle });
+    else continue;
+    ids.add(s.id);
+  }
+  const disabled = [...new Set((Array.isArray(data?.disabled) ? data.disabled : []).filter((id) => typeof id === 'string' && ids.has(id)))];
+  saveConfig({ news: { disabled, custom } });
+  for (const id of runtime.keys()) if (!ids.has(id)) runtime.delete(id);
+  let removed = false;
+  for (const [k, it] of items) if (!ids.has(it.src)) { items.delete(k); removed = true; }
+  if (removed) scheduleSave();
+  return { disabled, custom };   // nouvelles sources lues au prochain passage (toutes les 5 s)
+}
+
 export function removeNewsSource(id) {
   const { disabled, custom } = newsConfig();
   saveConfig({ news: { disabled: disabled.filter((x) => x !== id), custom: custom.filter((s) => s.id !== id) } });

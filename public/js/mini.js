@@ -79,6 +79,8 @@ window.addEventListener('storage', (e) => {
   const ms = Number(JSON.parse(e.newValue));
   if (Number.isFinite(ms) && ms !== store.delay) setDelay(ms);
 });
+// Réglages restaurés depuis une sauvegarde (autre fenêtre) : rechargement
+window.addEventListener('storage', (e) => { if (e.key === 'paddock.restored' && e.newValue) location.reload(); });
 on('connection', () => { lastKey = ''; });
 on('scheme', () => { lastKey = ''; });
 
