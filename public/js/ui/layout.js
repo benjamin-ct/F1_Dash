@@ -648,7 +648,7 @@ function announce() {
   if (isMain || !channel) return;
   const panels = layout.cols.flatMap((c) => c.items.map((it) => it.id));
   channel.postMessage({ type: 'alive', win: WIN, panels, bounds: { x: window.screenX, y: window.screenY, w: window.outerWidth, h: window.outerHeight } });
-  document.title = `F1 Dash · ${winTitle(panels)}`;
+  document.title = `Paddock Live · ${winTitle(panels)}`;
 }
 
 function openWindow(win) {
@@ -966,7 +966,7 @@ export async function restoreWindowsSnapshot() {
       const feat = b ? `left=${b.x},top=${b.y},width=${b.w},height=${b.h}` : 'width=1200,height=800';
       if (!window.open(`/?win=${encodeURIComponent(w.win)}`, `f1dash-${w.win}`, feat)) blocked++;
     }
-    if (blocked) toast(`${blocked} fenêtre(s) bloquée(s) par le navigateur : autorisez les fenêtres pop-up de F1 Dash`, 5000);
+    if (blocked) toast(`${blocked} fenêtre(s) bloquée(s) par le navigateur : autorisez les fenêtres pop-up de Paddock Live`, 5000);
   }
   render(true);
   renderLayoutOptions();

@@ -1,10 +1,10 @@
-<img src="public/icon-512.png" alt="F1 Dash" width="84" align="right">
+<img src="public/icon-512.png" alt="Paddock Live" width="84" align="right">
 
-# 🏁 F1 Dash
+# 🏁 Paddock Live
 
 Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordinateur, **calé sur le délai de votre diffusion TV** (Canal+, myCANAL…). Windows, macOS et Linux.
 
-![F1 Dash pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
+![Paddock Live pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
 
 <sub>Design « Pitwall » en mode sombre. L'application suit par défaut le mode clair ou sombre de l'ordinateur ou du téléphone (voir plus bas).</sub>
 
@@ -57,12 +57,12 @@ Téléchargez la dernière version sur la page **[Releases](https://github.com/b
 | Système | Fichier | Remarque |
 |---|---|---|
 | **Windows** | `…-x64-win.exe` (installateur) ou `…-portable.exe` | Avertissement SmartScreen : « Informations complémentaires » → « Exécuter quand même ». |
-| **macOS** (Apple Silicon / Intel) | `…-mac-arm64.dmg` / `…-mac-x64.dmg` | Glissez F1 Dash dans Applications. L'appli n'est pas certifiée par Apple : au premier lancement, clic droit → « Ouvrir » (si macOS la dit endommagée : `xattr -cr "/Applications/F1 Dash.app"` dans le Terminal). |
-| **Linux** (x64 / ARM) | `…-linux-x86_64.AppImage` / `…-linux-arm64.AppImage`, ou `…-linux-amd64.deb` | AppImage : `chmod +x` puis lancez-la. Paquet : `sudo apt install ./F1-Dash-…deb`. |
+| **macOS** (Apple Silicon / Intel) | `…-mac-arm64.dmg` / `…-mac-x64.dmg` | Glissez Paddock Live dans Applications. L'appli n'est pas certifiée par Apple : au premier lancement, clic droit → « Ouvrir » (si macOS la dit endommagée : `xattr -cr "/Applications/Paddock Live.app"` dans le Terminal). |
+| **Linux** (x64 / ARM) | `…-linux-x86_64.AppImage` / `…-linux-arm64.AppImage`, ou `…-linux-amd64.deb` | AppImage : `chmod +x` puis lancez-la. Paquet : `sudo apt install ./Paddock-Live-…deb`. |
 
 L'application **se met à jour toute seule** (sauf le paquet `.deb`).
 
-**Sans installer l'application** : avec [Node.js](https://nodejs.org) 22 ou plus, téléchargez ce dépôt puis lancez `Lancer F1 Dash.bat` (Windows) ou `./start.sh` (macOS / Linux), ou `npm install && npm start`, et ouvrez <http://localhost:3000>.
+**Sans installer l'application** : avec [Node.js](https://nodejs.org) 22 ou plus, téléchargez ce dépôt puis lancez `Lancer Paddock Live.bat` (Windows) ou `./start.sh` (macOS / Linux), ou `npm install && npm start`, et ouvrez <http://localhost:3000>.
 
 ## ⏱ Se caler sur la TV
 
@@ -82,7 +82,7 @@ Tout fonctionne sans compte. Avec F1 TV, connectez-vous dans ⚙ Réglages pour 
 
 Sur l'ordinateur : ⚙ Réglages → Application → **« Autoriser l'accès depuis le réseau local »**, puis scannez le QR code avec le téléphone (même Wi-Fi). Le téléphone reprend le délai TV de l'ordinateur et affiche un panneau à la fois, avec des onglets en bas. Pour l'avoir comme une appli : « Ajouter à l'écran d'accueil ». Détails dans le [guide](docs/GUIDE.md#-sur-téléphone-ou-tablette).
 
-![F1 Dash sur téléphone : classement, carte et actualités](docs/screenshots/telephone.png)
+![Paddock Live sur téléphone : classement, carte et actualités](docs/screenshots/telephone.png)
 
 ## ⌨ Raccourcis
 

@@ -1,8 +1,18 @@
 # Journal des modifications
 
-Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version publiée doit avoir
+Toutes les nouveautés de Paddock Live (appelée F1 Dash jusqu'à la v1.24), version par version. Chaque nouvelle version publiée doit avoir
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
+
+## v1.25.0 — à venir
+
+### Nouveau nom : Paddock Live
+- **F1 Dash s'appelle désormais Paddock Live**, avec un nouveau logo « PL » (même style rouge). Le nom change partout : fenêtres, raccourcis, appli du téléphone, page de la version, fichiers à télécharger (`Paddock-Live-…`).
+- **Rien à refaire** : réglages, connexion F1 TV, enregistrements, dispositions et position des fenêtres sont conservés, et la mise à jour automatique continue de fonctionner depuis une version F1 Dash.
+- Sur le téléphone, l'appli déjà ajoutée à l'écran d'accueil peut garder l'ancien nom et l'ancienne icône : supprimez-la puis rajoutez-la pour avoir les nouveaux.
+
+### Corrections
+- Capture d'écran « Apparence » de la documentation : le côté sombre montrait le thème clair.
 
 ## v1.24.0 — 2026-10-15
 

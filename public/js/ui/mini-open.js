@@ -13,7 +13,7 @@ async function openMini() {
     try {
       pip = await window.documentPictureInPicture.requestWindow(size);
       const d = pip.document;
-      d.title = 'F1 Dash — mini-classement';
+      d.title = 'Paddock Live — mini-classement';
       d.body.style.cssText = 'margin:0;background:#07080A;overflow:hidden';
       const f = d.createElement('iframe');
       f.src = '/mini.html';

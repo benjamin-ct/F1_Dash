@@ -502,7 +502,7 @@ lan = createLan({ handler, onSocket: (ws) => hub.addClient(ws, { host: false }) 
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error(`\n  Le port ${settings.port} est déjà utilisé (F1 Dash est peut-être déjà lancé ?). Utilisez PORT=3001 par exemple.\n`);
+    console.error(`\n  Le port ${settings.port} est déjà utilisé (Paddock Live est peut-être déjà lancé ?). Utilisez PORT=3001 par exemple.\n`);
     process.exit(1);
   }
   throw err;
@@ -510,7 +510,7 @@ server.on('error', (err) => {
 
 server.listen(settings.port, settings.host, () => {
   const shown = settings.host === '0.0.0.0' ? 'localhost' : settings.host;
-  console.log(`\n  F1 Dash prêt : http://${shown}:${settings.port}\n`);
+  console.log(`\n  Paddock Live prêt : http://${shown}:${settings.port}\n`);
   const auth = tokenInfo(getConfig().f1tvToken);
   if (!auth.hasToken) console.log('  (Sans jeton F1 TV : positions GPS estimées à partir des chronos. Voir README.)\n');
   else if (auth.expired) console.log('  Le jeton F1 TV enregistré est expiré (renouvellement automatique tenté si la session formula1.com est encore valide).\n');

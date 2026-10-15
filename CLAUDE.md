@@ -1,4 +1,4 @@
-# Consignes du projet F1 Dash
+# Consignes du projet Paddock Live
 
 - Le projet, les messages de commit et la documentation sont en français.
 - **Chaque nouvelle version a son entrée dans `CHANGELOG.md`** : section `## vX.Y.Z — AAAA-MM-JJ`

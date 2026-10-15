@@ -5,7 +5,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 const proxyUrl = process.env.HTTPS_PROXY || process.env.https_proxy;
 export const agent = proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined;
 
-export const USER_AGENT = 'Mozilla/5.0 (F1-Dash local dashboard)';
+export const USER_AGENT = 'Mozilla/5.0 (Paddock-Live local dashboard)';
 
 export class HttpError extends Error {
   constructor(status, url) {

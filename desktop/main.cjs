@@ -1,4 +1,4 @@
-// Application de bureau F1 Dash : lance le serveur local dans le processus Electron
+// Application de bureau Paddock Live : lance le serveur local dans le processus Electron
 // et affiche le dashboard dans une fenêtre, sans installer Node.js.
 const { app, BrowserWindow, shell, Menu, screen, ipcMain, session, components, nativeTheme } = require('electron');
 // Fond des fenêtres avant l'affichage de la page : clair ou sombre comme le système (apparence automatique)
@@ -8,6 +8,15 @@ const APP_ICON = path.join(__dirname, 'icon.png');
 const net = require('node:net');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
+
+// Dossier des données (réglages, jeton F1 TV, enregistrements, fenêtres) : l'application s'appelait
+// « F1 Dash » jusqu'à la v1.24 ; une installation existante garde son dossier, sinon « Paddock Live »
+{
+  const appData = app.getPath('appData');
+  const legacy = path.join(appData, 'F1 Dash');
+  const current = path.join(appData, 'Paddock Live');
+  app.setPath('userData', !fs.existsSync(current) && fs.existsSync(legacy) ? legacy : current);
+}
 
 // Portables à deux cartes graphiques : la plus puissante, pour la transcription et la traduction
 // des radios en haute qualité (grands modèles qui tournent sur la carte graphique)
@@ -218,7 +227,7 @@ function setupContents(wc, url) {
         action: 'allow',
         overrideBrowserWindowOptions: {
           width: 300, height: 540, minWidth: 220, minHeight: 200, alwaysOnTop: true, autoHideMenuBar: true,
-          icon: APP_ICON, backgroundColor: winBg(), title: 'F1 Dash — mini-classement', webPreferences: childPrefs(),
+          icon: APP_ICON, backgroundColor: winBg(), title: 'Paddock Live — mini-classement', webPreferences: childPrefs(),
         },
       };
     }
@@ -265,7 +274,7 @@ function createSplash() {
     center: true,
     show: false,
     backgroundColor: '#0b0b0f',
-    title: 'F1 Dash',
+    title: 'Paddock Live',
     icon: APP_ICON,
     webPreferences: { contextIsolation: true, sandbox: true, javascript: true },
   });
@@ -407,7 +416,7 @@ async function start() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: winBg(),
-    title: 'F1 Dash',
+    title: 'Paddock Live',
     autoHideMenuBar: true,
     icon: APP_ICON,
     webPreferences: { contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') },

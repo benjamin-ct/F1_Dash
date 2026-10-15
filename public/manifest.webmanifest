@@ -1,6 +1,6 @@
 {
-  "name": "F1 Dash",
-  "short_name": "F1 Dash",
+  "name": "Paddock Live",
+  "short_name": "Paddock Live",
   "description": "Dashboard Formule 1 en direct, calé sur votre diffusion TV",
   "start_url": "/",
   "display": "standalone",

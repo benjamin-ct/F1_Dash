@@ -1,6 +1,6 @@
 // Calendrier des séances au format iCalendar (.ics), importable dans Google Agenda, Apple
 // Calendrier, Outlook… avec une alarme avant chaque séance (l'agenda prévient même quand
-// F1 Dash est fermé).
+// Paddock Live est fermé).
 
 // Durée prévue de chaque séance (minutes) : l'agenda affiche un créneau réaliste
 export function sessionMinutes(label) {
@@ -34,7 +34,7 @@ const LABEL_EN = { EL1: 'FP1', EL2: 'FP2', EL3: 'FP3', 'Qualif. sprint': 'Sprint
 
 export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.now(), lang = 'fr' } = {}) {
   const en = lang === 'en';
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//F1 Dash//Calendrier F1//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Paddock Live//Calendrier F1//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
     `X-WR-CALNAME:${text(round ? `F1 ${year} — ${en ? 'round' : 'manche'} ${round}` : `F1 ${year}`)}`];
   for (const r of races) {
     if (round && r.round !== round) continue;
@@ -52,7 +52,7 @@ export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.
         `DTEND:${stamp(end)}`,
         `SUMMARY:${text(`F1 ${gp} GP — ${label}`)}`,
         `LOCATION:${text([r.circuit, r.locality, r.country].filter(Boolean).join(', '))}`,
-        `DESCRIPTION:${text(en ? `${r.name} (round ${r.round}). Follow the session live in F1 Dash.` : `${r.name} (manche ${r.round}). Suivez la séance en direct dans F1 Dash.`)}`);
+        `DESCRIPTION:${text(en ? `${r.name} (round ${r.round}). Follow the session live in Paddock Live.` : `${r.name} (manche ${r.round}). Suivez la séance en direct dans Paddock Live.`)}`);
       if (alarmMin > 0) lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${text(en ? `${gp} — ${label} in ${alarmMin} min` : `${gp} — ${label} dans ${alarmMin} min`)}`, `TRIGGER:-PT${alarmMin}M`, 'END:VALARM');
       lines.push('END:VEVENT');
     }
