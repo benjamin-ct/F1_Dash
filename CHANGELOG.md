@@ -10,6 +10,9 @@ l'application (Réglages → Application → Nouveautés).
 - **Transcription et traduction des radios beaucoup plus légères par défaut** : elles utilisent désormais les petits modèles (environ 1 Go de mémoire, sans solliciter la carte graphique). La haute qualité, plus précise mais gourmande (10 à 15 Go pendant l'utilisation), reste disponible dans le choix « Qualité » du panneau Radios.
 - Quel que soit l'ordinateur : seules les 12 radios les plus récentes sont retranscrites et traduites automatiquement (40 avant), avec une courte pause entre deux, pour que l'appli reste fluide, en particulier au lancement d'un replay.
 
+### Actu
+- **« Qui fait l'actu » : les barres ne se réaniment plus sans arrêt.** Chaque titre traduit redessinait toute la page ; seuls les morceaux qui changent sont maintenant mis à jour, et les traductions sont affichées par paquets (au plus une mise à jour toutes les 1,5 s), ce qui allège aussi la page.
+
 ## v1.27.1 — 2026-10-15
 
 ### Replays

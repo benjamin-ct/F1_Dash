@@ -85,7 +85,7 @@ async function pumpTranslations() {
   queued.delete(text);
   resolve?.();
   translating = false;
-  scheduleRender();
+  renderSoon();
   setTimeout(pumpTranslations, 30);
 }
 
@@ -294,11 +294,26 @@ function asideView(all) {
   const vidHtml = videos.length ? `<div class="nwa-vids">${videos.map((v) => `<a href="${safeUrl(v.link)}" target="_blank" rel="noopener" title="${esc(v.title)}">
       <span class="nwa-vthumb"><img src="${safeUrl(v.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">${icon('play')}</span>
       <span class="nwa-vtitle" data-no-i18n>${esc(titleOf(v).text)}</span><span class="muted small">${esc(srcById[v.src]?.name || '')}</span></a>`).join('')}</div>` : '<div class="muted small">Aucune vidéo récente.</div>';
-  return `<aside class="nw-aside">
-    <section class="nwa-box"><h3>${icon('fire')} À la une <span class="muted small">48 h</span></h3>${topHtml}</section>
-    <section class="nwa-box"><h3>${icon('chart')} Qui fait l'actu <span class="muted small">24 h</span></h3>${whoHtml}</section>
-    <section class="nwa-box"><h3>${icon('video')} Dernières vidéos</h3>${vidHtml}</section>
-  </aside>`;
+  return [
+    `<h3>${icon('fire')} À la une <span class="muted small">48 h</span></h3>${topHtml}`,
+    `<h3>${icon('chart')} Qui fait l'actu <span class="muted small">24 h</span></h3>${whoHtml}`,
+    `<h3>${icon('video')} Dernières vidéos</h3>${vidHtml}`,
+  ];
+}
+
+// Mise à jour par morceaux : chaque traduction terminée redessinait toute la page (barres de
+// « Qui fait l'actu » qui repartaient de zéro, images rechargées). Seul ce qui a changé est remplacé.
+function patchHtml(node, html) {
+  if (node._html === html) return;
+  node._html = html;
+  node.innerHTML = html;
+}
+
+// Traductions terminées : un seul rendu toutes les 1,5 s (au lieu d'un par titre traduit)
+let soonTimer = 0;
+function renderSoon() {
+  if (soonTimer) return;
+  soonTimer = setTimeout(() => { soonTimer = 0; scheduleRender(); }, 1500);
 }
 
 let renderQueued = false;
@@ -330,7 +345,15 @@ function render() {
     : `<div class="sz-box muted">${loaded ? 'Aucune actualité pour ces filtres.' : 'Chargement des actualités…'}</div>`;
   const keep = el.scrollTop;
   const visible = items.filter((it) => srcById[it.src]?.enabled !== false);
-  el.innerHTML = `<div class="nw-layout${guard ? ' guarded' : ''}"><div class="nw-feed">${head}${banner}${body}</div>${asideView(visible)}</div>`;
+  const aside = asideView(visible);
+  let layout = el.firstElementChild;
+  if (!layout?.classList.contains('nw-layout') || layout.querySelectorAll('.nwa-box').length !== aside.length) {
+    el.innerHTML = `<div class="nw-layout"><div class="nw-feed"></div><aside class="nw-aside">${aside.map(() => '<section class="nwa-box"></section>').join('')}</aside></div>`;
+    layout = el.firstElementChild;
+  }
+  layout.classList.toggle('guarded', guard);
+  patchHtml(layout.querySelector('.nw-feed'), `${head}${banner}${body}`);
+  layout.querySelectorAll('.nwa-box').forEach((box, i) => patchHtml(box, aside[i]));
   el.scrollTop = keep;
   justArrived.clear();
   // Titres affichés traduits en priorité, puis les résumés des premiers sujets
