@@ -26,6 +26,7 @@ const DEFAULTS = {
   replayMarks: true,      // replay : périodes de safety car / VSC sur la barre de lecture
   hotLapDim: false,       // essais / qualifs : voitures hors tour lancé estompées (carte, classement)
   layoutMode: 'auto',     // disposition : 'auto' (selon la séance) | 'race' | 'quali'
+  tabLayout: null,        // onglets déplacés : { panneau: [onglets dans l'ordre] } (null : à leur place d'origine)
   radioAuto: false,
   radioText: false,       // transcription des radios en texte (Whisper local)
   radioLang: LANG === 'en' ? 'none' : 'fr',        // langue de traduction des transcriptions ('none' : anglais)

@@ -976,7 +976,7 @@ export async function restoreWindowsSnapshot() {
 // les fenêtres secondaires se ferment (leurs panneaux reviennent dans la fenêtre principale).
 export function resetLayout(ask = true) {
   if (!isMain) return;
-  if (ask && !window.confirm('Réinitialiser l\'interface ?\n\nDisposition des panneaux, panneaux masqués, colonnes du classement et fenêtres secondaires reviennent à l\'état par défaut.')) return;
+  if (ask && !window.confirm('Réinitialiser l\'interface ?\n\nDisposition des panneaux et des onglets, panneaux masqués, colonnes du classement et fenêtres secondaires reviennent à l\'état par défaut.')) return;
   channel?.postMessage({ type: 'reset', win: WIN });
   others.clear();
   storageSet(LAYOUTS_KEY, {});
@@ -987,6 +987,7 @@ export function resetLayout(ask = true) {
   setPref('hiddenPanels', [...def.hiddenPanels]);
   setPref('hiddenCols', [...def.hiddenCols]);
   setPref('extraCols', []);
+  setPref('tabLayout', null);
   if (!prefs.towerFit) setPref('towerFit', true);
   layout = normalize(defaultLayout());
   applyTabs();

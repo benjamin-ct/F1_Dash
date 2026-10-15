@@ -4,6 +4,28 @@ Toutes les nouveautés de F1 Dash, version par version. Chaque nouvelle version 
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.24.0 — à venir
+
+### Radios d'équipe façon MultiViewer
+- **Nouveau lecteur des radios** : une seule liste au lieu des onglets Transcriptions / Audio. Chaque radio affiche la couleur de l'écurie, le pilote, le **tour**, l'heure et sa durée, avec un point bleu tant qu'elle n'a pas été écoutée. Un clic sur la radio (ou sur ▶) la joue, avec une **barre de progression** cliquable dans la ligne.
+- **Lecteur en bas de la liste** : pilote en cours, progression, **vitesse de lecture** (1× à 2×) et radio suivante. La lecture automatique des nouvelles radios est toujours là (« Lecture auto »).
+- Case **Texte** : la transcription et la traduction s'affichent directement sous chaque radio.
+
+### Transcriptions et traductions
+- **La liste ne se recharge plus sans arrêt** : une traduction terminée ou le chargement d'un modèle ne met à jour que la ligne concernée (le défilement et l'écoute ne sont plus interrompus).
+- **Fini les rechargements en boucle** du modèle de traduction : le moteur planté est vraiment arrêté avant d'en relancer un, et après un échec en haute qualité, les nouveaux essais sont de plus en plus espacés.
+- Un modèle déjà téléchargé affiche « Chargement du modèle… » au lieu de « Téléchargement (première fois) ».
+- Une radio sans parole reconnue n'affiche plus « « - » » mais « pas de parole reconnue ».
+- **Traductions plus fiables** : une réponse vide, l'anglais recopié ou une explication à la place de la traduction est détectée et refaite ; en qualité légère, le jargon F1 est corrigé (« Box, box » → « Rentre aux stands », « Copy » → « Reçu », pneus durs / tendres, « lift and coast » → « lever le pied »).
+
+### Onglets déplaçables
+- **Glissez un onglet vers un autre panneau** (Analyse, Stratégie, Course, Radios) ou à une autre place dans le sien : par exemple la Race trace à côté de la Stratégie. La disposition des onglets est gardée et suivie par toutes les fenêtres ; Réglages → Affichage → « Remettre les onglets à leur place ».
+
+### Thème clair plus lisible
+- Les couleurs d'écurie trop pâles pour le fond blanc (turquoise de Mercedes, bleu ciel, vert clair…) sont assombries automatiquement, en gardant leur teinte : graphiques, classement, actualités…
+- Historique des pneus : cases plus marquées et arrêts aux stands encadrés en sombre (le cadre blanc était invisible).
+- Actualités : les écuries de « Qui fait l'actu » et des étiquettes prennent leur couleur (elles étaient grises).
+
 ## v1.23.1 — 2026-10-14
 
 ### Corrections

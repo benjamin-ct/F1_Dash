@@ -10,7 +10,9 @@ import { tx } from '../i18n.js';
 const OPTS_KEY = 'f1dash.analysis';
 const opts = { trace: 'leader', ref: null, scope: 'top10', clamp: 60, lapsSlow: true, cutoff: 107, sort: 'ideal', ...storageGet(OPTS_KEY, {}) };
 const saveOpts = () => storageSet(OPTS_KEY, opts);
-let lastKey = '';
+// Clés de rendu par onglet (un onglet d'analyse peut être déplacé dans un autre panneau : plusieurs
+// peuvent être affichés en même temps). Remise à zéro = tout redessiner.
+let lastKeys = {};
 let hoverX = null;
 let highlight = null;
 
@@ -19,9 +21,7 @@ function list(obj) {
   return Array.isArray(obj) ? obj : Object.keys(obj).sort((a, b) => a - b).map((k) => obj[k]);
 }
 
-function activeTab() {
-  return document.querySelector('.p-analysis [data-pane].active')?.dataset.pane || null;
-}
+const RENDER = {};   // onglet -> fonction de rendu (rempli plus bas)
 
 // Pilotes affichés dans les graphiques
 function shownDrivers() {
@@ -164,9 +164,9 @@ function bindHover(canvas, tipEl) {
     const left = e.clientX - r.left + 14;
     tipEl.style.left = `${left + 170 > r.width ? left - 190 : left}px`;
     tipEl.style.top = `${Math.max(4, e.clientY - r.top - 20)}px`;
-    lastKey = '';
+    lastKeys = {};
   });
-  canvas.addEventListener('mouseleave', () => { hoverX = null; tipEl.hidden = true; lastKey = ''; });
+  canvas.addEventListener('mouseleave', () => { hoverX = null; tipEl.hidden = true; lastKeys = {}; });
 }
 
 // ---------------- Données ----------------
@@ -385,7 +385,7 @@ function recordsStrip(rows, dl) {
   if (k !== recordsKey && !recordsLoading) {
     recordsLoading = true;
     api(`/api/records?key=${key}&year=${year}`).then((r) => { records = r; recordsKey = k; }).catch(() => { records = null; recordsKey = k; })
-      .finally(() => { recordsLoading = false; lastKey = ''; });
+      .finally(() => { recordsLoading = false; lastKeys = {}; });
   }
   if (recordsKey !== k || !records?.editions?.length) return '';
   const race = sessionKind(store.state) === 'race';
@@ -449,21 +449,19 @@ function renderSectors() {
     <div class="small muted" style="padding:6px 10px">Tour idéal = somme des meilleurs secteurs du pilote · violet = meilleur de la séance · vitesses en km/h (Inter 1 / 2 : points de mesure intermédiaires, Ligne : ligne d'arrivée).</div>`;
 }
 
+// Onglets d'analyse affichés (actifs dans leur panneau, panneau visible), où qu'ils soient
 export function renderAnalysis(force = false) {
-  const tab = activeTab();
-  if (!tab || !document.querySelector('.p-analysis')?.offsetParent) return;
-  const wrap = document.querySelector('.p-analysis .panel-body');
-  const key = `${tab}|${versionOf(['TimingData', 'TimingAppData', 'TimingStats', 'DriverList', 'RaceControlMessages', '__reset'])}|${JSON.stringify(opts)}|${highlight}|${hoverX}|${wrap.clientWidth}x${wrap.clientHeight}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
-  if (!force && key === lastKey) return;
-  lastKey = key;
-  if (tab === 'trace') renderTrace();
-  else if (tab === 'positions') renderPositions();
-  else if (tab === 'laptimes') renderLapTimes();
-  else if (tab === 'tyrehist') renderTyres();
-  else if (tab === 'sectors') renderSectors();
-  else if (tab === 'pace') renderPace();
-  else if (tab === 'compare') renderCompare();
+  const base = `${versionOf(['TimingData', 'TimingAppData', 'TimingStats', 'DriverList', 'RaceControlMessages', '__reset'])}|${JSON.stringify(opts)}|${highlight}|${hoverX}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}`;
+  for (const [tab, fn] of Object.entries(RENDER)) {
+    const pane = document.querySelector(`[data-pane="${tab}"]`);
+    if (!pane?.classList.contains('active') || !pane.offsetParent) continue;
+    const key = `${base}|${pane.clientWidth}x${pane.clientHeight}`;
+    if (!force && key === lastKeys[tab]) continue;
+    lastKeys[tab] = key;
+    fn();
+  }
 }
+Object.assign(RENDER, { trace: renderTrace, positions: renderPositions, laptimes: renderLapTimes, tyrehist: renderTyres, sectors: renderSectors, pace: renderPace, compare: renderCompare });
 
 function fillRefSelect() {
   const dl = drivers(store.state);
@@ -496,7 +494,7 @@ export function initAnalysis() {
   for (const r of document.querySelectorAll('.ana-cutoff')) r.addEventListener('input', (e) => set('cutoff', Number(e.target.value)));
   $('#anaFastest').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-num]'); if (tr) setFocus(tr.dataset.num); });
   // Export d'un graphique en image PNG (fond du thème)
-  document.querySelector('.p-analysis').addEventListener('click', (e) => {
+  document.addEventListener('click', (e) => {
     const b = e.target.closest('.ana-png');
     if (!b) return;
     const src = b.closest('.tabpane').querySelector('canvas');
@@ -543,12 +541,17 @@ export function initAnalysis() {
       const m = $(`#${id}`)._map;
       if (!m || hoverX === null) return;
       highlight = highlight ? null : store.focus;
-      lastKey = '';
+      lastKeys = {};
     });
   }
-  on('focus', () => { highlight = store.focus; lastKey = ''; });
+  on('focus', () => { highlight = store.focus; lastKeys = {}; });
   setInterval(fillRefSelect, 2000);
   fillRefSelect();
-  if ('ResizeObserver' in window) new ResizeObserver(() => { lastKey = ''; }).observe(document.querySelector('.p-analysis .panel-body'));
-  document.querySelector('.p-analysis [data-tabs]')?.addEventListener('click', () => setTimeout(() => renderAnalysis(true), 0));
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver(() => { lastKeys = {}; });
+    for (const b of document.querySelectorAll('.panel-body')) ro.observe(b);
+  }
+  // Changement d'onglet (dans n'importe quel panneau : les onglets se déplacent)
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-tabs] [data-tab]')) setTimeout(() => renderAnalysis(true), 0); });
+  on('tabsMoved', () => setTimeout(() => renderAnalysis(true), 0));
 }

@@ -18,6 +18,7 @@ import { initMap } from './ui/map.js';
 import { initDuel, renderDuel } from './ui/duel.js';
 import { renderRcm, renderPits } from './ui/feed.js';
 import { renderRadios, initRadios } from './ui/radios.js';
+import { initTabMove } from './ui/tabmove.js';
 import { renderTelemetry, renderStrategy, renderWeather, renderChampionship } from './ui/extra.js';
 import { initSettings } from './ui/settings.js';
 import { renderPitSim, renderBattles, initRaceTools } from './ui/race-tools.js';
@@ -90,6 +91,7 @@ function loop() {
 }
 
 initTabs();
+initTabMove();
 initDelay();
 initAutoSync();
 initTower();

@@ -912,17 +912,17 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .rd-text { font-size: 14px; line-height: 1.35; margin-top: 3px; }
 .rd-orig { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 2px; }
 .rd .pending { color: var(--muted); font-style: normal; }
-.rd-now { flex: none; display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-top: 1px solid var(--border); background: var(--panel-2); }
+.rd-now { flex: none; display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-top: 1px solid var(--border); background: var(--panel-2); }
 .rd-now[hidden] { display: none; }
-.rd-now-play { flex: none; width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--blue); color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; }
-.rd-now-play .ic { width: 14px; height: 14px; }
+.rd-now-play { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 0; background: var(--blue); color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; }
+.rd-now-play .ic { width: 12px; height: 12px; }
 .rd-now-main { flex: 1; min-width: 0; }
 .rd-now-who { display: flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; }
 .rd-now-who .drv-bar { height: 14px; width: 4px; }
-.rd-now-bar { height: 6px; margin-top: 5px; background: var(--line); border-radius: 3px; overflow: hidden; cursor: pointer; }
+.rd-now-bar { height: 5px; margin-top: 3px; background: var(--line); border-radius: 3px; overflow: hidden; cursor: pointer; }
 .rd-now-bar i { display: block; height: 100%; background: var(--blue); transform-origin: left; transform: scaleX(0); }
 .rd-now-time { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.rd-now-speed { flex: none; min-width: 38px; height: 24px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-3); color: var(--text); font-size: 12px; cursor: pointer; }
+.rd-now-speed { flex: none; min-width: 36px; height: 22px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel-3); color: var(--text); font-size: 12px; cursor: pointer; }
 
 /* ---------- Panneau Analyse (race trace, positions, temps, pneus, secteurs) ---------- */
 .tabpane.ana-pane.active { display: flex; flex-direction: column; height: 100%; }
@@ -965,7 +965,13 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .set-tab.active { color: var(--text); border-bottom-color: var(--red); }
 #settingsModal .set-block.set-hidden { display: none; }
 /* Panneaux à nombreux onglets : onglets plus compacts pour tenir sur une ligne */
-.p-analysis .tab, .p-extra .tab { padding: 4px 7px; letter-spacing: .2px; font-size: 12px; }
+.panel-head.tabs.many .tab { padding: 4px 7px; letter-spacing: .2px; font-size: 12px; }
+/* Onglets déplaçables (glisser vers un autre panneau ou une autre place) */
+body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-select: none; }
+.tab-ghost { position: fixed; left: 0; top: 0; z-index: 10000; pointer-events: none; box-shadow: 0 6px 20px rgba(0, 0, 0, .35); opacity: .95; }
+.tab-marker { position: fixed; z-index: 10001; width: 3px; border-radius: 2px; background: var(--accent); pointer-events: none; }
+.panel.tab-drop { box-shadow: inset 0 0 0 2px var(--accent); }
+.tab-empty { margin: 16px; text-align: center; }
 
 /* ---------- Espace Saison ---------- */
 .season-btn { font-weight: 700; }

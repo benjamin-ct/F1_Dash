@@ -1,5 +1,6 @@
 // Légendes affichées sous chaque panneau : à quoi correspondent les couleurs, les colonnes et
 // les graphiques. Elles changent avec l'onglet actif et se masquent dans Réglages → Affichage.
+import { tabOrigin } from './tabmove.js';
 import { prefs, setPref } from '../prefs.js';
 import { on } from '../store.js';
 import { toast } from './delay.js';
@@ -71,7 +72,8 @@ function update(panel, id) {
   let el = panel.querySelector(':scope > .panel-legend');
   if (!prefs.legends) { el?.remove(); return; }
   const tab = panel.querySelector('.panel-head [data-tab].active')?.dataset.tab || '_';
-  const items = L[id]?.[tab] || L[id]?._;
+  // Onglet venu d'un autre panneau : sa légende le suit
+  const items = L[id]?.[tab] || L[tabOrigin(tab)]?.[tab] || L[id]?._;
   if (!items) { el?.remove(); return; }
   if (!el) {
     el = document.createElement('div');
@@ -97,6 +99,7 @@ export function initLegends() {
   }
   on('prefs', (k) => { if (k === 'legends') updateAll(); });
   on('scheme', () => updateAll());
+  on('tabsMoved', () => updateAll());
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.lg-hide')) return;
     setPref('legends', false);
