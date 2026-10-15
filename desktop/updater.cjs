@@ -21,10 +21,18 @@ const CHECK_TIMEOUT_MS = 10000;     // réponse de GitHub
 const STALL_TIMEOUT_MS = 30000;     // téléchargement sans aucune donnée reçue
 
 // Bundle « Paddock Live.app » de l'appli macOS, s'il peut être remplacé (pas lancé depuis l'image disque)
+// macOS lance une appli non signée par Apple et encore « en quarantaine » depuis une copie temporaire
+// en lecture seule (App Translocation) : on remplace alors l'appli installée dans Applications. Le
+// script d'installation retire la quarantaine, les lancements suivants se font depuis Applications.
 function macBundle() {
   if (process.platform !== 'darwin') return null;
-  const bundle = path.resolve(path.dirname(process.execPath), '..', '..');
+  let bundle = path.resolve(path.dirname(process.execPath), '..', '..');
   if (!bundle.endsWith('.app') || bundle.startsWith('/Volumes/')) return null;
+  if (bundle.includes('/AppTranslocation/')) {
+    const name = path.basename(bundle);
+    bundle = [path.join('/Applications', name), path.join(app.getPath('home'), 'Applications', name)].find((b) => fs.existsSync(b));
+    if (!bundle) return null;
+  }
   try { fs.accessSync(path.dirname(bundle), fs.constants.W_OK); return bundle; } catch { return null; }
 }
 

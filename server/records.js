@@ -2,12 +2,11 @@
 // Live Timing, depuis 2018), pour situer les temps de la séance. Gardées sur disque (définitives).
 import fs from 'node:fs';
 import path from 'node:path';
-import { getJSON } from './net.js';
+import { archiveJSON } from './archive.js';
 import { seasonIndex } from './replay.js';
 import { CACHE_DIR } from './circuits.js';
 import { parseLapTime } from '../shared/f1.js';
 
-const STATIC = 'https://livetiming.formula1.com/static/';
 const FIRST_YEAR = 2018;
 const YEARS_BACK = 4;
 
@@ -21,8 +20,8 @@ function writeCache(name, data) {
 // Meilleur tour d'une séance archivée : { time, tla, team, lap }
 async function sessionBest(sesPath) {
   const [td, dl] = await Promise.all([
-    getJSON(`${STATIC}${sesPath}TimingData.json`, { timeout: 30000 }),
-    getJSON(`${STATIC}${sesPath}DriverList.json`, { timeout: 30000 }).catch(() => ({})),
+    archiveJSON(`${sesPath}TimingData.json`, { timeout: 30000 }),
+    archiveJSON(`${sesPath}DriverList.json`, { timeout: 30000 }).catch(() => ({})),
   ]);
   let best = null;
   for (const [num, l] of Object.entries(td?.Lines || {})) {

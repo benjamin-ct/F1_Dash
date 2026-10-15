@@ -379,6 +379,12 @@ ipcMain.on('windows-startup-layouts', (e) => {
   e.returnValue = isMain && !startupLayoutsSent && startMode(st) === 'saved' ? st.saved.layouts || null : null;
   if (isMain) startupLayoutsSent = true;
 });
+// Mémoire utilisée par l'application, par type de processus (Réglages → Application)
+ipcMain.handle('app-memory', () => {
+  const by = {};
+  for (const m of app.getAppMetrics()) by[m.type] = (by[m.type] || 0) + (m.memory?.workingSetSize || 0) * 1024;
+  return by;
+});
 ipcMain.handle('window-focus', (e) => {
   const w = BrowserWindow.fromWebContents(e.sender);
   if (!w) return false;

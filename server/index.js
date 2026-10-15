@@ -33,6 +33,7 @@ import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, publish as p
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 import { stats, startStats } from './stats.js';
+import { archivePath, sendArchiveFile } from './archive.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -428,8 +429,14 @@ async function handleApi(req, res, url) {
     }
 
     case 'GET /api/f1tv/proxy':
-    case 'POST /api/f1tv/proxy':
+    case 'POST /api/f1tv/proxy': {
+      // Archives officielles (radios d'un replay) : même accès que les replays (F1 TV, miroir)
+      const rel = req.method === 'GET' ? archivePath(url.searchParams.get('u') || '') : null;
+      if (rel) return sendArchiveFile(res, rel);
       return f1tvProxy(req, res, url.searchParams.get('u') || '', getConfig().f1tvToken);
+    }
+    case 'GET /api/archive/file':
+      return sendArchiveFile(res, url.searchParams.get('p') || '');
 
     case 'GET /api/recordings':
       return sendJSON(res, 200, listRecordings());

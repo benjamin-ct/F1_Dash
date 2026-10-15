@@ -80,6 +80,7 @@ export function setTranscribe(on, language, q = 'auto') {
     // Nouveau choix : on retente la haute qualité tout de suite
     highFail.asr = highFail.mt = null;
   }
+  if (!enabled && !queue.some((t) => t.kind === 'text' || t.kind === 'win')) setTimeout(unload, 1000);
   if (enabled) {
     // Niveau de chaque modèle connu dès le départ (pour refaire en haute qualité les radios
     // traduites en qualité légère), puis revu chaque minute (fin d'attente après un échec)
@@ -201,12 +202,28 @@ function getWorker() {
   return worker;
 }
 
+// Modèles libérés (plusieurs Go en haute qualité) après 5 minutes sans rien à traiter ou quand la
+// transcription est coupée ; ils sont rechargés depuis le disque à la prochaine radio
+const IDLE_MS = 5 * 60000;
+let unloadTimer = 0;
+function unload() {
+  clearTimeout(unloadTimer);
+  if (!worker || busy || current) return;
+  worker.terminate();
+  worker = null;
+}
+
 function run(msg, transfer = []) {
+  clearTimeout(unloadTimer);
   const w = getWorker();
   return new Promise((resolve, reject) => {
     current = { id: nextId++, resolve, reject };
     w.postMessage({ ...msg, id: current.id }, transfer);
-  }).finally(() => { current = null; });
+  }).finally(() => {
+    current = null;
+    clearTimeout(unloadTimer);
+    unloadTimer = setTimeout(unload, IDLE_MS);
+  });
 }
 
 async function decode(url) {
