@@ -8,6 +8,7 @@ import { NEWS_TEAMS, newsTags, webLink } from '/shared/news.js';
 // Lien ou image d'une nouvelle : adresse web uniquement (jamais « javascript: »), échappée
 const safeUrl = (u) => esc(webLink(u) || '#');
 import { translateText } from './transcribe.js';
+import { cloudOn, cloudTranslate } from '../cloud.js';
 import { notifyNews } from './alerts.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
@@ -100,6 +101,21 @@ async function pumpTranslations() {
 // urgent : en tête de file (alerte à traduire avant de l'afficher)
 function translate(text, from, urgent = false) {
   if (!prefs.newsTranslate || !needs(text, from) || queued.has(text)) return Promise.resolve();
+  // Serveur Paddock Live : tous les textes visibles partent ensemble, sans attendre leur tour
+  if (cloudOn()) {
+    queued.add(text);
+    return cloudTranslate(text, from, LANG).then((out) => {
+      queued.delete(text);
+      if (out) {
+        cache[text] = { t: out, q: 'cloud' };
+        if (store.isHost !== false) saveTranslation({ en: text, t: out, q: 'cloud' });
+        renderSoon();
+        return;
+      }
+      if (cloudOn()) { failed.add(text); return; }   // texte refusé : on n'insiste pas
+      return translate(text, from, urgent);           // serveur indisponible : sur l'ordinateur
+    });
+  }
   if (store.isHost === false) {
     // Téléphone : l'ordinateur traduit ; on relit son cache un peu plus tard
     clearTimeout(translate.reload);

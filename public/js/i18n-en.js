@@ -1774,4 +1774,8 @@ export default {
   "En piste, dépassements interdits": "On track, no overtaking",
   "Voiture de sécurité — rentre à la fin du tour": "Safety car — in this lap",
   " · position estimée": " · estimated position",
+  "{} : serveur Paddock Live (rien à calculer ici)": "{}: Paddock Live server (nothing computed here)",
+  "Traduire avec le serveur Paddock Live (recommandé)": "Translate with the Paddock Live server (recommended)",
+  "Actualités, radios d'équipe et documents FIA sont traduits en ligne, une seule fois pour tous les utilisateurs : rien à calculer sur cet ordinateur. Seuls les textes à traduire sont envoyés. Décoché, ou si le serveur ne répond pas, la traduction se fait sur cet ordinateur.": "News, team radios and FIA documents are translated online, only once for all users: nothing to compute on this computer. Only the texts to translate are sent. Unchecked, or if the server does not respond, translation happens on this computer.",
+  "Traductions": "Translations",
 };

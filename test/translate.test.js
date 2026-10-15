@@ -1,0 +1,79 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { cleanRequest, translateBatch, keyOf } from '../analytics/translate.js';
+import { createCloudTranslator } from '../server/cloud-translate.js';
+
+// Base D1 simulée pour les traductions et le plafond du jour
+function fakeEnv({ limit = 100, fail = false } = {}) {
+  const tr = new Map();
+  const usage = new Map();
+  const calls = [];
+  const stmt = (sql, args = []) => ({
+    bind: (...a) => stmt(sql, a),
+    async all() { return { results: args.filter((k) => tr.has(k)).map((k) => ({ k, out: tr.get(k) })) }; },
+    async first() { return usage.has(args[0]) ? { n: usage.get(args[0]) } : null; },
+    async run() { usage.set(args[0], (usage.get(args[0]) || 0) + args[1]); },
+    exec() { tr.set(args[0], args[1]); },
+  });
+  return {
+    tr, usage, calls,
+    env: {
+      AI_DAILY_LIMIT: String(limit),
+      DB: { prepare: (sql) => stmt(sql), async batch(list) { for (const s of list) s.exec(); } },
+      AI: { async run(model, input) { calls.push(input); if (fail) throw new Error('ia'); return { translated_text: `[${input.target_lang}] ${input.text}` }; } },
+    },
+  };
+}
+
+test('traduction partagée : requête nettoyée', () => {
+  assert.deepEqual(cleanRequest({ to: 'fr', items: [{ text: ' Hello ', from: 'en' }, { text: 'Hallo', from: 'xx' }] }), { to: 'fr', items: [{ text: 'Hello', from: 'en' }, { text: 'Hallo', from: 'en' }] });
+  assert.equal(cleanRequest({ to: 'klingon', items: [{ text: 'a' }] }), null);
+  assert.equal(cleanRequest({ to: 'fr', items: [{ text: '' }] }), null);
+  assert.equal(cleanRequest({ to: 'fr', items: [] }), null);
+  assert.equal(cleanRequest({ to: 'fr', items: Array(5).fill({ text: 'x'.repeat(2000) }).concat(Array(10).fill({ text: 'y'.repeat(2000) })) }), null);   // trop long au total
+});
+
+test('traduction partagée : une seule fois pour tous, puis depuis la base', async () => {
+  const f = fakeEnv();
+  const r1 = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Box box', from: 'en' }, { text: 'Box box', from: 'en' }, { text: 'Bonjour', from: 'fr' }] }, '2026-10-15');
+  assert.deepEqual(r1.out, ['[fr] Box box', '[fr] Box box', 'Bonjour']);
+  assert.equal(f.calls.length, 1);   // doublon et même langue : pas d'appel
+  assert.equal(f.usage.get('2026-10-15'), 1);
+  const r2 = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Box box', from: 'en' }] }, '2026-10-15');
+  assert.deepEqual(r2, { out: ['[fr] Box box'], cached: true });
+  assert.equal(f.calls.length, 1);
+  assert.ok(f.tr.has(await keyOf('en', 'fr', 'Box box')));
+});
+
+test('traduction partagée : plafond du jour et échec de l\'IA', async () => {
+  const f = fakeEnv({ limit: 1 });
+  const r = await translateBatch(f.env, { to: 'fr', items: [{ text: 'a', from: 'en' }, { text: 'b', from: 'en' }] }, 'd');
+  assert.equal(r.limited, true);
+  assert.deepEqual(r.out, [null, null]);
+  assert.equal(f.calls.length, 0);
+  const g = fakeEnv({ fail: true });
+  const r2 = await translateBatch(g.env, { to: 'fr', items: [{ text: 'a', from: 'en' }] }, 'd');
+  assert.deepEqual(r2.out, [null]);
+  assert.equal(g.tr.size, 0);
+});
+
+test('appli : demandes regroupées, mémoire, pause si le serveur refuse', async () => {
+  let t = 0;
+  const posts = [];
+  const tr = createCloudTranslator({
+    url: 'https://x/t', now: () => t,
+    post: async (url, body) => { posts.push(body); return body.items[0].text === 'quota' ? { status: 429, json: { out: [null] } } : { status: 200, json: { out: body.items.map((i) => `fr:${i.text}`) } }; },
+  });
+  const [a, b] = await Promise.all([tr.translate('Copy', 'en', 'fr'), tr.translate('Push now', 'de', 'fr')]);
+  assert.deepEqual([a, b], ['fr:Copy', 'fr:Push now']);
+  assert.equal(posts.length, 1);   // un seul envoi pour les deux
+  assert.equal(await tr.translate('Copy', 'en', 'fr'), 'fr:Copy');
+  assert.equal(posts.length, 1);   // mémoire
+  assert.equal(await tr.translate('Même langue', 'fr', 'fr'), 'Même langue');
+  assert.equal(await tr.translate('x', 'en', 'klingon'), null);
+  assert.equal(await tr.translate('quota', 'en', 'fr'), null);
+  assert.equal(tr.available(), false);   // pause de 10 minutes
+  assert.equal(await tr.translate('autre', 'en', 'fr'), null);
+  t += 11 * 60e3;
+  assert.equal(tr.available(), true);
+});

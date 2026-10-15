@@ -9,3 +9,16 @@ CREATE TABLE IF NOT EXISTS counts (
   PRIMARY KEY (day, event, device, version, os)
 );
 CREATE INDEX IF NOT EXISTS counts_event ON counts (event, day);
+
+-- Traductions partagées entre tous les utilisateurs (clé = empreinte de « langue source|langue cible|texte »)
+CREATE TABLE IF NOT EXISTS translations (
+  k TEXT PRIMARY KEY,
+  out TEXT NOT NULL,
+  at INTEGER NOT NULL
+);
+
+-- Nombre de traductions faites par l'IA chaque jour (plafond contre les abus)
+CREATE TABLE IF NOT EXISTS ai_usage (
+  day TEXT PRIMARY KEY,
+  n INTEGER NOT NULL DEFAULT 0
+);

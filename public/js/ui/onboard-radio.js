@@ -269,9 +269,18 @@ async function reconcile() {
   }
 }
 
+// Mise de côté pour l'instant (trop lourde : écoute et transcription en continu sur l'ordinateur)
+const AVAILABLE = false;
+
 export function initOnboardRadio() {
   const box = $('#obRadio');
   if (!box) return;
+  if (!AVAILABLE) {
+    if (prefs.obRadio) setPref('obRadio', false);
+    box.closest('label').hidden = true;
+    $('#obRadioOpts').hidden = true;
+    return;
+  }
   box.checked = prefs.obRadio;
   box.addEventListener('change', (e) => setPref('obRadio', e.target.checked));
   const who = $('#obRadioWho');

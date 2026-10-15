@@ -6,7 +6,13 @@ l'application (Réglages → Application → Nouveautés).
 
 ## v1.27.2 — à venir
 
+### Traductions en ligne
+- **Les traductions passent maintenant par le serveur Paddock Live** (actualités, radios d'équipe, documents FIA) : plus aucun modèle de traduction à faire tourner sur l'ordinateur ou le téléphone, et chaque texte n'est traduit qu'une fois pour tous les utilisateurs, donc souvent instantanément.
+- Seuls les textes à traduire sont envoyés (titres et résumés d'articles, texte des radios), rien d'autre. Désactivable dans Réglages → Application → *Traductions* ; si le serveur ne répond pas, la traduction se fait sur l'ordinateur comme avant.
+- Sur le téléphone, les actualités sont traduites directement, sans attendre l'ordinateur.
+
 ### Radios d'équipe
+- **Radios des caméras embarquées retirées pour le moment** : l'écoute et la transcription en continu étaient trop lourdes pour l'ordinateur.
 - **Transcription et traduction des radios beaucoup plus légères par défaut** : elles utilisent désormais les petits modèles (environ 1 Go de mémoire, sans solliciter la carte graphique). La haute qualité, plus précise mais gourmande (10 à 15 Go pendant l'utilisation), reste disponible dans le choix « Qualité » du panneau Radios.
 - Quel que soit l'ordinateur : seules les 12 radios les plus récentes sont retranscrites et traduites automatiquement (40 avant), avec une courte pause entre deux, pour que l'appli reste fluide, en particulier au lancement d'un replay.
 
