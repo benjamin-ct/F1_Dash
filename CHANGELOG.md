@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.0 — à venir
+## v1.27.0 — 2026-10-15
 
 ### Statistiques d'utilisation anonymes
 - **Au premier lancement, Paddock Live vous demande s'il peut envoyer des statistiques d'utilisation anonymes**, pour savoir quelles fonctions servent le plus ou le moins et améliorer l'appli dans le bon sens. Rien n'est envoyé sans votre accord.
