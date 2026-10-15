@@ -98,6 +98,14 @@ main{max-width:1180px;margin:0 auto;padding:20px 20px 60px}
 table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:6px 8px;border-bottom:1px solid var(--grid)}
 td{padding:7px 8px;border-bottom:1px solid var(--grid)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tr:last-child td{border-bottom:0}
 td code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+.errs td{vertical-align:top}.errs .where{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.kind{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;background:var(--chip);color:var(--ink-2)}.kind.server{color:var(--s2)}.kind.promise{color:var(--s1)}
+.errs .msg{margin-top:4px;color:var(--ink);font-size:13px;word-break:break-word}.errs .msg.none{color:var(--muted);font-style:italic}
+.errs .stack{margin-top:3px;color:var(--muted);font:11.5px ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-word}
+.vers{display:flex;flex-wrap:wrap;gap:4px}.vers span{background:var(--chip);border-radius:999px;padding:1px 8px;font-size:12px;white-space:nowrap;color:var(--ink-2)}
+.errs-wrap{overflow-x:auto}
+.errs .mob{display:none;margin-top:6px;color:var(--muted);font-size:12px}
+@media (max-width:720px){.errs .devcol,.errs .vcol{display:none}.errs .mob{display:block}}
 details{margin-top:14px}summary{cursor:pointer;color:var(--ink-2);font-size:13px}details table{margin-top:8px}
 .empty{color:var(--muted);font-size:13.5px;padding:18px 0;text-align:center}
 .badge{display:inline-flex;align-items:center;gap:5px;color:var(--bad);font-weight:600}
@@ -127,9 +135,11 @@ details{margin-top:14px}summary{cursor:pointer;color:var(--ink-2);font-size:13px
 <div class="card"><h2>Appareils</h2><p class="hint">ouvertures de l'interface</p><div class="bars" id="devices"></div></div>
 <div class="card"><h2>Langue</h2><p class="hint">ouvertures de l'interface</p><div class="bars" id="langs"></div></div>
 </section>
-<section class="grid two">
+<section class="grid">
+<div class="card"><h2>Erreurs</h2><p class="hint">Endroit (fichier:ligne), type, message technique (adresses, dossiers et nombres retirés), chemin d'appel, versions concernées</p><div id="errors"></div></div>
+</section>
+<section class="grid">
 <div class="card"><h2>Jamais utilisées sur la période</h2><p class="hint">Fonctions connues sans aucune utilisation</p><div class="pills" id="unused"></div></div>
-<div class="card"><h2>Erreurs</h2><p class="hint">Fichier et ligne de l'interface (ou du serveur de l'appli)</p><div id="errors"></div></div>
 </section>
 </div></main>
 <script type="application/json" id="data">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
@@ -311,11 +321,29 @@ for (const u of D.unused) un.append(el('span', '', u));
 
 // Erreurs
 const eh = $('#errors');
+const KIND = { js: 'Interface', promise: 'Interface (tâche de fond)', server: 'Serveur de l\'appli' };
 if (!D.errors.length) eh.append(el('div', 'empty', 'Aucune erreur signalée sur la période.'));
 else {
-  const t = el('table'); const h = el('tr'); h.append(el('th', '', 'Endroit'), el('th', 'num', 'Ordi.'), el('th', 'num', 'Tél.'), el('th', 'num', 'Navig.'), el('th', 'num', 'Total'));
+  const wrap = el('div', 'errs-wrap'); const t = el('table', 'errs'); const h = el('tr');
+  h.append(el('th', '', 'Erreur'), el('th', 'vcol', 'Versions'), el('th', 'vcol', 'Dernière'));
+  for (const [, l] of [['desktop', 'Ordi.'], ['phone', 'Tél.'], ['browser', 'Navig.']]) h.append(el('th', 'num devcol', l));
+  h.append(el('th', 'num', 'Total'));
   const th = el('thead'); th.append(h); t.append(th); const tb = el('tbody');
-  for (const e of D.errors) { const tr = el('tr'); const c = el('td'); c.append(el('code', '', e.event.replace(/^error\./, ''))); tr.append(c); for (const [d] of DEV) tr.append(el('td', 'num', nf.format(e[d]))); tr.append(el('td', 'num', nf.format(e.total))); tb.append(tr); }
-  t.append(tb); eh.append(t);
+  for (const e of D.errors) {
+    const tr = el('tr'); const c = el('td');
+    const w = el('div', 'where'); w.append(el('code', '', e.place === 'other' ? 'endroit inconnu' : e.place));
+    if (e.kind) w.append(el('span', 'kind ' + e.kind, KIND[e.kind] || e.kind));
+    c.append(w);
+    if (e.legacy) c.append(el('div', 'msg none', 'Pas de détail : version d\'avant le détail des erreurs (1.27.4 ou avant)'));
+    else { c.append(el('div', 'msg' + (e.msg ? '' : ' none'), e.msg || 'Pas de message')); if (e.stack) c.append(el('div', 'stack', e.stack)); }
+    const vname = (x) => (x.v === 'dev' ? 'dev' : 'v' + x.v);
+    const vs = el('div', 'vers'); for (const x of e.versions) vs.append(el('span', '', vname(x) + ' · ' + nf.format(x.n)));
+    const vt = el('td', 'vcol'); vt.append(vs);
+    c.append(el('div', 'mob', e.versions.map(vname).join(', ') + (e.last ? ' · ' + dfmt(e.last) : '')));
+    tr.append(c, vt, el('td', 'vcol', e.last ? dfmt(e.last) : ''));
+    for (const [d] of DEV) tr.append(el('td', 'num devcol', nf.format(e[d])));
+    tr.append(el('td', 'num', nf.format(e.total))); tb.append(tr);
+  }
+  t.append(tb); wrap.append(t); eh.append(wrap);
 }
 `;

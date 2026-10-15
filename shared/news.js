@@ -5,12 +5,19 @@
 // ---- Lecture XML minimale (flux RSS 2.0 / Atom) ----
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', hellip: '…', rsquo: '’', lsquo: '‘', rdquo: '”', ldquo: '“', ndash: '–', mdash: '—', eacute: 'é', egrave: 'è', agrave: 'à', ccedil: 'ç', uuml: 'ü', ouml: 'ö', auml: 'ä', ntilde: 'ñ', iacute: 'í', oacute: 'ó', aacute: 'á', uacute: 'ú' };
 
+Object.assign(ENTITIES, { szlig: 'ß', aelig: 'æ', oelig: 'œ', oslash: 'ø', laquo: '«', raquo: '»', euro: '€', bull: '•', middot: '·', deg: '°', times: '×', shy: '', sbquo: '‚', bdquo: '„', copy: '©', reg: '®', trade: '™', iexcl: '¡', iquest: '¿', ordm: 'º', ordf: 'ª' });
+const ACCENTS = { acute: '\u0301', grave: '\u0300', circ: '\u0302', uml: '\u0308', tilde: '\u0303', cedil: '\u0327', ring: '\u030a' };
+
 export function decodeEntities(s) {
   return String(s || '').replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
     if (e[0] === '#') {
       const code = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
       return Number.isFinite(code) && code > 0 && code < 0x110000 ? String.fromCodePoint(code) : m;
     }
+    if (Object.hasOwn(ENTITIES, e)) return ENTITIES[e];
+    // Lettres accentuées (« &Eacute; », « &ocirc; »…) : lettre + accent combinés (majuscule gardée)
+    const acc = e.match(/^([a-z])(acute|grave|circ|uml|tilde|cedil|ring)$/i);
+    if (acc) return (acc[1] + ACCENTS[acc[2].toLowerCase()]).normalize('NFC');
     return ENTITIES[e.toLowerCase()] ?? m;
   });
 }

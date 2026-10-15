@@ -5,6 +5,7 @@ import { store, on } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
 import { NEWS_TEAMS, newsTags, webLink } from '/shared/news.js';
 import { badScript } from '/shared/translation-check.js';
+import { youtubeId } from '/shared/article.js';
 
 // Lien ou image d'une nouvelle : adresse web uniquement (jamais « javascript: »), échappée
 const safeUrl = (u) => esc(webLink(u) || '#');
@@ -249,13 +250,13 @@ function card(g, favs, i = -1) {
   const hot = g.sources >= 3 ? `<span class="nw-hot" title="Sujet repris par ${g.sources} sources">${icon('fire')} ${g.sources} sources</span>` : '';
   const img = it.img ? `<img class="nw-img" src="${safeUrl(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.nw-thumb').remove()">` : '';
   const others = g.others.length ? `<details class="nw-others"><summary>Repris par ${g.others.length} autre${g.others.length > 1 ? 's' : ''} source${g.others.length > 1 ? 's' : ''}</summary>
-    ${g.others.map((o) => `<a href="${safeUrl(o.link)}" target="_blank" rel="noopener"><b>${esc(srcById[o.src]?.name || o.src)}</b> <span class="nw-lang">${esc(o.lang.toUpperCase())}</span> <span data-no-i18n>${esc(titleOf(o).text)}</span> <span class="muted">· ${ago(o.t)}</span></a>`).join('')}</details>` : '';
+    ${g.others.map((o) => `<a href="${safeUrl(o.link)}" target="_blank" rel="noopener" data-read="${esc(o.id)}"><b>${esc(srcById[o.src]?.name || o.src)}</b> <span class="nw-lang">${esc(o.lang.toUpperCase())}</span> <span data-no-i18n>${esc(titleOf(o).text)}</span> <span class="muted">· ${ago(o.t)}</span></a>`).join('')}</details>` : '';
   return `<article data-i="${i}" class="nw-card${justArrived.has(it.id) ? ' arrived' : ''}${unread ? ' unread' : ''}${g.imp >= 2 ? ' imp' : ''}${fav ? ' fav' : ''}${it.kind === 'video' ? ' video' : ''}">
-    ${img ? `<a class="nw-thumb" href="${safeUrl(it.link)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true">${img}${it.kind === 'video' ? `<span class="nw-play">${icon('play')}</span>` : ''}</a>` : ''}
+    ${img ? `<a class="nw-thumb" href="${safeUrl(it.link)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true" data-read="${esc(it.id)}">${img}${it.kind === 'video' ? `<span class="nw-play">${icon('play')}</span>` : ''}</a>` : ''}
     <div class="nw-body">
       <div class="nw-meta"><span class="nw-src nw-c-${esc(it.cat)}">${esc(src.name)}</span><span class="nw-cat">${CAT_LABEL[it.cat] || ''}</span>
         <span class="nw-lang" title="Langue d'origine : ${esc(LANG_LABEL[it.lang] || it.lang)}">${esc(it.lang.toUpperCase())}</span><span class="nw-time" title="${esc(new Date(it.t).toLocaleString(LOCALE))}">${ago(it.t)}</span>${level}${hot}${fav ? `<span class="nw-favmark" title="Concerne un de vos favoris">${icon('star-fill')}</span>` : ''}</div>
-      <a class="nw-title" data-no-i18n href="${safeUrl(it.link)}" target="_blank" rel="noopener" ${title.translated ? `title="${esc(it.title)}"` : ''}>${esc(title.text)}</a>
+      <a class="nw-title" data-no-i18n href="${safeUrl(it.link)}" target="_blank" rel="noopener" data-read="${esc(it.id)}" ${title.translated ? `title="${esc(it.title)}"` : ''}>${esc(title.text)}</a>
       ${title.pending ? '<div class="nw-trans muted">Traduction en cours…</div>' : title.translated ? '<div class="nw-trans muted" title="Traduit automatiquement sur cet ordinateur">Traduit · <button class="nw-vo" data-vo>VO</button></div>' : ''}
       <div class="nw-vo-text" hidden>${esc(it.title)}</div>
       ${it.summary ? `<p class="nw-sum" data-no-i18n>${esc(sum || it.summary)}</p>` : ''}
@@ -318,14 +319,14 @@ function asideView(all) {
   const videos = all.filter((it) => it.kind === 'video' && it.img).slice(0, 4);
   // Titres de la colonne traduits comme ceux du fil
   for (const it of [...top.map((g) => g.lead), ...videos]) translate(it.title, it.lang);
-  const topHtml = top.length ? top.map((g, i) => `<a class="nwa-top" href="${safeUrl(g.lead.link)}" target="_blank" rel="noopener">
+  const topHtml = top.length ? top.map((g, i) => `<a class="nwa-top" href="${safeUrl(g.lead.link)}" target="_blank" rel="noopener" data-read="${esc(g.lead.id)}">
       <span class="nwa-rank">${i + 1}</span><span class="nwa-txt"><b data-no-i18n>${esc(titleOf(g.lead).text)}</b>
       <span class="muted small">${g.sources} source${g.sources > 1 ? 's' : ''} · ${ago(g.t)}</span></span></a>`).join('')
     : '<div class="muted small">Pas encore de sujet repris par plusieurs sources.</div>';
   const whoHtml = who.length ? who.map(([t, n]) => `<button class="nwa-who${tagFilter === t ? ' on' : ''}" data-tag="${esc(t)}" style="--tc:${tagColor(t)}" title="Afficher seulement les sujets qui citent ${esc(tagName(t))}">
       <span class="nwa-who-name">${esc(tagName(t))}</span><span class="nwa-bar"><i style="width:${Math.round((n / max) * 100)}%"></i></span><span class="nwa-n">${n}</span></button>`).join('')
     : '<div class="muted small">Rien sur les dernières 24 heures.</div>';
-  const vidHtml = videos.length ? `<div class="nwa-vids">${videos.map((v) => `<a href="${safeUrl(v.link)}" target="_blank" rel="noopener" title="${esc(v.title)}">
+  const vidHtml = videos.length ? `<div class="nwa-vids">${videos.map((v) => `<a href="${safeUrl(v.link)}" target="_blank" rel="noopener" title="${esc(v.title)}" data-read="${esc(v.id)}">
       <span class="nwa-vthumb"><img src="${safeUrl(v.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">${icon('play')}</span>
       <span class="nwa-vtitle" data-no-i18n>${esc(titleOf(v).text)}</span><span class="muted small">${esc(srcById[v.src]?.name || '')}</span></a>`).join('')}</div>` : '<div class="muted small">Aucune vidéo récente.</div>';
   return [
@@ -494,6 +495,101 @@ async function reloadSources() {
   if (open()) render();
 }
 
+// ---- Lecture d'un article dans l'appli ----
+// Article : texte lu par le serveur de l'appli (server/article.js), traduit paragraphe par paragraphe ;
+// vidéo YouTube : lecteur intégré ; publication : texte complet. Lien vers le site toujours proposé.
+let readerEl = null;
+let readerSeq = 0;
+let readerScroll = 0;
+const readerOpen = () => !!readerEl && !readerEl.hidden;
+
+function closeReader() {
+  if (!readerOpen()) return;
+  readerSeq++;
+  readerEl.hidden = true;
+  readerEl.innerHTML = '';
+  $('#nwContent').hidden = false;
+  $('#nwContent').scrollTop = readerScroll;
+}
+
+const readerTranslate = (text, from) => (cloudOn()
+  ? cloudTranslate(text, from, LANG)
+  : translateText(text, LANG, 'news', from).then((r) => r?.text || null).catch(() => null));
+
+async function openReader(id) {
+  const it = items.find((x) => x.id === id);
+  if (!it) return false;
+  if (!readerEl) {
+    readerEl = document.createElement('div');
+    readerEl.className = 'sz-main nw-reader';
+    readerEl.hidden = true;
+    $('#nwContent').after(readerEl);
+    readerEl.addEventListener('click', (e) => {
+      if (e.target.closest('[data-r-close]')) closeReader();
+      const vo = e.target.closest('[data-r-vo]');
+      if (vo) {
+        const on = vo.getAttribute('aria-pressed') !== 'true';
+        vo.setAttribute('aria-pressed', String(on));
+        vo.classList.toggle('on', on);
+        for (const el of readerEl.querySelectorAll('[data-orig]')) el.textContent = on || !el.dataset.tr ? el.dataset.orig : el.dataset.tr;
+      }
+    });
+  }
+  if (!readerOpen()) readerScroll = $('#nwContent').scrollTop;
+  $('#nwContent').hidden = true;
+  readerEl.hidden = false;
+  readerEl.scrollTop = 0;
+  const seq = ++readerSeq;
+  const translate = prefs.newsTranslate && it.lang !== LANG;
+  const src = srcById[it.src]?.name || it.src;
+  const bar = `<div class="nwr-bar"><button class="btn small" data-r-close>${icon('arrow-left')} Retour à l'actu</button>
+    <span class="nwr-src"><b>${esc(src)}</b> <span class="nw-lang">${esc(it.lang.toUpperCase())}</span> · ${ago(it.t)}</span><span class="spacer"></span>
+    ${translate ? `<button class="btn small" data-r-vo aria-pressed="false" title="Afficher le texte d'origine">VO</button>` : ''}
+    <a class="btn small" href="${safeUrl(it.link)}" target="_blank" rel="noopener">${icon('external')} Ouvrir sur le site</a></div>`;
+  // Seuls le titre et le résumé sont traduits (déjà faits d'avance) ; le texte de l'article reste en
+  // version originale, pour ne pas multiplier les traductions
+  const textEl = (tag, text, cls = '') => `<${tag}${cls ? ` class="${cls}"` : ''} data-no-i18n data-orig="${esc(text)}">${esc(text)}</${tag}>`;
+  const plainEl = (tag, text) => `<${tag} data-no-i18n>${esc(text)}</${tag}>`;
+  const summary = translate && it.summary ? `<div class="nwr-sum"><div class="nwr-sum-h">Résumé</div>${textEl('p', it.summary)}</div>` : '';
+  const yt = youtubeId(it.link);
+  let body;
+  if (yt) {
+    body = `${textEl('h1', it.title)}<div class="nwr-video"><iframe src="https://www.youtube-nocookie.com/embed/${yt}?autoplay=1&rel=0" title="${esc(it.title)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+      ${it.summary ? textEl('p', it.summary) : ''}`;
+  } else if (it.kind === 'post') {
+    body = `${textEl('p', it.summary || it.title, 'nwr-post')}${it.img ? `<img class="nwr-img" src="${safeUrl(it.img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}`;
+  } else {
+    readerEl.innerHTML = `${bar}<article class="nwr">${textEl('h1', it.title)}<div class="nwr-loading muted">${icon('history')} Chargement de l'article…</div></article>`;
+    let a;
+    try { a = await api(`/api/news/article?u=${encodeURIComponent(it.link)}`); } catch (err) { a = { readable: false, reason: err.message }; }
+    if (seq !== readerSeq) return true;
+    const date = a.published && Number.isFinite(Date.parse(a.published)) ? new Date(a.published).toLocaleString(LOCALE, { dateStyle: 'long', timeStyle: 'short' }) : '';
+    const meta = [a.author, date].filter(Boolean).join(' · ');
+    const img = a.image || it.img;
+    const blocks = (summary ? `<div class="nwr-vo-note muted small">Article en version originale (${esc(LANG_LABEL[it.lang] || it.lang)})</div>` : '')
+      + (a.blocks || []).map((b) => (b.h ? plainEl('h2', b.h) : plainEl('p', b.p))).join('');
+    body = `${textEl('h1', it.title)}${meta ? `<div class="nwr-meta muted" data-no-i18n>${esc(meta)}</div>` : ''}
+      ${img ? `<img class="nwr-img" src="${safeUrl(img)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
+      ${a.readable ? summary + blocks : `${it.summary ? textEl('p', it.summary, 'nwr-lead') : a.description ? plainEl('p', a.description) : ''}
+        <div class="nwr-note">${icon('info')} <span>L'article complet ne peut pas être affiché dans l'appli.${a.reason ? ` <span class="muted">${esc(a.reason)}</span>` : ''}</span>
+        <a class="btn small btn-accent" href="${safeUrl(it.link)}" target="_blank" rel="noopener">${icon('external')} Lire sur le site</a></div>`}
+      ${a.readable ? `<div class="nwr-end muted small">Texte lu sur ${esc(a.site || src)} · <a href="${safeUrl(it.link)}" target="_blank" rel="noopener">article d'origine</a></div>` : ''}`;
+  }
+  readerEl.innerHTML = `${bar}<article class="nwr">${body}</article>`;
+  if (!translate) return true;
+  // Traduction du titre et du résumé (en général déjà faite d'avance)
+  const els = [...readerEl.querySelectorAll('[data-orig]')];
+  const voBtn = readerEl.querySelector('[data-r-vo]');
+  await Promise.all(els.map(async (el) => {
+    const known = tr(el.dataset.orig);
+    const t = known || await readerTranslate(el.dataset.orig, it.lang);
+    if (seq !== readerSeq || !t || badScript(t, LANG)) return;
+    el.dataset.tr = t;
+    if (voBtn?.getAttribute('aria-pressed') !== 'true') el.textContent = t;
+  }));
+  return true;
+}
+
 // ---- Ouverture / fermeture ----
 export function openNews(sec) {
   if (sec) section = sec;
@@ -518,6 +614,7 @@ export function openNews(sec) {
 
 export function closeNews() {
   if ($('#newsView').hidden) return;
+  closeReader();
   $('#newsView').hidden = true;
   $('#newsBtn')?.classList.remove('on');
   clearInterval(openNews.timer);
@@ -544,6 +641,7 @@ export function initNews() {
   $('#nwNav').addEventListener('click', (e) => {
     const b = e.target.closest('[data-nw]');
     if (!b) return;
+    closeReader();
     section = b.dataset.nw;
     limit = PAGE;
     cascadeUntil = Date.now() + 400;
@@ -596,7 +694,16 @@ export function initNews() {
       btn.textContent = 'Ajouter';
     }
   });
-  window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && open() && !document.querySelector('dialog[open]')) closeNews(); });
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !open() || document.querySelector('dialog[open]')) return;
+    if (readerOpen()) closeReader(); else closeNews();
+  });
+  // Articles, vidéos et publications ouverts dans l'appli (Ctrl / Cmd / clic milieu : dans le navigateur)
+  $('#newsView').addEventListener('click', (e) => {
+    const a = e.target.closest('a[data-read]');
+    if (!a || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+    if (items.some((x) => x.id === a.dataset.read)) { e.preventDefault(); openReader(a.dataset.read); }
+  });
   // Liste chargée au démarrage : pastille du nombre de nouveautés
   load().then(updateBadge);
 }

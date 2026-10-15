@@ -34,9 +34,10 @@ import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, res
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 import { stats, startStats } from './stats.js';
 import { archivePath, sendArchiveFile } from './archive.js';
-import { cloud } from './cloud-translate.js';
+import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
 import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
+import { createArticleReader } from './article.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -64,9 +65,13 @@ const live = new LiveSource(hub, () => {
   return token && !tokenInfo(token).expired ? token : null;
 }, recorder);
 const replay = new ReplaySource(hub);
+// Articles de l'Actu lus dans l'appli (server/article.js)
+const articles = createArticleReader({ items: () => newsSnapshot().items });
+
 // Actualités traduites d'avance (server/news-translate.js)
 const newsTranslator = createNewsTranslator({
-  cloud,
+  // File d'attente à part : la traduction de fond ne retarde jamais ce qui est à l'écran
+  cloud: createCloudTranslator(),
   snapshot: () => newsSnapshot().items,
   known: getTranslations,
   store: addTranslations,
@@ -229,6 +234,15 @@ async function handleApi(req, res, url) {
     case 'POST /api/news/refresh':
       refreshNews();
       return sendJSON(res, 200, { ok: true });
+    // Article d'une actualité en mode lecture : ?u=<lien de l'article> -> titre, photo, texte
+    case 'GET /api/news/article': {
+      try {
+        return sendJSON(res, 200, await articles.get(url.searchParams.get('u') || ''));
+      } catch (err) {
+        return sendJSON(res, err.status || 502, { error: err.message });
+      }
+    }
+
     // Traduction d'avance des actualités : { lang: 'fr' | 'en' | null } (null = désactivée)
     case 'POST /api/news/translate': {
       if (!isLoopback(req.socket.remoteAddress)) return sendJSON(res, 403, { error: 'Réglage disponible uniquement sur l\'ordinateur' });
@@ -358,7 +372,7 @@ async function handleApi(req, res, url) {
     }
     case 'POST /api/stats/events': {
       const body = await readBody(req, 64e3);
-      return sendJSON(res, 200, { added: stats.fromClient(body.events, body.device) });
+      return sendJSON(res, 200, { added: stats.fromClient(body.events, body.device, body.errors) });
     }
 
     // Mode créateur (générateur de posts) : depuis cet ordinateur uniquement
@@ -657,8 +671,8 @@ startNewsTranslation(newsTranslator, onNews);
 
 // Une erreur imprévue (réponse d'un site mal formée…) ne doit pas arrêter le dashboard en pleine
 // séance : elle est consignée et le serveur continue
-process.on('unhandledRejection', (err) => { console.error('[erreur]', err); stats.record('error.server'); });
-process.on('uncaughtException', (err) => { console.error('[erreur]', err); stats.record('error.server'); });
+process.on('unhandledRejection', (err) => { console.error('[erreur]', err); stats.record('error.server'); stats.recordError(err); });
+process.on('uncaughtException', (err) => { console.error('[erreur]', err); stats.record('error.server'); stats.recordError(err); });
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {

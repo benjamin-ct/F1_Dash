@@ -4,6 +4,16 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.5 — 2026-10-15
+
+### Actu
+- **Les articles s'ouvrent dans l'appli** : un clic sur un titre affiche l'article directement dans Paddock Live (titre, photo, auteur, date et texte complet, sans menus ni publicités), avec le titre et le résumé traduits en français, puis le texte de l'article en version originale. Bouton *VO* pour le titre et le résumé d'origine, *Ouvrir sur le site* si besoin. Échap ou *Retour à l'actu* pour revenir à la liste, au même endroit.
+- **Les vidéos YouTube se regardent dans l'appli** (lecteur intégré) et les publications des pilotes s'affichent en entier.
+- Site qui refuse la lecture, page vidéo ou article réservé aux abonnés : le résumé est affiché avec un bouton pour le lire sur le site. Ctrl + clic (Cmd sur Mac) ouvre toujours l'article dans le navigateur.
+
+### Statistiques d'utilisation
+- **Erreurs plus détaillées** (pour les corriger plus vite) : avec l'accord pour les statistiques, une erreur envoie maintenant, en plus du fichier et de la ligne, son message technique et le chemin d'appel (noms des fonctions et des fichiers de l'appli), ainsi que les erreurs du serveur de l'appli. Le message est nettoyé avant l'envoi : adresses web, noms de dossiers, e-mails et longs nombres sont retirés. Toujours rien qui permette d'identifier quelqu'un.
+
 ## v1.27.4 — 2026-10-15
 
 ### Actu

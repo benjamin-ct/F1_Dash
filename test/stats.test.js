@@ -93,6 +93,7 @@ test('statistiques : adresse vide = fonction désactivée, aucune question', () 
 // Base D1 simulée : assez pour le Worker (insertion additionnée, requêtes repérées par leur étiquette)
 function fakeD1() {
   const rows = new Map();
+  const details = new Map();
   const sum = (list, key) => {
     const m = new Map();
     for (const r of list) { const k = key(r); m.set(k, (m.get(k) || 0) + r.n); }
@@ -113,14 +114,26 @@ function fakeD1() {
               if (tag === 'events') return { results: sum(list, (r) => `${r.event}|${r.device}`).map(([k, n]) => ({ event: k.split('|')[0], device: k.split('|')[1], n })) };
               if (tag === 'versions') return { results: sum(list.filter((r) => r.event === 'app.active'), (r) => r.version).map(([version, n]) => ({ version, n })).sort((x, y) => y.n - x.n) };
               if (tag === 'systems') return { results: sum(list.filter((r) => r.event === 'app.active'), (r) => r.os).map(([os, n]) => ({ os, n })).sort((x, y) => y.n - x.n) };
+              if (tag === 'errcounts') return { results: list.filter((r) => r.event.startsWith('error.')).map((r) => ({ event: r.event, version: r.version, device: r.device, n: r.n, last: r.day })) };
+              if (tag === 'errdetails') return { results: [...details.values()].filter((r) => r.day >= a[0]).map((r) => ({ ...r, last: r.day })) };
               throw new Error(`requête inattendue : ${sql}`);
             },
           };
         },
       };
     },
+    details,
     async batch(stmts) {
-      for (const { a: [day, event, device, version, os, n] } of stmts) {
+      for (const st of stmts) {
+        if (st.sql?.includes('error_details')) {
+          const [day, version, os, device, kind, place, msg, stack, n] = st.a;
+          const k = [day, version, os, device, kind, place, msg, stack].join('|');
+          const r = details.get(k) || { day, version, os, device, kind, place, msg, stack, n: 0 };
+          r.n += n;
+          details.set(k, r);
+          continue;
+        }
+        const { a: [day, event, device, version, os, n] } = st;
         const k = [day, event, device, version, os].join('|');
         const r = rows.get(k) || { day, event, device, version, os, n: 0 };
         r.n += n;
@@ -218,6 +231,40 @@ test('serveur des statistiques : chiffres du tableau de bord', async () => {
   assert.deepEqual(s.systems.map((r) => r.label), ['Windows', 'macOS']);
   assert.deepEqual(s.devices, [{ label: 'Ordinateur (appli)', n: 6 }]);
   assert.deepEqual(s.langs, [{ label: 'Anglais', n: 2 }]);
-  assert.deepEqual(s.errors.map((e) => e.event), ['error.tower.js:12']);
+  // Erreur d'une version sans détail (1.27.0) : compteur seul, signalée comme telle
+  assert.deepEqual(s.errors.map((e) => [e.place, e.legacy, e.total, e.versions[0].v]), [['tower.js:12', true, 1, '1.27.0']]);
   assert.equal(s.features.some((f) => f.event === 'test.deploy'), false);
+});
+
+test('statistiques : détail des erreurs nettoyé, envoyé, regroupé sur la page', async () => {
+  const { cleanErrorText, stackFrames } = await import('../shared/stats.js');
+  assert.equal(cleanErrorText('Failed http://127.0.0.1:3000/api/x?u=1 in C:\\Users\\Benjamin\\a.json, /Users/bob/b.txt, bob@x.fr, 1234567'), 'Failed <adresse> in <dossier>, <dossier>, <e-mail>, #');
+  assert.equal(stackFrames('TypeError: x\n    at askCode (http://h/js/ui/social-view.js:177:22)\n    at http://h/js/main.js:3:1\n    at node:internal/x:1:1'), 'askCode social-view.js:177 ← main.js:3');
+  // Appli : erreurs des fenêtres et du serveur, envoyées avec les compteurs
+  const h = harness({ stats: true, statsDay: '2026-10-15', statsInstalled: true });
+  h.s.fromClient({ 'error.news.js:12': 2 }, 'desktop', [{ w: 'news.js:12', k: 'js', m: 'TypeError: a is undefined at http://127.0.0.1:3000/js/ui/news.js:12', s: 'render news.js:12', n: 2 }, { w: 'BAD PLACE', k: 'js', m: 'x', n: 1 }]);
+  const err = new Error('Lecture impossible de /home/benjamin/.config/x.json');
+  err.stack = `Error: ${err.message}\n    at readCfg (file:///home/benjamin/app/server/config.js:40:9)`;
+  h.s.recordError(err);
+  assert.equal(await h.s.flush(), true);
+  const { body } = h.sent[0];
+  assert.deepEqual(body.errors.map((e) => [e.w, e.k, e.m, e.s, e.d, e.n]), [
+    ['news.js:12', 'js', 'TypeError: a is undefined at news.js:12', 'render news.js:12', 'desktop', 2],
+    ['config.js:40', 'server', 'Error: Lecture impossible de <dossier>', 'readCfg config.js:40', '-', 1],
+  ]);
+  // Serveur des statistiques : détail gardé, regroupé, versions et appareils
+  const env = { DB: fakeD1(), STATS_KEY: 'k' };
+  const post = (b) => worker.fetch(new Request(`${W}/e`, { method: 'POST', body: JSON.stringify(b) }), env);
+  assert.equal((await post({ ...body, v: '1.27.5' })).status, 204);
+  assert.equal((await post({ v: '1.27.6', os: 'mac', items: [], errors: [body.errors[0]] })).status, 204);
+  const { summary } = await import('../analytics/worker.js');
+  const s = await summary(env, 7);
+  const news = s.errors.find((e) => e.place === 'news.js:12');
+  assert.equal(news.total, 4);
+  assert.equal(news.desktop, 4);
+  assert.equal(news.msg, 'TypeError: a is undefined at news.js:12');
+  assert.deepEqual(news.versions.map((v) => v.v).sort(), ['1.27.5', '1.27.6']);
+  assert.equal(s.errors.find((e) => e.place === 'config.js:40').kind, 'server');
+  // Le compteur « error.news.js:12 » d'une version avec détail n'est pas compté deux fois
+  assert.equal(s.errors.filter((e) => e.place === 'news.js:12').length, 1);
 });

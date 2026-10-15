@@ -30,3 +30,18 @@ CREATE TABLE IF NOT EXISTS radio_texts (
   d REAL,
   at INTEGER NOT NULL
 );
+
+-- Détail des erreurs (par jour, version, système, appareil) : endroit (fichier:ligne), type
+-- (js, promise, server), message technique nettoyé et chemin d'appel
+CREATE TABLE IF NOT EXISTS error_details (
+  day TEXT NOT NULL,
+  version TEXT NOT NULL,
+  os TEXT NOT NULL,
+  device TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  place TEXT NOT NULL,
+  msg TEXT NOT NULL,
+  stack TEXT NOT NULL,
+  n INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, version, os, device, kind, place, msg, stack)
+);
