@@ -26,8 +26,9 @@ export function createCloudTranscriber({ url = RADIO_URL, fetch = request, audio
     if (!body?.length || body.length > MAX_AUDIO) return null;
     const hash = crypto.createHash('sha256').update(body).digest('hex');
     try {
-      let r = await fetch(`${url}/${hash}`, { timeout: 15000 });
-      if (r.status === 404) {
+      // Empreinte inconnue (ou lecture ratée) : le son est envoyé, le serveur reprend sa transcription s'il l'a
+      let r = await fetch(`${url}/${hash}`, { timeout: 15000 }).catch(() => ({ status: 0 }));
+      if (r.status !== 200) {
         r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': body.length }, body, timeout: 60000 });
       }
       const j = r.status === 200 ? parse(r) : null;

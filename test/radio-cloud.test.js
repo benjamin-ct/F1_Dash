@@ -117,6 +117,10 @@ test('transcription en ligne côté appli : empreinte demandée, puis son envoy�
   // Déjà connue : rien n'est redemandé
   assert.deepEqual(await c.transcribe('2026/x/TeamRadio/A.mp3'), a);
   assert.equal(seen.length, 2);
+  // Lecture de l'empreinte ratée : le son est envoyé quand même
+  reply = (url, opts) => (opts.method === 'POST' ? { status: 200, body: Buffer.from('{"text":""}') } : { status: 500, body: Buffer.from('{}') });
+  assert.deepEqual(await c.transcribe('2026/x/TeamRadio/D.mp3'), { text: '' });
+  assert.equal(c.available(), true);
   // Plafond atteint : pause de 10 minutes, l'ordinateur prend le relais
   reply = () => ({ status: 429, body: Buffer.from('{}') });
   assert.equal(await c.transcribe('2026/x/TeamRadio/B.mp3'), null);
