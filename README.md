@@ -52,7 +52,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 
 ## 🚀 Installation
 
-Téléchargez la dernière version sur la page **[Releases](https://github.com/benjamin-ct/F1_Dash/releases/latest)** :
+Téléchargez la dernière version sur la page **[Releases](https://github.com/benjamin-ct/paddock-live/releases/latest)** :
 
 | Système | Fichier | Remarque |
 |---|---|---|

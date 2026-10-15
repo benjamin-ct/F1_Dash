@@ -171,8 +171,8 @@ function show(tool, btn) {
 
 // Point sur l'icône des documents quand de nouveaux documents sont publiés (depuis la dernière
 // ouverture de la liste, pour ce Grand Prix)
-const seenDocs = () => { const v = storageGet('f1dash.docsSeen', null); return v && v.key === fiaState().key ? v.n : 0; };
-function markDocsSeen() { storageSet('f1dash.docsSeen', { key: fiaState().key, n: visibleDocs().docs.length }); }
+const seenDocs = () => { const v = storageGet('paddock.docsSeen', null); return v && v.key === fiaState().key ? v.n : 0; };
+function markDocsSeen() { storageSet('paddock.docsSeen', { key: fiaState().key, n: visibleDocs().docs.length }); }
 function docsBadge() {
   const dot = $('.tb-tool[data-tool="docs"] .tb-dot');
   const { f, docs } = visibleDocs();

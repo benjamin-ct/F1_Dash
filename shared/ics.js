@@ -46,7 +46,7 @@ export function buildIcs(races, { year, round = null, alarmMin = 15, now = Date.
       const label = en ? LABEL_EN[s.label] || s.label : s.label;
       const slug = String(s.label).toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g, '-');
       lines.push('BEGIN:VEVENT',
-        `UID:f1dash-${year}-${r.round}-${slug}@f1dash`,
+        `UID:paddock-${year}-${r.round}-${slug}@paddock-live`,
         `DTSTAMP:${stamp(now)}`,
         `DTSTART:${stamp(start)}`,
         `DTEND:${stamp(end)}`,

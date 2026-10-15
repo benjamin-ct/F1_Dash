@@ -9,13 +9,16 @@ const net = require('node:net');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
 
-// Dossier des données (réglages, jeton F1 TV, enregistrements, fenêtres) : l'application s'appelait
-// « F1 Dash » jusqu'à la v1.24 ; une installation existante garde son dossier, sinon « Paddock Live »
+// Dossier des données (réglages, jeton F1 TV, enregistrements, fenêtres). Migration unique : le
+// dossier de l'ancien nom de l'application (jusqu'à la v1.24) est renommé. À retirer en v1.26.
 {
-  const appData = app.getPath('appData');
-  const legacy = path.join(appData, 'F1 Dash');
-  const current = path.join(appData, 'Paddock Live');
-  app.setPath('userData', !fs.existsSync(current) && fs.existsSync(legacy) ? legacy : current);
+  const current = path.join(app.getPath('appData'), 'Paddock Live');
+  const old = path.join(app.getPath('appData'), 'F1 Dash');
+  let dir = current;
+  if (!fs.existsSync(current) && fs.existsSync(old)) {
+    try { fs.renameSync(old, current); } catch { dir = old; }   // dossier encore verrouillé : on réessaiera
+  }
+  app.setPath('userData', dir);
 }
 
 // Portables à deux cartes graphiques : la plus puissante, pour la transcription et la traduction
@@ -322,7 +325,7 @@ function splashAsk(win, version) {
     win.webContents.executeJavaScript('ask(true)').catch(() => {});
     const onNav = (e, target) => {
       e.preventDefault();
-      if (!/^f1dash:/.test(target)) return;
+      if (!/^paddock:/.test(target)) return;
       win.webContents.removeListener('will-navigate', onNav);
       win.webContents.executeJavaScript('ask(false)').catch(() => {});
       resolve(target.includes('download') ? 'download' : 'continue');

@@ -217,7 +217,7 @@ Bouton **Moments** de la barre de lecture : la liste des moments clés de la sé
 | `HOST` | `127.0.0.1` | Mettez `0.0.0.0` pour ouvrir le dashboard depuis une tablette ou un autre PC du réseau local (`http://IP-du-PC:3000`) |
 | `MAX_DELAY_SECONDS` | `600` | Délai maximum réglable |
 | `F1TV_TOKEN` | — | Jeton F1 TV (sinon via l'interface) |
-| `PADDOCK_DATA_DIR` | dossier du projet | Où ranger `config.json`, `.cache/` et `recordings/` (l'ancien nom `F1DASH_DATA_DIR` marche toujours) |
+| `PADDOCK_DATA_DIR` | dossier du projet | Où ranger `config.json`, `.cache/` et `recordings/` |
 | `NO_RECORDING` | — | Mettez `1` pour ne pas enregistrer les sessions live |
 
 ## 🔧 Fonctionnement

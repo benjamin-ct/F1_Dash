@@ -4,7 +4,7 @@
 import { store, serverNow, versionOf } from '../store.js';
 import { $, esc, api, drivers, orderedNumbers, fmtLap, lapSeconds, storageGet, storageSet } from '../util.js';
 
-const KEY = 'f1dash.compare';
+const KEY = 'paddock.compare';
 const sel = { a: null, b: null, ...storageGet(KEY, {}), la: null, lb: null };   // null : P1 / P2 automatiques, meilleurs tours
 let data = null;
 let loading = false;

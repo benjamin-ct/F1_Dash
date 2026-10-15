@@ -11,7 +11,7 @@ import { connect } from './conn.js';
 
 translatePage();
 
-let mode = storageGet('f1dash.miniMode', 'int');   // 'int' (intervalle) | 'gap' (écart au leader)
+let mode = storageGet('paddock.miniMode', 'int');   // 'int' (intervalle) | 'gap' (écart au leader)
 let lastKey = '';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
@@ -69,13 +69,13 @@ function render() {
 
 $('#miniMode').addEventListener('click', () => {
   mode = mode === 'gap' ? 'int' : 'gap';
-  storageSet('f1dash.miniMode', mode);
+  storageSet('paddock.miniMode', mode);
   render();
 });
 
 // Délai TV réglé dans une autre fenêtre : appliqué ici aussi
 window.addEventListener('storage', (e) => {
-  if (e.key !== 'f1dash.delayMs' || e.newValue === null) return;
+  if (e.key !== 'paddock.delayMs' || e.newValue === null) return;
   const ms = Number(JSON.parse(e.newValue));
   if (Number.isFinite(ms) && ms !== store.delay) setDelay(ms);
 });

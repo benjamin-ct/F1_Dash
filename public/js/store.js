@@ -9,11 +9,11 @@ export const store = {
   ver: { __any: 0 },
   status: null,
   skew: 0,
-  delay: storageGet('f1dash.delayMs', 0),
+  delay: storageGet('paddock.delayMs', 0),
   connected: false,
   positions: new Positions((utc) => utcToLocal(utc), () => replaySpeed()),
-  duel: storageGet('f1dash.duel', { a: null, b: null }),
-  focus: storageGet('f1dash.focus', null),
+  duel: storageGet('paddock.duel', { a: null, b: null }),
+  focus: storageGet('paddock.focus', null),
 };
 
 const listeners = new Map();
@@ -105,7 +105,7 @@ export function handleBatch(msg) {
 export function setDelay(ms) {
   const max = store.status?.maxDelayMs ?? 600000;
   store.delay = Math.round(Math.max(0, Math.min(max, ms)) / 100) * 100;
-  storageSet('f1dash.delayMs', store.delay);
+  storageSet('paddock.delayMs', store.delay);
   emit('delay', store.delay);
 }
 
@@ -114,13 +114,13 @@ export function setDuel(slot, num) {
   store.duel = { ...store.duel, [slot]: num, ...(slot === 'b' ? { auto: null } : {}) };
   if (slot === 'a' && store.duel.b === num) store.duel.b = null;
   if (slot === 'b' && store.duel.a === num) store.duel.a = null;
-  storageSet('f1dash.duel', store.duel);
+  storageSet('paddock.duel', store.duel);
   emit('duel', store.duel);
 }
 
 export function setFocus(num) {
   store.focus = num;
-  storageSet('f1dash.focus', num);
+  storageSet('paddock.focus', num);
   emit('focus', num);
 }
 
@@ -130,10 +130,10 @@ window.addEventListener('storage', (e) => {
   if (e.newValue === null) return;
   let v;
   try { v = JSON.parse(e.newValue); } catch { return; }
-  if (e.key === 'f1dash.focus' && v !== store.focus) {
+  if (e.key === 'paddock.focus' && v !== store.focus) {
     store.focus = v;
     emit('focus', v);
-  } else if (e.key === 'f1dash.duel' && JSON.stringify(v) !== JSON.stringify(store.duel)) {
+  } else if (e.key === 'paddock.duel' && JSON.stringify(v) !== JSON.stringify(store.duel)) {
     store.duel = v;
     emit('duel', v);
   }

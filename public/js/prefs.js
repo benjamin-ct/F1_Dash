@@ -55,15 +55,15 @@ const DEFAULTS = {
   muted: false,
 };
 
-const saved = storageGet('f1dash.prefs', {});
+const saved = storageGet('paddock.prefs', {});
 export const prefs = { ...DEFAULTS, ...saved, alerts: { ...DEFAULTS.alerts, ...(saved.alerts || {}) } };
 // Un seul thème depuis la v1.20 : Pitwall, en mode sombre ou clair. Les anciens thèmes (F1 Pro,
 // F1 sobre, Classique, Bleu nuit) passent sur Pitwall, en mode sombre.
 prefs.theme = 'pitwall';
-if ((saved.themeV || 0) < 5) storageSet('f1dash.prefs', { ...storageGet('f1dash.prefs', {}), theme: 'pitwall', themeV: 5 });
+if ((saved.themeV || 0) < 5) storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), theme: 'pitwall', themeV: 5 });
 prefs.themeV = 5;   // gardé dans chaque enregistrement des préférences
 // Langue retenue dès la première ouverture (sinon une autre fenêtre la redéduirait autrement)
-if (saved.lang !== LANG) storageSet('f1dash.prefs', { ...storageGet('f1dash.prefs', {}), lang: LANG });
+if (saved.lang !== LANG) storageSet('paddock.prefs', { ...storageGet('paddock.prefs', {}), lang: LANG });
 // Apparence automatique par défaut depuis la v1.20.1. En v1.20.0, « sombre » était enregistré par
 // défaut avec les autres réglages : seul un choix fait dans les réglages (ou le clair) est conservé.
 if (!saved.schemeSet && saved.scheme !== 'light') prefs.scheme = 'auto';
@@ -103,7 +103,7 @@ export function setPref(key, value) {
   if (['vividTeams', 'teamLogos', 'logoColor'].includes(key)) applyTeamColors();
   if (key === 'scheme') { prefs.schemeSet = true; applyScheme(); }
   if (key === 'motion') document.documentElement.dataset.motion = value ? 'on' : 'off';
-  storageSet('f1dash.prefs', prefs);
+  storageSet('paddock.prefs', prefs);
   emit('prefs', key);
 }
 
@@ -118,7 +118,7 @@ export function toggleFav(num) {
 
 // Préférences modifiées dans une autre fenêtre (favoris, colonnes, filtres…).
 window.addEventListener('storage', (e) => {
-  if (e.key !== 'f1dash.prefs' || e.newValue === null) return;
+  if (e.key !== 'paddock.prefs' || e.newValue === null) return;
   let next;
   try { next = JSON.parse(e.newValue); } catch { return; }
   for (const key of Object.keys(DEFAULTS)) {

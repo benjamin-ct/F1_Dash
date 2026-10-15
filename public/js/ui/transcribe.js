@@ -4,7 +4,7 @@
 import { storageGet, storageSet } from '../util.js';
 import { emit } from '../store.js';
 
-const KEY = 'f1dash.radioTexts';
+const KEY = 'paddock.radioTexts';
 const MAX_KEEP = 400;
 let texts = cleanTexts(storageGet(KEY, {}));   // url -> { en, tr: { fr, es… }, d: durée (s) }
 const queue = [];                          // tâches { url, kind: 'asr' | 'mt' } (plus récentes d'abord)
@@ -35,7 +35,7 @@ function cleanTexts(o) {
   return o || {};
 }
 
-navigator.locks?.request('f1dash-radio-transcriber', () => {
+navigator.locks?.request('paddock-radio-transcriber', () => {
   isTranscriber = true;
   pump();
   return new Promise(() => {});

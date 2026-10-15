@@ -22,7 +22,7 @@ async function openMini() {
       return;
     } catch { /* refusé : petite fenêtre classique */ }
   }
-  const w = window.open('/mini.html', 'f1dash-mini', `popup,width=${size.width},height=${size.height}`);
+  const w = window.open('/mini.html', 'paddock-mini', `popup,width=${size.width},height=${size.height}`);
   if (!w) toast('Fenêtre bloquée : autorisez les fenêtres surgissantes pour ce site', 5000);
 }
 

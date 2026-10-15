@@ -34,7 +34,7 @@ function render(s) {
   // Première ouverture après une mise à jour : on le signale
   if (s.current) {
     let seen = null;
-    try { seen = localStorage.getItem('f1dash.seenVersion'); localStorage.setItem('f1dash.seenVersion', s.current); } catch { /* stockage indisponible */ }
+    try { seen = localStorage.getItem('paddock.seenVersion'); localStorage.setItem('paddock.seenVersion', s.current); } catch { /* stockage indisponible */ }
     if (seen && seen !== s.current) toast(`Paddock Live a été mise à jour en ${s.current} : les nouveautés sont dans Réglages → Application`, 8000);
   }
 }

@@ -7,7 +7,7 @@ import { prefs, isFav } from '../prefs.js';
 import { renderCompare, initCompare, openCompareLap } from './compare.js';
 import { tx } from '../i18n.js';
 
-const OPTS_KEY = 'f1dash.analysis';
+const OPTS_KEY = 'paddock.analysis';
 const opts = { trace: 'leader', ref: null, scope: 'top10', clamp: 60, lapsSlow: true, cutoff: 107, sort: 'ideal', ...storageGet(OPTS_KEY, {}) };
 const saveOpts = () => storageSet(OPTS_KEY, opts);
 // Clés de rendu par onglet (un onglet d'analyse peut être déplacé dans un autre panneau : plusieurs

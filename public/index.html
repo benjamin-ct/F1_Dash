@@ -13,7 +13,8 @@
   <title>Paddock Live</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/style.css">
-  <script>/* Thème Pitwall et apparence (sombre / clair / système) posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('f1dash.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall';</script>
+  <script>/* Migration unique des réglages enregistrés sous l'ancien nom de l'application (à retirer en v1.26) */ try { for (const k of Object.keys(localStorage)) if (k.startsWith('f1dash.')) { const n = `paddock.${k.slice(7)}`; if (localStorage.getItem(n) === null) localStorage.setItem(n, localStorage.getItem(k)); localStorage.removeItem(k); } } catch { /* stockage indisponible */ }</script>
+  <script>/* Thème Pitwall et apparence (sombre / clair / système) posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall';</script>
 </head>
 <body>
   <!-- Nouveau design : barre de navigation latérale (fenêtre principale, grand écran) -->

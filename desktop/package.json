@@ -1,9 +1,9 @@
 {
-  "name": "f1-dash-desktop",
+  "name": "paddock-live-desktop",
   "version": "1.1.1",
   "description": "Paddock Live — application de bureau",
   "main": "main.cjs",
-  "desktopName": "f1-dash-desktop.desktop",
+  "desktopName": "paddock-live-desktop.desktop",
   "private": true,
   "author": {
     "name": "Paddock Live",
@@ -27,7 +27,7 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "local.f1dash.desktop",
+    "appId": "local.paddocklive.desktop",
     "productName": "Paddock Live",
     "icon": "icon.png",
     "files": [
@@ -111,12 +111,12 @@
     "publish": {
       "provider": "github",
       "owner": "benjamin-ct",
-      "repo": "F1_Dash",
+      "repo": "paddock-live",
       "releaseType": "release"
     }
   },
   "paddockLive": {
-    "updateRepo": "benjamin-ct/F1_Dash"
+    "updateRepo": "benjamin-ct/paddock-live"
   },
-  "homepage": "https://github.com/benjamin-ct/F1_Dash"
+  "homepage": "https://github.com/benjamin-ct/paddock-live"
 }

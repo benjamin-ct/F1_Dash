@@ -49,10 +49,10 @@ const params = new URLSearchParams(location.search);
 const legacyPanel = PANELS.some((p) => p.id === params.get('panel')) ? params.get('panel') : null;
 export const WIN = params.get('win') || (legacyPanel ? `solo-${legacyPanel}` : 'main');
 const isMain = WIN === 'main';
-const LAYOUTS_KEY = 'f1dash.layouts';
+const LAYOUTS_KEY = 'paddock.layouts';
 const MIN_W = 220, MIN_H = 110;
 
-const channel = 'BroadcastChannel' in window ? new BroadcastChannel('f1dash-panels') : null;
+const channel = 'BroadcastChannel' in window ? new BroadcastChannel('paddock-panels') : null;
 const others = new Map(); // fenêtres secondaires ouvertes : win -> {panels, last, title}
 
 function panelEl(id) {
@@ -65,15 +65,15 @@ function panelEl(id) {
 // Chaque type de séance a sa propre disposition (panneaux, tailles, panneaux masqués,
 // colonnes du classement, onglets ouverts), appliquée automatiquement selon la séance.
 const PROFILES = { race: 'Course', quali: 'Qualif & essais' };
-const PROFILE_KEY = 'f1dash.layoutProfiles';   // { race: { hiddenPanels, hiddenCols }, quali: … }
-const TABS_KEY = 'f1dash.profileTabs';         // { race: { analysis: 'trace', … }, quali: … }
+const PROFILE_KEY = 'paddock.layoutProfiles';   // { race: { hiddenPanels, hiddenCols }, quali: … }
+const TABS_KEY = 'paddock.profileTabs';         // { race: { analysis: 'trace', … }, quali: … }
 const TAB_DEFAULTS = {
   race: { feed: 'rcm', analysis: 'trace', extra: 'pits' },
   quali: { feed: 'rcm', analysis: 'compare', extra: 'tyres' },
 };
 const PROFILE_DEFAULTS = { race: { hiddenPanels: [], hiddenCols: [] }, quali: { hiddenPanels: [], hiddenCols: [] } };
 const profileFor = (mode, kind) => (mode === 'race' || mode === 'quali' ? mode : kind === 'race' ? 'race' : 'quali');
-let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('f1dash.lastProfile', 'race');
+let profile = prefs.layoutMode === 'race' || prefs.layoutMode === 'quali' ? prefs.layoutMode : storageGet('paddock.lastProfile', 'race');
 if (!PROFILES[profile]) profile = 'race';
 const lkey = (win = WIN, prof = profile) => (prof === 'race' ? win : `${win}@${prof}`);
 
@@ -257,7 +257,7 @@ const MOB_SVG = {
   extra: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 4v5M12 15v5M4 12h5M15 12h5"/>',
   radio: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
 };
-const MOB_KEY = 'f1dash.mobileTab';
+const MOB_KEY = 'paddock.mobileTab';
 let mobTab = storageGet(MOB_KEY, 'tower');
 
 function mobile() {
@@ -652,7 +652,7 @@ function announce() {
 }
 
 function openWindow(win) {
-  return window.open(`/?win=${encodeURIComponent(win)}`, `f1dash-${win}`, 'width=1200,height=800');
+  return window.open(`/?win=${encodeURIComponent(win)}`, `paddock-${win}`, 'width=1200,height=800');
 }
 
 // Envoie un panneau vers une autre fenêtre (existante : il s'y ajoute ; sinon nouvelle fenêtre).
@@ -814,7 +814,7 @@ function switchProfile(next, quiet = false) {
     storageSet(PROFILE_KEY, st);
     const n = st[next] || PROFILE_DEFAULTS[next];
     profile = next;
-    storageSet('f1dash.lastProfile', next);
+    storageSet('paddock.lastProfile', next);
     setPref('hiddenPanels', n.hiddenPanels || []);
     setPref('hiddenCols', n.hiddenCols || []);
     setPref('extraCols', n.extraCols || []);
@@ -931,7 +931,7 @@ export function initLayout() {
 // et la place de chaque fenêtre ; « Revenir » remet tout comme au moment de l'enregistrement.
 // Application de bureau : la place des fenêtres est gérée par l'application (et peut être reprise
 // à chaque lancement) ; navigateur : les fenêtres secondaires sont rouvertes à leur place.
-const SNAP_KEY = 'f1dash.savedWindows';
+const SNAP_KEY = 'paddock.savedWindows';
 export const hasWindowsSnapshot = () => !!storageGet(SNAP_KEY, null)?.layouts;
 
 export async function saveWindowsSnapshot() {
@@ -964,7 +964,7 @@ export async function restoreWindowsSnapshot() {
     for (const w of snap.wins || []) {
       const b = w.bounds;
       const feat = b ? `left=${b.x},top=${b.y},width=${b.w},height=${b.h}` : 'width=1200,height=800';
-      if (!window.open(`/?win=${encodeURIComponent(w.win)}`, `f1dash-${w.win}`, feat)) blocked++;
+      if (!window.open(`/?win=${encodeURIComponent(w.win)}`, `paddock-${w.win}`, feat)) blocked++;
     }
     if (blocked) toast(`${blocked} fenêtre(s) bloquée(s) par le navigateur : autorisez les fenêtres pop-up de Paddock Live`, 5000);
   }

@@ -7,7 +7,7 @@
 
 function storedLang() {
   try {
-    const p = JSON.parse(localStorage.getItem('f1dash.prefs') || 'null');
+    const p = JSON.parse(localStorage.getItem('paddock.prefs') || 'null');
     if (p === null) return null;            // première ouverture
     return p.lang === 'en' ? 'en' : 'fr';   // installations existantes : français, sauf choix contraire
   } catch { return null; }

@@ -7,7 +7,7 @@ import { CACHE_DIR } from './circuits.js';
 
 const DIR = path.join(CACHE_DIR, 'tiles');
 const KEEP_MS = 30 * 24 * 3600e3;
-const UA = 'PaddockLive/1.25 (tableau de bord F1 personnel ; +https://github.com/benjamin-ct/F1_Dash)';
+const UA = 'PaddockLive/1.25 (tableau de bord F1 personnel ; +https://github.com/benjamin-ct/paddock-live)';
 
 // Coordonnées de tuile valides (zoom limité : le radar n'a besoin que d'une vue régionale)
 export function validTile(z, x, y) {

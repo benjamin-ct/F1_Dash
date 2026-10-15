@@ -16,7 +16,7 @@ import { radioEntry, requestTranscripts, setTranscribe, transcribeStatus } from 
 import { icon } from '../icons.js';
 import { visibleOnboard, onboardStatus } from './onboard-radio.js';
 
-const HEARD_KEY = 'f1dash.radioHeard';
+const HEARD_KEY = 'paddock.radioHeard';
 const SPEEDS = [1, 1.25, 1.5, 2];
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o.filter(Boolean) : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]).filter(Boolean));
@@ -244,7 +244,7 @@ function tick() {
 const queue = [];
 const seen = new Set();
 let isRadioPlayer = !navigator.locks;
-navigator.locks?.request('f1dash-radio-player', () => {
+navigator.locks?.request('paddock-radio-player', () => {
   isRadioPlayer = true;
   return new Promise(() => {});
 });

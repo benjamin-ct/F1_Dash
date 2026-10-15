@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getConfig, saveConfig, ROOT } from './config.js';
 
-const COOKIE = 'f1dash_key';
+const COOKIE = 'paddock_key';
 const DEFAULT_PORT = 3030;
 
 export const isLoopback = (addr) => /^(127\.|::1$|::ffff:127\.)/.test(String(addr || ''));
