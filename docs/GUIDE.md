@@ -208,6 +208,15 @@ Au premier lancement, Paddock Live demande s'il peut envoyer des **statistiques 
 - **Comment** : l'appli additionne les compteurs sur l'ordinateur et envoie seulement des totaux, environ toutes les 15 minutes (gardés sur le disque d'ici là si internet manque). Les fenêtres du téléphone passent par l'ordinateur ; le choix se fait sur l'ordinateur.
 - Le petit serveur qui reçoit ces totaux est dans le dossier `analytics/` du projet. La variable `PADDOCK_STATS_URL` vide désactive complètement la fonction (aucune question posée).
 
+## 🌍 Traductions
+
+Les actualités, le texte des radios d'équipe et les documents FIA sont traduits par le **serveur Paddock Live** (Cloudflare Workers AI, modèle de langage Mistral Small 3.1 avec des consignes F1 : noms des pilotes et des écuries gardés, vocabulaire des fans) : chaque texte n'y est traduit qu'une fois, puis gardé pour tous les utilisateurs. Rien n'est calculé sur l'ordinateur.
+
+- Seuls les textes à traduire sont envoyés : titres et résumés d'articles, texte des radios, extraits des documents FIA. Aucun identifiant, aucun réglage.
+- ⚙ Réglages → Application → *Traductions* : décocher pour tout traduire sur l'ordinateur (modèles téléchargés une fois, plus lourd).
+- Serveur injoignable ou trop sollicité : l'appli traduit sur l'ordinateur pendant 10 minutes, puis réessaie.
+- La variable `PADDOCK_TRANSLATE_URL` vide désactive complètement la traduction en ligne.
+
 ## 📡 Positions GPS en live : jeton F1 TV (optionnel)
 
 Depuis 2025, la F1 réserve **les positions GPS et la télémétrie du flux live aux abonnés F1 TV**. Tout le reste (chronos, secteurs, écarts, drapeaux, direction de course, météo, radios, pneus…) est accessible sans compte.
@@ -238,6 +247,7 @@ Bouton **Moments** de la barre de lecture : la liste des moments clés de la sé
 | `F1TV_TOKEN` | — | Jeton F1 TV (sinon via l'interface) |
 | `PADDOCK_DATA_DIR` | dossier du projet | Où ranger `config.json`, `.cache/` et `recordings/` |
 | `NO_RECORDING` | — | Mettez `1` pour ne pas enregistrer les sessions live |
+| `PADDOCK_TRANSLATE_URL` | serveur du projet | Adresse de la traduction en ligne ; vide = traduction sur l'ordinateur seulement |
 | `PADDOCK_STATS_URL` | serveur du projet | Adresse d'envoi des statistiques anonymes ; vide = fonction désactivée |
 
 ## 🔧 Fonctionnement

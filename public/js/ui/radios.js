@@ -158,7 +158,8 @@ export function renderRadios(force = false) {
   // Fil des transcriptions : radios officielles retranscrites et radios des caméras embarquées
   $('#radioTextOff').hidden = prefs.radioText || prefs.obRadio || !ordered.length;
   if (prefs.radioText) {
-    requestTranscripts(ordered.slice(0, 40).map((c) => {
+    // Les 12 plus récentes seulement (au-delà, la machine traduirait des radios que personne ne lit)
+    requestTranscripts(ordered.slice(0, 12).map((c) => {
       const d = dl[c.num] || {};
       return { url: c.url, who: [d.FullName || d.Tla, d.TeamName].filter(Boolean).join(', ') };
     }));
@@ -267,7 +268,7 @@ export function initRadios() {
   $('#radioAuto').checked = prefs.radioAuto;
   $('#radioText').checked = prefs.radioText;
   $('#radioLang').value = prefs.radioLang;
-  $('#radioQuality').value = prefs.radioQuality;
+  $('#radioQuality').value = prefs.radioQuality === 'high' ? 'high' : 'auto';
   setTranscribe(prefs.radioText, prefs.radioLang, prefs.radioQuality);
   $('#radioFilter').addEventListener('change', (e) => setPref('radioFilter', e.target.value));
   $('#radioAuto').addEventListener('change', (e) => setPref('radioAuto', e.target.checked));
@@ -281,7 +282,7 @@ export function initRadios() {
     if (!['radioText', 'radioLang', 'radioQuality'].includes(k)) return;
     $('#radioText').checked = prefs.radioText;
     $('#radioLang').value = prefs.radioLang;
-    $('#radioQuality').value = prefs.radioQuality;
+    $('#radioQuality').value = prefs.radioQuality === 'high' ? 'high' : 'auto';
     setTranscribe(prefs.radioText, prefs.radioLang, prefs.radioQuality);
     showStatus();
   });

@@ -32,6 +32,7 @@ const DEFAULTS = {
   radioLang: LANG === 'en' ? 'none' : 'fr',        // langue de traduction des transcriptions ('none' : anglais)
   radioQuality: 'auto',   // modèles de transcription : 'auto' | 'high' (carte graphique) | 'light'
   radioFilter: 'all',
+  cloudTranslate: true,   // traductions par le serveur Paddock Live (Workers AI) plutôt que sur l'ordinateur
   obRadio: false,         // radios captées sur les caméras embarquées F1 TV (expérimental)
   obRadioWho: 'auto',     // pilotes écoutés : 'auto' (suivi + duel) | 'favs' (3 premiers favoris)
   pitView: 'chrono',      // onglet Arrêts : 'chrono' ou 'driver'

@@ -34,6 +34,7 @@ import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, res
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 import { stats, startStats } from './stats.js';
 import { archivePath, sendArchiveFile } from './archive.js';
+import { cloud } from './cloud-translate.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -299,6 +300,17 @@ async function handleApi(req, res, url) {
       } catch (err) {
         return sendJSON(res, 400, { error: err.message });
       }
+    }
+
+    // Traduction par le serveur Paddock Live (Workers AI) : { to, items: [{ text, from }] } -> { out }
+    case 'POST /api/translate': {
+      const body = await readBody(req, 128e3);
+      if (!Array.isArray(body.items) || typeof body.to !== 'string') return sendJSON(res, 400, { error: 'Requête invalide' });
+      if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible' });
+      const out = await Promise.all(body.items.slice(0, 80).map((it) => cloud.translate(it?.text, it?.from, body.to)));
+      // Plafond du jour atteint ou serveur injoignable pendant l'envoi : l'interface traduit elle-même
+      if (!cloud.available()) return sendJSON(res, 503, { error: 'Traduction en ligne indisponible', out });
+      return sendJSON(res, 200, { out });
     }
 
     // Statistiques d'utilisation anonymes : l'accord se donne sur l'ordinateur ; toutes les

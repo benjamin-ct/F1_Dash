@@ -2279,7 +2279,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 }
 
 /* ---------- Mode créateur : posts pour les réseaux sociaux ---------- */
-.posts-dlg { width: min(1280px, calc(100vw - 32px)); max-height: calc(100vh - 40px); display: flex; flex-direction: column; }
+.posts-dlg { width: min(1280px, calc(100vw - 32px)); max-height: calc(100vh - 40px); flex-direction: column; }
 .posts-dlg[open] { display: flex; }
 .posts-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 18px; border-bottom: 1px solid var(--line); }
 .posts-bar .spacer { flex: 1; }

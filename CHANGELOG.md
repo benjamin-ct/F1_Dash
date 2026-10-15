@@ -4,6 +4,27 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.2 — 2026-10-15
+
+### Traductions en ligne
+- **Les traductions passent maintenant par le serveur Paddock Live** (actualités, radios d'équipe, documents FIA) : plus aucun modèle de traduction à faire tourner sur l'ordinateur ou le téléphone, et chaque texte n'est traduit qu'une fois pour tous les utilisateurs, donc souvent instantanément.
+- Traductions faites par un modèle de langage (Mistral Small 3.1) qui connaît la F1 : noms des pilotes et des écuries gardés tels quels, vocabulaire des fans (« rentre aux stands », « tendres »…).
+- Seuls les textes à traduire sont envoyés (titres et résumés d'articles, texte des radios), rien d'autre. Désactivable dans Réglages → Application → *Traductions* ; si le serveur ne répond pas, la traduction se fait sur l'ordinateur comme avant.
+- Sur le téléphone, les actualités sont traduites directement, sans attendre l'ordinateur.
+
+### Radios d'équipe
+- **Radios des caméras embarquées retirées pour le moment** : l'écoute et la transcription en continu étaient trop lourdes pour l'ordinateur.
+- **Transcription et traduction des radios beaucoup plus légères par défaut** : elles utilisent désormais les petits modèles (environ 1 Go de mémoire, sans solliciter la carte graphique). La haute qualité, plus précise mais gourmande (10 à 15 Go pendant l'utilisation), reste disponible dans le choix « Qualité » du panneau Radios.
+- Quel que soit l'ordinateur : seules les 12 radios les plus récentes sont retranscrites et traduites automatiquement (40 avant), avec une courte pause entre deux, pour que l'appli reste fluide, en particulier au lancement d'un replay.
+
+### Actu
+- **« Qui fait l'actu » : les barres ne se réaniment plus sans arrêt.** Chaque titre traduit redessinait toute la page ; seuls les morceaux qui changent sont maintenant mis à jour, et les traductions sont affichées par paquets (au plus une mise à jour toutes les 1,5 s), ce qui allège aussi la page.
+- **Traduction des actualités beaucoup plus économe** : seuls les articles visibles à l'écran sont traduits (avant : les 40 premiers titres et 12 résumés d'un coup), et plus rien n'est traduit en arrière-plan page fermée, sauf les actus qui déclenchent une alerte. Les traductions déjà faites restent gardées.
+
+### Corrections
+- Bandeau en haut de l'écran et carte : « Voiture de sécurité » et « Voiture de sécurité virtuelle » en français (ils restaient en anglais).
+- Fenêtres secondaires (second écran) : le titre de la fenêtre ne clignote plus entre le nom de la séance et celui des panneaux.
+
 ## v1.27.1 — 2026-10-15
 
 ### Replays

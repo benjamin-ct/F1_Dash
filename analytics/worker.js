@@ -7,6 +7,7 @@
 // - GET /stats.json : les mêmes chiffres en JSON (connecté, ou ?key=…).
 import { cleanBatch, LABELS, FEATURE_GROUPS } from '../shared/stats.js';
 import { loginPage, dashboardPage } from './page.js';
+import { cleanRequest, translateBatch } from './translate.js';
 
 const MAX_BODY = 32 * 1024;
 const COOKIE = 'pl_stats';
@@ -146,6 +147,20 @@ export default {
     const url = new URL(req.url);
     if (req.method === 'POST' && url.pathname === '/e') {
       try { return await ingest(req, env); } catch { return json({ error: 'Erreur' }, 500); }
+    }
+    // Traduction partagée (actualités, radios) : ouverte à l'appli, plafonnée par jour
+    if (req.method === 'POST' && url.pathname === '/t') {
+      if (!env.AI) return json({ error: 'Traduction indisponible' }, 503);
+      const text = await req.text();
+      if (text.length > 64 * 1024) return json({ error: 'Trop volumineux' }, 413);
+      let body;
+      try { body = JSON.parse(text); } catch { return json({ error: 'JSON invalide' }, 400); }
+      const r = cleanRequest(body);
+      if (!r) return json({ error: 'Requête invalide' }, 400);
+      try {
+        const res = await translateBatch(env, r);
+        return json(res, res.limited ? 429 : 200);
+      } catch { return json({ error: 'Erreur' }, 500); }
     }
     if (!env.STATS_KEY) return json({ error: 'Mot de passe STATS_KEY non configuré' }, 503);
 

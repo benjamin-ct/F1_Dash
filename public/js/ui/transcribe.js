@@ -4,6 +4,8 @@
 import { storageGet, storageSet } from '../util.js';
 import { emit } from '../store.js';
 import { track } from './stats.js';
+import { cloudOn, cloudTranslate } from '../cloud.js';
+import { fixRadio } from '/shared/radio-text.js';
 
 const KEY = 'paddock.radioTexts';
 const MAX_KEEP = 400;
@@ -103,8 +105,10 @@ async function gpu() {
 }
 
 // Niveau à utiliser pour la reconnaissance vocale ('asr') ou la traduction ('mt')
+// « Auto » = qualité légère (≈ 1 Go) : la haute qualité (10 à 15 Go, carte graphique très sollicitée)
+// seulement si elle est choisie
 async function qualityFor(use) {
-  if (qualityPref === 'light') return 'light';
+  if (qualityPref !== 'high') return 'light';
   if (!(await gpu()).ok) return 'light';
   const f = highFail[use];
   if (f && Date.now() - f.at < f.wait) return 'light';
@@ -130,7 +134,7 @@ function markHighFailed(use, err) {
 // Texte d'état : niveau de chaque modèle et, s'il est léger, pourquoi
 function describe() {
   const why = (use) => {
-    if (qualityPref === 'light') return 'choisie dans les réglages';
+    if (qualityPref !== 'high') return 'économe en mémoire (« Haute » dans le choix de qualité pour de meilleurs textes)';
     if (gpuInfo && !gpuInfo.ok) return gpuInfo.why;
     const f = highFail[use];
     if (f) {
@@ -140,6 +144,7 @@ function describe() {
     return '';
   };
   const part = (label, use, hi) => {
+    if (use === 'mt' && cloudOn()) return `${label} : serveur Paddock Live (rien à calculer ici)`;
     const q = effective[use];
     if (!q) return '';
     if (q === 'high') return `${label} : haute qualité (${hi})`;
@@ -280,6 +285,8 @@ async function textQuality() {
 }
 
 async function runText(task) {
+  const c = await cloudTranslate(task.text, task.from || 'en', task.lang);
+  if (c) { task.resolve({ text: c, q: 'cloud' }); return; }
   const q = await textQuality();
   try {
     task.resolve({ text: await run({ kind: 'translate', text: task.text, lang: task.lang, quality: q, domain: task.domain, from: task.from }), q });
@@ -322,9 +329,10 @@ async function pump() {
     } else {
       const t = texts[task.url];
       if (t?.en) {
-        const q = task.q = await qualityFor('mt');
+        const c = await cloudTranslate(t.en, 'en', task.lang);
+        const q = task.q = c ? 'cloud' : await qualityFor('mt');
         effective.mt = q;
-        const tr = await run({ kind: 'translate', text: t.en, lang: task.lang, quality: q, who: task.who });
+        const tr = c ? fixRadio(c, task.lang) : await run({ kind: 'translate', text: t.en, lang: task.lang, quality: q, who: task.who });
         t.tr = { ...(t.tr || {}), [task.lang]: tr };
         t.tq = { ...(t.tq || {}), [task.lang]: q };
       }
@@ -352,6 +360,7 @@ async function pump() {
     setStatus(task.q === 'high' ? 'ready' : 'error', task.q === 'high' ? describe() : `Impossible : ${err.message}`);
   } finally {
     busy = false;
-    setTimeout(pump, 50);
+    // Courte pause entre deux radios : le processeur respire (replay qui en découvre beaucoup d'un coup)
+    setTimeout(pump, 400);
   }
 }

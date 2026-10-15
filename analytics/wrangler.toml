@@ -10,3 +10,10 @@ binding = "DB"
 database_name = "paddock-live-stats"
 # Rempli par le workflow (base créée au premier déploiement si elle n'existe pas)
 database_id = "00000000-0000-0000-0000-000000000000"
+
+# Workers AI : traduction des actualités et des radios (modèle m2m100)
+[ai]
+binding = "AI"
+
+[vars]
+AI_DAILY_LIMIT = "20000"

@@ -1,0 +1,112 @@
+// Traduction partagée (Workers AI) : chaque texte n'est traduit qu'une fois pour tous les utilisateurs
+// de Paddock Live, puis gardé dans la base. Plafond quotidien contre les abus ; au-delà, l'appli
+// traduit sur l'ordinateur comme avant.
+// Modèle de langage (Mistral Small 3.1) avec des consignes F1 : noms propres gardés, jargon des fans.
+// Plusieurs textes par appel ; réponse mal formée -> modèle de traduction simple (m2m100) en secours.
+export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
+export const FALLBACK = '@cf/meta/m2m100-1.2b';
+const MODEL_TAG = 'ms31';   // dans la clé du cache : changer de modèle = nouvelles traductions
+const PER_CALL = 8;
+const NAMES = { fr: 'French', en: 'English', es: 'Spanish', de: 'German', it: 'Italian', nl: 'Dutch', pt: 'Portuguese', ja: 'Japanese', zh: 'Chinese' };
+export const LANGS = ['fr', 'en', 'es', 'de', 'it', 'nl', 'pt', 'ja', 'zh'];
+export const MAX_ITEMS = 40;
+export const MAX_TEXT = 2000;
+const MAX_TOTAL = 24000;
+
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+export async function keyOf(from, to, text) {
+  return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${MODEL_TAG}|${from}|${to}|${text}`)));
+}
+
+const system = (to) => `You are a professional translator for a Formula 1 app. Translate each input text into ${NAMES[to]}.
+Rules:
+- Keep names of drivers, teams, people, circuits, cities, sponsors and car models exactly as written (e.g. Câmara, Verstappen, Red Bull, Haas, Marina Bay). Never translate a surname as a common word.
+- Use the natural vocabulary of ${NAMES[to]}-speaking F1 fans and commentators.${to === 'fr' ? ' Team radio jargon: "box, box" = "rentre aux stands", "copy" = "reçu", "lift and coast" = "lever le pied", "deg" = "dégradation", "softs/mediums/hards" = "tendres/mediums/durs", "pole" = "pole position".' : ''}
+- Keep quotes, numbers, units and punctuation. Do not add explanations, notes or quotes around the result.
+- The input is a JSON array of strings. Answer ONLY with a JSON array of the translations, same order, same length.`;
+
+// Réponse du modèle -> liste de chaînes (ou null si mal formée)
+export function parseList(reply, n) {
+  if (Array.isArray(reply)) return reply.length === n && reply.every((x) => typeof x === 'string') ? reply : null;
+  const t = String(reply || '');
+  const a = t.indexOf('['), b = t.lastIndexOf(']');
+  if (a < 0 || b <= a) return null;
+  try {
+    const list = JSON.parse(t.slice(a, b + 1));
+    return Array.isArray(list) && list.length === n && list.every((x) => typeof x === 'string' && x.trim()) ? list.map((x) => x.trim()) : null;
+  } catch { return null; }
+}
+
+async function llm(env, texts, to) {
+  const r = await env.AI.run(MODEL, {
+    messages: [{ role: 'system', content: system(to) }, { role: 'user', content: JSON.stringify(texts) }],
+    temperature: 0.1,
+    max_tokens: Math.min(4000, 200 + texts.reduce((a, t) => a + t.length, 0)),
+  });
+  return parseList(r?.response ?? r?.choices?.[0]?.message?.content, texts.length);
+}
+
+async function simple(env, text, from, to) {
+  try {
+    const r = await env.AI.run(FALLBACK, { text, source_lang: from, target_lang: to });
+    return String(r?.translated_text || '').trim() || null;
+  } catch { return null; }
+}
+
+// Corps reçu -> { to, items: [{ text, from }] }, ou null s'il est invalide
+export function cleanRequest(body) {
+  if (!body || typeof body !== 'object' || !LANGS.includes(body.to) || !Array.isArray(body.items)) return null;
+  const items = body.items.slice(0, MAX_ITEMS).map((it) => ({
+    text: typeof it?.text === 'string' ? it.text.trim().slice(0, MAX_TEXT) : '',
+    from: LANGS.includes(it?.from) ? it.from : 'en',
+  }));
+  if (!items.length || items.some((it) => !it.text) || items.reduce((a, it) => a + it.text.length, 0) > MAX_TOTAL) return null;
+  return { to: body.to, items };
+}
+
+async function mapLimit(list, n, fn) {
+  const out = new Array(list.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, list.length) }, async () => {
+    while (i < list.length) { const k = i++; out[k] = await fn(list[k], k); }
+  }));
+  return out;
+}
+
+export async function translateBatch(env, req, day = new Date().toISOString().slice(0, 10)) {
+  const keys = await Promise.all(req.items.map((it) => keyOf(it.from, req.to, it.text)));
+  const out = req.items.map((it) => (it.from === req.to ? it.text : null));
+  // Déjà traduits (par n'importe quel utilisateur)
+  const want = [...new Set(keys.filter((k, i) => out[i] === null))];
+  if (want.length) {
+    const rows = (await env.DB.prepare(`SELECT k, out FROM translations WHERE k IN (${want.map(() => '?').join(',')})`).bind(...want).all()).results || [];
+    const found = new Map(rows.map((r) => [r.k, r.out]));
+    keys.forEach((k, i) => { if (out[i] === null && found.has(k)) out[i] = found.get(k); });
+  }
+  const todo = [...new Set(keys.filter((k, i) => out[i] === null))].map((k) => ({ k, it: req.items[keys.indexOf(k)] }));
+  if (!todo.length) return { out, cached: true };
+  // Plafond du jour
+  const limit = Number(env.AI_DAILY_LIMIT) || 20000;
+  const used = (await env.DB.prepare('SELECT n FROM ai_usage WHERE day = ?1').bind(day).first())?.n || 0;
+  if (used + todo.length > limit) return { out, limited: true };
+  await env.DB.prepare('INSERT INTO ai_usage (day, n) VALUES (?1, ?2) ON CONFLICT (day) DO UPDATE SET n = n + excluded.n').bind(day, todo.length).run();
+  // Modèle de langage par paquets de 8 ; paquet raté -> traduction simple texte par texte
+  const groups = [];
+  for (let i = 0; i < todo.length; i += PER_CALL) groups.push(todo.slice(i, i + PER_CALL));
+  const results = await mapLimit(groups, 3, async (g) => {
+    let list = null;
+    try { list = await llm(env, g.map(({ it }) => it.text), req.to); } catch { list = null; }
+    if (list) return list;
+    return Promise.all(g.map(({ it }) => simple(env, it.text, it.from, req.to)));
+  });
+  const done = results.flat();
+  const now = Date.now();
+  const store = [];
+  todo.forEach(({ k }, j) => {
+    if (!done[j]) return;
+    keys.forEach((kk, i) => { if (kk === k && out[i] === null) out[i] = done[j]; });
+    store.push(env.DB.prepare('INSERT OR REPLACE INTO translations (k, out, at) VALUES (?1, ?2, ?3)').bind(k, done[j], now));
+  });
+  if (store.length) await env.DB.batch(store);
+  return { out };
+}

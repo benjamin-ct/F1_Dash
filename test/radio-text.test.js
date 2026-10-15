@@ -25,6 +25,9 @@ test('radios : réponse du modèle de langage nettoyée et contrôlée', () => {
 test('radios : jargon F1 corrigé après le petit modèle de traduction', () => {
   assert.equal(fixRadio('La boîte, la boîte, on reste dehors', 'fr'), 'Rentre aux stands, rentre aux stands, on reste dehors');
   assert.equal(fixRadio('Copie.', 'fr'), 'Reçu.');
+  // Traduction en ligne (m2m100)
+  assert.equal(fixRadio('Boîte de boîte, boîte ce tour.', 'fr'), 'Rentre aux stands, rentre aux stands, rentre aux stands ce tour.');
+  assert.equal(fixRadio('Boîte au prochain tour.', 'fr'), 'Rentre aux stands au prochain tour.');
   assert.equal(fixRadio('Les pneus difficiles sont bons', 'fr'), 'Les pneus durs sont bons');
   assert.equal(fixRadio('Soulever et côte au virage 1', 'fr'), 'Lever le pied au virage 1');
   assert.equal(fixRadio('Reste doux sur les freins', 'fr'), 'Reste doux sur les freins', 'doux hors des pneus inchangé');
