@@ -1,7 +1,8 @@
 name: Statistiques
 
 # Déploie le petit serveur des statistiques d'utilisation anonymes (Cloudflare Worker + base D1,
-# dossier analytics/). À lancer à la main : onglet Actions → « Statistiques » → Run workflow.
+# dossier analytics/) : automatiquement quand il est modifié, ou à la main (onglet Actions →
+# « Statistiques » → Run workflow).
 # Au premier lancement, la base D1 et sa table sont créées sur le compte du jeton.
 # Secrets du dépôt :
 # - CLOUDFLARE_API_TOKEN : jeton Cloudflare (modèle « Edit Cloudflare Workers » + permission
@@ -10,6 +11,13 @@ name: Statistiques
 # - CLOUDFLARE_ACCOUNT_ID (facultatif) : seulement si le jeton donne accès à plusieurs comptes.
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'analytics/**'
+      - 'shared/stats.js'
+      - '.github/workflows/stats.yml'
+
+concurrency: stats-deploy
 
 permissions:
   contents: read
