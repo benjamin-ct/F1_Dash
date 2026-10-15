@@ -10,7 +10,7 @@
 // qui démarre ne redessine que son élément (rien ne « se recharge », le défilement reste en place).
 import { store, versionOf, on, utcToLocal } from '../store.js';
 import { prefs, setPref, isFav } from '../prefs.js';
-import { $, esc, drivers, teamColor, fmtClock, storageGet, storageSet } from '../util.js';
+import { $, esc, drivers, teamColor, fmtClock, storageGet, storageSet, photoUrl } from '../util.js';
 import { parseUtc } from '/shared/f1.js';
 import { radioEntry, requestTranscripts, setTranscribe, transcribeStatus } from './transcribe.js';
 import { icon } from '../icons.js';
@@ -62,7 +62,8 @@ function lapAt(num, utc) {
 
 // Photo du pilote (initiales sur la couleur de l'écurie si elle manque) avec le micro
 function avatar(d, num, playing) {
-  const photo = d.HeadshotUrl ? `<img src="${esc(d.HeadshotUrl)}" alt="" loading="lazy" onerror="this.remove()">` : '';
+  const src = photoUrl(d);
+  const photo = src ? `<img src="${esc(src)}" alt="" loading="lazy" onerror="this.remove()">` : '';
   return `<span class="rd-av" style="--tc:${teamColor(d)}"><b>${esc(d.Tla || num)}</b>${photo}<i class="rd-mic">${icon(playing ? 'pause' : 'mic')}</i></span>`;
 }
 

@@ -1,6 +1,6 @@
 // Duel entre deux pilotes : écart en direct, tendance, historique, comparaison détaillée.
 import { store, setDuel, displayNow, versionOf, on } from '../store.js';
-import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, tyreBadge, currentStint, fmtLap, fmtSigned } from '../util.js';
+import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, tyreBadge, currentStint, fmtLap, fmtSigned, photoUrl } from '../util.js';
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { lineChart } from './charts.js';
 import { Dial, animate, carNow } from './gauge.js';
@@ -138,7 +138,7 @@ function renderHero(a, b) {
   const side = (num, d, cls) => {
     const l = lines[num] || {};
     const pos = l.Position ? `P${l.Position}` : '';
-    const photo = d.HeadshotUrl ? `<img class="duel-photo" src="${esc(d.HeadshotUrl)}" alt="" onerror="this.remove()">` : '';
+    const photo = photoUrl(d) ? `<img class="duel-photo" src="${esc(photoUrl(d))}" alt="" onerror="this.remove()">` : '';
     return `<div class="duel-side ${cls}"><div class="duel-id">${photo}<div><div class="duel-name"><span class="duel-swatch" style="background:${teamColor(d)}"></span>${esc(d.Tla || num)}</div>
       <div class="duel-sub">${esc(pos)} · ${esc(d.TeamName || '')}</div></div></div></div>`;
   };

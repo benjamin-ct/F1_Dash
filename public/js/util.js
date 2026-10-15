@@ -65,6 +65,11 @@ const VIVID_TEAMS = [
 let vividTeams = false;
 export function setVividTeams(v) { vividTeams = !!v; }
 
+// Photo d'un pilote, relayée par le serveur (et gardée en cache) ; null si la F1 n'en fournit pas
+export function photoUrl(driver) {
+  return driver?.HeadshotUrl ? `/api/headshot?u=${encodeURIComponent(driver.HeadshotUrl)}` : null;
+}
+
 export function teamColor(driver) {
   let c = null;
   if (vividTeams && driver?.TeamName) c = VIVID_TEAMS.find(([re]) => re.test(driver.TeamName))?.[1] || null;
