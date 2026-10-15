@@ -103,8 +103,10 @@ async function gpu() {
 }
 
 // Niveau à utiliser pour la reconnaissance vocale ('asr') ou la traduction ('mt')
+// « Auto » = qualité légère (≈ 1 Go) : la haute qualité (10 à 15 Go, carte graphique très sollicitée)
+// seulement si elle est choisie
 async function qualityFor(use) {
-  if (qualityPref === 'light') return 'light';
+  if (qualityPref !== 'high') return 'light';
   if (!(await gpu()).ok) return 'light';
   const f = highFail[use];
   if (f && Date.now() - f.at < f.wait) return 'light';
@@ -130,7 +132,7 @@ function markHighFailed(use, err) {
 // Texte d'état : niveau de chaque modèle et, s'il est léger, pourquoi
 function describe() {
   const why = (use) => {
-    if (qualityPref === 'light') return 'choisie dans les réglages';
+    if (qualityPref !== 'high') return 'économe en mémoire (« Haute » dans le choix de qualité pour de meilleurs textes)';
     if (gpuInfo && !gpuInfo.ok) return gpuInfo.why;
     const f = highFail[use];
     if (f) {
@@ -352,6 +354,7 @@ async function pump() {
     setStatus(task.q === 'high' ? 'ready' : 'error', task.q === 'high' ? describe() : `Impossible : ${err.message}`);
   } finally {
     busy = false;
-    setTimeout(pump, 50);
+    // Courte pause entre deux radios : le processeur respire (replay qui en découvre beaucoup d'un coup)
+    setTimeout(pump, 400);
   }
 }
