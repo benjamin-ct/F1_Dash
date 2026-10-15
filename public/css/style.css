@@ -899,16 +899,23 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .rd-strip:empty { display: none; }
 .rd-card { position: relative; flex: none; display: flex; align-items: center; gap: 10px; min-width: 210px; max-width: 260px; padding: 8px 12px 8px 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); text-align: left; font: inherit; cursor: pointer; overflow: hidden; }
 .rd-card:hover { border-color: var(--line-2); background: var(--hover); }
-.rd-card.playing { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
+.rd-card.playing { border-color: var(--rd-prog); }
 .rd-card.playing .rd-mic { background: var(--accent); }
 .rd-card.unheard::after { content: ''; position: absolute; top: 7px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
 .rd-c-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .rd-c-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd-c-when { font-size: 11.5px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rd-c-dur { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.rd-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: transparent; display: none; }
-.rd-card.playing .rd-prog { display: block; height: 4px; background: var(--line); cursor: pointer; }
-.rd-prog i { display: block; height: 100%; background: var(--accent); transform-origin: left; transform: scaleX(0); }
+/* Progression de la radio en cours : la carte entière se remplit (cyan), barre pleine largeur en bas */
+.rd-strip { --rd-prog: #22d3ee; }
+:root[data-scheme="light"] .rd-strip { --rd-prog: #0891b2; }
+.rd-card > :not(.rd-fill):not(.rd-prog) { position: relative; z-index: 1; }
+.rd-fill { position: absolute; inset: 0; z-index: 0; background: color-mix(in srgb, var(--rd-prog) 30%, transparent); transform-origin: left; transform: scaleX(0); display: none; pointer-events: none; }
+.rd-prog { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: none; }
+.rd-card.playing .rd-fill { display: block; }
+.rd-card.playing .rd-prog { display: block; height: 5px; background: color-mix(in srgb, var(--rd-prog) 25%, var(--line)); cursor: pointer; }
+.rd-prog i { display: block; height: 100%; background: var(--rd-prog); transform-origin: left; transform: scaleX(0); }
+.rd-card.playing .rd-c-dur { color: var(--rd-prog); }
 /* Fil des radios retranscrites */
 .rd-feed-head { flex: none; display: flex; align-items: baseline; gap: 8px; padding: 8px 14px 4px; }
 .rd-feed-head b { font-size: 13.5px; }

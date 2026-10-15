@@ -74,7 +74,7 @@ const isPlaying = (url) => cur?.url === url && audio && !audio.paused;
 function cardHtml(c, d) {
   const dur = durations.get(c.url) ?? radioEntry(c.url)?.d;
   return `${avatar(d, c.num, isPlaying(c.url))}<span class="rd-c-main"><b class="rd-c-name">${fullName(d, c.num)}</b><span class="rd-c-when">${when(c)}</span></span>
-    <span class="rd-c-dur">${fmtDur(dur)}</span><span class="rd-prog"><i></i></span>`;
+    <span class="rd-c-dur">${fmtDur(dur)}</span><span class="rd-fill"></span><span class="rd-prog"><i></i></span>`;
 }
 
 function lineHtml(c, d) {
@@ -218,8 +218,12 @@ export function playRadio(url) {
 function paintProgress() {
   if (!cur || !audio) return;
   const p = audio.duration > 0 ? Math.min(1, audio.currentTime / audio.duration) : 0;
-  const bar = cards.get(cur.url)?.el.querySelector('.rd-prog i');
-  if (bar) bar.style.transform = `scaleX(${p})`;
+  const el = cards.get(cur.url)?.el;
+  if (!el) return;
+  // Toute la carte se remplit de gauche à droite, avec une barre pleine largeur en bas
+  for (const x of el.querySelectorAll('.rd-fill, .rd-prog i')) x.style.transform = `scaleX(${p})`;
+  const dur = el.querySelector('.rd-c-dur');
+  if (dur && audio.duration > 0) dur.textContent = `${fmtDur(audio.currentTime) || '0:00'} / ${fmtDur(audio.duration)}`;
 }
 
 let ticking = false;

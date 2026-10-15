@@ -8,7 +8,7 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Radios d'équipe façon MultiViewer
 - **Nouveau panneau des radios**, sur le modèle des transcriptions de MultiViewer (il remplace les onglets Transcriptions / Audio) :
-  - en haut, **une carte par radio** (plus récentes à gauche) : photo du pilote, nom, **tour** et heure, durée, point bleu tant qu'elle n'a pas été écoutée. Un clic la joue, avec une barre de progression dans la carte ;
+  - en haut, **une carte par radio** (plus récentes à gauche) : photo du pilote, nom, **tour** et heure, durée, point bleu tant qu'elle n'a pas été écoutée. Un clic la joue : la carte se remplit en cyan de gauche à droite au fil de l'écoute, avec une barre pleine largeur en bas (clic dessus pour avancer) et le temps écoulé (« 0:03 / 0:08 ») ;
   - en dessous, le **fil des radios retranscrites** : photo, texte traduit en grand, anglais d'origine en petit, « pilote · tour · heure ». Un clic rejoue la radio.
 - Vitesse de lecture réglable (1× à 2×) ; la lecture automatique des nouvelles radios est toujours là (« Lecture auto »).
 - **Photos des pilotes** (radios, duel) relayées par F1 Dash et gardées en cache : elles s'affichent même quand le site de la F1 refuse les images appelées depuis l'application, sur le téléphone et hors connexion.
