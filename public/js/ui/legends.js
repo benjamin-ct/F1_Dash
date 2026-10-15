@@ -37,7 +37,7 @@ const L = {
     tracklimits: [txt('Tours et temps supprimés pour non-respect des limites de piste, par pilote. Les avertissements répétés peuvent entraîner une pénalité.')],
   },
   radio: {
-    radios: [txt('En haut, une carte par radio d\'équipe (plus récentes à gauche) : clic pour écouter, point bleu = pas encore écoutée · en dessous, les radios retranscrites et traduites sur cet ordinateur (en petit : l\'anglais d\'origine) ; clic pour réécouter.')],
+    radios: [txt('En haut, une carte par radio d\'équipe (plus récentes à gauche) : clic pour écouter, point bleu = pas encore écoutée · en dessous, les radios retranscrites et traduites sur cet ordinateur (en petit : l\'anglais d\'origine) ; clic pour réécouter · « caméra embarquée » : radio captée sur le son embarqué F1 TV.')],
   },
   duel: {
     _: [

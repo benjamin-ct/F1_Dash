@@ -18,6 +18,8 @@ try { env.backends.onnx.webgpu.powerPreference = 'high-performance'; } catch { /
 const MODELS = {
   asrHigh: 'onnx-community/whisper-large-v3-turbo',
   asrLight: 'onnx-community/whisper-base.en',
+  // Son embarqué : il faut l'horodatage des phrases, que les modèles « anglais seul » ne donnent pas
+  asrTimed: 'onnx-community/whisper-base',
   llm: 'onnx-community/Qwen3-4B-Instruct-2507-ONNX',
   mt: { fr: 'Xenova/opus-mt-en-fr', es: 'Xenova/opus-mt-en-es', de: 'Xenova/opus-mt-en-de', it: 'Xenova/opus-mt-en-it' },
 };
@@ -83,6 +85,10 @@ const asrLight = (gpu) => load(`asrLight${gpu}`, async () => {
     ? { device: 'webgpu', dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' }, progress_callback: progress('asr', MODELS.asrLight) }
     : { device: 'wasm', dtype: 'q8', progress_callback: progress('asr', MODELS.asrLight) });
 });
+const asrTimedLight = () => load('asrTimed', async () => {
+  await cachedModel(MODELS.asrTimed);
+  return pipeline('automatic-speech-recognition', MODELS.asrTimed, { device: 'wasm', dtype: 'q8', progress_callback: progress('asr', MODELS.asrTimed) });
+});
 const llm = () => load('llm', async () => {
   await prefetchBig('llm', 'mt');
   return pipeline('text-generation', MODELS.llm, { device: 'webgpu', dtype: 'q4f16', progress_callback: progress('mt', MODELS.llm) });
@@ -111,6 +117,15 @@ async function transcribe(audio, quality) {
     if (words(small) > words(big) * 1.5) return small;
   }
   return big;
+}
+
+// Fenêtre de son embarqué : segments horodatés (secondes depuis le début de la fenêtre)
+async function transcribeTimed(audio, quality) {
+  const opts = { return_timestamps: true, chunk_length_s: 30, stride_length_s: 5 };
+  const r = await (await (quality === 'high' ? asrHigh() : asrTimedLight()))(audio, { ...opts, language: 'english', task: 'transcribe' });
+  const chunks = (r?.chunks || []).map((c) => ({ timestamp: c.timestamp, text: c.text }));
+  // Sans horodatage (modèle qui n'en donne pas) : un seul segment pour toute la fenêtre
+  return chunks.length || !clean(r?.text) ? chunks : [{ timestamp: [0, audio.length / 16000], text: r.text }];
 }
 
 function systemPrompt(lang, who) {
@@ -240,7 +255,8 @@ self.onmessage = async (e) => {
   try {
     const text = kind === 'translate'
       ? await translate(e.data.text, e.data.lang, quality, e.data.who, e.data.domain, e.data.from)
-      : await transcribe(e.data.audio, quality);
+      : kind === 'asr-ts' ? await transcribeTimed(e.data.audio, quality)
+        : await transcribe(e.data.audio, quality);
     if (kind !== 'translate') self.postMessage({ type: 'ready', device: quality === 'high' ? 'webgpu' : 'wasm' });
     self.postMessage({ type: 'result', id, text });
   } catch (err) {

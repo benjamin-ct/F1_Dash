@@ -231,6 +231,26 @@ export function translateText(text, language, domain, from = 'en') {
   });
 }
 
+// Fenêtre de son (16 kHz) des caméras embarquées : segments horodatés [{ timestamp: [a, b], text }].
+// Passe avant les radios officielles (c'est du direct).
+export function transcribeWindow(audio) {
+  return new Promise((resolve, reject) => {
+    queue.unshift({ kind: 'win', audio, resolve, reject, k: `win|${nextId}` });
+    pump();
+  });
+}
+
+async function runWindow(task) {
+  const q = await qualityFor('asr');
+  try {
+    task.resolve(await run({ kind: 'asr-ts', audio: task.audio, quality: q }, q === 'high' ? [] : [task.audio.buffer]));
+  } catch (err) {
+    if (q !== 'high') throw err;
+    markHighFailed('asr', err);
+    task.resolve(await run({ kind: 'asr-ts', audio: task.audio, quality: 'light' }, [task.audio.buffer]));
+  }
+}
+
 async function textQuality() {
   if ((await qualityFor('mt')) !== 'high') return 'light';
   try {
@@ -256,12 +276,12 @@ async function pump() {
   if (busy || !queue.length || Date.now() < retryAt) return;
   // Radios : seulement si la transcription est activée, dans la fenêtre qui en est chargée
   const radios = enabled && isTranscriber;
-  const i = queue.findIndex((t) => t.kind === 'text' || radios);
+  const i = queue.findIndex((t) => t.kind === 'text' || t.kind === 'win' || radios);
   if (i < 0) return;
   busy = true;
   const task = queue.splice(i, 1)[0];
-  if (task.kind === 'text') {
-    try { await runText(task); } catch (err) { task.reject(err); }
+  if (task.kind === 'text' || task.kind === 'win') {
+    try { await (task.kind === 'win' ? runWindow(task) : runText(task)); } catch (err) { task.reject(err); }
     busy = false;
     setTimeout(pump, 50);
     return;

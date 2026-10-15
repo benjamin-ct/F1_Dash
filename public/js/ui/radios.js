@@ -14,6 +14,7 @@ import { $, esc, drivers, teamColor, fmtClock, storageGet, storageSet } from '..
 import { parseUtc } from '/shared/f1.js';
 import { radioEntry, requestTranscripts, setTranscribe, transcribeStatus } from './transcribe.js';
 import { icon } from '../icons.js';
+import { visibleOnboard, onboardStatus } from './onboard-radio.js';
 
 const HEARD_KEY = 'f1dash.radioHeard';
 const SPEEDS = [1, 1.25, 1.5, 2];
@@ -76,7 +77,7 @@ function cardHtml(c, d) {
 }
 
 function lineHtml(c, d) {
-  const e = radioEntry(c.url);
+  const e = c.ob || radioEntry(c.url);
   const lang = prefs.radioLang;
   let text;
   if (!e) text = '<div class="rd-text pending">transcription…</div>';
@@ -84,11 +85,26 @@ function lineHtml(c, d) {
   else if (lang === 'none') text = `<div class="rd-text">${esc(e.en)}</div>`;
   else if (e.tr?.[lang]) text = `<div class="rd-text">${esc(e.tr[lang])}</div><div class="rd-orig">${esc(e.en)}</div>`;
   else text = `<div class="rd-text">${esc(e.en)}</div><div class="rd-orig pending">traduction…</div>`;
-  return `${avatar(d, c.num, isPlaying(c.url))}<div class="rd-l-main">${text}<div class="rd-l-who">${fullName(d, c.num)} · ${when(c)}</div></div>`;
+  const tag = c.ob ? ' <span class="rd-ob" title="Radio captée sur le son de la caméra embarquée F1 TV">caméra embarquée</span>' : '';
+  return `${avatar(d, c.num, isPlaying(c.url))}<div class="rd-l-main">${text}<div class="rd-l-who">${fullName(d, c.num)} · ${when(c)}${tag}</div></div>`;
+}
+
+// Radio embarquée déjà publiée par la F1 (même pilote, même moment, même texte) : pas de doublon
+const words = (t) => new Set(String(t || '').toLowerCase().match(/[a-z']+/g) || []);
+function duplicate(ob, official) {
+  const a = words(ob.en);
+  return official.some((c) => {
+    if (c.num !== String(ob.num) || Math.abs(c.utc - ob.utc) > 90000) return false;
+    const b = words(radioEntry(c.url)?.en);
+    if (!a.size || !b.size) return false;
+    let n = 0;
+    for (const w of a) if (b.has(w)) n++;
+    return n / Math.min(a.size, b.size) >= 0.6;
+  });
 }
 
 const cardClass = (c) => `rd-card${cur?.url === c.url ? ' playing' : ''}${heard.has(c.url) ? '' : ' unheard'}`;
-const lineClass = (c) => `rd-line${cur?.url === c.url ? ' playing' : ''}`;
+const lineClass = (c) => `rd-line${c.ob ? ' ob' : ''}${cur?.url === c.url ? ' playing' : ''}`;
 
 // Met une liste en conformité avec les radios (créées, mises à jour si leur contenu change, remises
 // dans l'ordre, retirées)
@@ -119,7 +135,7 @@ export function renderRadios(force = false) {
   const strip = $('#radioStrip'), feed = $('#radioList');
   if (!strip || !feed) return;
   // Tours des radios revus toutes les 5 s (pas à chaque mise à jour des chronos)
-  const key = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${Math.floor(performance.now() / 5000)}|${prefs.radioFilter}|${prefs.radioText}|${prefs.radioLang}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}|${textVer}|${document.documentElement.dataset.scheme}`;
+  const key = `${versionOf(['TeamRadio', 'DriverList', '__reset'])}|${Math.floor(performance.now() / 5000)}|${prefs.obRadio}|${prefs.radioFilter}|${prefs.radioText}|${prefs.radioLang}|${store.duel.a}|${store.duel.b}|${prefs.favs.join()}|${textVer}|${document.documentElement.dataset.scheme}`;
   if (key === renderKey && !force) return;
   renderKey = key;
   $('#radioOpts').hidden = !prefs.radioText;
@@ -134,15 +150,19 @@ export function renderRadios(force = false) {
   empty.textContent = b ? 'Aucune radio d\'équipe pour l\'instant.' : 'Pas de séance en cours.';
   sync(strip, cards, ordered, 'button', (c) => cardHtml(c, dl[c.num] || {}), cardClass);
 
-  // Fil des transcriptions
-  $('#radioTextOff').hidden = prefs.radioText || !ordered.length;
+  // Fil des transcriptions : radios officielles retranscrites et radios des caméras embarquées
+  $('#radioTextOff').hidden = prefs.radioText || prefs.obRadio || !ordered.length;
   if (prefs.radioText) {
     requestTranscripts(ordered.slice(0, 40).map((c) => {
       const d = dl[c.num] || {};
       return { url: c.url, who: [d.FullName || d.Tla, d.TeamName].filter(Boolean).join(', ') };
     }));
   }
-  sync(feed, lines, prefs.radioText ? ordered.slice(0, 60) : [], 'li', (c) => lineHtml(c, dl[c.num] || {}), lineClass);
+  const official = prefs.radioText ? ordered.slice(0, 60) : [];
+  const onboard = prefs.obRadio ? visibleOnboard().filter((e) => radioAllowed(e.num) && !duplicate(e, official))
+    .map((e) => ({ url: e.id, num: String(e.num), utc: e.utc, ob: e })) : [];
+  const items = onboard.length ? [...official, ...onboard].sort((x, y) => y.utc - x.utc).slice(0, 150) : official;
+  sync(feed, lines, items, 'li', (c) => lineHtml(c, dl[c.num] || {}), lineClass);
   paintProgress();
 }
 
@@ -278,8 +298,12 @@ export function initRadios() {
     const s = e.currentTarget;
     if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && s.scrollWidth > s.clientWidth) { s.scrollLeft += e.deltaY; e.preventDefault(); }
   }, { passive: false });
+  on('obText', () => { textVer++; });
+  const showOb = () => { $('#obRadioStatus').textContent = onboardStatus(); };
+  on('obStatus', showOb);
+  showOb();
   $('#radioList').addEventListener('click', (e) => {
-    const li = e.target.closest('li.rd-line');
+    const li = e.target.closest('li.rd-line:not(.ob)');
     if (li) playRadio(li.dataset.url);
   });
   $('#radioSpeed').addEventListener('click', () => {

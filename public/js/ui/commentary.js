@@ -80,7 +80,7 @@ function iso(code) {
   return ALIASES[c] || c;
 }
 
-function loadShaka() {
+export function loadShaka() {
   if (window.shaka) return Promise.resolve(window.shaka);
   shakaLoading ||= new Promise((resolve, reject) => {
     const s = document.createElement('script');
@@ -92,7 +92,7 @@ function loadShaka() {
   return shakaLoading;
 }
 
-const proxied = (u) => `/api/f1tv/proxy?u=${encodeURIComponent(u)}`;
+export const proxied = (u) => `/api/f1tv/proxy?u=${encodeURIComponent(u)}`;
 
 function sessionKeys() {
   const info = store.state.SessionInfo;

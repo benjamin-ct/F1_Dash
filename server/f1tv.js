@@ -51,19 +51,30 @@ export async function findSessionContent(meetingKey, sessionKey) {
   return { content: { ...content, ...details } };
 }
 
+// Canaux avec commentaires / son : flux international et émission « F1 Live »
+function channelsOf(md) {
+  return (md.additionalStreams || [])
+    .filter((s) => s.type !== 'obc' && ['INTERNATIONAL', 'F1 LIVE'].includes(String(s.title).toUpperCase()))
+    .map((s) => ({ channelId: s.channelId, title: s.title, main: /contentId=\d+$/.test(s.playbackUrl || '') && !/channelId/.test(s.playbackUrl || '') }));
+}
+
+// Caméras embarquées (une par pilote) : leur son contient les radios du pilote
+function onboardsOf(md) {
+  return (md.additionalStreams || [])
+    .filter((s) => s.type === 'obc' && s.channelId && s.racingNumber !== undefined && s.racingNumber !== null)
+    .map((s) => ({ channelId: s.channelId, num: String(s.racingNumber), tla: s.title || null, name: [s.driverFirstName, s.driverLastName].filter(Boolean).join(' ') || null }));
+}
+
 export async function contentDetails(contentId) {
   return cached(`content-${contentId}`, 60e3, async () => {
     const d = await getJSON(`${BASE}/3.0/R/ENG/WEB_DASH/ALL/CONTENT/VIDEO/${encodeURIComponent(contentId)}/F1_TV_Pro_Annual/14`, { headers: { 'User-Agent': UA } });
     const md = d?.resultObj?.containers?.[0]?.metadata || {};
-    const channels = (md.additionalStreams || [])
-      // Canaux avec commentaires / son : flux international et émission « F1 Live »
-      .filter((s) => s.type !== 'obc' && ['INTERNATIONAL', 'F1 LIVE'].includes(String(s.title).toUpperCase()))
-      .map((s) => ({ channelId: s.channelId, title: s.title, main: /contentId=\d+$/.test(s.playbackUrl || '') && !/channelId/.test(s.playbackUrl || '') }));
     return {
       title: md.title || null,
       live: md.contentSubtype === 'LIVE',
       languages: ['ENG', ...(md.availableLanguages || []).map((l) => l.languageCode)].filter((x, i, a) => x && a.indexOf(x) === i),
-      channels,
+      channels: channelsOf(md),
+      onboards: onboardsOf(md),
     };
   });
 }
@@ -180,4 +191,4 @@ export async function resolvePlaylist(target) {
   return m[1].trim();
 }
 
-export const _test = { containersOf, hostAllowed, onDomain, USER_AGENT };
+export const _test = { containersOf, hostAllowed, onDomain, USER_AGENT, channelsOf, onboardsOf };

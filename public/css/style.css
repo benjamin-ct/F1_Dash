@@ -923,6 +923,8 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .rd-orig { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 2px; }
 .rd-l-who { font-size: 12px; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
 .rd-line .pending { color: var(--muted); font-style: normal; }
+.rd-line.ob { cursor: default; }
+.rd-ob { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); vertical-align: 1px; }
 
 /* ---------- Panneau Analyse (race trace, positions, temps, pneus, secteurs) ---------- */
 .tabpane.ana-pane.active { display: flex; flex-direction: column; height: 100%; }

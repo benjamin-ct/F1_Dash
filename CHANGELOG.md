@@ -11,6 +11,7 @@ l'application (Réglages → Application → Nouveautés).
   - en haut, **une carte par radio** (plus récentes à gauche) : photo du pilote, nom, **tour** et heure, durée, point bleu tant qu'elle n'a pas été écoutée. Un clic la joue, avec une barre de progression dans la carte ;
   - en dessous, le **fil des radios retranscrites** : photo, texte traduit en grand, anglais d'origine en petit, « pilote · tour · heure ». Un clic rejoue la radio.
 - Vitesse de lecture réglable (1× à 2×) ; la lecture automatique des nouvelles radios est toujours là (« Lecture auto »).
+- **Toutes les radios, pas seulement celles publiées par la F1 (expérimental, F1 TV Pro)** : la F1 ne publie qu'une sélection des radios (une trentaine par course). Avec la case **Caméras embarquées**, F1 Dash écoute en direct le son de la caméra embarquée du pilote suivi et des pilotes du duel (ou de 3 favoris), y retrouve chaque radio, la retranscrit et la traduit sur cet ordinateur, et l'ajoute au fil (repère « caméra embarquée »), au rythme de votre délai TV : rien n'est dévoilé en avance. Séances en direct ; nécessite les caméras embarquées F1 TV (offre Pro, incluse avec certaines offres Canal+). Si le son embarqué est protégé (DRM), F1 Dash l'indique : il ne peut alors pas être retranscrit.
 
 ### Transcriptions et traductions
 - **La liste ne se recharge plus sans arrêt** : une traduction terminée ou le chargement d'un modèle ne met à jour que la ligne concernée (le défilement et l'écoute ne sont plus interrompus).
