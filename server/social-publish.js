@@ -209,8 +209,8 @@ async function publishTiktok(video, mime) {
 }
 
 // ---------- YouTube : connexion Google (PKCE, retour sur cet ordinateur) et Short envoyé en privé ----------
-// Projet Google non validé : YouTube garde en privé les vidéos envoyées par l'API. On les envoie donc
-// en privé, et le créateur les rend publiques dans YouTube Studio.
+// Projet Google sans audit de l'API YouTube : YouTube verrouille en privé les vidéos envoyées par l'API
+// (impossible de les rendre publiques). Après l'audit, le Short envoyé en privé se rend public dans YouTube Studio.
 async function googleOAuth(form) {
   const res = await fetch(GOOGLE_TOKEN, {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -306,7 +306,7 @@ async function publishYoutube(video, mime, text) {
   const res = await fetch(where, { method: 'PUT', headers: { 'Content-Type': mime, 'Content-Length': String(video.length) }, body: video, signal: AbortSignal.timeout(600000) });
   const v = await res.json().catch(() => ({}));
   if (!res.ok || !v.id) throw new Error(`Envoi de la vidéo refusé par YouTube (${v.error?.message || `HTTP ${res.status}`})`);
-  return { url: `https://youtube.com/shorts/${v.id}`, id: v.id, note: 'Short envoyé en privé : rendez-le public dans YouTube Studio' };
+  return { url: `https://youtube.com/shorts/${v.id}`, id: v.id, note: 'Short envoyé en privé (verrouillé par YouTube tant que votre projet Google n\'a pas passé l\'audit de l\'API YouTube)' };
 }
 
 // ---------- Publication ----------

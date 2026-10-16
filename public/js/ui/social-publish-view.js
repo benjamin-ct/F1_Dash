@@ -13,7 +13,7 @@ const NETS = [
   { id: 'x', name: 'X', what: '4 visuels au format X' },
   { id: 'bluesky', name: 'Bluesky', what: '4 visuels au format X (gratuit)' },
   { id: 'tiktok', name: 'TikTok', what: 'Vidéo en brouillon : vous ajoutez le son et publiez dans l\'appli TikTok' },
-  { id: 'youtube', name: 'YouTube Shorts', what: 'Vidéo envoyée en privé : vous la rendez publique dans YouTube Studio' },
+  { id: 'youtube', name: 'YouTube Shorts', what: 'Vidéo envoyée en privé, à rendre publique dans YouTube Studio (possible seulement après l\'audit YouTube de votre projet Google)' },
 ];
 const VIDEO_NETS = ['tiktok', 'youtube'];
 // Texte YouTube par défaut : titre = accroche du post, description = texte Instagram (sans l'accroche répétée)
@@ -60,7 +60,7 @@ export function bestHour(posts) {
 }
 const KEYS_NOTE = "Les clés restent sur cet ordinateur (fichier de configuration de l'application) et ne sont jamais incluses dans une sauvegarde des réglages.";
 const MUSIC_NOTE = "Pour une musique de votre choix, vérifiez que vous avez le droit de l'utiliser. Dans TikTok, vous pouvez aussi ajouter un son de la bibliothèque avant de publier.";
-const PUBLIC_NOTE = "Les posts seront publics (TikTok : brouillon à finir dans l'appli ; YouTube : Short privé, à rendre public dans YouTube Studio).";
+const PUBLIC_NOTE = "Les posts seront publics (TikTok : brouillon à finir dans l'appli ; YouTube : Short privé, verrouillé tant que votre projet Google n'a pas passé l'audit de l'API YouTube).";
 
 // ---------- Comptes ----------
 const HELP = {
@@ -85,7 +85,7 @@ const HELP = {
     'Identifiants (Clients) → Créer un client OAuth, type « Application de bureau » : copiez l\'ID client et le code secret du client.',
     'Collez-les ici, enregistrez, puis « Se connecter à YouTube » et choisissez votre chaîne. Google affiche « application non validée » : c\'est votre propre projet, continuez.',
     'En mode « Test », Google déconnecte au bout de 7 jours : pour éviter ça, publiez l\'application dans l\'écran de consentement (aucune validation nécessaire pour votre propre compte).',
-    'Les Shorts envoyés depuis un projet non validé restent privés : rendez-les publics dans YouTube Studio.'],
+    'Important : tant que votre projet Google n\'a pas passé l\'audit de l\'API YouTube, YouTube verrouille en privé les vidéos envoyées (impossible de les rendre publiques). Demande gratuite : support.google.com/youtube/contact/yt_api_form. Après l\'audit, les Shorts envoyés se rendent publics dans YouTube Studio.'],
 };
 const FIELDS = {
   x: [['apiKey', 'API Key'], ['apiSecret', 'API Key Secret'], ['accessToken', 'Access Token'], ['accessSecret', 'Access Token Secret']],
