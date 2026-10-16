@@ -16,6 +16,12 @@ fs.rmSync(OUT, { recursive: true, force: true });
 copy(path.join(ROOT, 'analytics', 'studio-page'), path.join(OUT, 'studio'));
 // Icônes (écran d'accueil du téléphone, notifications)
 for (const f of ['icon-512.png', 'apple-touch-icon.png']) fs.copyFileSync(path.join(ROOT, 'public', f), path.join(OUT, 'studio', f));
+// Icône et manifeste de la page des statistiques (écran d'accueil du téléphone)
+for (const f of ['icon-512.png', 'apple-touch-icon.png']) fs.copyFileSync(path.join(ROOT, 'public', f), path.join(OUT, f));
+fs.writeFileSync(path.join(OUT, 'stats.webmanifest'), JSON.stringify({
+  name: 'Statistiques · Paddock Live', short_name: 'Statistiques', start_url: '/stats', scope: '/', display: 'standalone',
+  background_color: '#07080A', theme_color: '#07080A', lang: 'fr', icons: [{ src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }],
+}, null, 2));
 copy(path.join(ROOT, 'shared'), path.join(OUT, 'shared'), (f) => f.endsWith('.js'));
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps

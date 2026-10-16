@@ -18,7 +18,8 @@ a{color:inherit}button,input{font:inherit;color:inherit}
 `;
 
 const page = (title, body, nonce, extraCss = '', script = '') => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
-<title>${esc(title)}</title><link rel="icon" href="${FAVICON}"><style>${CSS}${extraCss}</style></head><body>${body}${script ? `<script nonce="${nonce}">${script}</script>` : ''}</body></html>`;
+<title>${esc(title)}</title><link rel="icon" href="${FAVICON}">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/stats.webmanifest"><meta name="apple-mobile-web-app-title" content="Statistiques"><meta name="theme-color" content="#07080A"><style>${CSS}${extraCss}</style></head><body>${body}${script ? `<script nonce="${nonce}">${script}</script>` : ''}</body></html>`;
 
 export function loginPage({ error = '', nonce }) {
   const css = `
