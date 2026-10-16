@@ -9,6 +9,7 @@ workers_dev = true
 # par scripts/build-studio.mjs avant le déploiement (dossier généré, non suivi par git)
 [assets]
 directory = "./site"
+binding = "ASSETS"
 
 [[d1_databases]]
 binding = "DB"

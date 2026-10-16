@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { download, FILES } from '../analytics/download.js';
+
+const names = ['Paddock-Live-1.27.19-x64-win.exe', 'Paddock-Live-1.27.19-portable.exe', 'Paddock-Live-1.27.19-mac-arm64.dmg', 'Paddock-Live-1.27.19-mac-arm64.zip', 'Paddock-Live-1.27.19-mac-x64.dmg', 'Paddock-Live-1.27.19-linux-x86_64.AppImage', 'Paddock-Live-1.27.19-linux-arm64.AppImage', 'Paddock-Live-1.27.19-linux-amd64.deb'];
+const gh = async () => ({ ok: true, json: async () => ({ tag_name: 'v1.27.19', assets: names.map((name) => ({ name, browser_download_url: `https://github.com/x/releases/download/v1.27.19/${name}` })) }) });
+
+test('téléchargement : chaque système mène au bon fichier de la dernière version', async () => {
+  for (const [os, file] of [['windows', 'x64-win.exe'], ['windows-portable', 'portable.exe'], ['mac-arm', 'mac-arm64.dmg'], ['mac-intel', 'mac-x64.dmg'], ['linux', 'x86_64.AppImage'], ['linux-arm', 'arm64.AppImage'], ['deb', 'amd64.deb']]) {
+    const r = await download(`/download/${os}`, { fetchFn: gh, now: 1 });
+    assert.equal(r.status, 302);
+    assert.ok(r.headers.get('Location').endsWith(file), os);
+  }
+  assert.equal(Object.keys(FILES).length, 7);
+  const j = await (await download('/download/latest.json', { fetchFn: gh, now: 2 })).json();
+  assert.equal(j.version, '1.27.19');
+  assert.equal(j.files.windows, 'Paddock-Live-1.27.19-x64-win.exe');
+  // Système inconnu : page des versions
+  assert.match((await download('/download/amiga', { fetchFn: gh, now: 3 })).headers.get('Location'), /releases\/latest$/);
+});
