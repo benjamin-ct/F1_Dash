@@ -790,7 +790,8 @@ function question(ctx, W, H, d, o) {
   const q = questionFor(d);
   const main = q.replace(/\s*(Dites-le|Donnez les vôtres) en commentaire\.$/, '').replace(/\s*Votre (avis|pronostic) en commentaire\.$/, '') || q;
   // Bloc centré entre l'en-tête et le pied : titre, question, pastille
-  const r = fitLines(ctx, main, land ? W * 0.6 : colW, [64, 58, 52, 46].map((v) => Math.round(v * u)), 4, TITLE, 800);
+  // Mesurée telle qu'affichée (majuscules, lettres espacées) : jamais coupée sur le bord
+  const r = fitLines(ctx, main.toUpperCase(), (land ? W * 0.6 : colW) - 40 * u, [64, 58, 52, 46, 40].map((v) => Math.round(v * u)), 4, TITLE, 800);
   const bigS = Math.round(170 * u);
   const hs = Math.round(44 * u);
   const block = bigS * 0.88 + 70 * u + r.lines.length * r.size * 1.15 + 60 * u + hs * 1.8;
