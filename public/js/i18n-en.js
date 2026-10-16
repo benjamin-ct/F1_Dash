@@ -1743,6 +1743,7 @@ export default {
   "Publié": "Published",
   "Envoyé": "Sent",
   "Envoi…": "Sending…",
+  "Envoi… {} s": "Sending… {} s",
   "Publier…": "Publish…",
   "Enregistrement vidéo indisponible dans ce navigateur": "Video recording unavailable in this browser",
   "Visuels en préparation, réessayez dans un instant": "Images being prepared, try again in a moment",

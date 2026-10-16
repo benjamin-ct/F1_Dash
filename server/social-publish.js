@@ -115,41 +115,80 @@ async function publishX(text, images) {
 }
 
 // ---------- Meta : images déposées (non publiées) sur la page Facebook ----------
-// Instagram et Threads vont chercher les images à une adresse publique : celle de la page.
-async function hostOnPage(images) {
+// Instagram et Threads vont chercher les images à une adresse publique : celle de la page. Une image
+// déposée sert une heure à tous les réseaux de la même publication (pas de nouvel envoi).
+export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3 };
+const HOST_TTL = 60 * 60e3;
+const hostedCache = new Map();   // empreinte de l'image + page -> { id, url, at }
+
+// Tâches en parallèle (au plus `n` à la fois), résultats dans l'ordre
+async function mapLimit(list, n, fn) {
+  const out = new Array(list.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(n, list.length) }, async () => {
+    while (next < list.length) { const i = next++; out[i] = await fn(list[i], i); }
+  }));
+  return out;
+}
+
+async function hostOne(img, m, fresh) {
+  const key = crypto.createHash('sha256').update(img).update(m.pageId).digest('hex');
+  const hit = hostedCache.get(key);
+  if (!fresh && hit && Date.now() - hit.at < HOST_TTL) return hit;
+  const form = new FormData();
+  form.append('source', new Blob([img], { type: 'image/png' }), 'image.png');
+  form.append('published', 'false');
+  form.append('access_token', m.pageToken);
+  const r = await call(`${GRAPH}/${m.pageId}/photos`, { method: 'POST', form });
+  const info = await call(`${GRAPH}/${r.id}?${new URLSearchParams({ fields: 'images', access_token: m.pageToken })}`);
+  const best = (info.images || []).sort((a, b) => b.width - a.width)[0];
+  if (!best?.source) throw new Error('Image déposée sur la page Facebook sans adresse publique');
+  const h = { id: r.id, url: best.source, at: Date.now() };
+  hostedCache.set(key, h);
+  for (const [k, v] of hostedCache) if (Date.now() - v.at >= HOST_TTL) hostedCache.delete(k);
+  return h;
+}
+
+// fresh : nouvel envoi obligatoire (une photo déjà jointe à un post Facebook ne peut pas l'être à un autre)
+async function hostOnPage(images, { fresh = false } = {}) {
   const m = conf().meta;
   if (!m?.pageToken) throw new Error('Page Facebook non connectée (nécessaire aussi pour Instagram et Threads)');
-  const out = [];
-  for (const img of images) {
-    const form = new FormData();
-    form.append('source', new Blob([img], { type: 'image/png' }), 'image.png');
-    form.append('published', 'false');
-    form.append('access_token', m.pageToken);
-    const r = await call(`${GRAPH}/${m.pageId}/photos`, { method: 'POST', form });
-    const info = await call(`${GRAPH}/${r.id}?${new URLSearchParams({ fields: 'images', access_token: m.pageToken })}`);
-    const best = (info.images || []).sort((a, b) => b.width - a.width)[0];
-    out.push({ id: r.id, url: best?.source });
-  }
-  return out;
+  return mapLimit(images, 3, (img) => hostOne(img, m, fresh));
 }
 
 async function publishFacebook(text, images) {
   const m = conf().meta;
-  const hosted = await hostOnPage(images);
+  const hosted = await hostOnPage(images, { fresh: true });
   const form = { message: text, access_token: m.pageToken };
   hosted.forEach((h, i) => { form[`attached_media[${i}]`] = JSON.stringify({ media_fbid: h.id }); });
   const r = await call(`${GRAPH}/${m.pageId}/feed`, { method: 'POST', form });
   return { url: `https://www.facebook.com/${r.id}` };
 }
 
-async function ready(url, field, ok, fail) {
-  for (let i = 0; i < 30; i++) {
+// Conteneur prêt : le réseau a fini de récupérer et de préparer l'image (sinon le carrousel ou la
+// publication sont refusés). Statut relu toutes les 1,5 à 5 secondes, 4 minutes au plus.
+async function ready(url, field, what) {
+  const t0 = Date.now();
+  for (let i = 0; ; i++) {
     const s = await call(url);
-    if (ok.includes(s[field])) return;
-    if (fail.includes(s[field])) throw new Error(`Traitement refusé (${s[field]}${s.error_message ? ` : ${s.error_message}` : ''})`);
-    await wait(2000);
+    const v = s[field];
+    if (v === 'FINISHED' || v === 'PUBLISHED') return;
+    if (v === 'ERROR' || v === 'EXPIRED') {
+      const detail = s.error_message || (typeof s.status === 'string' && s.status !== v ? s.status : '');
+      throw new Error(`${what} refusé${detail ? ` : ${detail}` : ` (${v})`}`.slice(0, 300));
+    }
+    if (Date.now() - t0 >= timing.readyMs) throw new Error(`${what} : préparation trop longue, réessayez dans quelques minutes`);
+    await wait(Math.min(timing.poll * (i + 1), timing.maxPoll));
   }
-  throw new Error('Traitement trop long');
+}
+
+// Carrousel : images préparées en parallèle, chacune attendue, puis le carrousel lui-même
+async function carousel(hosted, makeItem, status, field) {
+  const kids = await mapLimit(hosted, 3, async (h, i) => {
+    try { return (await makeItem(h)).id; } catch (err) { throw new Error(`Image ${i + 1} : ${err.message}`); }
+  });
+  await Promise.all(kids.map((id, i) => ready(status(id), field, `Image ${i + 1}`)));
+  return kids;
 }
 
 async function publishInstagram(text, images) {
@@ -157,15 +196,16 @@ async function publishInstagram(text, images) {
   if (!m?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
   const hosted = await hostOnPage(images.slice(0, 10));
   const tok = { access_token: m.pageToken };
+  const status = (id) => `${GRAPH}/${id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`;
+  const media = (form) => call(`${GRAPH}/${m.igId}/media`, { method: 'POST', form: { ...form, ...tok } });
   let creation;
   if (hosted.length === 1) {
-    creation = (await call(`${GRAPH}/${m.igId}/media`, { method: 'POST', form: { image_url: hosted[0].url, caption: text, ...tok } })).id;
+    creation = (await media({ image_url: hosted[0].url, caption: text })).id;
   } else {
-    const kids = [];
-    for (const h of hosted) kids.push((await call(`${GRAPH}/${m.igId}/media`, { method: 'POST', form: { image_url: h.url, is_carousel_item: 'true', ...tok } })).id);
-    creation = (await call(`${GRAPH}/${m.igId}/media`, { method: 'POST', form: { media_type: 'CAROUSEL', children: kids.join(','), caption: text, ...tok } })).id;
+    const kids = await carousel(hosted, (h) => media({ image_url: h.url, is_carousel_item: 'true' }), status, 'status_code');
+    creation = (await media({ media_type: 'CAROUSEL', children: kids.join(','), caption: text })).id;
   }
-  await ready(`${GRAPH}/${creation}?${new URLSearchParams({ fields: 'status_code', ...tok })}`, 'status_code', ['FINISHED'], ['ERROR', 'EXPIRED']);
+  await ready(status(creation), 'status_code', 'Post');
   const pub = await call(`${GRAPH}/${m.igId}/media_publish`, { method: 'POST', form: { creation_id: creation, ...tok } });
   const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
   return { url: link.permalink || `https://www.instagram.com/${m.igUsername || ''}` };
@@ -190,15 +230,16 @@ async function publishThreads(text, images) {
   const token = await threadsToken();
   const hosted = await hostOnPage(images.slice(0, 20));
   const base = `${THREADS}/${t.userId}`;
+  const status = (id) => `${THREADS}/${id}?${new URLSearchParams({ fields: 'status,error_message', access_token: token })}`;
+  const container = (form) => call(`${base}/threads`, { method: 'POST', form: { ...form, access_token: token } });
   let creation;
   if (hosted.length === 1) {
-    creation = (await call(`${base}/threads`, { method: 'POST', form: { media_type: 'IMAGE', image_url: hosted[0].url, text, access_token: token } })).id;
+    creation = (await container({ media_type: 'IMAGE', image_url: hosted[0].url, text })).id;
   } else {
-    const kids = [];
-    for (const h of hosted) kids.push((await call(`${base}/threads`, { method: 'POST', form: { media_type: 'IMAGE', image_url: h.url, is_carousel_item: 'true', access_token: token } })).id);
-    creation = (await call(`${base}/threads`, { method: 'POST', form: { media_type: 'CAROUSEL', children: kids.join(','), text, access_token: token } })).id;
+    const kids = await carousel(hosted, (h) => container({ media_type: 'IMAGE', image_url: h.url, is_carousel_item: 'true' }), status, 'status');
+    creation = (await container({ media_type: 'CAROUSEL', children: kids.join(','), text })).id;
   }
-  await ready(`${THREADS}/${creation}?${new URLSearchParams({ fields: 'status,error_message', access_token: token })}`, 'status', ['FINISHED'], ['ERROR', 'EXPIRED']);
+  await ready(status(creation), 'status', 'Post');
   const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: creation, access_token: token } });
   const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: token })}`).catch(() => ({}));
   return { url: link.permalink || `https://www.threads.net/@${t.username || ''}` };

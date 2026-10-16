@@ -180,6 +180,9 @@ export async function openPublish({ d, caps, render, folder }) {
         for (const n of nets) {
           const st = $(`[data-st="${n}"]`, dlg);
           st.className = 'posts-st small'; st.textContent = t('Envoi…');
+          // Temps écoulé : Instagram et Threads préparent chaque image avant de publier (jusqu'à quelques minutes)
+          const t0 = Date.now();
+          const tick = setInterval(() => { st.textContent = t('Envoi… {} s', Math.round((Date.now() - t0) / 1000)); }, 1000);
           try {
             let body;
             if (n === 'tiktok') {
@@ -198,6 +201,8 @@ export async function openPublish({ d, caps, render, folder }) {
           } catch (err) {
             st.className = 'posts-st small err';
             st.textContent = err.message;
+          } finally {
+            clearInterval(tick);
           }
         }
         btn.disabled = false;
