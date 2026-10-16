@@ -36,6 +36,8 @@ function names(title) {
 // Types incompatibles seulement s'ils sont tous deux précis (pénalité et transfert d'un même pilote)
 const GENERIC = new Set(['actu', 'officiel']);
 const kindsMatch = (a, b) => { const x = newsKind(a).key; const y = newsKind(b).key; return x === y || GENERIC.has(x) || GENERIC.has(y); };
+// Même sujet pour deux nouvelles quelconques (noms propres calculés ici)
+export const sameStoryOf = (a, b) => sameStory({ ...a, _names: names(a.title) }, { ...b, _names: names(b.title) });
 const sameStory = (a, b) => kindsMatch(a, b) && Math.abs(a.t - b.t) < 30 * 3600e3
   && ([...a._names].some((w) => b._names.has(w)) || newsSimilarity(a, b) >= 0.3);
 

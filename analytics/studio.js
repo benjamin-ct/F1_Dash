@@ -9,6 +9,7 @@
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
+import { addEntry } from '../shared/post-history.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -204,7 +205,7 @@ async function publish(req, env, raw, vault) {
         const th = (await refresh(env, raw, vault)).threads;
         r = await withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images), comment, (id, t) => replyThreads(th, id, t));
       }
-      await line({ done: true, url: r.url || null, comment: !!r.comment, commentError: r.commentError || null });
+      await line({ done: true, url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null });
     } catch (err) {
       await line({ error: String(err?.message || err).slice(0, 300) });
     } finally {
@@ -255,6 +256,18 @@ export async function studioApi(req, env, url) {
       threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, bluesky: vault.bluesky ? `@${vault.bluesky.handle}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
+  }
+  // Journal des publications (partagé avec l'appli)
+  if (path === 'history') {
+    const list = JSON.parse(await getRow(env, 'history') || '[]');
+    if (req.method === 'GET') return json({ items: list });
+    if (req.method === 'POST') {
+      let body;
+      try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+      const next = addEntry(list, body?.entry);
+      await setRow(env, 'history', JSON.stringify(next));
+      return json({ items: next });
+    }
   }
   if (path === 'feed' && req.method === 'GET') return feed(req, url);
   if (path === 'archive' && req.method === 'GET') return archive(req, url, await refresh(env, a.raw, vault));

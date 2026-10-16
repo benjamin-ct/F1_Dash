@@ -30,6 +30,7 @@ import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights }
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
 import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync } from './studio-sync.js';
+import { postHistory, recordPost } from './post-history.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
@@ -325,11 +326,15 @@ async function handleApi(req, res, url) {
     case 'POST /api/social/tiktok/login':
     case 'POST /api/social/publish':
     case 'GET /api/social/studio':
-    case 'POST /api/social/studio': {
+    case 'POST /api/social/studio':
+    case 'GET /api/social/history':
+    case 'POST /api/social/history': {
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
         if (route === 'GET /api/social/accounts') return sendJSON(res, 200, accountsInfo());
         if (route === 'GET /api/social/studio') return sendJSON(res, 200, studioInfo());
+        if (route === 'GET /api/social/history') return sendJSON(res, 200, { items: await postHistory() });
+        if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
         if (route === 'POST /api/social/studio') {
           const b = await readBody(req, 1e4);
           return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));

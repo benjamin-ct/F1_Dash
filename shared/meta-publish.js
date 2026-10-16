@@ -126,7 +126,7 @@ export async function publishInstagram(meta, text, images) {
   await ready(status(creation), 'status_code', 'Post');
   const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: creation, ...tok } });
   const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
-  return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}` };
+  return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id };
 }
 
 // Jeton Threads de 60 jours : prolongé quand il reste moins de 10 jours. Renvoie le compte à jour

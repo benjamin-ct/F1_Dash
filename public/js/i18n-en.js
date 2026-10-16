@@ -1540,6 +1540,8 @@ export default {
   "utilisation de l'échappatoire": "use of the escape road",
   "Vainqueur": "Winner",
   "Couverture": "Cover",
+  "Publiée": "Posted",
+  "Déjà publiée le {} sur {}": "Already posted on {} to {}",
   "4 visuels au format X (gratuit)": "4 images in X format (free)",
   "Gratuit : dans Bluesky, Paramètres → Confidentialité et sécurité → Mots de passe d'application → « Ajouter un mot de passe d'application ».": "Free: in Bluesky, Settings → Privacy and security → App passwords → “Add app password”.",
   "Collez ici votre identifiant (ex. benjypaddock.bsky.social) et ce mot de passe d'application (jamais votre mot de passe principal).": "Paste your handle here (e.g. benjypaddock.bsky.social) and this app password (never your main password).",

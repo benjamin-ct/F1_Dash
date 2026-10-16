@@ -9,6 +9,7 @@ import { slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
 import { merge } from '/shared/merge.js';
 import { gpNameFr } from '/shared/summary.js';
 import { FLAG_ISO } from '/shared/flags.js';
+import { postedEntry } from '/shared/post-history.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -157,14 +158,16 @@ async function newsTab(body) {
   body.innerHTML = '<p class="muted">Lecture des sources d\'actu…</p>';
   news ||= await loadNews();
   const list = bigNews(news, { all: state.all }).slice(0, 40);
+  const history = (await api('history').catch(() => ({}))).items || [];
+  const posted = list.map((it) => postedEntry(it, history));
   const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
   body.innerHTML = `<div class="row"><label class="check"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}> Toutes les actus (48 h)</label><span class="spacer"></span><button id="reload">Actualiser</button></div>
     ${list.length ? '' : '<p class="muted">Aucune grosse news ces dernières 48 heures.</p>'}
-    <div class="list">${list.map((it, i) => { const k = newsKind(it); return `<button class="card" data-i="${i}"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>
+    <div class="list">${list.map((it, i) => { const k = newsKind(it); return `<button class="card" data-i="${i}"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${posted[i] ? ' <span class="badge" style="background:#8E97A6">PUBLIÉE ✓</span>' : ''}
       <div class="t">${esc(titles[i] || it.title)}</div><div class="small muted">${esc(it.srcName)} · il y a ${ago(it.t)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>`; }).join('')}</div>`;
   $('#all').onchange = (e) => { state.all = e.target.checked; newsTab(body); };
   $('#reload').onclick = () => { news = null; newsTab(body); };
-  body.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => newsEditor(list[Number(b.dataset.i)]); });
+  body.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => newsEditor(list[Number(b.dataset.i)], posted[Number(b.dataset.i)]); });
 }
 
 async function latestDrivers() {
@@ -177,7 +180,9 @@ async function latestDrivers() {
   return lastDrivers;
 }
 
-async function newsEditor(it) {
+const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok' };
+
+async function newsEditor(it, done = null) {
   const [title, summary] = await toFrench([{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]);
   const failed = title === null || summary === null;
   const make = async (t, s) => newsPost(it, { title: t, summary: s, driverList: await latestDrivers(), sourceName: it.srcName });
@@ -185,6 +190,7 @@ async function newsEditor(it) {
   editor({
     back: () => home(),
     head: `<span class="badge" style="background:${d.badge.color}">${esc(d.badge.label)}</span>
+      ${done ? `<p class="note">✓ Déjà publiée le ${esc(new Date(done.at).toLocaleString('fr-FR'))} sur ${esc(Object.keys(done.nets).map((n) => NET_NAMES[n] || n).join(', '))}</p>` : ''}
       <p class="small muted">${esc(it.srcName)} · il y a ${ago(it.t)} · <a class="muted" href="${esc(it.link)}" target="_blank" rel="noopener">lire l'article</a></p>
       <label>Titre</label><input type="text" id="ntitle" maxlength="160" value="${esc(d.title)}">
       <label>Résumé</label><textarea id="nsum" rows="4" maxlength="400">${esc(d.summary)}</textarea>
@@ -192,6 +198,7 @@ async function newsEditor(it) {
       <p class="note">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
     data: () => d,
     caps: () => newsCaptions(d, SIG, { linkInComment: state.linkComment }),
+    record: () => ({ key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) }),
     bind: (redraw) => {
       let tm = null;
       const upd = () => { clearTimeout(tm); tm = setTimeout(async () => { d = await make($('#ntitle').value, $('#nsum').value); redraw(true); }, 400); };
@@ -275,12 +282,13 @@ async function sessionEditor(s, btn) {
       <label class="check"><input type="checkbox" id="nospoil" ${state.noSpoiler ? 'checked' : ''}> Texte sans spoiler (vainqueur absent du début du texte)</label>`,
     data: () => d,
     caps: () => captions(d, SIG, { spoiler: !state.noSpoiler }),
+    record: () => ({ key: `session:${s.path}`, kind: 'session', title: `${SESSION_FR(s.name)} · ${d.gp}` }),
     bind: (redraw) => { $('#nospoil').onchange = (e) => { state.noSpoiler = e.target.checked; redraw(true); }; },
   });
 }
 
 // ---------- Éditeur : visuels, textes, publication, partage ----------
-function editor({ back, head, data, caps, bind }) {
+function editor({ back, head, data, caps, bind, record }) {
   let canvases = [];
   let edited = {};   // textes retouchés à la main : gardés en changeant de format
   app.innerHTML = `<div class="top"><button id="back">← Retour</button><span class="spacer"></span>
@@ -311,7 +319,7 @@ function editor({ back, head, data, caps, bind }) {
     const o = await assets(d);
     canvases = [...main.querySelectorAll('canvas')];
     for (const cv of canvases) drawSlide(cv, cv.dataset.slide, state.fmt, d, o);
-    $('#go').onclick = () => publishAll(d, o, slides);
+    $('#go').onclick = () => publishAll(d, o, slides, record?.());
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     $('#dl').onclick = () => download(canvases, d);
     if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText($('#cap-comment').value); $('#copycomment').textContent = 'Copié ✓'; } catch { /* presse-papiers refusé */ } };
@@ -345,7 +353,7 @@ async function download(canvases) {
 }
 
 // Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
-async function publishAll(d, o, slides) {
+async function publishAll(d, o, slides, record = null) {
   const nets = [...app.querySelectorAll('[data-net]:checked')].map((i) => i.dataset.net);
   if (!nets.length) { alert('Cochez au moins un réseau'); return; }
   const names = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky' };
@@ -387,6 +395,7 @@ async function publishAll(d, o, slides) {
       }
       if (!result) throw new Error('Réponse interrompue : vérifiez sur le réseau avant de réessayer');
       st.className = 'st ok';
+      if (record) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
       st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ✓</a>` : 'Publié ✓')
         + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '');
     } catch (err) {

@@ -10,6 +10,7 @@ import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
 import { FORMATS, slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
 import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
+import { postedEntry } from '/shared/post-history.js';
 import { openPublish } from './social-publish-view.js';
 
 const SIG_KEY = 'paddock.postSignature';
@@ -65,6 +66,16 @@ let newsCache = null;
 const frCache = new Map();
 const edits = new Map();   // id -> { title, summary } corrigés à la main
 
+let histCache = null;
+async function postHistory(force = false) {
+  if (force || !histCache || Date.now() - histCache.at > 60e3) {
+    const r = await fetch('/api/social/history').then((x) => x.json()).catch(() => ({}));
+    histCache = { items: r.items || [], at: Date.now() };
+  }
+  return histCache.items;
+}
+const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok' };
+
 async function newsList() {
   if (!newsCache || Date.now() - newsCache.at > 60e3) {
     const r = await fetch('/api/news').then((x) => x.json());
@@ -90,8 +101,10 @@ async function newsSource(sig) {
   const data = await newsList();
   const list = bigNews(data.items, { all: newsAll }).slice(0, 40);
   const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
+  const history = await postHistory();
+  const posted = list.map((it) => postedEntry(it, history));
   const bar = (sel) => `<div class="row posts-news-bar">
-      <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
+      <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${posted[i] ? `✓ ${esc(t('Publiée'))} · ` : ''}${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
       <label class="toggle small"><input type="checkbox" data-newsall ${newsAll ? 'checked' : ''}> ${t('Toutes les actus')}</label>
       ${sel?.link ? `<a class="btn small" href="${esc(sel.link)}" target="_blank" rel="noopener">${icon('external')} ${t("Lire l'article")}</a>` : ''}</div>`;
   if (!list.length) return { head: `${bar(null)}<p class="muted">${t('Aucune grosse news ces dernières 48 heures : cochez « Toutes les actus » pour en choisir une autre.')}</p>` };
@@ -101,14 +114,17 @@ async function newsSource(sig) {
     : await toFrench([{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]);
   const failed = title === null || summary === null;
   const d = newsPost(it, { title: title ?? it.title, summary: summary ?? it.summary, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src });
+  const done = posted[list.indexOf(it)];
   const head = `${bar(it)}
+    ${done ? `<p class="posts-warn small">${icon('check')} ${esc(t('Déjà publiée le {} sur {}', new Date(done.at).toLocaleString(), Object.keys(done.nets).map((n) => NET_NAMES[n] || n).join(', ')))}</p>` : ''}
     <div class="posts-news-edit">
       <label class="small muted">${t('Titre')}<input type="text" data-ntitle maxlength="160" value="${esc(d.title)}"></label>
       <label class="small muted">${t('Résumé')}<textarea data-nsum rows="3" maxlength="400">${esc(d.summary)}</textarea></label>
       <label class="toggle small" title="${t("Facebook, Threads et X : le lien de l'article est publié en premier commentaire plutôt que dans le texte (Instagram : pas de lien)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
     </div>`;
-  return { d, caps: newsCaptions(d, sig, { linkInComment: linkComment }), head };
+  const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
+  return { d, caps: newsCaptions(d, sig, { linkInComment: linkComment }), head, record };
 }
 const fileOf = (i, slide) => `${FORMATS[fmt].name}-${i + 1}-${slide}`;
 
@@ -145,16 +161,17 @@ async function render(dlg, keepHead = false) {
   dlg.publish = null;
   const sig = storageGet(SIG_KEY, '@BenjyPaddock');
   const body = $('.posts-body', dlg);
-  let d; let caps; let head = '';
+  let d; let caps; let head = ''; let record = null;
   if (mode === 'news') {
     let r;
     try { r = await newsSource(sig); } catch (err) { r = { head: `<p class="muted">${esc(err.message)}</p>` }; }
     if (id !== renderId) return;
     if (!r.d) { body.innerHTML = r.head; return; }
-    ({ d, caps, head } = r);
+    ({ d, caps, head, record } = r);
   } else {
     d = postData(store.state);
     caps = captions(d, sig, { spoiler: !noSpoiler });
+    record = { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` };
     if (!d.final) head = `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`;
   }
   const slides = slidesFor(d);
@@ -177,7 +194,7 @@ async function render(dlg, keepHead = false) {
   const o = { ...(await assets(d)), signature: sig };
   if (id !== renderId) return;   // format ou réglage changé entre-temps
   // Publication : visuels de n'importe quel format, dessinés à part
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), render: async (f) => slides.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => slides.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
   const canvases = [...body.querySelectorAll('canvas')];
   for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
   const count = $('[data-count]', body);

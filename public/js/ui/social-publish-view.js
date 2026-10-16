@@ -152,7 +152,7 @@ async function accountsDialog(onChange) {
 }
 
 // ---------- Publication ----------
-export async function openPublish({ d, caps, render, folder }) {
+export async function openPublish({ d, caps, render, folder, record = null, onPosted = null }) {
   let dlg = $('#publishDlg');
   if (!dlg) {
     dlg = document.createElement('dialog');
@@ -249,6 +249,8 @@ export async function openPublish({ d, caps, render, folder }) {
             }
             const r = await api('/api/social/publish', body);
             st.className = 'posts-st small ok';
+            // Journal des publications (news marquées « publiée », statistiques)
+            if (record) api('/api/social/history', { entry: { ...record, at: Date.now(), nets: { [n]: { id: r.id ?? null, url: r.url || null } } } }).then(() => onPosted?.()).catch(() => {});
             st.innerHTML = (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${icon('check')} ${t('Publié')}</a>` : `${icon('check')} ${esc(t(r.note || 'Envoyé'))}`)
               + (r.comment ? ` · ${t('commentaire ajouté')}` : r.commentError ? ` <span class="posts-warn">· ${esc(t('commentaire refusé : {}', r.commentError))}</span>` : '');
           } catch (err) {
