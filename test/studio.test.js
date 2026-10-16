@@ -9,7 +9,7 @@ process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-st
 const CODE = 'ESSAI-42';
 const HASH = (await import('node:crypto')).createHash('sha256').update(`paddock-live:${CODE}`).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
-const { studioApi, freshF1tv } = await import('../analytics/studio.js');
+const { studioApi, freshF1tv, runSchedule } = await import('../analytics/studio.js');
 const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
 const { timing } = await import('../shared/meta-publish.js');
@@ -29,10 +29,15 @@ function fakeDB() {
           if (/FROM studio_fail/.test(sql)) return fails.has(`${args[0]}|${args[1]}`) ? { n: fails.get(`${args[0]}|${args[1]}`) } : null;
           throw new Error(`SQL inattendu : ${sql}`);
         },
+        async all() {
+          if (/^SELECT k, v FROM studio WHERE k LIKE \?$/.test(sql)) return { results: [...studio].filter(([k]) => k.startsWith(args[0].replace(/%$/, ''))).map(([k, v]) => ({ k, v })) };
+          throw new Error(`SQL inattendu : ${sql}`);
+        },
         async run() {
           if (/^INSERT INTO studio \(/.test(sql)) studio.set(args[0], args[1]);
           else if (/^INSERT INTO studio_fail/.test(sql)) fails.set(`${args[0]}|${args[1]}`, (fails.get(`${args[0]}|${args[1]}`) || 0) + 1);
           else if (/^DELETE FROM studio$/.test(sql)) studio.clear();
+          else if (/^DELETE FROM studio WHERE k LIKE \?$/.test(sql)) { for (const k of [...studio.keys()]) if (k.startsWith(args[0].replace(/%$/, ''))) studio.delete(k); }
           else throw new Error(`SQL inattendu : ${sql}`);
           return {};
         },
@@ -44,7 +49,7 @@ function fakeDB() {
 }
 globalThis.caches = { default: { match: async () => null, put: async () => {} } };
 
-const env = { DB: fakeDB(), STUDIO_CODE_HASH: HASH };
+const env = { DB: fakeDB(), STUDIO_CODE_HASH: HASH, STATS_KEY: 'secret-du-serveur' };
 const worker = (url, init) => studioApi(new Request(url, init), env, new URL(url));
 
 test('page du créateur : clé dérivée identique dans l\'appli et dans le navigateur (PBKDF2)', async () => {
@@ -204,4 +209,88 @@ test("page du créateur : relais des pages d'articles (résumé détaillé) en t
   } finally { globalThis.fetch = real; }
   assert.deepEqual(asked, ['https://www.formula1.com/en/latest/article/hamilton.1234']);
   assert.equal((await worker('https://s.test/studio/api/page?u=https%3A%2F%2Fwww.formula1.com%2Fa')).status, 401);
+});
+
+test('page du créateur : publication programmée, publiée par le serveur à l\'heure (un réseau par passage)', async () => {
+  saveConfig({ creator: true, social: { meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'moi' }, bluesky: { handle: 'moi.bsky.social', appPassword: 'mdp-app', did: 'did:plc:moi' } } });
+  const fetchFn = (url, init) => worker(url, init);
+  await enableStudio(CODE, { fetchFn });
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const at = Date.now() + 3600e3;
+  const jpeg = (n) => new Blob([new Uint8Array(n).fill(7).map((x, i) => (i < 3 ? [0xff, 0xd8, 0xff][i] : x))], { type: 'image/jpeg' });
+  const form = (o = {}) => {
+    const f = new FormData();
+    f.append('at', String(o.at ?? at));
+    f.append('title', 'Résultats');
+    f.append('record', JSON.stringify({ key: 'race-2026-18', kind: 'race', title: 'Résultats' }));
+    f.append('posts', JSON.stringify(o.posts ?? [{ network: 'facebook', text: 'Bonjour', comment: 'Lien' }, { network: 'bluesky', text: 'Salut' }]));
+    f.append('ig', jpeg(1.2e6), 'a.jpg');
+    f.append('ig', jpeg(10), 'b.jpg');
+    f.append('x', jpeg(10), 'c.jpg');
+    return f;
+  };
+  const add = async (o) => worker('https://s.test/studio/api/schedule', { method: 'POST', body: form(o), headers: key });
+  // Refus : date passée, réseau non connecté, sans la clé
+  assert.equal((await add({ at: Date.now() - 3600e3 })).status, 400);
+  assert.equal((await add({ posts: [{ network: 'threads', text: 'x' }] })).status, 409);
+  assert.equal((await worker('https://s.test/studio/api/schedule', { method: 'POST', body: form() })).status, 401);
+  const r = await add();
+  assert.equal(r.status, 200);
+  const { item } = await r.json();
+  assert.deepEqual(item.nets, { facebook: { status: 'pending' }, bluesky: { status: 'pending' } });
+  // Jetons chiffrés avec le secret du serveur : absents de la base en clair
+  const rows = [...env.DB.studio].filter(([k]) => k.startsWith('sched'));
+  assert.ok(rows.length >= 4);
+  for (const [, v] of rows) for (const sec of ['jeton-page', 'mdp-app']) assert.ok(!v.includes(sec));
+
+  const realFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = new URL(url);
+    calls.push(u.pathname);
+    const ok = (d) => new Response(JSON.stringify(d), { status: 200 });
+    if (u.pathname.endsWith('/photos')) return ok({ id: 'ph1' });
+    if (u.searchParams.get('fields') === 'images') return ok({ images: [{ width: 1080, source: 'https://cdn.test/a.jpg' }] });
+    if (u.pathname.endsWith('/feed')) return ok({ id: 'p1_43' });
+    if (u.pathname.endsWith('/comments')) return ok({ id: 'c1' });
+    if (u.pathname.endsWith('createSession')) return ok({ accessJwt: 'jwt', did: 'did:plc:moi' });
+    if (u.pathname.endsWith('uploadBlob')) return ok({ blob: { ref: 'b' } });
+    if (u.pathname.endsWith('createRecord')) return ok({ uri: 'at://did:plc:moi/app.bsky.feed.post/3k', cid: 'c' });
+    return new Response('{}', { status: 404 });
+  };
+  try {
+    // Pas encore l'heure : rien ne part
+    assert.equal(await runSchedule(env, { now: at - 60e3 }), null);
+    assert.equal(calls.length, 0);
+    // À l'heure : un réseau par passage
+    assert.deepEqual(await runSchedule(env, { now: at + 1 }), { published: 'facebook', id: item.id });
+    assert.ok(calls.some((c) => c.endsWith('/photos')));
+    assert.deepEqual(await runSchedule(env, { now: at + 60e3 }), { published: 'bluesky', id: item.id });
+    assert.equal(await runSchedule(env, { now: at + 120e3 }), null);
+    const list = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
+    assert.equal(list.items[0].nets.facebook.status, 'done');
+    assert.equal(list.items[0].nets.facebook.url, 'https://www.facebook.com/p1_43');
+    assert.equal(list.items[0].nets.facebook.comment, true);
+    assert.equal(list.items[0].nets.bluesky.status, 'done');
+    // Journal des publications complété, visuels et jetons effacés une fois publiés
+    const hist = await (await worker('https://s.test/studio/api/history', { headers: key })).json();
+    assert.equal(hist.items[0].key, 'race-2026-18');
+    assert.deepEqual(Object.keys(hist.items[0].nets).sort(), ['bluesky', 'facebook']);
+    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('schedimg:')).length, 0);
+    assert.equal(JSON.parse(env.DB.studio.get(`sched:${item.id}`)).keys, null);
+    // Une semaine plus tard : la trace disparaît
+    await runSchedule(env, { now: at + 8 * 86400e3 });
+    assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
+  } finally { globalThis.fetch = realFetch; }
+
+  // Annulation avant l'heure ; envoi trop en retard (serveur arrêté plus d'un jour) : abandonné
+  const j2 = (await (await add()).json()).item;
+  const after = await (await worker('https://s.test/studio/api/schedule/cancel', { method: 'POST', body: JSON.stringify({ id: j2.id }), headers: key })).json();
+  assert.equal(after.items.length, 0);
+  assert.equal([...env.DB.studio.keys()].filter((k) => k.startsWith('sched')).length, 0);
+  const j3 = (await (await add()).json()).item;
+  assert.equal(await runSchedule(env, { now: at + 2 * 86400e3 }), null);
+  const l3 = await (await worker('https://s.test/studio/api/schedule', { headers: key })).json();
+  assert.equal(l3.items.find((x) => x.id === j3.id).nets.facebook.status, 'expired');
+  await disableStudio({ fetchFn });
 });

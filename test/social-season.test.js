@@ -178,3 +178,30 @@ test('race week : tracé du circuit, couleurs du pays, vainqueur précédent, mi
   const nov = raceWeekData({ ...race, sessions: [{ label: 'EL1', t: '2026-10-30T18:30:00Z' }, { label: 'Course', t: '2026-11-01T20:00:00Z' }] }, { year: 2026 });
   assert.equal(nov.date, '30 octobre au 1er novembre 2026');
 });
+
+test('records du circuit : éditions lues dans les archives (commun à l\'appli et à la page du créateur)', async () => {
+  const { editionOf, recordsOf, recordYears, sessionBest } = await import('../shared/circuit-records.js');
+  assert.deepEqual(recordYears(2026), [2025, 2024, 2023, 2022]);
+  assert.deepEqual(recordYears(2019), [2018]);
+  assert.equal(sessionBest({ Lines: {} }), null);
+  const files = {
+    '2025/Index.json': { Meetings: [{ Name: 'Italian Grand Prix', Circuit: { Key: 39 }, Sessions: [
+      { Name: 'Sprint Qualifying', Type: 'Qualifying', Path: '2025/sq/' }, { Name: 'Qualifying', Type: 'Qualifying', Path: '2025/q/' }, { Name: 'Race', Type: 'Race', Path: '2025/r/' }] }] },
+    '2025/q/TimingData.json': { Lines: { 1: { BestLapTime: { Value: '1:18.792', Lap: 20 } }, 16: { BestLapTime: { Value: '1:18.900' } } } },
+    '2025/q/DriverList.json': { 1: { Tla: 'VER', TeamName: 'Red Bull Racing', TeamColour: '4781D7' } },
+    '2025/r/TimingData.json': { Lines: { 4: { BestLapTime: { Value: '1:20.901', Lap: 50 } } } },
+    '2024/Index.json': { Meetings: [{ Name: 'Monaco Grand Prix', Circuit: { Key: 22 }, Sessions: [{ Name: 'Race', Type: 'Race', Path: '2024/m/' }] }] },
+    '2023/Index.json': { Meetings: [{ Name: 'Italian Grand Prix', Circuit: { Key: 39 }, Sessions: [{ Name: 'Qualifying', Type: 'Qualifying', Path: '2023/q/' }, { Name: 'Race', Type: 'Race', Path: '2023/r/' }] }] },
+  };
+  const read = async (p) => { if (!files[p]) throw new Error('404'); return files[p]; };
+  const e25 = await editionOf(2025, 39, read);
+  assert.equal(e25.pole.tla, 'VER');
+  assert.equal(e25.pole.time, 78.792);
+  assert.equal(e25.fastest.tla, '4');            // pilote absent de la liste : numéro gardé
+  assert.equal(await editionOf(2024, 39, read), null);                 // pas au calendrier
+  assert.deepEqual(await editionOf(2023, 39, read), { pending: true }); // archive pas encore publiée
+  const rec = recordsOf(39, [e25, null, { pending: true }]);
+  assert.equal(rec.editions.length, 1);
+  assert.equal(rec.bestPole.year, 2025);
+  assert.equal(rec.bestRaceLap.time, 80.901);
+});

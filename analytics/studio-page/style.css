@@ -21,7 +21,7 @@ h1 b { color: var(--accent); }
 button, .btn { font: 600 14px 'Titillium Web', sans-serif; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 9px 14px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
 button:disabled { opacity: .5; cursor: default; }
 .accent { background: var(--accent); border-color: var(--accent); color: #fff; }
-input[type=text], input[type=password], textarea, select { width: 100%; font: 15px/1.4 'Titillium Web', sans-serif; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+input[type=text], input[type=password], input[type=datetime-local], textarea, select { width: 100%; font: 15px/1.4 'Titillium Web', sans-serif; background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
 textarea { resize: vertical; }
 label { display: block; margin: 10px 0 4px; font-size: 13px; color: var(--muted); }
 label.check { display: flex; gap: 8px; align-items: center; color: var(--text); font-size: 14px; margin: 6px 0; }
@@ -56,3 +56,8 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 .alerts { margin: 4px 0 10px; }
 .alerts .row { gap: 8px; align-items: center; }
 .alerts .err:empty { display: none; }
+h3 { font-size: 15px; margin: 18px 0 0; }
+.ok { color: var(--ok); }
+#schedbox { margin-top: 12px; }
+#schedbox .row input { flex: 1; min-width: 0; width: auto; }
+#schedlist a { color: var(--ok); }
