@@ -53,7 +53,7 @@ label.check { display: flex; gap: 8px; align-items: center; color: var(--text); 
 .sticky { position: sticky; bottom: 0; background: linear-gradient(transparent, var(--bg) 30%); padding: 14px 0 4px; }
 hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 #ptype { display: flex; flex-wrap: wrap; margin: 8px 0; }
-#ptype button { flex: 1; padding: 8px 4px; font-size: 14px; white-space: nowrap; }
+#ptype button { flex: 1; justify-content: center; text-align: center; padding: 8px 4px; font-size: 14px; white-space: nowrap; }
 [hidden] { display: none !important; }
 .seg button:disabled { opacity: .4; }
 #flashpick { margin-bottom: 8px; }
