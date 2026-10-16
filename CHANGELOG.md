@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.19 — à venir
+## v1.27.19 — 2026-10-16
 
 ### Actu
 - Nouvelles chaînes officielles : Scuderia Ferrari, Williams, Alpine et Cadillac pour les écuries ; Max Verstappen, Oscar Piastri, Esteban Ocon, Oliver Bearman, Checo Pérez, Liam Lawson et Arvid Lindblad pour les pilotes. Pour Ferrari et Alpine, seules les vidéos qui parlent de F1 sont gardées.
