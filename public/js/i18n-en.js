@@ -1975,4 +1975,8 @@ export default {
   "Texte YouTube Shorts (1re ligne = titre, 100 caractères max.)": "YouTube Shorts text (1st line = title, 100 characters max.)",
   "Vidéo TikTok / YouTube Shorts": "TikTok / YouTube Shorts video",
   "Short envoyé en privé (verrouillé par YouTube tant que votre projet Google n'a pas passé l'audit de l'API YouTube)": "Short uploaded as private (locked by YouTube until your Google project has passed the YouTube API audit)",
+  "Informations légales": "Legal information",
+  "Politique de confidentialité": "Privacy policy",
+  "Conditions d'utilisation": "Terms of use",
+  "Paddock Live est un projet indépendant, non affilié à la Formula 1, à la FIA ni aux équipes. F1 et FORMULA 1 sont des marques de Formula One Licensing B.V.": "Paddock Live is an independent project, not affiliated with Formula 1, the FIA or the teams. F1 and FORMULA 1 are trademarks of Formula One Licensing B.V.",
 };

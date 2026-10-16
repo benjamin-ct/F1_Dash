@@ -61,6 +61,7 @@ function fakeMeta({ errorOn = null } = {}) {
     }
     if (method === 'POST' && /(media_publish|threads_publish)$/.test(u.pathname)) return json({ id: 'pub1' });
     if (method === 'POST' && u.pathname.endsWith('/feed')) return json({ id: 'page_post' });
+    if (method === 'POST' && u.pathname.endsWith('/photo_stories')) return json({ success: true, post_id: `st${++n}` });
     if (u.searchParams.get('fields') === 'permalink') return json({ permalink: 'https://example.test/p/1' });
     return { ok: false, status: 404, text: async () => '{}' };
   };
@@ -101,6 +102,34 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('Stories Instagram et Facebook : une story par image, dans l\'ordre', async () => {
+  const realFetch = globalThis.fetch;
+  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
+  const { storyInstagram, storyFacebook } = await import('../shared/meta-publish.js');
+  const meta = { pageId: 'page9', pageToken: 'jp', igId: 'ig9', igUsername: 'moi' };
+  const imgs = [7, 8, 9].map((k) => new Blob([Buffer.from(PNG(k), 'base64')], { type: 'image/png' }));
+  try {
+    const { log } = fakeMeta();
+    const ig = await storyInstagram(meta, imgs);
+    assert.equal(ig.count, 3);
+    assert.equal(ig.url, 'https://www.instagram.com/stories/moi/');
+    const stories = log.filter((l) => l.form.media_type === 'STORIES');
+    assert.equal(stories.length, 3);
+    // Ordre gardé : 1re story = 1re image déposée
+    const hosted = log.filter((l) => l.path.endsWith('/photos')).length;
+    assert.equal(hosted, 3);
+    assert.equal(new Set(stories.map((l) => l.form.image_url)).size, 3);
+    assert.equal(log.filter((l) => l.path.endsWith('/media_publish')).length, 3);
+    log.length = 0;
+    const fb = await storyFacebook(meta, imgs);
+    assert.equal(fb.count, 3);
+    // Photos redéposées (non publiées), puis une story par photo
+    assert.equal(log.filter((l) => l.path.endsWith('/photos')).length, 3);
+    assert.equal(log.filter((l) => l.path.endsWith('/photo_stories')).length, 3);
+    assert.ok(log.filter((l) => l.path.endsWith('/photo_stories')).every((l) => /^ph\d+$/.test(l.form.photo_id)));
+  } finally { globalThis.fetch = realFetch; }
 });
 
 test('Threads et Instagram : image refusée par le réseau, message clair', async () => {

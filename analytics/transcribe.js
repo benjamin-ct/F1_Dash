@@ -45,7 +45,8 @@ async function whisper(env, bytes) {
 // Transcription déjà faite (par n'importe quel utilisateur), ou null
 export async function cachedRadio(env, hash) {
   const row = await env.DB.prepare('SELECT text, d FROM radio_texts WHERE k = ?1').bind(radioKey(hash)).first();
-  return row ? { text: row.text, d: row.d ?? undefined } : null;
+  // Texte nettoyé à nouveau : les transcriptions gardées avant un meilleur filtre en profitent
+  return row ? { text: clean(row.text), d: row.d ?? undefined } : null;
 }
 
 // Fichier son -> { text, d } (texte vide : radio sans parole), { limited } ou { invalid }

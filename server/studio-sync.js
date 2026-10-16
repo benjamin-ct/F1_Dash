@@ -1,5 +1,5 @@
 // Page web du créateur (/studio/ sur le serveur Paddock Live) : l'appli y envoie les comptes des
-// réseaux (Facebook, Instagram, Threads) et la connexion F1 TV, chiffrés avec une clé dérivée du
+// réseaux (Facebook, Instagram, Threads, Bluesky, TikTok, YouTube) et la connexion F1 TV, chiffrés avec une clé dérivée du
 // code du mode créateur, pour préparer et publier les posts depuis le téléphone, PC éteint.
 // Le code n'est envoyé qu'à l'activation (vérifié contre son empreinte) ; ensuite seule la clé sert,
 // gardée dans config.json comme les jetons eux-mêmes. Nouvel envoi automatique quand un jeton change.
@@ -12,7 +12,9 @@ const EVERY = 6 * 3600e3;
 
 export const studioKey = (code) => crypto.pbkdf2Sync(String(code).trim().toUpperCase(), 'paddock-live-studio', 200000, 32, 'sha256').toString('base64url');
 
-// Ce qui part sur le serveur : jetons des réseaux (sans clés secrètes d'app) et connexion F1 TV valide
+// Ce qui part sur le serveur : jetons des réseaux et connexion F1 TV valide. Clés secrètes d'app
+// seulement pour TikTok et YouTube : leur jeton (24 h, 1 h) ne se renouvelle qu'avec elles, et le
+// serveur envoie les vidéos du kit de lancement en brouillon même ordinateur éteint.
 export function studioVault(c = getConfig()) {
   const s = c.social || {};
   const f1tv = c.f1tvToken && !tokenInfo(c.f1tvToken).expired ? c.f1tvToken : null;
@@ -20,6 +22,8 @@ export function studioVault(c = getConfig()) {
     meta: s.meta?.pageToken ? { pageId: s.meta.pageId, pageName: s.meta.pageName, pageToken: s.meta.pageToken, igId: s.meta.igId, igUsername: s.meta.igUsername } : null,
     bluesky: s.bluesky?.appPassword ? { handle: s.bluesky.handle, appPassword: s.bluesky.appPassword, did: s.bluesky.did || '' } : null,
     threads: s.threads?.token ? { token: s.threads.token, userId: s.threads.userId, username: s.threads.username, expiresAt: s.threads.expiresAt || null } : null,
+    tiktok: s.tiktok?.refreshToken ? { clientKey: s.tiktok.clientKey, clientSecret: s.tiktok.clientSecret, accessToken: s.tiktok.accessToken || '', expiresAt: s.tiktok.expiresAt || 0, refreshToken: s.tiktok.refreshToken, openId: s.tiktok.openId || '', name: s.tiktok.name || '' } : null,
+    youtube: s.youtube?.refreshToken ? { clientId: s.youtube.clientId, clientSecret: s.youtube.clientSecret, accessToken: s.youtube.accessToken || '', expiresAt: s.youtube.expiresAt || 0, refreshToken: s.youtube.refreshToken, name: s.youtube.name || '' } : null,
     f1tv,
     f1tvOff: !c.f1tvToken,   // F1 TV déconnecté dans l'appli (et pas seulement expiré, appli fermée)
   };

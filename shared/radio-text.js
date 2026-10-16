@@ -1,6 +1,7 @@
 // Textes des radios d'équipe : nettoyage de la transcription, contrôle de la traduction rendue par
 // le modèle de langage, et corrections du jargon F1 que le petit modèle de traduction rend mot à mot.
 // (Utilisé par le moteur de transcription, public/js/workers/whisper.js.)
+import { chatty } from './translation-check.js';
 
 // Boucle de la reconnaissance vocale (ou de la traduction qui la recopie) : même groupe de 1 à 8
 // mots répété à la suite (« easier, easier, easier… », des dizaines de fois) gardé une seule fois.
@@ -29,11 +30,28 @@ export function collapseLoops(t) {
   return endsInLoop ? `${s.replace(/[\s,;:–—-]+$/, '')}${/[.!?…]$/.test(s) ? '' : '…'}` : s;
 }
 
+// Charabia de la reconnaissance vocale sur un son inaudible (bruit du moteur, radio hachée) :
+// caractère illisible (« � »), autre écriture que l'alphabet latin au milieu de l'anglais, « mots »
+// sans fin (« Goldmannutformificeyan »), ou même bout de texte répété avec des variantes.
+const NON_LATIN = /[Ѐ-ӿ֐-׿؀-ۿऀ-ॿ฀-๿぀-ヿ㐀-䶿一-鿿가-힯ｦ-ﾟ]/;
+export function garbled(t) {
+  const s = String(t || '');
+  if (!s.trim()) return false;
+  if (s.includes('\uFFFD') || NON_LATIN.test(s)) return true;
+  if ((s.match(/\p{L}{19,}/gu) || []).length) return true;
+  // Peu de variété : groupes de 4 caractères presque tous déjà vus (texte long seulement)
+  const c = s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  if (c.length < 80) return false;
+  const grams = new Set();
+  for (let i = 0; i + 4 <= c.length; i++) grams.add(c.slice(i, i + 4));
+  return grams.size / (c.length - 3) < 0.3;
+}
+
 // Texte reconnu : annotations retirées (« (bruit) », « [musique] »), boucles réduites ; un texte
-// sans aucun mot (« - », « ... » sur une radio sans parole audible) compte comme vide
+// sans aucun mot (« - », « ... » sur une radio sans parole audible) ou du charabia compte comme vide
 export const clean = (t) => {
   const s = collapseLoops(String(t || '').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').replace(/>>+/g, ' ').replace(/\s+/g, ' ').trim().replace(/^[-–—]+\s*/, ''));
-  return /[A-Za-z]{2}|\d/.test(s) ? s : '';
+  return /[A-Za-z]{2}|\d/.test(s) && !garbled(s) ? s : '';
 };
 
 export const words = (t) => (t.match(/[A-Za-z']+/g) || []).length;
@@ -45,11 +63,11 @@ export function tidy(reply) {
     .replace(/^["«»“”\s]+|["«»“”\s]+$/g, '').trim();
 }
 
-// Réponse inutilisable : vide, anglais recopié, ou bien plus longue que l'original (explication,
-// variantes…)
+// Réponse inutilisable : vide, anglais recopié, réponse au lieu d'une traduction, ou bien plus
+// longue que l'original (explication, variantes…)
 const norm = (t) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 export function badReply(out, text) {
-  if (!out) return true;
+  if (!out || chatty(out, text)) return true;
   if (norm(out) === norm(text) && words(text) > 2) return true;
   return out.length > text.length * 3 + 60;
 }

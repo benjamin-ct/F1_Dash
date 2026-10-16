@@ -61,3 +61,26 @@ test('radios : phrase répétée en boucle par la reconnaissance vocale ou la tr
   assert.equal(collapseLoops('Go, go, go, go, go! Push now'), 'Go, go, go, go, go! Push now');
   assert.equal(collapseLoops('Well done, Charles. Nicely driven race.'), 'Well done, Charles. Nicely driven race.');
 });
+
+test('radios : charabia de la reconnaissance vocale écarté, vraies radios gardées', async () => {
+  const { garbled, clean, badReply } = await import('../shared/radio-text.js');
+  const junk = [
+    'Moderateformificeyan gift Goldmannutformificeyan gift Goldmannutformifice Embassyyan Goldmannutformifice Embassy Updatedyannutformifice',
+    'inden�etti 198сля pestic�etti 198слсля pestic�etti 198сл...',
+    'mnie�biy shops denken�biy shops denken under under�iy shops denken',
+    'upgrad� 00chn bonds oneませ 00 bonds oneませ�� 00 bonds oneませ�ark 00',
+    'Attentionniejszeniejszeniejsze those thoseniejszeniejsze Heidiniejszeniejszeniejszeniejsze',
+  ];
+  for (const t of junk) { assert.equal(garbled(t), true, t); assert.equal(clean(t), ''); }
+  const real = [
+    'Box box, box box. Confirm you are boxing this lap.',
+    "Okay Max, Norris is 1.2 behind, he's on the softs. Keep pushing, we need to look after the rear tyres in the last sector.",
+    'Plan B, plan B. Strat 7. Lift and coast into turn 1, harvesting is a bit low.',
+    'Yeah, the car is undriveable, I have no grip at the rear. What happened at turn 4? Was it a track limits warning?',
+  ];
+  for (const t of real) { assert.equal(garbled(t), false, t); assert.equal(clean(t), t); }
+  // Traduction qui répond au lieu de traduire
+  assert.equal(badReply('Je ne comprends pas cette séquence. Cela semble être un bruit ou un signal erroné. Peux-tu reformuler ?', 'shops denken under'), true);
+  assert.equal(badReply("Je ne comprends pas ce que tu dis, répète.", "I don't understand what you're saying, repeat."), false);
+  assert.equal(badReply('Rentre aux stands, rentre aux stands.', 'Box box.'), false);
+});

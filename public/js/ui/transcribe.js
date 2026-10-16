@@ -5,7 +5,8 @@ import { storageGet, storageSet } from '../util.js';
 import { emit } from '../store.js';
 import { track } from './stats.js';
 import { cloudOn, cloudAsrOn, cloudTranslate, cloudTranscribe } from '../cloud.js';
-import { fixRadio, collapseLoops } from '/shared/radio-text.js';
+import { fixRadio, collapseLoops, garbled } from '/shared/radio-text.js';
+import { chatty } from '/shared/translation-check.js';
 
 const KEY = 'paddock.radioTexts';
 const MAX_KEEP = 400;
@@ -33,14 +34,19 @@ let retryAt = 0;
 let current = null;   // tâche en cours {id, resolve, reject}
 let nextId = 1;
 
-// Anciennes transcriptions sans aucun mot (« - ») : comptées comme « pas de parole reconnue » ;
+// Anciennes transcriptions sans aucun mot (« - ») ou en charabia : comptées comme « pas de parole
+// reconnue » ; traduction qui répond au lieu de traduire : refaite ;
 // phrases répétées en boucle (reconnaissance ou traduction) réduites à une seule fois
 function cleanTexts(o) {
   for (const t of Object.values(o || {})) {
     if (!t?.en) continue;
-    if (!/[A-Za-z]{2}|\d/.test(t.en)) { t.en = ''; t.tr = {}; continue; }
+    if (!/[A-Za-z]{2}|\d/.test(t.en) || garbled(t.en)) { t.en = ''; t.tr = {}; continue; }
     t.en = collapseLoops(t.en);
-    for (const [l, x] of Object.entries(t.tr || {})) if (typeof x === 'string') t.tr[l] = collapseLoops(x);
+    for (const [l, x] of Object.entries(t.tr || {})) {
+      if (typeof x !== 'string') continue;
+      // Réponse du modèle au lieu d'une traduction : refaite
+      if (chatty(x, t.en)) { delete t.tr[l]; if (t.tq) delete t.tq[l]; } else t.tr[l] = collapseLoops(x);
+    }
   }
   return o || {};
 }

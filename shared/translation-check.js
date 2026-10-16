@@ -6,3 +6,11 @@ const LATIN = new Set(['fr', 'en', 'es', 'de', 'it', 'nl', 'pt']);
 const FOREIGN = /[Ѐ-ӿ֐-׿؀-ۿऀ-ॿ฀-๿぀-ヿ㐀-䶿一-鿿가-힯ｦ-ﾟ]/;
 
 export const badScript = (out, to) => LATIN.has(to) && FOREIGN.test(String(out || ''));
+
+// Le modèle répond au texte au lieu de le traduire (« Je ne comprends pas cette séquence… Pourriez-vous
+// reformuler ? »), le plus souvent sur un texte illisible. Ignoré si l'original parle déjà de ne pas
+// comprendre (« I don't understand what you said »).
+const CHAT = /\b(je ne comprends pas|j'ai pas compris|pourr(ais|iez)[- ](je|tu|vous)|peux-tu|pouvez-vous|reformuler|clarifier|il semble (y avoir|s'agir|que)|bruit d'écoute|signal erroné|i (do not|don't) understand|could you (please )?(clarify|rephrase|provide)|it (seems|looks) like|please (clarify|provide|rephrase)|as an ai|no entiendo|puedes (aclarar|reformular)|ich verstehe nicht|non capisco)\b/i;
+const ASKS = /understand|clarif|rephrase|repeat|say again|unclear|confus/i;
+export const chatty = (out, src) => CHAT.test(String(out || '')) && !ASKS.test(String(src || ''));
+export const badTranslation = (out, to, src) => badScript(out, to) || chatty(out, src);
