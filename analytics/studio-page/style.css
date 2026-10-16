@@ -6,9 +6,8 @@
 @font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
 @font-face { font-family: 'JetBrains Mono'; font-weight: 400 700; font-display: swap; src: url('/fonts/jetbrainsmono-var.woff2') format('woff2'); }
 
-/* Couleurs : mêmes familles que la page des statistiques, en sombre (sur l'iPhone, la page installée
-   sur l'écran d'accueil passe sous la barre d'état, toujours écrite en blanc) ; rouge réservé à la
-   marque et à l'action principale */
+/* Couleurs : mêmes familles que la page des statistiques, en sombre (barre d'état noire de l'iPhone
+   sur la page installée) ; rouge réservé à la marque et à l'action principale */
 :root {
   color-scheme: dark;
   --bg: #0b0c0f; --surface: #15171c; --surface-2: #1e2128; --line: rgba(255, 255, 255, .07); --line-2: rgba(255, 255, 255, .14);
@@ -46,13 +45,13 @@ a { color: inherit; }
   --glass-shadow: 0 10px 30px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .3);
   --spring: cubic-bezier(.3, 1.35, .5, 1); --ease: cubic-bezier(.2, .8, .2, 1);
 }
-.glass, .tabbar, .actionbar, .appbar .iconbtn, .toast, dialog.sheet {
+.glass, .tabbar, .actionbar, .toast, dialog.sheet {
   background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-line); box-shadow: var(--glass-hi), var(--glass-shadow);
 }
 /* Navigateur sans flou : matière plus opaque */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass, .tabbar, .actionbar, .appbar .iconbtn, .toast, dialog.sheet { background: var(--glass-strong); }
+  .glass, .tabbar, .actionbar, .toast, dialog.sheet { background: var(--glass-strong); }
 }
 
 /* ---------- Structure : en-tête, page, barres flottantes ---------- */
@@ -75,7 +74,8 @@ body { min-height: 100vh; min-height: 100lvh; }
 .titles { flex: 1; min-width: 0; padding-left: 2px; }
 .titles b { display: block; font-size: 16.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .titles small { display: block; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.appbar .iconbtn { border-radius: 50%; }
+/* Boutons ronds de l'en-tête : relief léger, sans ombre portée (elle faisait un halo sombre) ni flou */
+.appbar .iconbtn { border-radius: 50%; background: var(--surface-2); border: 1px solid var(--glass-line); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12); }
 .appbar .iconbtn .ic { width: 20px; height: 20px; }
 .page { max-width: var(--w); min-height: calc(100lvh - 64px - env(safe-area-inset-top)); margin: 0 auto; padding: 8px var(--gutter) calc(104px + env(safe-area-inset-bottom)); }
 /* Barre d'onglets et barre d'actions : capsules qui flottent au-dessus de l'indicateur d'accueil */
@@ -305,7 +305,7 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 .editing .page { transition: transform .2s; }
 .editing.swiping .page { transition: none; }
 /* « Tirer pour actualiser » : sous la barre d'état et l'encoche, au-dessus de l'en-tête, en verre */
-.ptr { top: env(safe-area-inset-top) !important; z-index: 30 !important; background: var(--glass-strong) !important; color: var(--text) !important; border: 1px solid var(--glass-line); box-shadow: var(--glass-hi), var(--glass-shadow) !important; -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+.ptr { top: env(safe-area-inset-top) !important; z-index: 30 !important; background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--glass-line); box-shadow: var(--glass-hi) !important; }
 
 /* ---------- Animations ---------- */
 @keyframes in-right { from { opacity: 0; transform: translateX(28px); } }
