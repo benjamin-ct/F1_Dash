@@ -482,7 +482,7 @@ async function detailedSummary(dlg, btn) {
   try {
     const r = await fetch('/api/social/summary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link: it.link }) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok || !Array.isArray(j.points)) throw new Error(j.error || t('Résumé indisponible pour le moment'));
+    if (!r.ok || !Array.isArray(j.points)) throw new Error(j.error ? t(j.error) : t('Résumé indisponible pour le moment'));
     edits.set(id, { title: $('[data-ntitle]', dlg).value, summary: $('[data-nsum]', dlg).value, points: j.points.join('\n') });
     if (newsSel === id) render(dlg);
     toast(t('{} points clés : relisez-les avant de publier', j.points.length), 3500, 'check');

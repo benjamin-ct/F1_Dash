@@ -51,19 +51,33 @@ export function copiedFrom(point, text) {
   return false;
 }
 
-// Réponse du modèle -> points retenus (2 au moins), ou null
-export function parsePoints(reply, text = '') {
+// Réponse du modèle -> liste brute : Workers AI renvoie une réponse JSON déjà décodée (tableau, ou
+// objet { points: [...] }), sinon du texte où la liste est cherchée
+function listOf(reply) {
+  if (Array.isArray(reply)) return reply;
+  if (reply && typeof reply === 'object') return Object.values(reply).find(Array.isArray) || null;
   const t = String(reply || '');
   const a = t.indexOf('['), b = t.lastIndexOf(']');
   if (a < 0 || b <= a) return null;
-  let list;
-  try { list = JSON.parse(t.slice(a, b + 1)); } catch { return null; }
-  if (!Array.isArray(list)) return null;
+  try { const list = JSON.parse(t.slice(a, b + 1)); return Array.isArray(list) ? list : null; } catch { return null; }
+}
+
+// Réponse du modèle -> points retenus (2 au moins), ou null ; why : raison du refus (format, copie…)
+export function parsePoints(reply, text = '', why = {}) {
+  const list = listOf(reply);
+  if (!list) { why.reason = 'format'; return null; }
   const runs = copyRuns(text);
-  const out = list.filter((x) => typeof x === 'string').map((x) => x.replace(/^\s*(?:[-–—•*]|\d+[.)])\s*/, '').replace(/\s+/g, ' ').trim())
-    .filter((x) => x.length >= 20 && x.length <= 320 && !badScript(x, 'fr') && !copiedFrom(x, runs)).slice(0, 5);
+  const clean = list.filter((x) => typeof x === 'string').map((x) => x.replace(/^\s*(?:[-–—•*]|\d+[.)])\s*/, '').replace(/\s+/g, ' ').trim())
+    .filter((x) => x.length >= 20 && x.length <= 320 && !badScript(x, 'fr'));
+  const out = clean.filter((x) => !copiedFrom(x, runs)).slice(0, 5);
+  if (out.length < 2) why.reason = clean.length >= 2 ? 'copy' : 'format';
   return out.length >= 2 ? out : null;
 }
+const REASONS = {
+  ai: "Le service d'IA n'a pas répondu, réessayez dans quelques minutes",
+  format: "Réponse de l'IA inutilisable pour cet article, réessayez",
+  copy: "Résumé trop proche du texte de l'article (phrases recopiées) : écrivez les points vous-même",
+};
 
 export async function summarizeArticle(env, req, day = new Date().toISOString().slice(0, 10)) {
   const k = await keyOf(req.title, req.text);
@@ -74,6 +88,7 @@ export async function summarizeArticle(env, req, day = new Date().toISOString().
   if (used + COST > limit) return { limited: true };
   await env.DB.prepare('INSERT INTO ai_usage (day, n) VALUES (?1, ?2) ON CONFLICT (day) DO UPDATE SET n = n + excluded.n').bind(day, COST).run();
   // Deux essais : réponse mal formée ou trop proche du texte de l'article
+  const why = {};
   for (let attempt = 0; attempt < 2; attempt++) {
     let reply = null;
     try {
@@ -83,12 +98,12 @@ export async function summarizeArticle(env, req, day = new Date().toISOString().
         max_tokens: 900,
       });
       reply = r?.response ?? r?.choices?.[0]?.message?.content;
-    } catch { reply = null; }
-    const points = parsePoints(reply, req.text);
+    } catch { reply = null; why.reason = 'ai'; }
+    const points = reply == null ? null : parsePoints(reply, req.text, why);
     if (points) {
       await env.DB.prepare('INSERT OR REPLACE INTO translations (k, out, at) VALUES (?1, ?2, ?3)').bind(k, JSON.stringify(points), Date.now()).run();
       return { points };
     }
   }
-  return { points: null };
+  return { points: null, error: REASONS[why.reason] || REASONS.format };
 }
