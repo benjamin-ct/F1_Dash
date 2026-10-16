@@ -32,7 +32,7 @@ function html(body, nonce, status = 200) {
       'Referrer-Policy': 'no-referrer',
       'X-Robots-Tag': 'noindex',
       'X-Content-Type-Options': 'nosniff',
-      'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src data:; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
+      'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src 'self' data:; manifest-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
     },
   });
 }
