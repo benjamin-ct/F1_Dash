@@ -10,6 +10,8 @@ import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
 import { FORMATS, slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
 import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
+import { builtinNomination } from '/shared/tyres.js';
+import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { postedEntry } from '/shared/post-history.js';
 import { openPublish } from './social-publish-view.js';
 
@@ -20,7 +22,10 @@ let fmt = storageGet(OPT_KEY, {}).fmt || 'ig';
 let withPhotos = storageGet(OPT_KEY, {}).photos !== false;
 let noSpoiler = storageGet(OPT_KEY, {}).noSpoiler !== false;   // texte sans le vainqueur au début
 let mode = storageGet(OPT_KEY, {}).mode === 'news' ? 'news' : 'session';
-let linkComment = storageGet(OPT_KEY, {}).linkComment !== false;   // news : lien de l'article en premier commentaire   // posts de la séance ou d'une grosse news
+let linkComment = storageGet(OPT_KEY, {}).linkComment !== false;   // news : lien de l'article en premier commentaire
+const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
+let postType = POST_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).postType) ? storageGet(OPT_KEY, {}).postType : 'results';   // séance : type de post
+let flashSel = null;   // évènement choisi pour un post flash
 const imgCache = new Map();
 
 function loadImage(src, cors = false) {
@@ -56,8 +61,52 @@ async function assets(d) {
   return { photos, flag };
 }
 
+const POST_FOLDER = { prerace: 'Avant-course', champ: 'Championnat', flash: 'Flash' };
 const folderOf = (d) => (d.news ? `Actu ${d.date} - ${d.title.slice(0, 50)}`
-  : `${d.year || ''} ${d.gpEn.replace(/ Grand Prix$/i, '') || 'Grand Prix'} - ${d.label}`.trim());
+  : `${d.year || ''} ${d.gpEn.replace(/ Grand Prix$/i, '') || 'Grand Prix'} - ${d.label}${POST_FOLDER[d.post] ? ` - ${POST_FOLDER[d.post]}` : ''}${d.event ? ` ${d.event.id}` : ''}`.trim());
+
+// ---------- Posts de la séance : résultats, avant-course, championnat, flash ----------
+let tyresCache = null;
+async function nominations() {
+  const info = store.state.SessionInfo || {};
+  if (!info.Path) return null;
+  if (tyresCache?.path !== info.Path) {
+    const q = new URLSearchParams({ path: info.Path, until: Date.now(), name: info.Meeting?.Name || '', location: info.Meeting?.Location || '', country: info.Meeting?.Country?.Name || '', session: info.Name || '' });
+    const r = await fetch(`/api/tyres?${q}`, { signal: AbortSignal.timeout(6000) }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+    tyresCache = { path: info.Path, n: r?.nominations || builtinNomination(Number(String(info.Path).slice(0, 4)), { name: info.Meeting?.Name, location: info.Meeting?.Location, country: info.Meeting?.Country?.Name }) };
+  }
+  return tyresCache.n;
+}
+
+function sessionSource(sig) {
+  const types = `<div class="row posts-news-bar"><span class="small muted">${t('Type de post')}</span>
+    <div class="posts-seg" role="tablist">${POST_TYPES.map(([k, v]) => `<button class="posts-fmt ${k === postType ? 'active' : ''}" data-ptype="${k}">${t(v)}</button>`).join('')}</div></div>`;
+  const state = store.state;
+  if (postType === 'prerace') {
+    return nominations().then((tyres) => {
+      const d = preraceData(state, { tyres });
+      const warn = d.kind === 'practice' ? `<p class="posts-warn small">${icon('info')} ${t('Grille tirée du classement de cette séance : ouvrez les qualifications (ou la course avant le départ) pour la vraie grille.')}</p>` : '';
+      return { d, caps: moreCaptions(d, sig), head: types + warn, record: { key: `prerace:${folderOf(d)}`, kind: 'prerace', title: `${t('Avant-course')} · ${d.gp}` } };
+    });
+  }
+  if (postType === 'champ') {
+    const d = champData(state);
+    if (!d) return { head: `${types}<p class="muted">${t('Championnat disponible après une course ou un sprint : ouvrez la séance en direct ou en replay.')}</p>` };
+    return { d, caps: moreCaptions(d, sig), head: types, record: { key: `champ:${folderOf(d)}`, kind: 'champ', title: `${t('Championnat')} · ${d.gp}` } };
+  }
+  if (postType === 'flash') {
+    const evs = flashEvents(state);
+    if (!evs.length) return { head: `${types}<p class="muted">${t("Aucun fait marquant dans cette séance pour l'instant (drapeau rouge, voiture de sécurité, abandon, pénalité).")}</p>` };
+    const ev = evs.find((x) => x.id === flashSel) || evs[0];
+    flashSel = ev.id;
+    const d = flashData(state, ev);
+    const pick = `<div class="row posts-news-bar"><select class="posts-news-sel" data-flashpick>${evs.map((x) => `<option value="${esc(x.id)}" ${x === ev ? 'selected' : ''}>${esc(t(FLASH_KINDS[x.kind].label))} · ${esc(x.title)}${x.lap ? ` · ${esc(t('tour {}', x.lap))}` : ''}</option>`).join('')}</select></div>`;
+    return { d, caps: moreCaptions(d, sig), head: types + pick, record: { key: `flash:${folderOf(d)}`, kind: 'flash', title: `${ev.title} · ${d.gp}` } };
+  }
+  const d = postData(state);
+  const warn = d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`;
+  return { d, caps: captions(d, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };
+}
 
 // ---------- Grosses news de l'Actu ----------
 let newsAll = false;   // toutes les actus des 48 dernières heures, pas seulement les grosses
@@ -169,13 +218,13 @@ async function render(dlg, keepHead = false) {
     if (!r.d) { body.innerHTML = r.head; return; }
     ({ d, caps, head, record } = r);
   } else {
-    d = postData(store.state);
-    caps = captions(d, sig, { spoiler: !noSpoiler });
-    record = { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` };
-    if (!d.final) head = `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`;
+    const r = await sessionSource(sig);
+    if (id !== renderId) return;
+    if (!r.d) { body.innerHTML = r.head; return; }
+    ({ d, caps, head, record } = r);
   }
   const slides = slidesFor(d);
-  if (!slides.length) { body.innerHTML = `<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
+  if (!slides.length || (!d.rows.length && d.post !== 'flash')) { body.innerHTML = `${mode === 'session' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
   const main = `<div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item"><canvas data-slide="${s}"></canvas>
       <figcaption><span>${i + 1}. ${esc(t(SLIDE_NAMES[s]))}</span>
         <button class="btn small" data-copy="${i}" title="${t('Copier l\'image, à coller dans le réseau social')}">${icon('doc')} ${t('Copier')}</button>
@@ -282,13 +331,15 @@ function open() {
       $('[data-photos]', dlg).checked = withPhotos;
       for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('active', b.dataset.mode === mode);
       $('[data-nospoil]', dlg).checked = noSpoiler;
-      $('[data-nospoil]', dlg).closest('label').hidden = mode === 'news';
-      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment });
+      $('[data-nospoil]', dlg).closest('label').hidden = mode === 'news' || postType !== 'results';
+      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment, postType });
     };
     dlg.addEventListener('click', async (e) => {
       if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
       const m = e.target.closest('[data-mode]')?.dataset.mode;
       if (m && m !== mode) { mode = m; sync(); render(dlg); }
+      const pt = e.target.closest('[data-ptype]')?.dataset.ptype;
+      if (pt && pt !== postType) { postType = pt; sync(); render(dlg); }
       const f = e.target.closest('[data-fmt]')?.dataset.fmt;
       if (f && f !== fmt) { fmt = f; sync(); render(dlg); }
       if (e.target.closest('[data-stats]')) openStats();
@@ -302,6 +353,7 @@ function open() {
     let te = null;
     dlg.addEventListener('change', (e) => {
       if (e.target.matches('[data-newspick]')) { newsSel = e.target.value; render(dlg); }
+      if (e.target.matches('[data-flashpick]')) { flashSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-newsall]')) { newsAll = e.target.checked; render(dlg); }
       if (e.target.matches('[data-linkcomment]')) { linkComment = e.target.checked; sync(); render(dlg); }
     });

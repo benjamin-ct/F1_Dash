@@ -5,6 +5,8 @@
 import { parseFeed, newsTags, newsImportance, clusterNews } from '/shared/news.js';
 import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
 import { postData, captions } from '/shared/social.js';
+import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
+import { builtinNomination } from '/shared/tyres.js';
 import { slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
 import { merge } from '/shared/merge.js';
 import { gpNameFr } from '/shared/summary.js';
@@ -17,7 +19,7 @@ const app = $('#app');
 const KEY = 'studio.key';
 const SIG = '@BenjyPaddock';
 const F1_ONLY = /formula 1|formula one|\bf1\b|grand prix|formule 1/i;
-const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'TimingAppData', 'TimingStats', 'RaceControlMessages', 'LapCount', 'ChampionshipPrediction'];
+const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'TimingAppData', 'TimingStats', 'RaceControlMessages', 'LapCount', 'ChampionshipPrediction', 'WeatherData'];
 
 let key = null;
 try { key = localStorage.getItem(KEY) || sessionStorage.getItem(KEY); } catch { /* stockage bloqué */ }
@@ -270,20 +272,46 @@ async function sessionsTab(body) {
   body.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => sessionEditor(list[Number(b.dataset.i)], b); });
 }
 
+// Types de posts d'une séance : résultats, avant-course (grille, météo, pneus), championnat, flash
+const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
 async function sessionEditor(s, btn) {
   if (btn) btn.innerHTML += '<div class="small muted">Chargement de la séance…</div>';
   let st;
   try { st = await loadState(s.path); } catch (err) { if (btn) btn.innerHTML += `<div class="small err">${esc(err.message)}</div>`; return; }
   lastDrivers = st.DriverList || lastDrivers;
-  const d = postData(st);
+  const meet = st.SessionInfo?.Meeting || {};
+  const tyres = builtinNomination(Number(String(s.path).slice(0, 4)), { name: meet.Name, location: meet.Location, country: meet.Country?.Name });
+  const events = flashEvents(st);
+  const results = postData(st);
+  const champ = champData(st);
+  let type = 'results';
+  let ev = events[0] || null;
+  const avail = (k) => k === 'results' || k === 'prerace' || (k === 'champ' && champ) || (k === 'flash' && ev);
+  const data = () => (type === 'prerace' ? preraceData(st, { tyres }) : type === 'champ' ? champ : type === 'flash' ? flashData(st, ev) : results);
+  const typeName = () => POST_TYPES.find(([k]) => k === type)[1];
   editor({
     back: () => home(),
-    head: `<div class="t" style="font-weight:700">${esc(SESSION_FR(s.name))} · ${esc(d.gp)}</div>
-      <label class="check"><input type="checkbox" id="nospoil" ${state.noSpoiler ? 'checked' : ''}> Texte sans spoiler (vainqueur absent du début du texte)</label>`,
-    data: () => d,
-    caps: () => captions(d, SIG, { spoiler: !state.noSpoiler }),
-    record: () => ({ key: `session:${s.path}`, kind: 'session', title: `${SESSION_FR(s.name)} · ${d.gp}` }),
-    bind: (redraw) => { $('#nospoil').onchange = (e) => { state.noSpoiler = e.target.checked; redraw(true); }; },
+    head: `<div class="t" style="font-weight:700">${esc(SESSION_FR(s.name))} · ${esc(results.gp)}</div>
+      <div class="seg" id="ptype">${POST_TYPES.map(([k, v]) => `<button data-ptype="${k}" class="${k === type ? 'on' : ''}" ${avail(k) ? '' : 'disabled'}>${v}</button>`).join('')}</div>
+      <select id="flashpick" hidden>${events.map((x, i) => `<option value="${i}">${esc(FLASH_KINDS[x.kind].label)} · ${esc(x.title)}${x.lap ? ` · tour ${x.lap}` : ''}</option>`).join('')}</select>
+      <label class="check" id="nospoilrow"><input type="checkbox" id="nospoil" ${state.noSpoiler ? 'checked' : ''}> Texte sans spoiler (vainqueur absent du début du texte)</label>`,
+    data,
+    caps: () => (type === 'results' ? captions(results, SIG, { spoiler: !state.noSpoiler }) : moreCaptions(data(), SIG)),
+    record: () => (type === 'results' ? { key: `session:${s.path}`, kind: 'session', title: `${SESSION_FR(s.name)} · ${results.gp}` }
+      : { key: `${type}:${s.path}${type === 'flash' ? `:${ev.id}` : ''}`, kind: type, title: `${type === 'flash' ? ev.title : typeName()} · ${results.gp}` }),
+    bind: (redraw) => {
+      $('#nospoil').onchange = (e) => { state.noSpoiler = e.target.checked; redraw(true); };
+      $('#flashpick').onchange = (e) => { ev = events[Number(e.target.value)]; redraw(true); };
+      app.querySelectorAll('[data-ptype]').forEach((b) => {
+        b.onclick = () => {
+          type = b.dataset.ptype;
+          app.querySelectorAll('[data-ptype]').forEach((x) => x.classList.toggle('on', x === b));
+          $('#flashpick').hidden = type !== 'flash';
+          $('#nospoilrow').hidden = type !== 'results';
+          redraw(true);
+        };
+      });
+    },
   });
 }
 

@@ -25,6 +25,9 @@ on:
       - 'shared/pits.js'
       - 'shared/merge.js'
       - 'shared/flags.js'
+      - 'shared/post-*.js'
+      - 'shared/bluesky-publish.js'
+      - 'shared/tyres.js'
       - 'scripts/build-studio.mjs'
       - '.github/workflows/stats.yml'
 
