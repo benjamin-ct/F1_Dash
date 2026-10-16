@@ -74,6 +74,8 @@ fs.writeFileSync(path.join(OUT, 'stats-refresh.js'), `${ptr}\npullToRefresh(() =
 // Conditions d'utilisation et politique de confidentialité (/legal/terms, /legal/privacy), demandées
 // par TikTok pour l'app de publication en brouillon
 copy(path.join(ROOT, 'analytics', 'legal'), path.join(OUT, 'legal'));
+// Fichiers servis à la racine du site (vérification du domaine par TikTok)
+copy(path.join(ROOT, 'analytics', 'root'), OUT);
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps
 fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
