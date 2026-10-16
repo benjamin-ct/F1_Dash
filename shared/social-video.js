@@ -1,4 +1,4 @@
-// Mode créateur : vidéo verticale (TikTok) à partir des visuels au format story. Diaporama avec
+// Mode créateur (appli et page web) : vidéo verticale (TikTok) à partir des visuels au format story. Diaporama avec
 // léger zoom et fondus, enregistré en temps réel (MediaRecorder), avec une musique générée sur
 // place (libre de droits), un fichier audio choisi, ou sans musique.
 
@@ -98,12 +98,12 @@ export function webmWithDuration(buf, ms) {
   return buf;
 }
 
-export async function makeVideo(slides, { music = 'gen', file = null, perSlide = 3.2, onProgress } = {}) {
+// Enregistrement d'une animation : draw(ctx, t) dessine l'image à l'instant t (secondes)
+export async function makeAnimation(paint, duration, { music = 'gen', file = null, onProgress } = {}) {
   if (!window.MediaRecorder) throw new Error('Enregistrement vidéo indisponible dans ce navigateur');
   const out = document.createElement('canvas');
   out.width = W; out.height = H;
   const ctx = out.getContext('2d');
-  const duration = slides.length * perSlide;
   const video = out.captureStream(30);
   let ac = null;
   const tracks = [...video.getVideoTracks()];
@@ -130,25 +130,7 @@ export async function makeVideo(slides, { music = 'gen', file = null, perSlide =
   rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   const done = new Promise((resolve) => { rec.onstop = resolve; });
 
-  const fade = 0.45;
-  const draw = (t) => {
-    const i = Math.min(slides.length - 1, Math.floor(t / perSlide));
-    const local = t - i * perSlide;
-    const paint = (c, k, alpha, dy = 0) => {
-      const s = 1 + 0.045 * k;
-      ctx.globalAlpha = alpha;
-      ctx.drawImage(c, (W - W * s) / 2, (H - H * s) / 2 + dy, W * s, H * s);
-    };
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, W, H);
-    paint(slides[i], local / perSlide, 1);
-    const next = slides[i + 1];
-    if (next && local > perSlide - fade) {
-      const p = (local - (perSlide - fade)) / fade;
-      paint(next, 0, p, (1 - p) * 80);
-    }
-    ctx.globalAlpha = 1;
-  };
+  const draw = (t) => paint(ctx, t);
   draw(0);
   rec.start(500);
   const start = performance.now();
@@ -169,4 +151,29 @@ export async function makeVideo(slides, { music = 'gen', file = null, perSlide =
   let blob = new Blob(chunks, { type });
   if (type === 'video/webm') blob = new Blob([webmWithDuration(await blob.arrayBuffer(), duration * 1000)], { type });
   return { blob, mime: type };
+}
+
+// Diaporama des visuels au format story : léger zoom et fondu enchaîné
+export async function makeVideo(slides, { perSlide = 3.2, ...opts } = {}) {
+  const duration = slides.length * perSlide;
+  const fade = 0.45;
+  const draw = (ctx, t) => {
+    const i = Math.min(slides.length - 1, Math.floor(t / perSlide));
+    const local = t - i * perSlide;
+    const paint = (c, k, alpha, dy = 0) => {
+      const s = 1 + 0.045 * k;
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(c, (W - W * s) / 2, (H - H * s) / 2 + dy, W * s, H * s);
+    };
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, W, H);
+    paint(slides[i], local / perSlide, 1);
+    const next = slides[i + 1];
+    if (next && local > perSlide - fade) {
+      const p = (local - (perSlide - fade)) / fade;
+      paint(next, 0, p, (1 - p) * 80);
+    }
+    ctx.globalAlpha = 1;
+  };
+  return makeAnimation(draw, duration, opts);
 }

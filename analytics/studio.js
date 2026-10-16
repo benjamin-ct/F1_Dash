@@ -171,6 +171,26 @@ async function archive(req, url, vault) {
   return res;
 }
 
+// Page d'un article de l'Actu (résumé détaillé, lu dans le navigateur) : https seulement, nom de site
+// (pas d'adresse IP), 3 Mo au plus
+export function articleUrl(u) {
+  let x;
+  try { x = new URL(u); } catch { return null; }
+  if (x.protocol !== 'https:' || x.username || x.password || (x.port && x.port !== '443')) return null;
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(x.hostname) || /^[\d.]+$/.test(x.hostname) || /(^|\.)(localhost|local|internal)$/i.test(x.hostname)) return null;
+  return x.href;
+}
+async function page(req, url) {
+  const u = articleUrl(url.searchParams.get('u') || '');
+  if (!u) return json({ error: 'Adresse refusée' }, 400);
+  const res = await cached(req, u, { headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' } }, 1800);
+  if (res.status !== 200) return json({ error: 'Le site refuse la lecture de cet article' }, 502);
+  if (Number(res.headers.get('Content-Length') || 0) > 3e6) return json({ error: 'Page trop volumineuse' }, 413);
+  // Rendue comme du texte (jamais comme une page du serveur), encodage d'origine gardé
+  const charset = /charset=([\w-]+)/i.exec(res.headers.get('Content-Type') || '')?.[1];
+  return new Response(res.body, { headers: { 'Content-Type': `text/plain${charset ? `; charset=${charset}` : ''}`, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' } });
+}
+
 // Documents de la FIA (liste des documents d'un Grand Prix, PDF des commissaires) : grille officielle
 const FIA_PAGE = /^\/documents\/championships\/fia-formula-one-world-championship-14(\/season\/season-\d{4}-\d+(\/event\/[\w%.'()-]+)?)?$/;
 const FIA_PDF = /^\/system\/files\/decision-document\/[\w%.'()-]+\.pdf$/;
@@ -289,6 +309,7 @@ export async function studioApi(req, env, url) {
   if (path === 'archive' && req.method === 'GET') return archive(req, url, await refresh(env, a.raw, vault));
   if (path === 'img' && req.method === 'GET') return image(req, url);
   if (path === 'fia' && req.method === 'GET') return fia(req, url);
+  if (path === 'page' && req.method === 'GET') return page(req, url);
   if (path === 'publish' && req.method === 'POST') {
     if (!vault.meta?.pageToken && !vault.bluesky) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
     return publish(req, env, a.raw, vault);

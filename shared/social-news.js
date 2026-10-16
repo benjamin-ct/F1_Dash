@@ -73,6 +73,9 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
     .sort((a, b) => b.score - a.score || b.t - a.t);
 }
 
+// Autres championnats (sources de la FIA) : écartés des sélections automatiques (récap)
+export const OTHER_SERIES = /formula e\b|formule e\b|\bwec\b|\bwrc\b|rally|rallye|karting|\bf[234]\b|formula [234]\b|world cup|coupe du monde|macau|macao|cross-country|\bgt\b|endurance|extreme h|hill ?climb/i;
+
 // Résumé court : deux phrases au plus, 280 caractères
 export function shortSummary(text, max = 280) {
   const s = String(text || '').replace(/\s+/g, ' ').trim();
@@ -112,8 +115,16 @@ function people(tags = [], driverList = {}) {
   return { drivers: drivers.slice(0, 3), teams: teams.slice(0, 3) };
 }
 
-// Nouvelle (de l'Actu) -> données du post. title / summary : textes en français (traduits si besoin).
-export function newsPost(item, { title, summary, driverList = {}, sourceName = '' } = {}) {
+// Points clés d'un résumé détaillé : lignes non vides, 6 au plus, raisonnablement courtes
+export function cleanPoints(points) {
+  const list = Array.isArray(points) ? points : String(points || '').split('\n');
+  return list.map((p) => String(p || '').replace(/^\s*(?:[-–—•*]|\d+[.)])\s*/, '').replace(/\s+/g, ' ').trim())
+    .filter((p) => p.length > 2).slice(0, 6).map((p) => (p.length > 260 ? `${p.slice(0, 259).replace(/\s+\S*$/, '')}…` : p));
+}
+
+// Nouvelle (de l'Actu) -> données du post. title / summary : textes en français (traduits si besoin) ;
+// points : résumé détaillé en points clés (images suivantes du carrousel)
+export function newsPost(item, { title, summary, points = [], driverList = {}, sourceName = '' } = {}) {
   const kind = newsKind(item);
   const { drivers, teams } = people(item.tags, driverList);
   const main = drivers[0]?.color || teams.find((t) => t.key !== 'fia')?.color || kind.color;
@@ -123,7 +134,7 @@ export function newsPost(item, { title, summary, driverList = {}, sourceName = '
     badge: kind, title: String(title || item.title || '').trim(), summary: shortSummary(summary ?? item.summary),
     source: sourceName || item.srcName || item.src || '', sources: item.sources || 1, link: item.link || '',
     date: when.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
-    year: when.getFullYear(), drivers, teams, color: main, rows: drivers,
+    year: when.getFullYear(), drivers, teams, color: main, rows: drivers, points: cleanPoints(points),
   };
 }
 
@@ -147,8 +158,11 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
   const comment = url && linkInComment ? `Lire l'article : ${url}` : '';
   const link = comment ? '' : url;
   const srcLink = `${src}${link ? `${src ? '\n' : ''}Lire l'article : ${link}` : ''}`;
-  const instagram = `${head}\n\n${nd.summary}${src ? `\n\n${src}` : ''}${sig}\n\n${tags.join(' ')}`;
-  const facebook = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n${tags.join(' ')}`;
+  const pts = nd.points?.length ? `\n\nL'essentiel :\n${nd.points.map((p) => `– ${p}`).join('\n')}` : '';
+  let instagram = `${head}\n\n${nd.summary}${pts}${src ? `\n\n${src}` : ''}${sig}\n\n${tags.join(' ')}`;
+  // Instagram : 2 200 caractères au plus (les points restent lisibles sur les images)
+  if (instagram.length > 2200) instagram = instagram.replace(pts, '');
+  const facebook = `${head}\n\n${nd.summary}${pts}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n${tags.join(' ')}`;
   // X : 280 caractères (lien = 23) ; hashtags retirés un à un, puis la ligne de la source, puis le titre raccourci
   const xLink = link ? `\n${link}` : '';
   // Texte court (X : 280, lien compté 23 ; Bluesky : 300, lien compté en entier)

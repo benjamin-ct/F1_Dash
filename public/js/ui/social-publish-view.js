@@ -4,7 +4,7 @@ import { $, esc } from '../util.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { toast } from './delay.js';
-import { makeVideo } from './social-video.js';
+import { makeVideo } from '/shared/social-video.js';
 
 const NETS = [
   { id: 'instagram', name: 'Instagram', what: 'Carrousel des visuels (format Instagram)' },
@@ -34,6 +34,22 @@ async function jpegUnder(canvas, max = 950 * 1024) {
 }
 
 let video = null;   // { blob, mime, url }
+// Date locale pour un champ « datetime-local »
+const localInput = (ts) => { const x = new Date(ts); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
+// Heure où les posts publiés ont eu le plus d'interactions (3 posts au moins avec des statistiques)
+export function bestHour(posts) {
+  const by = new Map();
+  for (const p of posts) {
+    const s = Object.values(p.stats || {}).filter(Boolean);
+    if (!s.length) continue;
+    const score = s.reduce((a, x) => a + (x.likes || 0) + 2 * (x.comments || 0) + 3 * (x.shares || 0) + (x.views || x.reach || 0) / 100, 0);
+    const h = new Date(p.at).getHours();
+    by.set(h, [...(by.get(h) || []), score]);
+  }
+  const n = [...by.values()].reduce((a, l) => a + l.length, 0);
+  if (n < 3) return null;
+  return [...by.entries()].map(([h, l]) => [h, l.reduce((a, b) => a + b, 0) / l.length]).sort((a, b) => b[1] - a[1])[0][0];
+}
 const KEYS_NOTE = "Les clés restent sur cet ordinateur (fichier de configuration de l'application) et ne sont jamais incluses dans une sauvegarde des réglages.";
 const MUSIC_NOTE = "Pour une musique de votre choix, vérifiez que vous avez le droit de l'utiliser. Dans TikTok, vous pouvez aussi ajouter un son de la bibliothèque avant de publier.";
 const PUBLIC_NOTE = "Les posts seront publics (TikTok : brouillon à finir dans l'appli).";
@@ -152,7 +168,7 @@ async function accountsDialog(onChange) {
 }
 
 // ---------- Publication ----------
-export async function openPublish({ d, caps, render, folder, record = null, onPosted = null }) {
+export async function openPublish({ d, caps, render, folder, record = null, onPosted = null, videoMaker = null }) {
   let dlg = $('#publishDlg');
   if (!dlg) {
     dlg = document.createElement('dialog');
@@ -190,6 +206,14 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
           <p class="small muted">${t(MUSIC_NOTE)}</p>
         </fieldset>
         <div class="row"><span class="spacer"></span><button class="btn btn-accent" data-go>${icon('megaphone')} ${t('Publier maintenant')}</button></div>
+        <fieldset class="posts-video"><legend class="small">${t('Programmer la publication')}</legend>
+          <div class="row small"><input type="datetime-local" data-schedat value="${localInput(Date.now() + 3600e3)}">
+            <button class="btn small" data-schedquick="tonight">${t('Ce soir 19:00')}</button><button class="btn small" data-schedquick="tomorrow">${t('Demain 12:00')}</button>
+            <button class="btn small" data-schedbest title="${t("Heure où vos posts ont le mieux marché, d'après leurs statistiques")}">${t('Meilleure heure')}</button>
+            <span class="spacer"></span><button class="btn small btn-accent" data-schedule>${icon('calendar')} ${t('Programmer')}</button></div>
+          <p class="small muted" data-schedhint>${t("Publié à l'heure choisie sur les réseaux cochés, tant que l'appli reste ouverte (sinon à sa réouverture, dans les 24 heures).")}</p>
+          <div class="posts-sched" data-schedlist></div>
+        </fieldset>
       </div>`;
   };
   draw();
@@ -198,8 +222,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
     const music = dlg.querySelector('[name="pmusic"]:checked')?.value || 'gen';
     const file = $('[data-audio]', dlg).files?.[0] || null;
     if (music === 'file' && !file) { $('[data-audio]', dlg).click(); throw new Error(t('Choisissez d\'abord un fichier audio')); }
-    const slides = await render('story');
-    const v = await makeVideo(slides, { music, file, onProgress: (p) => { if (vst()) vst().textContent = t('Enregistrement de la vidéo… {} %', Math.round(p * 100)); } });
+    const onProgress = (p) => { if (vst()) vst().textContent = t('Enregistrement de la vidéo… {} %', Math.round(p * 100)); };
+    const v = videoMaker ? await videoMaker({ music, file, onProgress }) : await makeVideo(await render('story'), { music, file, onProgress });
     if (video?.url) URL.revokeObjectURL(video.url);
     video = { ...v, url: URL.createObjectURL(v.blob) };
     const el = $('.posts-vid', dlg);
@@ -207,6 +231,37 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
     $('[data-savevideo]', dlg).disabled = false;
     vst().textContent = t('Vidéo prête ({} Mo)', (v.blob.size / 1e6).toFixed(1).replace('.', ','));
   };
+  // Contenu envoyé à un réseau (visuels préparés une seule fois par format)
+  const txt = (k) => $(`[data-txt="${k}"]`, dlg).value;
+  let ig = null; let xs = null; let bs = null;
+  const bodyFor = async (n) => {
+    if (n === 'tiktok') {
+      if (!video) await buildVideo();
+      return { network: n, video: await b64(video.blob), mime: video.mime };
+    }
+    if (n === 'bluesky') {
+      bs ||= await Promise.all((await render('x')).slice(0, 4).map((c) => jpegUnder(c)));
+      return { network: n, text: txt('bsky'), images: bs, comment: caps.comment ? txt('comment') : '' };
+    }
+    if (n === 'x') {
+      xs ||= await Promise.all((await render('x')).slice(0, 4).map(png));
+      return { network: n, text: txt('x'), images: xs, comment: caps.comment ? txt('comment') : '' };
+    }
+    ig ||= await Promise.all((await render('ig')).map(png));
+    return { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
+  };
+  // Publications programmées : liste (à venir, puis récentes) avec annulation
+  const schedList = async () => {
+    const el = $('[data-schedlist]', dlg);
+    if (!el) return;
+    const r = await api('/api/social/schedule').catch(() => ({ items: [] }));
+    const ST = { pending: 'à venir', running: 'en cours', done: 'publiée', error: 'erreur', expired: 'expirée (plus de 24 h de retard)' };
+    el.innerHTML = r.items.map((j) => `<div class="row small"><b>${esc(new Date(j.at).toLocaleString())}</b> <span>${esc(j.title)}</span>
+      <span class="muted">${esc(j.nets.map((n) => NETS.find((x) => x.id === n)?.name || n).join(', '))} · ${esc(t(ST[j.status] || j.status))}</span>
+      ${Object.values(j.results).filter((x) => !x.ok).map((x) => `<span class="posts-warn">${esc(x.error)}</span>`).join(' ')}
+      <span class="spacer"></span>${j.status === 'pending' ? `<button class="btn small" data-schedcancel="${esc(j.id)}">${t('Annuler')}</button>` : ''}</div>`).join('');
+  };
+  schedList();
   dlg.onchange = (e) => { if (e.target.name === 'pmusic' && e.target.value === 'file') $('[data-audio]', dlg).click(); };
   dlg.onclick = async (e) => {
     if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
@@ -219,13 +274,40 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
         const r = await api('/api/posts/save', { folder, name: 'tiktok-video', data: await b64(video.blob) });
         toast(t('Vidéo enregistrée dans {}', r.dir), 4000, 'check');
       }
+      if (btn.dataset.schedquick) {
+        const x = new Date();
+        if (btn.dataset.schedquick === 'tonight') { x.setHours(19, 0, 0, 0); if (x < Date.now()) x.setDate(x.getDate() + 1); } else { x.setDate(x.getDate() + 1); x.setHours(12, 0, 0, 0); }
+        $('[data-schedat]', dlg).value = localInput(x.getTime());
+      }
+      if (btn.dataset.schedbest !== undefined) {
+        btn.disabled = true;
+        const h = bestHour((await api('/api/social/stats').catch(() => ({}))).posts || []);
+        btn.disabled = false;
+        if (h === null) { toast(t('Pas encore assez de posts avec des statistiques : essayez entre 18 h et 21 h'), 4500, 'info'); return; }
+        const x = new Date(); x.setHours(h, 0, 0, 0); if (x < Date.now()) x.setDate(x.getDate() + 1);
+        $('[data-schedat]', dlg).value = localInput(x.getTime());
+        toast(t('Vos posts marchent le mieux vers {} h', h), 3500, 'check');
+      }
+      if (btn.dataset.schedcancel) { await api('/api/social/schedule/cancel', { id: btn.dataset.schedcancel }); await schedList(); }
+      if (btn.dataset.schedule !== undefined) {
+        const nets = [...dlg.querySelectorAll('[data-net]:checked')].map((i) => i.dataset.net);
+        if (!nets.length) { toast(t('Cochez au moins un réseau'), 3000, 'warning'); return; }
+        const at = new Date($('[data-schedat]', dlg).value).getTime();
+        if (!(at > Date.now())) { toast(t('Choisissez une date à venir'), 3000, 'warning'); return; }
+        btn.disabled = true;
+        try {
+          const posts = [];
+          for (const n of nets) posts.push({ body: await bodyFor(n) });
+          await api('/api/social/schedule', { at, posts, title: record?.title || d.title || d.gp || '', record });
+          toast(t('Publication programmée le {}', new Date(at).toLocaleString()), 4000, 'check');
+          await schedList();
+        } finally { btn.disabled = false; }
+      }
       if (btn.dataset.go !== undefined) {
         const nets = [...dlg.querySelectorAll('[data-net]:checked')].map((i) => i.dataset.net);
         if (!nets.length) { toast(t('Cochez au moins un réseau'), 3000, 'warning'); return; }
         if (!window.confirm(`${t('Publier maintenant sur : {} ?', nets.map((n) => NETS.find((x) => x.id === n).name).join(', '))}\n\n${t(PUBLIC_NOTE)}`)) return;
         btn.disabled = true;
-        const txt = (k) => $(`[data-txt="${k}"]`, dlg).value;
-        let ig = null; let xs = null; let bs = null;
         for (const n of nets) {
           const st = $(`[data-st="${n}"]`, dlg);
           st.className = 'posts-st small'; st.textContent = t('Envoi…');
@@ -233,21 +315,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
           const t0 = Date.now();
           const tick = setInterval(() => { st.textContent = t('Envoi… {} s', Math.round((Date.now() - t0) / 1000)); }, 1000);
           try {
-            let body;
-            if (n === 'tiktok') {
-              if (!video) await buildVideo();
-              body = { network: n, video: await b64(video.blob), mime: video.mime };
-            } else if (n === 'bluesky') {
-              bs ||= await Promise.all((await render('x')).slice(0, 4).map((c) => jpegUnder(c)));
-              body = { network: n, text: txt('bsky'), images: bs, comment: caps.comment ? txt('comment') : '' };
-            } else if (n === 'x') {
-              xs ||= await Promise.all((await render('x')).slice(0, 4).map(png));
-              body = { network: n, text: txt('x'), images: xs, comment: caps.comment ? txt('comment') : '' };
-            } else {
-              ig ||= await Promise.all((await render('ig')).map(png));
-              body = { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
-            }
-            const r = await api('/api/social/publish', body);
+            const r = await api('/api/social/publish', await bodyFor(n));
             st.className = 'posts-st small ok';
             // Journal des publications (news marquées « publiée », statistiques)
             if (record) api('/api/social/history', { entry: { ...record, at: Date.now(), nets: { [n]: { id: r.id ?? null, url: r.url || null } } } }).then(() => onPosted?.()).catch(() => {});

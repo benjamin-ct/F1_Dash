@@ -32,6 +32,9 @@ on:
       - 'shared/fia-list.js'
       - 'shared/fia-grid.js'
       - 'shared/pull-refresh.js'
+      - 'shared/article.js'
+      - 'shared/season-*.js'
+      - 'shared/race-laps.js'
       - 'scripts/build-studio.mjs'
       - '.github/workflows/stats.yml'
 

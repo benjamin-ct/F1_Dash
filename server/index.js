@@ -8,14 +8,16 @@ import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
 import { HttpError } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
-import { season } from './season.js';
+import { season, raceLaps } from './season.js';
+import { createScheduler } from './post-schedule.js';
+import { forecast } from './forecast.js';
 import { seasonStats, archiveError } from './race-stats.js';
 import { seasonTech } from './fia-tech.js';
 import { fiaDocuments } from './fia.js';
 import { officialGrid } from './fia-grid.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
-import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
+import { ROOT, DATA_DIR, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
 import { createLan, isLoopback } from './lan.js';
 import { getTranslations, addTranslations } from './translations.js';
 import { compareLaps } from './compare.js';
@@ -41,6 +43,7 @@ import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
 import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
 import { createArticleReader } from './article.js';
+import { createNewsSummarizer } from './news-summary.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -70,6 +73,13 @@ const live = new LiveSource(hub, () => {
 const replay = new ReplaySource(hub);
 // Articles de l'Actu lus dans l'appli (server/article.js)
 const articles = createArticleReader({ items: () => newsSnapshot().items });
+const summarize = createNewsSummarizer({ articles });
+// Publications programmées : publiées à l'heure choisie tant que l'appli est ouverte
+const scheduler = createScheduler({
+  dir: path.join(DATA_DIR, 'scheduled-posts'),
+  publish: (net, body) => { if (!creatorEnabled()) throw new Error('Mode créateur désactivé'); return publishSocial(net, body); },
+  record: recordPost,
+});
 
 // Actualités traduites d'avance (server/news-translate.js)
 const newsTranslator = createNewsTranslator({
@@ -331,6 +341,13 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/stats':
     case 'GET /api/social/history':
     case 'GET /api/social/grid':
+    case 'POST /api/social/summary':
+    case 'GET /api/social/laps':
+    case 'GET /api/social/records':
+    case 'GET /api/social/forecast':
+    case 'GET /api/social/schedule':
+    case 'POST /api/social/schedule':
+    case 'POST /api/social/schedule/cancel':
     case 'POST /api/social/history': {
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
@@ -345,6 +362,32 @@ async function handleApi(req, res, url) {
           if (!Number(q.get('year')) || !meeting.name) return sendJSON(res, 400, { error: 'Paramètres year et name requis' });
           return sendJSON(res, 200, { grid: await officialGrid(Number(q.get('year')), meeting, { sprint: q.get('sprint') === '1' }) });
         }
+        // Course tour par tour (graphique des positions, vidéo animée, rythme des notes)
+        if (route === 'GET /api/social/laps') return sendJSON(res, 200, await raceLaps(yearOf(url.searchParams.get('year')), Math.max(1, Math.min(30, Number(url.searchParams.get('round')) || 1))));
+        // Records du circuit d'une manche (le saviez-vous) : circuit retrouvé dans les archives de la F1
+        if (route === 'GET /api/social/records') {
+          const year = yearOf(url.searchParams.get('year'));
+          const race = (await season(year)).races.find((r) => r.round === Number(url.searchParams.get('round')));
+          if (!race) return sendJSON(res, 404, { error: 'Manche inconnue' });
+          let key = null;
+          let failed = null;
+          for (const y of [year, year - 1, year - 2]) {
+            let idx = [];
+            try { idx = await seasonIndex(y); } catch (err) { failed ||= err; }
+            key = idx.find((m) => m.name === race.name && m.circuitKey)?.circuitKey || null;
+            if (key) break;
+          }
+          if (!key) return sendJSON(res, 404, { error: failed ? archiveError(year, failed) : 'Circuit introuvable dans les archives de la F1' });
+          return sendJSON(res, 200, await circuitRecords(key, year));
+        }
+        // Météo prévue sur le circuit (programme du week-end)
+        if (route === 'GET /api/social/forecast') return sendJSON(res, 200, { days: await forecast(url.searchParams.get('lat'), url.searchParams.get('lon')) });
+        // Publications programmées
+        if (route === 'GET /api/social/schedule') return sendJSON(res, 200, { items: scheduler.list() });
+        if (route === 'POST /api/social/schedule') return sendJSON(res, 200, { item: scheduler.add(await readBody(req, 150e6)) });
+        if (route === 'POST /api/social/schedule/cancel') { scheduler.cancel((await readBody(req, 1e4)).id); return sendJSON(res, 200, { items: scheduler.list() }); }
+        // Résumé détaillé d'une news en points clés (images suivantes du post)
+        if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
         if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
         if (route === 'POST /api/social/studio') {
           const b = await readBody(req, 1e4);
