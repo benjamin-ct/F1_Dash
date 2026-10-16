@@ -6,26 +6,24 @@
 @font-face { font-family: 'Saira Condensed'; font-weight: 800; font-display: swap; src: url('/fonts/sairacondensed-800.woff2') format('woff2'); }
 @font-face { font-family: 'JetBrains Mono'; font-weight: 400 700; font-display: swap; src: url('/fonts/jetbrainsmono-var.woff2') format('woff2'); }
 
-/* Couleurs : mêmes familles que la page des statistiques (clair / sombre selon le téléphone), rouge
-   réservé à la marque et à l'action principale */
+/* Couleurs : mêmes familles que la page des statistiques, en sombre (sur l'iPhone, la page installée
+   sur l'écran d'accueil passe sous la barre d'état, toujours écrite en blanc) ; rouge réservé à la
+   marque et à l'action principale */
 :root {
   color-scheme: dark;
   --bg: #0b0c0f; --surface: #15171c; --surface-2: #1e2128; --line: rgba(255, 255, 255, .07); --line-2: rgba(255, 255, 255, .14);
   --text: #f0efec; --text-2: #c9c8c2; --muted: #8e8c86;
   --brand: #e10600; --brand-wash: rgba(225, 6, 0, .14); --ok: #2fbf71; --bad: #ff6b6b;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .3); --gutter: 16px; --w: 720px;
-}
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --bg: #f4f4f1; --surface: #fff; --surface-2: #ecebe6; --line: rgba(11, 11, 11, .07); --line-2: rgba(11, 11, 11, .15);
-    --text: #0b0b0b; --text-2: #3d3c39; --muted: #74726c;
-    --brand-wash: rgba(225, 6, 0, .08); --ok: #0a8a47; --bad: #d03b3b; --shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 4px 14px rgba(0, 0, 0, .04);
-  }
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3); --w: 720px;
+  --gutter: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
 }
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; accent-color: var(--brand); }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 'Titillium Web', system-ui, sans-serif; -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; accent-color: var(--brand); }
+/* iPhone : pas de sélection de texte ni de menu au toucher long sur les commandes, pas de zoom au
+   double toucher, page figée sous une feuille ouverte */
+button, .card, .row-item, .chips, .seg, .tabbar, .pick, .switch, summary { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+body:has(dialog[open]) { overflow: hidden; }
 a { color: inherit; }
 [hidden] { display: none !important; }
 .grow { flex: 1; min-width: 0; }
@@ -40,7 +38,7 @@ a { color: inherit; }
 /* ---------- Structure : en-tête, page, barre d'onglets ---------- */
 .appbar {
   position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 4px;
-  padding: calc(8px + env(safe-area-inset-top)) max(10px, calc((100vw - var(--w)) / 2 + 10px)) 8px;
+  padding: calc(6px + env(safe-area-inset-top)) max(10px, env(safe-area-inset-right), calc((100vw - var(--w)) / 2 + 10px)) 6px max(10px, env(safe-area-inset-left), calc((100vw - var(--w)) / 2 + 10px));
   background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px);
   border-bottom: 1px solid var(--line);
 }
@@ -51,10 +49,10 @@ a { color: inherit; }
 .titles { flex: 1; min-width: 0; padding-left: 2px; }
 .titles b { display: block; font-size: 16.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .titles small { display: block; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.page { max-width: var(--w); margin: 0 auto; padding: 12px var(--gutter) calc(92px + env(safe-area-inset-bottom)); }
+.page { max-width: var(--w); margin: 0 auto; padding: 12px var(--gutter) calc(80px + env(safe-area-inset-bottom)); }
 .tabbar, .actionbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-  padding: 6px max(8px, calc((100vw - var(--w)) / 2 + 8px)) calc(6px + env(safe-area-inset-bottom));
+  padding: 6px max(8px, env(safe-area-inset-right), calc((100vw - var(--w)) / 2 + 8px)) max(6px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left), calc((100vw - var(--w)) / 2 + 8px));
   background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: saturate(1.4) blur(14px); -webkit-backdrop-filter: saturate(1.4) blur(14px);
   border-top: 1px solid var(--line);
 }
@@ -62,12 +60,14 @@ a { color: inherit; }
 .tabbar button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0 4px; background: none; border: 0; color: var(--muted); font: 600 11.5px 'Titillium Web', sans-serif; cursor: pointer; }
 .tabbar button.on { color: var(--brand); }
 .tabbar .ic { width: 24px; height: 24px; }
-.actionbar { display: flex; gap: 8px; padding-top: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+.actionbar { display: flex; gap: 8px; padding-top: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); transition: transform .2s; }
+/* Clavier ouvert (texte en cours de saisie) : barre d'actions rangée, elle flotterait au-dessus */
+.editing:has(textarea:focus, input[type=text]:focus) .actionbar { transform: translateY(110%); }
 .actionbar .btn { flex: 1; }
 .actionbar .btn.primary { flex: 1.5; }
 
 /* ---------- Boutons ---------- */
-.iconbtn { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border: 0; border-radius: 12px; background: none; color: var(--text); cursor: pointer; }
+.iconbtn { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: 12px; background: none; color: var(--text); cursor: pointer; }
 .iconbtn:active { background: var(--surface-2); }
 .iconbtn.boxed { border: 1px solid var(--line-2); background: var(--surface); width: 46px; height: auto; }
 .iconbtn.small { width: 30px; height: 30px; color: var(--muted); margin: -6px -6px -6px 0; }
@@ -91,18 +91,18 @@ a { color: inherit; }
 
 /* ---------- Commandes : segments, puces, interrupteurs ---------- */
 .seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 12px; background: var(--surface-2); max-width: 100%; }
-.seg button { border: 0; border-radius: 9px; background: none; color: var(--text-2); font: 600 14px 'Titillium Web', sans-serif; padding: 7px 14px; cursor: pointer; white-space: nowrap; }
+.seg button { border: 0; border-radius: 9px; background: none; color: var(--text-2); font: 600 14.5px 'Titillium Web', sans-serif; padding: 9px 14px; cursor: pointer; white-space: nowrap; }
 .seg button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow), 0 0 0 1px var(--line); }
 .seg button:disabled { opacity: .35; cursor: default; }
 .seg.wide { display: flex; width: 100%; }
 .seg.wide button { flex: 1; padding-inline: 4px; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
 .chip-toggle input { position: absolute; opacity: 0; pointer-events: none; }
-.chip-toggle span { display: inline-block; padding: 7px 14px; border: 1px solid var(--line-2); border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--text-2); cursor: pointer; }
+.chip-toggle span { display: inline-block; padding: 9px 15px; border: 1px solid var(--line-2); border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--text-2); cursor: pointer; }
 .chip-toggle input:checked + span { background: var(--brand-wash); border-color: transparent; color: var(--brand); }
 .chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 calc(-1 * var(--gutter)) 10px; padding: 0 var(--gutter) 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .chips::-webkit-scrollbar { display: none; }
-.chips button { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--text-2); font: 600 13.5px 'Titillium Web', sans-serif; cursor: pointer; white-space: nowrap; }
+.chips button { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--text-2); font: 600 13.5px 'Titillium Web', sans-serif; cursor: pointer; white-space: nowrap; }
 .chips button.on { background: var(--text); border-color: var(--text); color: var(--bg); }
 .chips small { font-weight: 600; opacity: .55; }
 .chips i { width: 8px; height: 8px; border-radius: 50%; }
@@ -233,7 +233,9 @@ video { display: block; width: 100%; margin-top: 10px; border-radius: 12px; }
 /* ---------- Feuille du bas (réglages, programmation) ---------- */
 dialog.sheet { width: 100%; max-width: 640px; max-height: 88vh; margin: auto auto 0; padding: 0; border: 0; border-radius: 22px 22px 0 0; background: var(--bg); color: var(--text); animation: up .22s ease-out; }
 dialog.sheet::backdrop { background: rgba(0, 0, 0, .5); }
-.sheet-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 12px 10px 4px 18px; background: var(--bg); }
+.sheet-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 18px 10px 4px 18px; background: var(--bg); touch-action: none; }
+.sheet-head::before { content: ''; position: absolute; top: 7px; left: 50%; width: 38px; height: 5px; margin-left: -19px; border-radius: 3px; background: var(--line-2); }
+dialog.sheet.drag { animation: none; transition: none; }
 .sheet-head b { font-size: 17px; }
 .sheet-body { max-height: calc(88vh - 56px); overflow: auto; padding: 0 16px calc(22px + env(safe-area-inset-bottom)); }
 .sheet-body > .section:first-child { margin-top: 8px; }
@@ -241,17 +243,20 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, .5); }
 .sheet-body .row { margin-top: 10px; }
 
 /* ---------- Message passager ---------- */
-.toast { position: fixed; left: 50%; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 50; max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 12px; background: var(--text); color: var(--bg); font-weight: 600; font-size: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); opacity: 0; transform: translate(-50%, 16px); transition: opacity .2s, transform .2s; pointer-events: none; }
+.toast { position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 50; max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: 12px; background: var(--text); color: var(--bg); font-weight: 600; font-size: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); opacity: 0; transform: translate(-50%, 16px); transition: opacity .2s, transform .2s; pointer-events: none; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast.ok { background: var(--ok); color: #fff; }
 .toast.bad { background: var(--bad); color: #fff; }
 
 /* ---------- Connexion ---------- */
-.login-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.login-screen { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: calc(24px + env(safe-area-inset-top)) var(--gutter) calc(24px + env(safe-area-inset-bottom)); }
 .login { width: 100%; max-width: 380px; padding: 30px 22px 24px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: var(--shadow); text-align: center; }
 .login .logo { display: block; width: 64px; height: 64px; margin: 0 auto 14px; }
 .login h1 { margin: 0; font: 800 30px/1.1 'Saira Condensed', sans-serif; letter-spacing: .3px; }
 .login .sub { margin: 6px 0 18px; font-size: 14px; color: var(--muted); }
 .login .field, .login .check, .login .notice { text-align: left; }
 .login .btn { margin-top: 6px; }
-.boot { min-height: 100vh; display: grid; place-items: center; color: var(--muted); }
+.boot { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; color: var(--muted); }
+/* Retour par glissement depuis le bord gauche (appli installée sur l'iPhone) */
+.editing .page { transition: transform .2s; }
+.editing.swiping .page { transition: none; }

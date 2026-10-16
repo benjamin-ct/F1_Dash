@@ -72,8 +72,13 @@ export function cachedNews() {
   return hit ? { items: hit.v, at: hit.at } : null;
 }
 // Nouvelles fraîches (une seule lecture à la fois)
+const NEWS_FRESH = 3 * 60e3;   // nouvelles relues au plus toutes les 3 minutes (sauf « Actualiser »)
 export function freshNews({ force = false } = {}) {
-  if (news && !force && Date.now() - newsAt < 3 * 60e3) return Promise.resolve(news);
+  if (!force && !news) {
+    const hit = store.get('news', NEWS_FRESH);
+    if (hit) { news = hit.v; newsAt = hit.at; }
+  }
+  if (news && !force && Date.now() - newsAt < NEWS_FRESH) return Promise.resolve(news);
   newsLoading ||= fetchNews().then((items) => {
     news = items;
     newsAt = Date.now();
@@ -114,9 +119,11 @@ function parseOffset(v) {
 export const SESSION_FR = (n) => String(n).replace(/^Practice (\d)$/, 'Essais libres $1').replace('Sprint Qualifying', 'Qualifications sprint').replace('Sprint Shootout', 'Qualifications sprint').replace(/^Qualifying$/, 'Qualifications').replace(/^Race$/, 'Course');
 
 // Séances terminées de la saison (30 dernières), gardées 30 minutes sur le téléphone
+// (relues au plus toutes les 10 minutes, sauf « Actualiser »)
 let sessions = null;
 export const cachedSessions = () => sessions || store.get('sessions', 30 * 60e3)?.v || null;
 export async function seasonSessions({ force = false } = {}) {
+  if (!force && !sessions) sessions = store.get('sessions', 10 * 60e3)?.v || null;
   if (sessions && !force) return sessions;
   const year = new Date().getUTCFullYear();
   const out = [];

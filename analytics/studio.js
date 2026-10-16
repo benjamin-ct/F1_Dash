@@ -160,12 +160,16 @@ async function feed(req, url) {
 }
 
 // Toutes les sources d'actu en une seule réponse (au lieu d'une requête par source depuis le
-// téléphone) : lues en parallèle, 5 secondes au plus chacune, gardées 3 minutes quand le cache est
-// disponible (domaine personnalisé)
-export async function feeds({ fetchFn = fetch } = {}) {
+// téléphone) : lues en parallèle, 5 secondes au plus chacune. Gardées 2 minutes par le serveur : en
+// mémoire (adresse workers.dev, où le cache de Cloudflare ne fonctionne pas) et dans le cache
+// (domaine personnalisé)
+const FEEDS_TTL = 120e3;
+let feedsMemo = null;
+export async function feeds({ fetchFn = fetch, now = Date.now() } = {}) {
   const key = new Request('https://studio.cache/feeds-all');
   // Réponse jamais gardée par le navigateur (« Actualiser » relit toujours le serveur)
   const send = (body) => new Response(body, { headers: { 'Content-Type': 'text/plain; charset=x-user-defined', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' } });
+  if (feedsMemo && now - feedsMemo.at < FEEDS_TTL) return send(feedsMemo.body);
   const hit = await caches.default.match(key).catch(() => null);
   if (hit) return send(hit.body);
   const list = DEFAULT_SOURCES.filter((s) => s.kind === 'rss');
@@ -178,7 +182,8 @@ export async function feeds({ fetchFn = fetch } = {}) {
   }));
   // Texte pour la compression de Cloudflare ; lu en octets par la page
   const body = packFeeds(parts);
-  await caches.default.put(key, new Response(body, { headers: { 'Cache-Control': 'max-age=180' } })).catch(() => {});
+  feedsMemo = { at: now, body };
+  await caches.default.put(key, new Response(body, { headers: { 'Cache-Control': `max-age=${FEEDS_TTL / 1000}` } })).catch(() => {});
   return send(body);
 }
 

@@ -3,7 +3,7 @@
 import { slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { FLAG_ISO } from '/shared/flags.js';
-import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, state, session, SIG, NET_NAMES } from './ui.js';
+import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
@@ -38,6 +38,37 @@ const CAPS = [
 ];
 const xLen = (s) => String(s || '').replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length;
 
+// Retour à la liste : bouton, geste « retour » de Safari (historique) et, sur l'appli installée,
+// glissement depuis le bord gauche de l'écran
+let leave = null;
+const goBack = () => {
+  if (history.state?.editor) { history.back(); return; }
+  const fn = leave;
+  leave = null;
+  fn?.();
+};
+addEventListener('popstate', () => { if (leave && $('#app.editing')) { const fn = leave; leave = null; fn(); } });
+let swipe = null;
+addEventListener('touchstart', (e) => {
+  swipe = leave && $('#app.editing') && installed() && e.touches.length === 1 && e.touches[0].clientX < 24 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0 } : null;
+}, { passive: true });
+addEventListener('touchmove', (e) => {
+  if (!swipe) return;
+  swipe.dx = e.touches[0].clientX - swipe.x;
+  if (Math.abs(e.touches[0].clientY - swipe.y) > 60) { swipe = null; $('#app').classList.remove('swiping'); $('.editing .page')?.style.removeProperty('transform'); return; }
+  $('#app').classList.add('swiping');
+  const page = $('.editing .page');
+  if (page) page.style.transform = `translateX(${Math.max(0, swipe.dx)}px)`;
+}, { passive: true });
+addEventListener('touchend', () => {
+  if (!swipe) return;
+  const done = swipe.dx > 90;
+  swipe = null;
+  $('#app').classList.remove('swiping');
+  $('.editing .page')?.style.removeProperty('transform');
+  if (done) goBack();
+});
+
 // back : retour ; title / subtitle : en-tête ; head : réglages propres au post (HTML), au-dessus des
 // visuels ou en dessous (below) ; data : données des visuels ; caps : textes ; bind(redraw) :
 // branchement des réglages ; record : entrée du journal
@@ -64,8 +95,11 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       <section class="panel" id="netsbox"></section>
       <div id="schedlist"></div>
     </main>
-    <div class="actionbar"><button class="btn primary" id="go">${icon('send')}Publier</button><button class="btn" id="plan">${icon('clock')}Programmer</button><button class="iconbtn boxed" id="share" aria-label="Partager">${icon('share')}</button><button class="iconbtn boxed" id="dl" aria-label="Télécharger">${icon('download')}</button></div>`;
+    <div class="actionbar"><button class="btn primary" id="go">${icon('send')}Publier</button><button class="btn" id="plan">${icon('clock')}Programmer</button><button class="iconbtn boxed" id="share" aria-label="Partager ou enregistrer">${icon('share')}</button>${IOS ? '' : `<button class="iconbtn boxed" id="dl" aria-label="Télécharger">${icon('download')}</button>`}</div>`;
   scrollTo(0, 0);
+  // Entrée dans l'historique : le geste « retour » ramène à la liste au lieu de quitter la page
+  if (!history.state?.editor) history.pushState({ editor: 1 }, '');
+  leave = back;
 
   const redraw = async (changed = false) => {
     if (changed) edited = {};
@@ -122,10 +156,11 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     $('#go').onclick = () => publishAll(d, o, record?.());
     $('#plan').onclick = () => schedulePanel(d, o, record?.());
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
-    $('#dl').onclick = () => download(canvases);
+    // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
+    if ($('#dl')) $('#dl').onclick = () => download(canvases);
     if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText($('#cap-comment').value); toast('Commentaire copié'); } catch { /* presse-papiers refusé */ } };
   };
-  $('#back').onclick = back;
+  $('#back').onclick = goBack;
   $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); redraw(); }; });
   $('#photos').onchange = (e) => { state.photos = e.target.checked; redraw(); };
   $('#follow').onchange = (e) => { state.follow = e.target.checked; redraw(true); };

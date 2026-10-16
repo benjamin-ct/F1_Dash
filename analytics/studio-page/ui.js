@@ -11,6 +11,10 @@ export const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads
 export const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'raceweek', round: null, nsort: 'top', nkind: null, skip: new Set() };
 export const session = { me: null };
 
+// iPhone / iPad, et page ouverte depuis l'écran d'accueil (sans la barre de Safari)
+export const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+export const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
 export const ago = (ts) => { const m = Math.max(1, Math.round((Date.now() - ts) / 60e3)); return m < 60 ? `${m} min` : m < 48 * 60 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} j`; };
 export const fmtN = (v) => (v == null ? '—' : Number(v).toLocaleString('fr-FR'));
 
@@ -127,6 +131,17 @@ export function sheet(title, html) {
   d.querySelector('[data-close]').onclick = () => d.close();
   d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
   d.addEventListener('close', () => d.remove());
+  // Glisser l'en-tête vers le bas : feuille fermée (comme sur l'iPhone)
+  const head = d.querySelector('.sheet-head');
+  let y0 = null;
+  head.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; d.classList.add('drag'); }, { passive: true });
+  head.addEventListener('touchmove', (e) => { if (y0 !== null) d.style.transform = `translateY(${Math.max(0, e.touches[0].clientY - y0)}px)`; }, { passive: true });
+  head.addEventListener('touchend', (e) => {
+    const dy = y0 === null ? 0 : e.changedTouches[0].clientY - y0;
+    y0 = null;
+    d.classList.remove('drag');
+    if (dy > 90) d.close(); else d.style.transform = '';
+  });
   d.showModal();
   return d;
 }

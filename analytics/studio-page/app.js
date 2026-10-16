@@ -8,7 +8,7 @@
 import { bigNews, newsKind, newsKinds, sortNews } from '/shared/social-news.js';
 import { postedEntry } from '/shared/post-history.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
-import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, schedList, store, state, session, hasKey, setKey, forgetKey, onLogout, NET_NAMES } from './ui.js';
+import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, schedList, store, state, session, hasKey, setKey, forgetKey, onLogout, NET_NAMES, IOS, installed } from './ui.js';
 import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
 
 const app = $('#app');
@@ -29,7 +29,7 @@ function login(error = '') {
       ${LOGO}
       <h1>Paddock <b>Studio</b></h1>
       <p class="sub">Posts des séances et des grosses news, publiés depuis votre téléphone.</p>
-      <label class="field"><span>Code du mode créateur</span><input type="password" id="code" autocomplete="current-password" required></label>
+      <label class="field"><span>Code du mode créateur</span><input type="password" id="code" autocomplete="current-password" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="go" required></label>
       <label class="check"><input type="checkbox" id="keep" checked> Rester connecté sur cet appareil</label>
       ${error ? `<p class="notice bad">${icon('alert')}${esc(error)}</p>` : ''}
       <button class="btn primary wide">Entrer</button>
@@ -156,7 +156,7 @@ async function sessionsTab(body, { force, restore, current }) {
   if (known && !force) renderSessions(body, known);
   else body.innerHTML = skeleton(5);
   restoreScroll(restore);
-  const list = await seasonSessions({ force: force || !!known });
+  const list = await seasonSessions({ force });
   if (!current()) return;
   renderSessions(body, list);
   setTimeout(() => posts().catch(() => {}), 300);
@@ -182,11 +182,14 @@ async function seasonView(body, { restore }) {
 
 // ---------- Statistiques des posts ----------
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', 'J\'aime'], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
-async function statsTab(body, { restore, current }) {
+async function statsTab(body, { force, restore, current }) {
+  // Statistiques relues au plus toutes les 2 minutes (sauf « Actualiser »)
   const known = store.get('stats');
-  if (known) renderStats(body, known.v, true);
+  const recent = known && Date.now() - known.at < 2 * 60e3 && !force;
+  if (known) renderStats(body, known.v, !recent);
   else body.innerHTML = skeleton(4);
   restoreScroll(restore);
+  if (recent) return;
   const r = await api('stats');
   if (!current()) return;
   store.set('stats', r);
@@ -233,8 +236,6 @@ function settings() {
   $('#out', dlg).onclick = () => { dlg.close(); forgetKey(); login(); };
 }
 
-const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const pushReady = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const keyBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), (c) => c.charCodeAt(0));
 
