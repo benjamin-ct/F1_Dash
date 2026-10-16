@@ -62,11 +62,12 @@ body { min-height: 100vh; min-height: 100lvh; }
 .appbar {
   position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px;
   padding: calc(6px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right), calc((100vw - var(--w)) / 2 + 12px)) 8px max(12px, env(safe-area-inset-left), calc((100vw - var(--w)) / 2 + 12px));
-  /* Fond flouté sous le contenu qui défile ; pas de masque (Safari floute alors aussi le logo et
-     les boutons) : le fondu du bas est une bande à part */
-  background: rgba(11, 12, 15, .82);
-  -webkit-backdrop-filter: blur(16px) saturate(1.6); backdrop-filter: blur(16px) saturate(1.6);
+  /* Fond flouté sous le contenu qui défile, sur un calque à part derrière le logo et les boutons :
+     sur l'iPhone, un flou posé sur l'en-tête lui-même faisait dessiner son contenu en basse
+     résolution (logo et titre flous) */
+  isolation: isolate;
 }
+.appbar::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(11, 12, 15, .82); -webkit-backdrop-filter: blur(16px) saturate(1.6); backdrop-filter: blur(16px) saturate(1.6); pointer-events: none; }
 .appbar::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 14px; background: linear-gradient(rgba(11, 12, 15, .55), rgba(11, 12, 15, 0)); pointer-events: none; }
 .brand { display: flex; align-items: center; gap: 10px; padding-left: 2px; }
 .brand .logo { width: 30px; height: 30px; }
