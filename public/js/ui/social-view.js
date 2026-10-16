@@ -13,7 +13,7 @@ import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { makeAnimation } from '/shared/social-video.js';
-import { bigNews, newsPost, newsCaptions, newsKind, OTHER_SERIES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES } from '/shared/social-news.js';
 import { builtinNomination } from '/shared/tyres.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { postedEntry } from '/shared/post-history.js';
@@ -250,6 +250,8 @@ async function saveRaceVideo() {
 // ---------- Grosses news de l'Actu ----------
 let newsAll = false;   // toutes les actus des 48 dernières heures, pas seulement les grosses
 let newsSel = null;
+let newsSort = 'top';   // ordre des news : à la une ou plus récentes
+let newsType = '';     // filtre par type de news ('' : toutes)
 let newsCache = null;
 const frCache = new Map();
 const edits = new Map();   // id -> { title, summary } corrigés à la main
@@ -287,12 +289,19 @@ const ago = (ts) => { const m = Math.round((Date.now() - ts) / 60e3); return m <
 
 async function newsSource(sig) {
   const data = await newsList();
-  const list = bigNews(data.items, { all: newsAll }).slice(0, 40);
-  const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
+  const big = bigNews(data.items, { all: newsAll });
   const history = await postHistory();
-  const posted = list.map((it) => postedEntry(it, history));
+  const postedOf = new Map(big.map((it) => [it, postedEntry(it, history)]));
+  // Tri (à la une ou récentes), filtre par type, news déjà publiées en dernier
+  const kinds = newsKinds(big);
+  if (newsType && !kinds.some((k) => k.key === newsType)) newsType = '';
+  const list = sortNews(big.filter((it) => !newsType || newsKind(it).key === newsType), { by: newsSort, done: (it) => postedOf.get(it) }).slice(0, 40);
+  const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
+  const posted = list.map((it) => postedOf.get(it));
   const bar = (sel) => `<div class="row posts-news-bar">
       <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${posted[i] ? `✓ ${esc(t('Publiée'))} · ` : ''}${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
+      <select class="small" data-newssort title="${t('Ordre des news')}"><option value="top" ${newsSort === 'top' ? 'selected' : ''}>${t('À la une')}</option><option value="recent" ${newsSort === 'recent' ? 'selected' : ''}>${t('Plus récentes')}</option></select>
+      ${kinds.length > 1 ? `<select class="small" data-newstype title="${t('Type de news')}"><option value="">${t('Tous les types')} (${big.length})</option>${kinds.map((k) => `<option value="${k.key}" ${newsType === k.key ? 'selected' : ''}>${esc(t(k.label))} (${k.n})</option>`).join('')}</select>` : ''}
       <label class="toggle small"><input type="checkbox" data-newsall ${newsAll ? 'checked' : ''}> ${t('Toutes les actus')}</label>
       <label class="toggle small" title="${t('Carrousel des 5 grosses news des 7 derniers jours')}"><input type="checkbox" data-recap ${recapMode ? 'checked' : ''}> ${t('Récap de la semaine')}</label>
       ${sel?.link ? `<a class="btn small" href="${esc(sel.link)}" target="_blank" rel="noopener">${icon('external')} ${t("Lire l'article")}</a>` : ''}</div>`;
@@ -594,6 +603,8 @@ function open() {
       if (e.target.matches('[data-newspick]')) { newsSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-flashpick]')) { flashSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-newsall]')) { newsAll = e.target.checked; render(dlg); }
+      if (e.target.matches('[data-newssort]')) { newsSort = e.target.value; render(dlg); }
+      if (e.target.matches('[data-newstype]')) { newsType = e.target.value; render(dlg); }
       if (e.target.matches('[data-recap]')) { recapMode = e.target.checked; render(dlg); }
       if (e.target.matches('[data-roundpick]')) { roundSel = Number(e.target.value); render(dlg); }
       if (e.target.matches('[data-linkcomment]')) { linkComment = e.target.checked; sync(); render(dlg); }

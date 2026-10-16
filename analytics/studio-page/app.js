@@ -4,7 +4,7 @@
 // Paddock Live après confirmation, ou partage vers les autres applis (X, TikTok…) depuis le téléphone.
 import { clusterNews } from '/shared/news.js';
 import { feedItems, decodeBody } from '/shared/news-collect.js';
-import { bigNews, newsPost, newsCaptions, newsKind, OTHER_SERIES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES } from '/shared/social-news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { builtinNomination } from '/shared/tyres.js';
@@ -37,7 +37,7 @@ const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'Tim
 let key = null;
 try { key = localStorage.getItem(KEY) || sessionStorage.getItem(KEY); } catch { /* stockage bloqué */ }
 let me = null;
-const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'raceweek', round: null };
+const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'raceweek', round: null, nsort: 'top', nkind: null };
 let news = null;        // nouvelles lues (toutes sources)
 let sessions = null;    // séances de la saison
 let lastDrivers = {};   // liste des pilotes de la dernière séance lue (photos des news)
@@ -155,16 +155,25 @@ async function loadNews() {
 async function newsTab(body) {
   body.innerHTML = '<p class="muted">Lecture des sources d\'actu…</p>';
   news ||= await loadNews();
-  const list = bigNews(news, { all: state.all }).slice(0, 40);
+  const big = bigNews(news, { all: state.all });
   const history = (await api('history').catch(() => ({}))).items || [];
-  const posted = list.map((it) => postedEntry(it, history));
+  const done = new Map(big.map((it) => [it, postedEntry(it, history)]));
+  // Tri (à la une ou récentes), filtre par type, news déjà publiées en dernier
+  const kinds = newsKinds(big);
+  if (state.nkind && !kinds.some((k) => k.key === state.nkind)) state.nkind = null;
+  const list = sortNews(big.filter((it) => !state.nkind || newsKind(it).key === state.nkind), { by: state.nsort, done: (it) => done.get(it) }).slice(0, 40);
+  const posted = list.map((it) => done.get(it));
   const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
   body.innerHTML = `<div id="alerts" class="alerts"></div>
     <div class="row"><label class="check"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}> Toutes les actus (48 h)</label><span class="spacer"></span><button id="recap">Récap de la semaine</button><button id="reload">Actualiser</button></div>
+    <div class="row newsbar"><div class="seg" id="nsort"><button data-by="top" class="${state.nsort === 'top' ? 'on' : ''}">À la une</button><button data-by="recent" class="${state.nsort === 'recent' ? 'on' : ''}">Plus récentes</button></div></div>
+    ${kinds.length > 1 ? `<div id="nkinds" class="seg"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout (${big.length})</button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}">${esc(k.label)} (${k.n})</button>`).join('')}</div>` : ''}
     ${list.length ? '' : '<p class="muted">Aucune grosse news ces dernières 48 heures.</p>'}
-    <div class="list">${list.map((it, i) => { const k = newsKind(it); return `<button class="card" data-i="${i}"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${posted[i] ? ' <span class="badge" style="background:#8E97A6">PUBLIÉE ✓</span>' : ''}
+    <div class="list">${list.map((it, i) => { const k = newsKind(it); return `<button class="card${posted[i] ? ' done' : ''}" data-i="${i}"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${posted[i] ? ' <span class="badge" style="background:#8E97A6">PUBLIÉE ✓</span>' : ''}
       <div class="t">${esc(titles[i] || it.title)}</div><div class="small muted">${esc(it.srcName)} · il y a ${ago(it.t)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>`; }).join('')}</div>`;
   $('#all').onchange = (e) => { state.all = e.target.checked; newsTab(body); };
+  body.querySelectorAll('#nsort [data-by]').forEach((b) => { b.onclick = () => { state.nsort = b.dataset.by; newsTab(body); }; });
+  body.querySelectorAll('#nkinds [data-k]').forEach((b) => { b.onclick = () => { state.nkind = b.dataset.k || null; newsTab(body); }; });
   $('#reload').onclick = () => { news = null; newsTab(body); };
   $('#recap').onclick = () => recapEditor().catch((err) => alert(err.message));
   body.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => newsEditor(list[Number(b.dataset.i)], posted[Number(b.dataset.i)]); });

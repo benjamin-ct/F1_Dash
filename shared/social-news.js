@@ -73,6 +73,25 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
     .sort((a, b) => b.score - a.score || b.t - a.t);
 }
 
+// Ordre d'affichage des grosses news : « à la une » (importance, moins 1 point par tranche de 12 h
+// pour que les news fraîches passent devant) ou « récentes » (la plus récente d'abord) ; les news
+// déjà publiées (done) vont à la fin
+export function sortNews(list, { by = 'top', now = Date.now(), done = () => false } = {}) {
+  const hot = (it) => (it.score || 0) - (now - it.t) / (12 * 3600e3);
+  return [...list].sort((a, b) => Number(!!done(a)) - Number(!!done(b))
+    || (by === 'recent' ? b.t - a.t : hot(b) - hot(a) || b.t - a.t));
+}
+// Types présents dans une liste de news, avec leur nombre (filtre par type), les plus fréquents d'abord
+export function newsKinds(list) {
+  const out = new Map();
+  for (const it of list) {
+    const k = newsKind(it);
+    if (!out.has(k.key)) out.set(k.key, { ...k, n: 0 });
+    out.get(k.key).n++;
+  }
+  return [...out.values()].sort((a, b) => b.n - a.n);
+}
+
 // Autres championnats (sources de la FIA) : écartés des sélections automatiques (récap)
 export const OTHER_SERIES = /formula e\b|formule e\b|\bwec\b|\bwrc\b|rally|rallye|karting|\bf[234]\b|formula [234]\b|world cup|coupe du monde|macau|macao|cross-country|\bgt\b|endurance|extreme h|hill ?climb/i;
 

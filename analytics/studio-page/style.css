@@ -66,9 +66,13 @@ h3 { font-size: 15px; margin: 18px 0 0; }
 #schedbox .row input { flex: 1; min-width: 0; width: auto; }
 #schedlist a { color: var(--ok); }
 /* Types de posts de la Saison : sous les onglets, une seule ligne qui défile au doigt */
-#stypes { display: flex; max-width: 100%; margin-top: 12px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-#stypes::-webkit-scrollbar { display: none; }
-#stypes button { flex: none; white-space: nowrap; }
+#stypes, #nkinds { display: flex; max-width: 100%; margin-top: 12px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+#stypes::-webkit-scrollbar, #nkinds::-webkit-scrollbar { display: none; }
+#stypes button, #nkinds button { flex: none; white-space: nowrap; }
 /* Prochain Grand Prix (ou dernière course) en tête de la Saison */
 .card.next { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
 .card.next .badge { background: var(--accent); color: #fff; }
+/* News : tri et filtre par type ; news déjà publiées en fin de liste, atténuées */
+.newsbar { margin-top: 10px; }
+#nkinds { margin-top: 8px; width: fit-content; }
+.card.done { opacity: .6; }
