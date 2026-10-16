@@ -80,7 +80,8 @@ test('posts : couverture « Résultats » (anti-spoiler) en première image de c
   const d = { kind: 'race', rows: [{}], facts: [], champ: {} };
   assert.deepEqual(slidesFor(d), ['couverture', 'vainqueur', 'podium', 'classement', 'faits', 'championnat']);
   assert.deepEqual(slidesFor({ ...d, kind: 'quali', champ: null }).slice(0, 2), ['couverture', 'pole']);
-  assert.deepEqual(slidesFor({ ...d, kind: 'practice' }), ['couverture', 'classement']);
+  assert.deepEqual(slidesFor({ ...d, kind: 'practice' }), ['couverture', 'meilleurtemps', 'podium', 'classement']);
+  assert.deepEqual(slidesFor({ ...d, kind: 'practice', facts: [{}] }).at(-1), 'faits');
   assert.deepEqual(slidesFor({ ...d, rows: [] }), []);
 });
 
@@ -96,4 +97,31 @@ test('posts : texte sans spoiler (début de légende et texte court sans le vain
   assert.ok(c.x.length <= 280 && c.threads.length <= 500);
   // Par défaut : comme avant
   assert.match(captions(d, '').x, /^Verstappen remporte/);
+});
+
+test('posts : essais libres (meilleur temps, top 3, faits marquants)', () => {
+  const fp = {
+    ...state,
+    SessionInfo: { ...state.SessionInfo, Type: 'Practice', Name: 'Practice 2' },
+    TimingAppData: { Lines: { 1: { Stints: [{ Compound: 'MEDIUM', New: 'true', LapTime: '1:21.400' }, { Compound: 'SOFT', New: 'true', LapTime: '1:20.100' }] } } },
+    TimingData: { Lines: {
+      1: { Position: '1', NumberOfLaps: 24, BestLapTime: { Value: '1:20.100' } },
+      16: { Position: '2', NumberOfLaps: 31, BestLapTime: { Value: '1:20.350' }, TimeDiffToFastest: '+0.250' },
+      44: { Position: '3', NumberOfLaps: 27, BestLapTime: { Value: '1:21.300' }, TimeDiffToFastest: '+1.200' },
+    } },
+  };
+  const d = postData(fp);
+  assert.equal(d.kind, 'practice');
+  assert.equal(d.label, 'Essais libres 2');
+  assert.deepEqual(d.rows.map((r) => r.gap), ['1:20.100', '+0,250', '+1,200']);
+  const f = Object.fromEntries(d.facts.map((x) => [x.label, `${x.value} | ${x.sub}`]));
+  assert.equal(f['Écart P1 / P2'], '+0,250 | Norris devant Leclerc');
+  assert.equal(f['Pneus du meilleur temps'], 'Tendres | Norris · train neuf');
+  assert.equal(f['Le plus de tours'], 'Leclerc | 31 tours');
+  assert.equal(f['Tours bouclés'], '82 | par les 3 pilotes');
+  assert.equal(f['Dans la seconde'], "2 pilotes | à moins d'1 s du meilleur temps");
+  assert.deepEqual(slidesFor(d), ['couverture', 'meilleurtemps', 'podium', 'classement', 'faits']);
+  const c = captions(d);
+  assert.match(c.instagram, /^Essais libres 2 du Grand Prix d'Italie : Lando Norris en tête\.\n\nTop 3 :\n1\. Lando Norris \(McLaren\) 1:20\.100\n/);
+  assert.match(captions(d, '', { spoiler: false }).x, /^Essais libres 2 du Grand Prix d'Italie : qui signe le meilleur temps \?/);
 });

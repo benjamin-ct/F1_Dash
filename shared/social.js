@@ -53,7 +53,7 @@ export function postData(state) {
     return {
       pos: i + 1, num: n, tla: d.Tla || n, first: d.FirstName || '', last: d.LastName || d.Tla || n,
       team: d.TeamName || '', color: d.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: d.HeadshotUrl || null,
-      gap, grid, delta: kind === 'race' && grid && !out ? grid - (i + 1) : null, out,
+      gap, grid, delta: kind === 'race' && grid && !out ? grid - (i + 1) : null, out, laps: Number(lines[n].NumberOfLaps) || 0,
       points: kind === 'race' && !out ? (pts[i] || 0) : 0, knockedOut: !!lines[n].KnockedOut,
       // Partie de la qualif où le pilote a été éliminé (dernier temps réalisé : Q1 ou Q2)
       koPart: lines[n].KnockedOut ? Math.max(1, list(lines[n].BestLapTimes).filter((x) => x?.Value).length) : null,
@@ -82,6 +82,23 @@ export function postData(state) {
     const ko = rows.filter((r) => r.knockedOut);
     if (ko.length) facts.push({ label: 'Éliminés', value: String(ko.length), sub: ko.map((r) => r.tla).join(', ') });
     if (rows[1]) facts.push({ label: 'Écart pole / P2', value: rows[1].gap || '—', sub: `${rows[0].last} devant ${rows[1].last}`, color: rows[0].color });
+  } else if (rows.length) {
+    // Essais : écart en tête, pneus du meilleur temps, roulage, pilotes dans la seconde
+    const [p1, p2] = rows;
+    if (p2?.gap) facts.push({ label: 'Écart P1 / P2', value: p2.gap, sub: `${p1.last} devant ${p2.last}`, color: p1.color });
+    const best = lines[p1.num]?.BestLapTime?.Value;
+    const stint = best && list(app[p1.num]?.Stints).find((st) => st?.LapTime === best);
+    if (stint && COMP[stint.Compound]) {
+      const fresh = String(stint.New) === 'true' ? ' · train neuf' : String(stint.New) === 'false' ? ' · train utilisé' : '';
+      facts.push({ label: 'Pneus du meilleur temps', value: COMP[stint.Compound], sub: `${p1.last}${fresh}`, color: p1.color });
+    }
+    const most = [...rows].sort((a, b) => b.laps - a.laps)[0];
+    if (most?.laps) facts.push({ label: 'Le plus de tours', value: most.last, sub: `${most.laps} tours`, color: most.color });
+    const total = rows.reduce((n, r) => n + r.laps, 0);
+    if (total) facts.push({ label: 'Tours bouclés', value: String(total), sub: `par les ${rows.length} pilotes` });
+    const diff = (r) => Number(String(lines[r.num]?.TimeDiffToFastest ?? '').replace('+', ''));
+    const close = rows.slice(1).filter((r) => diff(r) > 0 && diff(r) < 1).length + 1;
+    if (best && rows.slice(1).some((r) => diff(r) > 0)) facts.push({ label: 'Dans la seconde', value: `${close} pilote${close > 1 ? 's' : ''}`, sub: 'à moins d\'1 s du meilleur temps' });
   }
 
   // Championnat projeté (publié par la F1 pendant les courses et les sprints)
@@ -143,7 +160,7 @@ export function hashtags(d, { spoiler = true } = {}) {
 function teaser(d) {
   if (d.kind === 'race') return `Résultats ${d.sprint ? 'du sprint du' : 'du'} ${d.gp} : qui l'a emporté ? Réponse en images.`;
   if (d.kind === 'quali') return `${d.label} du ${d.gp} : qui part en pole ? Réponse en images.`;
-  return `${d.label} du ${d.gp} : le classement en images.`;
+  return `${d.label} du ${d.gp} : qui signe le meilleur temps ? Réponse en images.`;
 }
 
 // Légendes prêtes à copier. spoiler: false : premières lignes et texte court sans le vainqueur
@@ -153,7 +170,8 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   const [p1, p2, p3] = d.rows;
   const sig = signature ? `\n\n${signature}` : '';
   const tags = hashtags(d, { spoiler });
-  const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${i + 1}. ${r.first} ${r.last} (${r.team})${i && r.gap ? ` ${r.gap}` : ''}`).join('\n');
+  // Essais et qualifs : temps du premier aussi ; course : écarts seulement
+  const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${i + 1}. ${r.first} ${r.last} (${r.team})${(i || d.kind !== 'race') && r.gap ? ` ${r.gap}` : ''}`).join('\n');
   let head; let short;
   if (d.kind === 'race') {
     head = `${p1.first} ${p1.last} remporte ${d.sprint ? 'le sprint du ' : 'le '}${d.gp} !`;
@@ -168,10 +186,10 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   const facts = d.facts.filter((f) => f.value && f.value !== 'Aucun').map((f) => `${f.label} : ${f.value}${f.sub ? ` (${f.sub})` : ''}`).join('\n');
   const story = d.summary.paragraphs.slice(0, 2).join(' ');
   if (!spoiler) {
-    head = `${teaser(d)}\nFaites défiler pour ${d.kind === 'practice' ? 'le classement' : d.kind === 'quali' ? 'la grille' : 'le podium'} et tous les détails.\n\n.\n.\n.\n\n${head}`;
+    head = `${teaser(d)}\nFaites défiler pour ${d.kind === 'practice' ? 'le top 3' : d.kind === 'quali' ? 'la grille' : 'le podium'} et tous les détails.\n\n.\n.\n.\n\n${head}`;
     short = teaser(d);
   }
-  const instagram = `${head}\n\n${d.kind === 'quali' ? 'Grille de départ' : 'Podium'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.all.join(' ')}`;
+  const instagram = `${head}\n\n${d.kind === 'quali' ? 'Grille de départ' : d.kind === 'race' ? 'Podium' : 'Top 3'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.all.join(' ')}`;
   // X : 280 caractères, hashtags retirés un à un si besoin (le compte du créateur reste)
   const xt = [...tags.x];
   let x = `${short}\n\n${xt.join(' ')}`;

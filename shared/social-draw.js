@@ -18,12 +18,12 @@ const MEDAL = [C.gold, C.silver, C.bronze];
 // n'est pas dévoilé dès la première image, ni dans l'aperçu du réseau)
 export function slidesFor(d) {
   if (!d.rows.length) return [];
-  let list = ['classement'];
+  let list = ['meilleurtemps', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
   if (d.kind === 'race') list = ['vainqueur', 'podium', 'classement', 'faits', ...(d.champ ? ['championnat'] : [])];
   else if (d.kind === 'quali') list = ['pole', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
   return ['couverture', ...list];
 }
-export const SLIDE_NAMES = { couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat' };
+export const SLIDE_NAMES = { couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat' };
 
 // ---------- Outils de dessin ----------
 function rr(ctx, x, y, w, h, r) {
@@ -203,9 +203,10 @@ function stats(ctx, d, x, y, w, perRow) {
     if (r[1]?.gap) items.push(['Avance', r[1].gap.replace(/^\+/, '')]);
     if (r[0].grid) items.push(['Départ', r[0].grid === 1 ? 'Pole' : `P${r[0].grid}`]);
     if (d.laps) items.push(['Tours', String(d.laps)]);
-  } else if (d.kind === 'quali') {
+  } else {
     if (r[0].gap) items.push(['Temps', r[0].gap]);
     if (r[1]?.gap) items.push(['Sur P2', r[1].gap]);
+    if (d.kind === 'practice' && r[0].laps) items.push(['Tours', String(r[0].laps)]);
   }
   const n = Math.min(items.length, perRow > 2 ? 3 : perRow === 1 ? 3 : 2);
   if (!n) return;
@@ -222,7 +223,7 @@ function stats(ctx, d, x, y, w, perRow) {
 
 function podium(ctx, W, H, d, o) {
   background(ctx, W, H, d.rows[0].color);
-  const f = frame(ctx, W, H, d, o, d.kind === 'quali' ? 'Top 3' : 'Podium');
+  const f = frame(ctx, W, H, d, o, d.kind === 'race' ? 'Podium' : 'Top 3');
   const top3 = d.rows.slice(0, 3);
   const order = [1, 0, 2].filter((i) => top3[i]);
   const land = W > H;
@@ -244,7 +245,7 @@ function podium(ctx, W, H, d, o) {
     circlePhoto(ctx, o.photos?.[p.num], cx, cy, r, p.color, p.tla);
     txt(ctx, p.first, cx, tt + 40, { size: land ? 30 : 34, weight: 600, align: 'center', max: colW - 20 });
     txt(ctx, p.last.toUpperCase(), cx, tt + (land ? 90 : 100), { size: land ? 50 : 60, weight: 800, family: TITLE, align: 'center', max: colW - 16 });
-    txt(ctx, i === 0 ? (d.kind === 'quali' ? p.gap : p.team) : p.gap || p.team, cx, tt + (land ? 132 : 150), { size: land ? 28 : 32, weight: 600, family: i === 0 && d.kind !== 'quali' ? BODY : MONO, color: C.muted, align: 'center', max: colW - 16 });
+    txt(ctx, i === 0 ? (d.kind !== 'race' ? p.gap || p.team : p.team) : p.gap || p.team, cx, tt + (land ? 132 : 150), { size: land ? 28 : 32, weight: 600, family: i === 0 && d.kind === 'race' ? BODY : MONO, color: C.muted, align: 'center', max: colW - 16 });
   });
 }
 
@@ -435,6 +436,7 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   if (slide === 'couverture') cover(ctx, w, h, d, o, slidesFor(d).slice(1, fmt === 'x' ? 4 : undefined), fmt);
   else if (slide === 'vainqueur') hero(ctx, w, h, d, o, 'VAINQUEUR');
   else if (slide === 'pole') hero(ctx, w, h, d, o, 'POLE POSITION');
+  else if (slide === 'meilleurtemps') hero(ctx, w, h, d, o, 'MEILLEUR TEMPS');
   else if (slide === 'podium') podium(ctx, w, h, d, o);
   else if (slide === 'classement') classement(ctx, w, h, d, o);
   else if (slide === 'faits') faits(ctx, w, h, d, o);
