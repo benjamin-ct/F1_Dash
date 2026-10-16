@@ -19,6 +19,7 @@ import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KIN
 import { postedEntry } from '/shared/post-history.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { openPublish } from './social-publish-view.js';
+import { openImageViewer } from '/shared/image-viewer.js';
 
 const SIG_KEY = 'paddock.postSignature';
 const OPT_KEY = 'paddock.postOptions';
@@ -404,7 +405,7 @@ async function render(dlg, keepHead = false) {
   if (follow) caps = followCaptions(caps, d, sig);
   if (!slides.length || (!d.rows?.length && !d.post && !d.news)) { body.innerHTML = `${mode !== 'news' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
   const main = `<p class="small muted">${icon('info')} ${t('Toutes les images sont publiées : décochez celles à laisser de côté (sommaire, nombre de points et numéros suivent).')}</p>
-    <div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item" data-fig="${i}"><canvas data-slide="${s}"></canvas>
+    <div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item" data-fig="${i}"><canvas data-slide="${s}" title="${t('Cliquer pour voir en grand')}"></canvas>
       <figcaption><span><label class="posts-pick"><input type="checkbox" data-pick="${s}" ${skip.has(s) ? '' : 'checked'}> <b data-num></b> ${esc(t(slideName(s)))}</label></span>
         <button class="btn small" data-copy="${i}" title="${t('Copier l\'image, à coller dans le réseau social')}">${icon('doc')} ${t('Copier')}</button>
         <button class="btn small" data-save="${i}">${icon('save')} ${t('Enregistrer')}</button></figcaption></figure>`).join('')}</div>
@@ -454,6 +455,12 @@ async function render(dlg, keepHead = false) {
   const upd = () => { if (count) count.textContent = t('{} / 280 caractères', xLength(area.value)); };
   area?.addEventListener('input', upd); upd();
   body.onclick = async (e) => {
+    // Image cliquée : vue en grand (toutes les images du post, flèches pour passer de l'une à l'autre)
+    const cv = e.target.closest('.posts-item canvas');
+    if (cv) {
+      openImageViewer(allCanvases.map((c) => ({ canvas: c, label: t(slideName(c.dataset.slide)), off: !canvases.includes(c) })), allCanvases.indexOf(cv), { t });
+      return;
+    }
     const b = e.target.closest('button');
     if (!b) return;
     try {
@@ -504,8 +511,7 @@ async function openStats() {
         <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span>
           <button class="btn small" data-statsremove="${esc(p.key)}" title="${t('Post supprimé sur les réseaux : le retirer des statistiques')}">${t('Retirer')}</button></div>
         ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s && !s.error ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${t(l)} <b>${fmtN(s[k])}</b>`).join(' · ') : s?.error ? `${t('statistiques indisponibles')} <span class="muted">(${esc(s.error)})</span>` : t('statistiques indisponibles'); return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${NET_NAMES[n] || n}</a>` : NET_NAMES[n] || n} : ${vals}</div>`; }).join('')}
-      </div>`).join('') : `<p class="muted">${t('Aucun post publié depuis Paddock Live pour le moment.')}</p>`}
-      <p class="small muted">${icon('info')} ${t("Statistiques lues chez chaque réseau (X : lecture payante, non utilisée). Pour les vues et la portée, autorisations instagram_manage_insights, read_insights et threads_manage_insights du jeton.")}</p>`;
+      </div>`).join('') : `<p class="muted">${t('Aucun post publié depuis Paddock Live pour le moment.')}</p>`}`;
     body.querySelectorAll('[data-statsremove]').forEach((b) => {
       b.onclick = async () => {
         if (!confirm(t('Retirer ce post des statistiques ? (À faire si vous l\'avez supprimé sur les réseaux ; rien n\'est supprimé chez eux.)'))) return;

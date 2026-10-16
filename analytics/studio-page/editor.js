@@ -1,6 +1,7 @@
 // Studio : éditeur d'un post (visuels, textes, publication, programmation, partage), commun aux news,
 // séances et posts de la saison.
 import { slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
+import { openImageViewer } from '/shared/image-viewer.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
@@ -83,7 +84,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     <main class="page">
       <div class="seg wide" id="fmt">${FORMATS.map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div>
       ${head.trim() && !below ? `<section class="panel">${head}</section>` : ''}
-      <div id="main"></div>
+      <div id="main" class="preview"></div>
       ${head.trim() && below ? `<section class="panel">${head}</section>` : ''}
       <section class="panel">
         <h3 class="section">Options</h3>
@@ -110,9 +111,9 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     const c = { ...base, ...edited };
     if (!c.bsky) c.bsky = c.x;
     const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
-    $('#main').innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))}"></canvas>
+    $('#main').innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>
-      ${slides.length > 1 ? `<p class="hint">${slides.length} images, toutes publiées : touchez le nom d'une image pour la retirer ou la remettre (sommaire et numéros suivent).</p>` : ''}`;
+      ${slides.length > 1 ? `<p class="hint">${slides.length} images, toutes publiées : touchez une image pour la voir en grand, son nom pour la retirer ou la remettre (sommaire et numéros suivent).</p>` : ''}`;
     $('#texts').innerHTML = `<section class="panel"><h3 class="section">Textes</h3>${CAPS.filter(([k]) => k === 'instagram' || k === 'threads' || k === 'x' || k === 'bsky' || c[k]).map(([k, label, rows, max = 0, limit = 0], i) => `
       <details class="cap" ${i === 0 ? 'open' : ''}><summary><span>${esc(label(c))}</span><small data-count="${k}"></small></summary>
         <textarea id="cap-${k}" rows="${rows}" ${max ? `maxlength="${max}"` : ''} data-limit="${limit || max}">${esc(c[k])}</textarea>
@@ -146,6 +147,8 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       }
     };
     paint();
+    // Image touchée : vue en grand (glisser pour passer à la suivante, vers le bas pour fermer)
+    for (const cv of all) cv.onclick = () => openImageViewer(all.map((c) => ({ canvas: c, label: slideName(c.dataset.slide), off: !canvases.includes(c) })), all.indexOf(cv));
     $$('#main [data-pick]').forEach((cb) => {
       cb.onchange = () => {
         if (cb.checked) state.skip.delete(cb.dataset.pick); else state.skip.add(cb.dataset.pick);

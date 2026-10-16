@@ -250,6 +250,7 @@ button.row-item:active { background: var(--surface-2); }
 .slides .sl { flex: 0 0 auto; width: min(72vw, 300px); margin: 0; scroll-snap-align: start; }
 .slides.x .sl { width: min(86vw, 440px); }
 .slides.story .sl { width: min(56vw, 240px); }
+.slides canvas { cursor: zoom-in; }
 .slides canvas { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 22px rgba(0, 0, 0, .22); transition: opacity .2s, filter .2s; }
 /* Case cachée placée dans son image (sinon, rattachée à la page, celles des dernières images
    débordaient à droite et l'iPhone dézoomait toute la page) */
@@ -310,6 +311,66 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 .editing.swiping .page { transition: none; }
 /* « Tirer pour actualiser » : sous la barre d'état et l'encoche, au-dessus de l'en-tête, en verre */
 .ptr { top: env(safe-area-inset-top) !important; z-index: 30 !important; background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--glass-line); box-shadow: var(--glass-hi) !important; }
+
+/* ---------- Ordinateur (fenêtre large) ----------
+   Même Studio, mise en page de bureau : navigation dans une barre latérale, listes sur plusieurs
+   colonnes, et pour un post l'aperçu des images à gauche, les réglages à droite. L'iPhone garde la
+   mise en page ci-dessus (barres flottantes en bas). */
+.side-brand { display: none; }
+@media (hover: hover) {
+  button.card:hover, button.row-item:hover { background: var(--surface-2); }
+  .btn:hover { border-color: color-mix(in srgb, var(--text) 30%, transparent); }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .chips button:hover, .seg button:hover:not(.on) { color: var(--text); }
+  .iconbtn:hover { background: var(--surface-2); }
+}
+@media (min-width: 960px) {
+  :root { --side: 240px; --gutter: 28px; }
+  body:has(.shell:not(.editing)) { scrollbar-gutter: stable; }
+  .shell:not(.editing) { --w: 1180px; padding-left: var(--side); }
+  .shell:not(.editing) .appbar { padding: 14px var(--gutter) 6px; }
+  .shell:not(.editing) .appbar .brand { display: none; }
+  .shell:not(.editing) .page { min-height: calc(100vh - 64px); padding: 6px var(--gutter) 48px; }
+  /* Barre d'onglets -> barre latérale */
+  .tabbar {
+    top: 0; bottom: 0; left: 0; right: auto; width: var(--side); display: flex; flex-direction: column; gap: 4px;
+    padding: 20px 14px; border-width: 0 1px 0 0; border-color: var(--line); border-radius: 0;
+    background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+  }
+  .tabbar .lens { display: none; }
+  .side-brand { display: flex; align-items: center; gap: 10px; margin: 0 6px 22px; }
+  .side-brand .logo { width: 32px; height: 32px; }
+  .side-brand span { font: 800 23px/1 'Saira Condensed', sans-serif; letter-spacing: .3px; }
+  .side-brand b { color: var(--brand); }
+  .tabbar button { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 11px 14px; border-radius: 12px; font-size: 15px; }
+  .tabbar button:hover { background: rgba(255, 255, 255, .05); color: var(--text); }
+  .tabbar button.on { background: var(--brand-wash); color: var(--brand); }
+  .tabbar button.on .ic { transform: none; }
+  .tabbar .ic { width: 21px; height: 21px; }
+  /* Listes sur plusieurs colonnes */
+  .list { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+  .gps { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); column-gap: 20px; align-items: start; }
+  .chips { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
+  .card.feature { max-width: 560px; }
+  .toast { bottom: 28px; }
+  /* Feuilles : fenêtre centrée */
+  dialog.sheet { width: min(560px, calc(100% - 48px)); margin: auto; border-radius: 24px; }
+  .sheet-head { padding-top: 14px; }
+  .sheet-head::before { display: none; }
+
+  /* Post : aperçu à gauche (défile à part), réglages à droite, actions sous les réglages */
+  .editing { --w: 1280px; }
+  .editing .page { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 28px; align-items: start; padding-top: 12px; }
+  .editing .page > * { grid-column: 2; min-width: 0; }
+  .editing .page > #fmt { margin-top: 0; }
+  .editing .page > .preview { grid-column: 1; grid-row: 1 / span 12; position: sticky; top: 72px; max-height: calc(100vh - 96px); overflow: auto; padding-right: 4px; }
+  .editing .slides { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 2px; overflow: visible; scroll-snap-type: none; }
+  .editing .slides.x { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+  .editing .slides.story { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .editing .slides .sl { width: auto; }
+  .editing .actionbar { left: auto; right: max(var(--gutter), calc((100vw - var(--w)) / 2 + var(--gutter))); width: 400px; }
+  .editing:has(textarea:focus, input[type=text]:focus) .actionbar { transform: none; }
+}
 
 /* ---------- Animations ---------- */
 @keyframes in-right { from { opacity: 0; transform: translateX(28px); } }

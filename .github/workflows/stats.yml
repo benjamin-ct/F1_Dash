@@ -30,6 +30,7 @@ on:
       - 'shared/tyres.js'
       - 'shared/news-collect.js'
       - 'shared/feed-pack.js'
+      - 'shared/image-viewer.js'
       - 'shared/fia-list.js'
       - 'shared/fia-grid.js'
       - 'shared/pull-refresh.js'

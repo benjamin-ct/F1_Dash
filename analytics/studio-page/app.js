@@ -72,7 +72,7 @@ function home({ from = 'up' } = {}) {
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
       <button class="iconbtn" id="refresh" aria-label="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="settings" aria-label="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
-    <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
+    <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
   $('#settings').onclick = settings;
   $('#refresh').onclick = () => showTab({ force: true });
   $$('[data-tab]').forEach((b) => {
@@ -207,7 +207,7 @@ function renderSessions(body, list) {
   }
   const groups = [];
   for (const s of list) { if (groups.at(-1)?.gp !== s.gp) groups.push({ gp: s.gp, items: [] }); groups.at(-1).items.push(s); }
-  body.innerHTML = groups.map((g) => `<h3 class="section">${esc(g.gp.replace(/ Grand Prix$/, ''))}</h3><div class="group">${g.items.map((s) => `<button class="row-item" data-s="${list.indexOf(s)}"><span class="grow"><b>${esc(SESSION_FR(s.name))}</b><small>il y a ${ago(s.end)}</small></span>${icon('next')}</button>`).join('')}</div>`).join('');
+  body.innerHTML = `<div class="gps">${groups.map((g) => `<section><h3 class="section">${esc(g.gp.replace(/ Grand Prix$/, ''))}</h3><div class="group">${g.items.map((s) => `<button class="row-item" data-s="${list.indexOf(s)}"><span class="grow"><b>${esc(SESSION_FR(s.name))}</b><small>il y a ${ago(s.end)}</small></span>${icon('next')}</button>`).join('')}</div></section>`).join('')}</div>`;
   $$('[data-s]', body).forEach((b) => { b.onclick = () => open(b, async () => (await posts()).sessionEditor(list[Number(b.dataset.s)], back)); });
 }
 
@@ -307,7 +307,7 @@ async function alertsBlock(el) {
   }
   const sub = await currentSub().catch(() => null);
   const on = !!sub && Notification.permission === 'granted';
-  el.innerHTML = `<div class="group"><div class="row-item static"><span class="grow"><b>${on ? 'Actives sur ce téléphone' : 'Désactivées'}</b><small>Une notification à chaque grosse news (transfert, pénalité, annonce officielle…), le post prêt à relire</small></span><span class="state ${on ? 'on' : ''}"></span></div></div>
+  el.innerHTML = `<div class="group"><div class="row-item static"><span class="grow"><b>${on ? `Actives sur ${/iPhone|Android.*Mobile/.test(navigator.userAgent) ? 'ce téléphone' : IOS || matchMedia('(pointer: coarse)').matches ? 'cet appareil' : 'cet ordinateur'}` : 'Désactivées'}</b><small>Une notification à chaque grosse news (transfert, pénalité, annonce officielle…), le post prêt à relire</small></span><span class="state ${on ? 'on' : ''}"></span></div></div>
     <div class="row">${on ? `<button class="btn" id="alerttest">${icon('bell')}Tester</button><button class="btn" id="alertoff">Couper</button>` : `<button class="btn primary" id="alerton">${icon('bell')}Activer</button>`}</div>`;
   const fail = (err) => toast(err.message, 'bad');
   if ($('#alerton', el)) $('#alerton', el).onclick = () => enableAlerts().then(() => { toast('Alertes activées', 'ok'); alertsBlock(el); }).catch(fail);

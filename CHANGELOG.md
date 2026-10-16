@@ -4,6 +4,16 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.19 — 2026-10-16
+
+### Actu
+- Nouvelles chaînes officielles : Scuderia Ferrari, Williams, Alpine et Cadillac pour les écuries ; Max Verstappen, Oscar Piastri, Esteban Ocon, Oliver Bearman, Checo Pérez, Liam Lawson et Arvid Lindblad pour les pilotes. Pour Ferrari et Alpine, seules les vidéos qui parlent de F1 sont gardées.
+- Vidéos YouTube : l'appli de bureau se présente maintenant à YouTube comme Chrome, pour que les vidéos se lisent dans l'Actu au lieu d'afficher « Cette vidéo n'est pas disponible ».
+
+### Interface
+- Les champs de saisie (nom d'un préréglage de délai, adresse d'une source d'actu ou d'une radio, jetons de connexion, date…) ont maintenant la même allure que le reste de l'application, en thème sombre comme en clair.
+- Petites améliorations internes.
+
 ## v1.27.18 — 2026-10-16
 
 ### Corrections

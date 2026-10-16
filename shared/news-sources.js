@@ -1,10 +1,12 @@
 // Sources de l'Actu (flux officiels, écuries, pilotes, médias du monde entier), partagées par le
 // serveur de l'appli et la page web du créateur.
-const yt = (id, name, cat, lang = 'en') => ({ id: `yt-${id}`, name, kind: 'youtube', channel: id, cat, lang });
+const yt = (id, name, cat, lang = 'en', extra = {}) => ({ id: `yt-${id}`, name, kind: 'youtube', channel: id, cat, lang, ...extra });
 const rss = (id, name, url, cat, lang, extra = {}) => ({ id, name, kind: 'rss', url, cat, lang, ...extra });
 
 // Sources par défaut. cat : 'official' (F1, FIA) | 'team' | 'driver' | 'media'.
-// Chaînes YouTube : uniquement les chaînes officielles vérifiées (abonnés, nom).
+// Chaînes YouTube : uniquement les chaînes officielles (badge vérifié de YouTube, ou nom et audience
+// sans ambiguïté), contrôlées une à une : les adresses en @nom devinées mènent souvent ailleurs.
+// match : vidéos gardées seulement si le titre ou le résumé y répond (chaîne qui parle d'autre chose).
 export const DEFAULT_SOURCES = [
   rss('f1', 'Formula 1', 'https://www.formula1.com/en/latest/all.xml', 'official', 'en'),
   rss('fia-press', 'FIA — communiqués', 'https://www.fia.com/rss/press-release', 'official', 'en', { filter: 'f1' }),
@@ -18,11 +20,22 @@ export const DEFAULT_SOURCES = [
   yt('UCU56G7ZKkB7xkua6EhMz5dg', 'Racing Bulls', 'team'),
   yt('UCaGImPpcZdJ_8Iu20lCbHHw', 'Haas F1 Team', 'team'),
   yt('UCl1yq_ZQvqEb_D93OVuIFGw', 'Sauber / Audi', 'team'),
+  yt('UCd8iY-kEHtaB8qt8MH--zGw', 'Scuderia Ferrari', 'team', 'en', { match: 'formula 1|formula one|\\bf1\\b|grand prix|\\bgp\\b|scuderia|hamilton|leclerc|\\bsf-?\\d\\d' }),
+  yt('UC4AnEj7Pj9ODVhwojHPqAMA', 'Williams', 'team'),
+  yt('UCzH4Iwlm8kI09wXbgHvFfIg', 'Alpine', 'team', 'en', { match: 'formula 1|formula one|\\bf1\\b|grand prix|\\bgp\\b|pitstop|pit stop|gasly|pierre|colapinto|franco|race|driver|track' }),
+  yt('UCARJ7OAocZ3D9k1F3DHGftQ', 'Cadillac F1', 'team'),
 
   yt('UCwFIQ7wtJzYGFb2nZcVoNww', 'Lando Norris', 'driver'),
   yt('UCHl4MB8UalGLUydbWdBzG1Q', 'Lewis Hamilton', 'driver'),
   yt('UCIzIX1qgW7P3eF6JCk_afCA', 'Charles Leclerc', 'driver'),
   yt('UC1l8_AtyskpHP-weVx47POg', 'Carlos Sainz', 'driver'),
+  yt('UC1Aha9aLmlkIbBN-iAttBzw', 'Max Verstappen', 'driver'),
+  yt('UCYEeBT0ym9KjoVloYuyMO6A', 'Oscar Piastri', 'driver'),
+  yt('UC7uVXl9VT206Z5uiu76Ju4w', 'Esteban Ocon', 'driver', 'fr'),
+  yt('UCXdDJGHM-ll-hI7dnjf3Xdg', 'Oliver Bearman', 'driver'),
+  yt('UCw-ipyIc9gUWunmswPRYVAA', 'Checo Pérez', 'driver', 'es'),
+  yt('UCODwfuLydAVEcflEAOvcHGQ', 'Liam Lawson', 'driver'),
+  yt('UCd6Li2xp-e_nELbxU-QMgOA', 'Arvid Lindblad', 'driver'),
 
   rss('autosport', 'Autosport', 'https://www.autosport.com/rss/f1/news/', 'media', 'en'),
   rss('motorsport', 'Motorsport.com', 'https://www.motorsport.com/rss/f1/news/', 'media', 'en'),
