@@ -66,7 +66,6 @@ body { min-height: 100vh; min-height: 100lvh; }
      l'en-tête faisait dessiner le logo et le titre en basse résolution */
   background: var(--bg);
 }
-.appbar::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 16px; background: linear-gradient(var(--bg), rgba(11, 12, 15, 0)); pointer-events: none; }
 .brand { display: flex; align-items: center; gap: 10px; padding-left: 2px; }
 .brand .logo { width: 30px; height: 30px; }
 .brand span { font: 800 22px/1 'Saira Condensed', sans-serif; letter-spacing: .3px; }
