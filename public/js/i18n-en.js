@@ -1875,4 +1875,8 @@ export default {
   "Grille tirée du classement de cette séance : ouvrez les qualifications (ou la course avant le départ) pour la vraie grille.": "Grid taken from this session's classification: open qualifying (or the race before the start) for the real grid.",
   "Championnat disponible après une course ou un sprint : ouvrez la séance en direct ou en replay.": "Standings available after a race or a sprint: open the session live or as a replay.",
   "Aucun fait marquant dans cette séance pour l'instant (drapeau rouge, voiture de sécurité, abandon, pénalité).": "No key event in this session yet (red flag, safety car, retirement, penalty).",
+  "Grille officielle de la FIA, pénalités comprises.": "Official FIA grid, penalties included.",
+  "Grille provisoire de la FIA : la définitive peut encore changer (pénalités).": "Provisional FIA grid: the final one may still change (penalties).",
+  "Grille de la FIA indisponible ({}) : ordre des qualifications, sans les pénalités.": "FIA grid unavailable ({}): qualifying order, without penalties.",
+  "Grille pas encore publiée par la FIA : ordre des qualifications, sans les pénalités.": "Grid not yet published by the FIA: qualifying order, without penalties.",
 };

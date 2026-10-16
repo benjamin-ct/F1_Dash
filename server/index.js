@@ -12,6 +12,7 @@ import { season } from './season.js';
 import { seasonStats, archiveError } from './race-stats.js';
 import { seasonTech } from './fia-tech.js';
 import { fiaDocuments } from './fia.js';
+import { officialGrid } from './fia-grid.js';
 import { findSessionContent, playback, proxy as f1tvProxy, allowHost, resolvePlaylist } from './f1tv.js';
 import { Recorder, listRecordings, recordingPath } from './recorder.js';
 import { ROOT, settings, getConfig, saveConfig, parseF1tvToken, tokenInfo } from './config.js';
@@ -329,6 +330,7 @@ async function handleApi(req, res, url) {
     case 'POST /api/social/studio':
     case 'GET /api/social/stats':
     case 'GET /api/social/history':
+    case 'GET /api/social/grid':
     case 'POST /api/social/history': {
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
@@ -336,6 +338,13 @@ async function handleApi(req, res, url) {
         if (route === 'GET /api/social/studio') return sendJSON(res, 200, studioInfo());
         if (route === 'GET /api/social/history') return sendJSON(res, 200, { items: await postHistory() });
         if (route === 'GET /api/social/stats') return sendJSON(res, 200, await statsOfPosts());
+        // Grille de départ officielle (FIA) pour les posts d'avant-course
+        if (route === 'GET /api/social/grid') {
+          const q = url.searchParams;
+          const meeting = { name: q.get('name') || '', country: q.get('country') || '', location: q.get('location') || '' };
+          if (!Number(q.get('year')) || !meeting.name) return sendJSON(res, 400, { error: 'Paramètres year et name requis' });
+          return sendJSON(res, 200, { grid: await officialGrid(Number(q.get('year')), meeting, { sprint: q.get('sprint') === '1' }) });
+        }
         if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
         if (route === 'POST /api/social/studio') {
           const b = await readBody(req, 1e4);

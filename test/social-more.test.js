@@ -46,8 +46,9 @@ test('autres posts : avant-course (grille de départ, météo, pneus)', () => {
   assert.deepEqual(d.weather, { air: 24.6, track: 38.1, humidity: 40, wind: 1.5, rain: false });
   assert.deepEqual(slidesFor(d), ['couverture', 'grille', 'meteo']);
   const c = moreCaptions(d, '@sig');
-  assert.match(c.instagram, /^Avant-course : Grand Prix d'Italie/);
-  assert.match(c.instagram, /Pole : Charles Leclerc \(Ferrari\), devant Norris et Piastri\./);
+  assert.match(c.instagram, /^Grille de départ : Grand Prix d'Italie/);
+  assert.equal(d.gridSource, 'live');   // positions de départ du flux de la course
+  assert.match(c.instagram, /En pole : Charles Leclerc \(Ferrari\), devant Norris et Piastri\./);
   assert.match(c.instagram, /Pneus Pirelli : C3 \(durs\), C4 \(médiums\), C5 \(tendres\)\./);
   assert.ok(c.x.length <= 280);
   // Sans météo ni pneus : pas de diapositive météo

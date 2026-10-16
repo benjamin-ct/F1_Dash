@@ -8,6 +8,8 @@ import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.j
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { builtinNomination } from '/shared/tyres.js';
+import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/shared/fia-list.js';
+import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
 import { merge } from '/shared/merge.js';
 import { gpNameFr } from '/shared/summary.js';
@@ -311,6 +313,30 @@ async function sessionsTab(body) {
   body.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => sessionEditor(list[Number(b.dataset.i)], b); });
 }
 
+// ---------- Grille de départ officielle (document de la FIA, lu dans le navigateur) ----------
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38';
+const fiaGet = (p) => api(`fia?p=${encodeURIComponent(p)}`, { raw: true });
+async function pdfItems(buf) {
+  const lib = await import(`${PDFJS}/pdf.min.mjs`);
+  lib.GlobalWorkerOptions.workerSrc = `${PDFJS}/pdf.worker.min.mjs`;
+  const pdf = await lib.getDocument({ data: new Uint8Array(buf), verbosity: 0 }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const tc = await (await pdf.getPage(i)).getTextContent();
+    pages.push(tc.items.filter((it) => it.str && it.str.trim()).map((it) => ({ x: it.transform[4], y: it.transform[5], s: it.str })));
+  }
+  return pages;
+}
+async function fiaGrid(year, meeting, sprint) {
+  const { bySeason, events } = parseSeasons(await (await fiaGet(CHAMPIONSHIP)).text());
+  const event = bySeason[year] && pickEvent(events, meeting);
+  if (!event) return null;
+  const doc = gridDocument(parseDocumentList(await (await fiaGet(`${bySeason[year]}/event/${encodeURIComponent(event)}`)).text()), { sprint });
+  if (!doc) return null;
+  const grid = parseStartingGrid(await pdfItems(await (await fiaGet(new URL(doc.url).pathname)).arrayBuffer()));
+  return grid && { ...grid, title: doc.title };
+}
+
 // Types de posts d'une séance : résultats, avant-course (grille, météo, pneus), championnat, flash
 const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
 async function sessionEditor(s, btn) {
@@ -325,13 +351,28 @@ async function sessionEditor(s, btn) {
   const champ = champData(st);
   let type = 'results';
   let ev = events[0] || null;
+  let grid;   // grille officielle de la FIA : undefined = pas encore lue
+  let gridNote = '';
   const avail = (k) => k === 'results' || k === 'prerace' || (k === 'champ' && champ) || (k === 'flash' && ev);
-  const data = () => (type === 'prerace' ? preraceData(st, { tyres }) : type === 'champ' ? champ : type === 'flash' ? flashData(st, ev) : results);
+  const data = () => (type === 'prerace' ? preraceData(st, { tyres, grid }) : type === 'champ' ? champ : type === 'flash' ? flashData(st, ev) : results);
   const typeName = () => POST_TYPES.find(([k]) => k === type)[1];
+  const loadGrid = async (redraw) => {
+    if (grid !== undefined) return;
+    grid = null;
+    $('#gridnote').textContent = 'Lecture de la grille officielle de la FIA…';
+    try {
+      grid = await fiaGrid(Number(String(s.path).slice(0, 4)), { name: meet.Name, country: meet.Country?.Name, location: meet.Location }, results.sprint);
+      gridNote = !grid ? 'Grille pas encore publiée par la FIA : ordre des qualifications, sans les pénalités.'
+        : grid.final ? 'Grille officielle de la FIA, pénalités comprises.' : 'Grille provisoire de la FIA : la définitive peut encore changer.';
+    } catch (err) { gridNote = `Grille de la FIA indisponible (${err.message}) : ordre des qualifications, sans les pénalités.`; }
+    if ($('#gridnote')) $('#gridnote').textContent = type === 'prerace' ? gridNote : '';
+    if (type === 'prerace') redraw(true);
+  };
   editor({
     back: () => home(),
     head: `<div class="t" style="font-weight:700">${esc(SESSION_FR(s.name))} · ${esc(results.gp)}</div>
       <div class="seg" id="ptype">${POST_TYPES.map(([k, v]) => `<button data-ptype="${k}" class="${k === type ? 'on' : ''}" ${avail(k) ? '' : 'disabled'}>${v}</button>`).join('')}</div>
+      <p class="small note" id="gridnote" hidden></p>
       <select id="flashpick" hidden>${events.map((x, i) => `<option value="${i}">${esc(FLASH_KINDS[x.kind].label)} · ${esc(x.title)}${x.lap ? ` · tour ${x.lap}` : ''}</option>`).join('')}</select>
       <label class="check" id="nospoilrow"><input type="checkbox" id="nospoil" ${state.noSpoiler ? 'checked' : ''}> Texte sans spoiler (vainqueur absent du début du texte)</label>`,
     data,
@@ -346,6 +387,8 @@ async function sessionEditor(s, btn) {
           type = b.dataset.ptype;
           app.querySelectorAll('[data-ptype]').forEach((x) => x.classList.toggle('on', x === b));
           $('#flashpick').hidden = type !== 'flash';
+          $('#gridnote').hidden = type !== 'prerace';
+          if (type === 'prerace') { $('#gridnote').textContent = gridNote; loadGrid(redraw); }
           $('#nospoilrow').hidden = type !== 'results';
           redraw(true);
         };

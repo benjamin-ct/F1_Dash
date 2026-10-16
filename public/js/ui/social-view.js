@@ -78,14 +78,33 @@ async function nominations() {
   return tyresCache.n;
 }
 
+// Grille officielle de la FIA (course ou sprint), relue toutes les 5 minutes (provisoire puis définitive)
+const gridCache = new Map();
+async function officialGrid(sprint) {
+  const info = store.state.SessionInfo || {};
+  const year = Number(String(info.Path || '').slice(0, 4)) || Number(String(info.StartDate || '').slice(0, 4));
+  if (!year || !info.Meeting?.Name) return { grid: null };
+  const key = `${year}|${info.Meeting.Name}|${sprint}`;
+  const hit = gridCache.get(key);
+  if (hit && Date.now() - hit.at < 5 * 60e3) return hit.r;
+  const q = new URLSearchParams({ year, name: info.Meeting.Name, country: info.Meeting.Country?.Name || '', location: info.Meeting.Location || '', sprint: sprint ? '1' : '0' });
+  const r = await fetch(`/api/social/grid?${q}`, { signal: AbortSignal.timeout(30000) }).then((x) => x.json()).catch((err) => ({ error: err.message }));
+  if (!r.error) gridCache.set(key, { r, at: Date.now() });
+  return r;
+}
+
 function sessionSource(sig) {
   const types = `<div class="row posts-news-bar"><span class="small muted">${t('Type de post')}</span>
     <div class="posts-seg" role="tablist">${POST_TYPES.map(([k, v]) => `<button class="posts-fmt ${k === postType ? 'active' : ''}" data-ptype="${k}">${t(v)}</button>`).join('')}</div></div>`;
   const state = store.state;
   if (postType === 'prerace') {
-    return nominations().then((tyres) => {
-      const d = preraceData(state, { tyres });
-      const warn = d.kind === 'practice' ? `<p class="posts-warn small">${icon('info')} ${t('Grille tirée du classement de cette séance : ouvrez les qualifications (ou la course avant le départ) pour la vraie grille.')}</p>` : '';
+    return Promise.all([nominations(), officialGrid(postData(state).sprint)]).then(([tyres, og]) => {
+      const d = preraceData(state, { tyres, grid: og.grid });
+      const note = d.gridSource === 'fia' ? t('Grille officielle de la FIA, pénalités comprises.')
+        : d.gridSource === 'fia-provisional' ? t('Grille provisoire de la FIA : la définitive peut encore changer (pénalités).')
+          : og.error ? t('Grille de la FIA indisponible ({}) : ordre des qualifications, sans les pénalités.', og.error)
+            : t('Grille pas encore publiée par la FIA : ordre des qualifications, sans les pénalités.');
+      const warn = `<p class="posts-warn small">${icon('info')} ${esc(note)}</p>`;
       return { d, caps: moreCaptions(d, sig), head: types + warn, record: { key: `prerace:${folderOf(d)}`, kind: 'prerace', title: `${t('Avant-course')} · ${d.gp}` } };
     });
   }

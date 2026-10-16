@@ -171,6 +171,15 @@ async function archive(req, url, vault) {
   return res;
 }
 
+// Documents de la FIA (liste des documents d'un Grand Prix, PDF des commissaires) : grille officielle
+const FIA_PAGE = /^\/documents\/championships\/fia-formula-one-world-championship-14(\/season\/season-\d{4}-\d+(\/event\/[\w%.'()-]+)?)?$/;
+const FIA_PDF = /^\/system\/files\/decision-document\/[\w%.'()-]+\.pdf$/;
+async function fia(req, url) {
+  const p = url.searchParams.get('p') || '';
+  if (p.includes('..') || !(FIA_PAGE.test(p) || FIA_PDF.test(p))) return json({ error: 'Adresse refusée' }, 400);
+  return cached(req, `https://www.fia.com${p}`, { headers: { 'User-Agent': UA } }, FIA_PDF.test(p) ? 3600 : 300);
+}
+
 async function image(req, url) {
   let u;
   try { u = new URL(url.searchParams.get('u') || ''); } catch { return json({ error: 'Adresse invalide' }, 400); }
@@ -279,6 +288,7 @@ export async function studioApi(req, env, url) {
   if (path === 'feed' && req.method === 'GET') return feed(req, url);
   if (path === 'archive' && req.method === 'GET') return archive(req, url, await refresh(env, a.raw, vault));
   if (path === 'img' && req.method === 'GET') return image(req, url);
+  if (path === 'fia' && req.method === 'GET') return fia(req, url);
   if (path === 'publish' && req.method === 'POST') {
     if (!vault.meta?.pageToken && !vault.bluesky) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
     return publish(req, env, a.raw, vault);

@@ -20,20 +20,39 @@ export function teammateDuels(d) {
 }
 
 // ---------- Avant-course : grille de départ, météo, pneus ----------
-export function preraceData(state, { tyres = null } = {}) {
+// grid : grille officielle de la FIA (shared/fia-grid.js), prioritaire ; sinon positions de départ
+// du flux F1 (séance de course), sinon classement des qualifications (sans les pénalités)
+export function preraceData(state, { tyres = null, grid = null } = {}) {
   const d = postData(state);
-  // Grille : positions de départ publiées (séance de course), sinon classement des qualifications
-  const withGrid = d.rows.filter((r) => r.grid);
-  const grid = (d.kind === 'race' && withGrid.length >= d.rows.length / 2 ? [...d.rows].sort((a, b) => (a.grid || 99) - (b.grid || 99)).map((r) => ({ ...r, pos: r.grid || r.pos })) : d.rows)
-    .map((r, i) => ({ ...r, pos: r.pos || i + 1 }));
+  let rows;
+  let gridSource;
+  if (grid?.rows?.length) {
+    const byNum = Object.fromEntries(d.rows.map((r) => [r.num, r]));
+    const dl = state?.DriverList || {};
+    const pens = Object.fromEntries((grid.penalties || []).flatMap((p) => p.cars.map((c) => [c, p.fr])));
+    rows = grid.rows.map((g) => {
+      const base = byNum[g.num] || { num: g.num, tla: dl[g.num]?.Tla || g.lastUp.slice(0, 3), first: g.first, last: g.last, team: dl[g.num]?.TeamName || g.team, color: dl[g.num]?.TeamColour ? `#${dl[g.num].TeamColour}` : '#8b95a8', headshot: dl[g.num]?.HeadshotUrl || '' };
+      return { ...base, pos: g.pos, pitlane: g.pitlane, penalty: pens[g.num] || null };
+    });
+    gridSource = grid.final ? 'fia' : 'fia-provisional';
+  } else {
+    const withGrid = d.rows.filter((r) => r.grid);
+    const live = d.kind === 'race' && withGrid.length >= d.rows.length / 2;
+    rows = (live ? [...d.rows].sort((a, b) => (a.grid || 99) - (b.grid || 99)).map((r) => ({ ...r, pos: r.grid || r.pos })) : d.rows)
+      .map((r, i) => ({ ...r, pos: r.pos || i + 1 }));
+    gridSource = live ? 'live' : 'quali';
+  }
   const w = state?.WeatherData || {};
   const weather = { air: num(w.AirTemp), track: num(w.TrackTemp), humidity: num(w.Humidity), wind: num(w.WindSpeed), rain: String(w.Rainfall ?? '0') !== '0' };
   return {
-    ...d, post: 'prerace', final: true, rows: grid,
+    ...d, post: 'prerace', final: true, rows, gridSource,
     weather: Object.values(weather).some((v) => v !== null && v !== false) ? weather : null,
     tyres: tyres?.hard ? { hard: tyres.hard, medium: tyres.medium, soft: tyres.soft } : null,
   };
 }
+
+// Mention de la source de la grille (visuel et texte)
+export const GRID_SOURCE = { fia: 'Grille officielle (FIA)', 'fia-provisional': 'Grille provisoire (FIA)', live: 'Grille officielle', quali: 'Ordre des qualifications, avant pénalités éventuelles' };
 
 // ---------- Championnat (projeté, après la course ou le sprint) ----------
 export function champData(state) {
@@ -90,15 +109,19 @@ export function moreCaptions(d, signature = '') {
   const tags = (extra = []) => [BRAND_TAG, '#F1', '#Formula1', gpTag, d.year ? `#F1${d.year}` : '', ...extra].filter((t) => t && t.length > 2);
   let head = '';
   let body = '';
+  let bodyX = null;   // version courte pour X
   let extra = [];
   if (d.post === 'prerace') {
     const [p1, p2, p3] = d.rows;
-    head = `Avant-course : ${d.gp}${d.sprint ? ' (sprint)' : ''}`;
+    head = `${d.sprint ? 'Grille de la course sprint' : 'Grille de départ'} : ${d.gp}${d.gridSource === 'fia-provisional' ? ' (provisoire)' : ''}`;
     const lines = [];
-    if (p1) lines.push(`Pole : ${p1.first} ${p1.last} (${p1.team})${p2 ? `, devant ${p2.last}${p3 ? ` et ${p3.last}` : ''}` : ''}.`);
+    if (p1) lines.push(`${d.gridSource === 'fia' || d.gridSource === 'live' ? 'En pole' : 'Pole'} : ${p1.first} ${p1.last} (${p1.team})${p2 ? `, devant ${p2.last}${p3 ? ` et ${p3.last}` : ''}` : ''}.`);
+    const pens = d.rows.filter((r) => r.penalty);
+    if (pens.length) lines.push(`Pénalités :\n${pens.map((r) => `– ${r.last}${r.pitlane ? '' : ` (${r.pos}e)`} : ${r.penalty}`).join('\n')}`);
     if (d.weather) lines.push(`Météo : ${dec(d.weather.air)} °C dans l'air, ${dec(d.weather.track)} °C sur la piste, ${d.weather.rain ? 'pluie' : 'pas de pluie'}.`);
     if (d.tyres) lines.push(`Pneus Pirelli : C${d.tyres.hard} (durs), C${d.tyres.medium} (médiums), C${d.tyres.soft} (tendres).`);
     body = lines.join('\n');
+    bodyX = lines.map((l) => (l.startsWith('Pénalités') ? `Pénalités : ${pens.map((r) => r.last).join(', ')}.` : l)).join('\n');
     extra = ['#RaceDay', p1 ? hashtag(`${p1.first}${p1.last}`) : ''];
   } else if (d.post === 'champ') {
     const [a, b, c] = d.champ.drivers;
@@ -115,9 +138,14 @@ export function moreCaptions(d, signature = '') {
   const all = tags(extra);
   const instagram = `${head}\n\n${body}${sig}\n\n${all.join(' ')}`;
   const shortTags = all.slice(0, 4);
-  let x = `${head}\n\n${body}\n\n${shortTags.join(' ')}`;
-  while (x.length > 280 && shortTags.length > 1) { shortTags.pop(); x = `${head}\n\n${body}\n\n${shortTags.join(' ')}`; }
-  if (x.length > 280) x = `${head}\n\n${body}`.slice(0, 278) + '…';
+  // X : mots-clés puis dernières lignes du texte retirés tant que le post dépasse 280 caractères
+  const bodyLines = (bodyX ?? body).split('\n');
+  const make = () => `${head}\n\n${bodyLines.join('\n')}\n\n${shortTags.join(' ')}`;
+  let x = make();
+  while (x.length > 280 && shortTags.length > 3) { shortTags.pop(); x = make(); }
+  while (x.length > 280 && bodyLines.length > 1) { bodyLines.pop(); x = make(); }
+  while (x.length > 280 && shortTags.length > 1) { shortTags.pop(); x = make(); }
+  if (x.length > 280) x = `${head}\n\n${bodyLines.join('\n')}`.slice(0, 278) + '…';
   const threads = `${head}\n\n${body}${sig}\n\n#F1 ${BRAND_TAG}`.slice(0, 500);
   return { instagram, x, bsky: x, threads, story: head };
 }

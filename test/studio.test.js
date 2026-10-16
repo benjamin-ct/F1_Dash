@@ -171,3 +171,19 @@ test('page du créateur : journal des publications partagé et news déjà publi
   assert.equal(addEntry(list, { key: 'x', nets: {} }).length, 1);
   assert.equal(mergeHistory(list, list, [{ ...entry, key: 'news:2' }]).length, 2);
 });
+
+test('page du créateur : relais des documents de la FIA limité aux pages F1 et aux PDF des commissaires', async () => {
+  const fia = (p) => worker(`https://s.test/studio/api/fia?p=${encodeURIComponent(p)}`, { headers: { 'X-Studio-Key': studioKey('TEST') } });
+  for (const bad of ['/user/login', '/documents/championships/fia-formula-e-world-championship-1', '/system/files/decision-document/../x.pdf', 'https://evil.example/x.pdf']) {
+    assert.equal((await fia(bad)).status, 400, bad);
+  }
+  const real = globalThis.fetch;
+  const asked = [];
+  globalThis.fetch = async (u) => { asked.push(String(u)); return new Response('%PDF-1.7', { headers: { 'Content-Type': 'application/pdf' } }); };
+  try {
+    const r = await fia('/system/files/decision-document/2026_azerbaijan_grand_prix_-_final_starting_grid.pdf');
+    assert.equal(r.status, 200);
+    assert.equal((await fia('/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Azerbaijan%20Grand%20Prix')).status, 200);
+  } finally { globalThis.fetch = real; }
+  assert.deepEqual(asked, ['https://www.fia.com/system/files/decision-document/2026_azerbaijan_grand_prix_-_final_starting_grid.pdf', 'https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Azerbaijan%20Grand%20Prix']);
+});

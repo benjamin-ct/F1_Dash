@@ -2,7 +2,7 @@
 // des réseaux : Instagram / Facebook (1080 × 1350), story (1080 × 1920), X / Threads / Bluesky
 // (1600 × 900). Les textes des visuels sont en français (contenu publié).
 
-import { teammateDuels, FLASH_KINDS } from './social-more.js';
+import { teammateDuels, FLASH_KINDS, GRID_SOURCE } from './social-more.js';
 
 export const FORMATS = {
   ig: { w: 1080, h: 1350, name: 'instagram' },
@@ -549,15 +549,21 @@ function newsSlide(ctx, W, H, d, o) {
 // ---------- Grille de départ (deux colonnes décalées, comme sur la piste) ----------
 function grille(ctx, W, H, d, o) {
   background(ctx, W, H, d.rows[0]?.color);
-  const f = frame(ctx, W, H, d, o, 'Grille de départ');
+  const f = frame(ctx, W, H, d, o, d.sprint ? 'Grille du sprint' : 'Grille de départ');
   const rows = d.rows.slice(0, 22);
   const land = W > H;
+  // Notes sous la grille : source, puis pénalités et départs des stands
+  const pens = rows.filter((r) => r.penalty);
+  const noteSize = land ? 20 : 22;
+  const notes = [GRID_SOURCE[d.gridSource] || '', ...pens.slice(0, land ? 3 : 5).map((r) => `* ${r.tla} : ${r.penalty}`)].filter(Boolean);
+  if (pens.length > (land ? 3 : 5)) notes.push(`* … et ${pens.length - (land ? 3 : 5)} autre${pens.length - (land ? 3 : 5) > 1 ? 's' : ''}`);
+  const noteH = notes.length * (noteSize + 8) + 14;
   const groups = land ? 2 : 1;
   const per = Math.ceil(rows.length / groups);
   const lines = Math.ceil(per / 2);
   const gw = (W - f.pad * 2 - (groups - 1) * 50) / groups;
   const cw = (gw - 24) / 2;
-  const rowH = (f.bottom - f.top + 10) / (lines + 0.5);
+  const rowH = (f.bottom - noteH - f.top + 10) / (lines + 0.5);
   const fs = Math.round(Math.min(rowH * 0.36, land ? 34 : 40));
   rows.forEach((r, i) => {
     const g = Math.floor(i / per);
@@ -569,10 +575,11 @@ function grille(ctx, W, H, d, o) {
     rr(ctx, x, y, cw, h, 10); ctx.fillStyle = C.panel; ctx.fill();
     ctx.fillStyle = vivid(r.color); ctx.fillRect(x, y, 8, h);
     const mid = y + h / 2 + fs * 0.35;
-    txt(ctx, String(r.pos), x + 24, mid, { size: Math.round(fs * 1.2), weight: 800, family: TITLE, color: r.pos <= 3 ? MEDAL[r.pos - 1] : C.text });
-    txt(ctx, r.tla, x + 24 + fs * 1.6, mid, { size: fs, weight: 800, family: TITLE });
-    txt(ctx, r.last, x + 24 + fs * 3.6, mid, { size: Math.round(fs * 0.78), weight: 600, color: C.muted, max: cw - fs * 3.6 - 34 });
+    txt(ctx, r.pitlane ? 'PL' : String(r.pos), x + 24, mid, { size: Math.round(fs * (r.pitlane ? 0.9 : 1.2)), weight: 800, family: TITLE, color: r.pitlane ? C.red : r.pos <= 3 ? MEDAL[r.pos - 1] : C.text });
+    txt(ctx, `${r.tla}${r.penalty ? '*' : ''}`, x + 24 + fs * 1.6, mid, { size: fs, weight: 800, family: TITLE, color: r.penalty ? C.gold : C.text });
+    txt(ctx, r.pitlane ? 'Départ des stands' : r.last, x + 24 + fs * 3.6, mid, { size: Math.round(fs * 0.78), weight: 600, color: r.pitlane ? C.red : C.muted, max: cw - fs * 3.6 - 34 });
   });
+  notes.forEach((n, i) => txt(ctx, n, f.pad, f.bottom - noteH + 14 + noteSize + i * (noteSize + 8), { size: noteSize, weight: i ? 400 : 700, family: i ? undefined : TITLE, color: i ? C.text : C.muted, spacing: i ? 0 : 1.5, max: W - f.pad * 2 }));
 }
 
 // ---------- Météo et pneus Pirelli ----------
