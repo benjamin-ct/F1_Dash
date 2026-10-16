@@ -10,6 +10,7 @@ import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KIN
 import { builtinNomination } from '/shared/tyres.js';
 import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/shared/fia-list.js';
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
+import { pullToRefresh } from '/shared/pull-refresh.js';
 import { slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
 import { merge } from '/shared/merge.js';
 import { gpNameFr } from '/shared/summary.js';
@@ -549,6 +550,16 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/studio/sw.js', { scope: '/studio/' }).catch(() => {});
   navigator.serviceWorker.addEventListener('message', (e) => { if (me && e.data?.alert) openAlert(e.data.alert); });
 }
+
+// Tirer vers le bas sur l'accueil (News, Séances, Stats) : listes relues ; pas dans un éditeur
+// (textes en cours de saisie)
+pullToRefresh(async () => {
+  news = null;
+  sessions = null;
+  me = await api('me').catch(() => me);
+  home();
+  await new Promise((r) => setTimeout(r, 400));
+}, { enabled: () => !!me && !!$('#body') });
 
 (async () => {
   if (!key) { login(); return; }

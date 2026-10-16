@@ -4,6 +4,8 @@
 const LOGO = `<svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2a1a"/><stop offset=".55" stop-color="#d40500"/><stop offset="1" stop-color="#8e0300"/></linearGradient></defs><rect width="512" height="512" rx="114" fill="url(#lg)"/><g transform="translate(256 256) skewX(-14) translate(-256 -256)" fill="#fff" fill-rule="evenodd"><g transform="translate(234 168) scale(0.6) translate(-241 -256)"><path d="M118 150 H262 V202 H180 V240 H248 V290 H180 V362 H118 Z"/><path d="M300 150 H364 V362 H302 V214 L276 230 V178 Z"/></g><g transform="translate(278 344) scale(0.6) translate(-256 -256)"><path d="M108 150 H200 A68 68 0 0 1 200 286 H170 V362 H108 Z M170 200 H194 A18 18 0 0 1 194 236 H170 Z"/><path d="M262 150 H324 V306 H404 V362 H262 Z"/></g></g></svg>`;
 const FAVICON = `data:image/svg+xml,${encodeURIComponent(LOGO.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '))}`;
 
+import { pullToRefresh } from '../shared/pull-refresh.js';
+
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // Couleurs : palette de référence validée (3 appareils : bleu, orange, turquoise), rouge réservé à la marque
@@ -144,7 +146,8 @@ details{margin-top:14px}summary{cursor:pointer;color:var(--ink-2);font-size:13px
 </section>
 </div></main>
 <script type="application/json" id="data">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
-  return page('Statistiques · Paddock Live', body, nonce, css, CLIENT);
+  // Tirer vers le bas pour recharger (page ouverte depuis l'écran d'accueil du téléphone)
+  return page('Statistiques · Paddock Live', body, nonce, css, `${pullToRefresh.toString()}\npullToRefresh(() => { location.reload(); return new Promise(() => {}); });\n${CLIENT}`);
 }
 
 // Script du tableau de bord (exécuté dans le navigateur). Textes insérés avec textContent.

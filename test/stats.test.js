@@ -268,3 +268,13 @@ test('statistiques : détail des erreurs nettoyé, envoyé, regroupé sur la pag
   // Le compteur « error.news.js:12 » d'une version avec détail n'est pas compté deux fois
   assert.equal(s.errors.filter((e) => e.place === 'news.js:12').length, 1);
 });
+
+test('statistiques : tirer vers le bas recharge la page (fonction recopiée dans le script, avant le reste)', async () => {
+  const { dashboardPage } = await import('../analytics/page.js');
+  const html = dashboardPage({ since: '2026-09-01', until: '2026-10-01', series: { active: [] }, features: [] }, { nonce: 'n' });
+  const script = html.slice(html.indexOf('<script nonce="n">'));
+  assert.ok(script.indexOf('function pullToRefresh(') > 0);
+  assert.ok(script.indexOf('pullToRefresh(() => { location.reload()') < script.indexOf('const D = JSON.parse'));
+  assert.ok(!/\bexport function\b|<\/script>[\s\S]*<\/script>/.test(script));
+  assert.match(html, /<link rel="apple-touch-icon" href="\/apple-touch-icon.png">/);
+});
