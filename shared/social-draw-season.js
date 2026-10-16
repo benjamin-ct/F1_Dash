@@ -320,10 +320,11 @@ export function recapItem(ctx, W, H, d, o, i, fmt) {
 }
 
 // ---------- Vidéo animée de la course (images successives) ----------
-// Feux de départ, puis la course sur le tracé du circuit : chaque voiture placée selon son écart au
-// leader, piste colorée selon l'état (safety car, VSC, drapeau rouge…), bandeaux des moments forts
-// (neutralisations, relances, nouveau leader, abandons, pénalités, meilleur tour), classement animé ;
-// pour finir le podium et les chiffres de la course.
+// Feux de départ, puis la course : tracé du circuit avec le leader fixe sur la ligne et chaque voiture
+// placée derrière lui selon son écart (rien ne défile : le peloton s'étire ou se resserre), piste
+// colorée selon l'état (safety car, VSC, drapeau rouge…), bandeaux des moments forts
+// (neutralisations, relances, nouveau leader, abandons, pénalités, meilleur tour), classement complet
+// animé ; pour finir le podium et les chiffres de la course.
 const FLAG = {
   green: { color: '#3ddc84', label: 'DRAPEAU VERT' }, yellow: { color: '#ffd60a', label: 'DRAPEAU JAUNE' },
   sc: { color: '#ffc400', label: 'SAFETY CAR' }, vsc: { color: '#ff9f1c', label: 'VIRTUAL SAFETY CAR' },
@@ -352,7 +353,7 @@ export function raceVideoTiming(d) {
     const here = ev.filter((e) => e.lap === l);
     w.push(1 + (here.some((e) => NEUTRAL.has(e.kind)) ? 2.4 : here.some((e) => BIG.has(e.kind)) ? 1.4 : here.length ? 0.6 : 0));
   }
-  const race = Math.max(22, Math.min(40, d.total * 0.6));
+  const race = Math.max(30, Math.min(48, d.total * 0.8));
   const per = race / Math.max(1, w.reduce((a, b) => a + b, 0));
   const intro = 3.6;
   const starts = [intro];
@@ -465,7 +466,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
 
   // ---- Circuit ----
   const t = trackOf(d);
-  const box = { x: pad + 20 * u, y: by + 50 * u, w: W - 2 * pad - 40 * u, h: H * 0.40 };
+  const box = { x: pad + 20 * u, y: by + 36 * u, w: W - 2 * pad - 40 * u, h: H * 0.25 };
   const sc = Math.min(box.w / t.w, box.h / t.h);
   const ox = box.x + (box.w - t.w * sc) / 2;
   const oy = box.y + (box.h - t.h * sc) / 2;
@@ -509,26 +510,15 @@ export function raceFrame(ctx, W, H, d, o, time) {
       const g1 = gapAt(i, lap + 1) ?? g0;
       if (g0 == null) return;
       const gap = g0 + (g1 - g0) * f;
-      s = (lap + f) - gap / lapRef;
+      s = -gap / lapRef;   // leader fixe sur la ligne, les autres derrière lui selon leur écart
     }
     if (s == null) return;
     cars.push({ i, x, s, p: posAt(x, Math.max(lap, 0)) || 99, pit: !done && time >= tm.intro && (x.pits || []).includes(lap + 1) });
   });
   cars.sort((a, b) => b.p - a.p);
-  // Traînées : la vitesse se voit (rien sur la grille)
-  if (time >= tm.intro && !done) {
-    ctx.save();
-    ctx.lineCap = 'round';
-    for (const c of cars) {
-      ctx.beginPath();
-      for (let k = 0; k <= 6; k++) { const [px, py] = P(pointAt(t, c.s - k * 0.0028)); if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py); }
-      ctx.strokeStyle = vivid(c.x.color); ctx.globalAlpha = 0.45; ctx.lineWidth = 9 * u; ctx.stroke();
-    }
-    ctx.restore();
-  }
   for (const c of cars) {
     const [cx, cy] = P(pointAt(t, c.s));
-    const r = (c.p === 1 ? 17 : 14) * u;
+    const r = (c.p === 1 ? 14 : 11) * u;
     ctx.beginPath(); ctx.arc(cx, cy, r + 4 * u, 0, Math.PI * 2); ctx.fillStyle = c.p === 1 ? C.gold : '#0b0d12'; ctx.fill();
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = vivid(c.x.color); ctx.fill();
     c.at = [cx, cy];
@@ -536,7 +526,7 @@ export function raceFrame(ctx, W, H, d, o, time) {
   // Étiquettes : 3 premiers et voitures au stand, placées sans se chevaucher (au-dessus, en dessous…)
   const placed = [];
   const free = (r) => !placed.some((q) => r.x < q.x + q.w && q.x < r.x + r.w && r.y < q.y + q.h && q.y < r.y + r.h);
-  for (const c of cars.filter((x) => x.p <= 3 || x.pit).sort((a, b) => a.p - b.p)) {
+  for (const c of cars.filter((x) => x.p <= 3 || (x.pit && x.p <= 10)).sort((a, b) => a.p - b.p)) {
     const [cx, cy] = c.at;
     const lbl = c.pit ? `${c.x.code} · PIT` : c.p <= 3 && time >= tm.intro ? `P${c.p} ${c.x.code}` : c.x.code;
     ctx.font = `800 ${Math.round(22 * u)}px ${TITLE}`;
@@ -576,8 +566,8 @@ export function raceFrame(ctx, W, H, d, o, time) {
     const name = x ? `${x.first} ${x.last}`.trim() : bn.code || '';
     const [title, sub] = BANNER[bn.kind];
     const col = BANNER_COLOR[bn.kind] || FLAG[bn.kind]?.color || C.red;
-    const bh = 150 * u;
-    const byy = box.y + box.h - bh + 10 * u;
+    const bh = 130 * u;
+    const byy = box.y + box.h - bh + 20 * u;
     ctx.save();
     ctx.globalAlpha = fade;
     ctx.translate(W / 2, byy + bh / 2);
@@ -589,12 +579,15 @@ export function raceFrame(ctx, W, H, d, o, time) {
     ctx.save();
     ctx.globalAlpha = fade * k;
     const dark = ['sc', 'vsc', 'neutral', 'restart', 'lead'].includes(bn.kind) ? '#0b0d12' : '#fff';
-    txt(ctx, title, W / 2, byy + 72 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, color: dark, align: 'center', spacing: 3, max: W - 3 * pad });
-    txt(ctx, sub(bn, name).toUpperCase(), W / 2, byy + 118 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: dark, align: 'center', spacing: 1.5, max: W - 3 * pad });
+    txt(ctx, title, W / 2, byy + 64 * u, { size: Math.round(56 * u), weight: 800, family: TITLE, color: dark, align: 'center', spacing: 3, max: W - 3 * pad });
+    txt(ctx, sub(bn, name).toUpperCase(), W / 2, byy + 104 * u, { size: Math.round(28 * u), weight: 700, family: TITLE, color: dark, align: 'center', spacing: 1.5, max: W - 3 * pad });
     ctx.restore();
   }
 
-  // ---- Classement (10 premiers) ----
+  // Lecture du schéma : le leader reste sur la ligne (masqué sous un bandeau)
+  if (time >= tm.intro && !done && !bn) txt(ctx, 'LEADER SUR LA LIGNE · LES AUTRES SELON LEUR ÉCART', box.x, box.y + box.h + 30 * u, { size: Math.round(18 * u), weight: 700, family: TITLE, color: C.muted, spacing: 1.5 });
+
+  // ---- Classement complet ----
   const rank = (l) => {
     const live = d.drivers.map((x, i) => ({ i, p: posAt(x, l) })).filter((e) => e.p).sort((a, b) => a.p - b.p);
     const out = d.drivers.map((x, i) => ({ i, p: posAt(x, l) })).filter((e) => !e.p).sort((a, b) => d.drivers[b.i].laps - d.drivers[a.i].laps);
@@ -605,10 +598,10 @@ export function raceFrame(ctx, W, H, d, o, time) {
   const fe = ease(clamp01(f * 1.6));
   const r0 = rank(lap);
   const r1 = rank(Math.min(d.total, lap + 1));
-  const listTop = box.y + box.h + 40 * u;
-  const rows = 10;
-  const rowH = Math.min(74 * u, (H - listTop - 90 * u) / rows);
-  const fs = Math.round(rowH * 0.46);
+  const listTop = box.y + box.h + 46 * u;
+  const rows = n;
+  const rowH = Math.min(74 * u, (H - listTop - 80 * u) / rows);
+  const fs = Math.round(rowH * 0.5);
   ctx.save();
   ctx.beginPath(); ctx.rect(0, listTop - 4, W, rows * rowH + 8); ctx.clip();
   d.drivers.forEach((x, i) => {
@@ -649,7 +642,9 @@ export function raceFrame(ctx, W, H, d, o, time) {
     ctx.save();
     ctx.globalAlpha = k;
     rr(ctx, box.x - 10 * u, box.y - 10 * u, box.w + 20 * u, box.h + 20 * u, 26 * u); ctx.fillStyle = 'rgba(8,9,12,0.9)'; ctx.fill();
-    ctx.translate(0, Math.max(0, (box.h - 600 * u) / 2));
+    // Contenu prévu pour 600 px de haut : réduit pour tenir dans le cadre du circuit
+    const zs = Math.min(1, (box.h + 10 * u) / (610 * u));
+    ctx.translate(W / 2, box.y); ctx.scale(zs, zs); ctx.translate(-W / 2, -box.y + 5 * u);
     txt(ctx, 'DRAPEAU À DAMIER', W / 2, box.y + 60 * u, { size: Math.round(30 * u), weight: 800, family: TITLE, color: C.muted, align: 'center', spacing: 4 });
     const w0 = pod[0];
     if (w0) {
