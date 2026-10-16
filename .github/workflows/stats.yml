@@ -35,6 +35,7 @@ on:
       - 'shared/article.js'
       - 'shared/season-*.js'
       - 'shared/race-laps.js'
+      - 'shared/race-story.js'
       - 'shared/circuits-info.js'
       - 'shared/circuit-records.js'
       - 'shared/f1.js'

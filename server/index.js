@@ -6,6 +6,7 @@ import { WebSocketServer } from 'ws';
 import { Hub } from './hub.js';
 import { LiveSource } from './live.js';
 import { ReplaySource, seasonIndex } from './replay.js';
+import { parseRaceControl } from '../shared/race-story.js';
 import { HttpError } from './net.js';
 import { circuit, loops, zones } from './circuits.js';
 import { season, raceLaps } from './season.js';
@@ -38,7 +39,7 @@ import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, publish as p
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 import { stats, startStats } from './stats.js';
-import { archivePath, sendArchiveFile } from './archive.js';
+import { archivePath, sendArchiveFile, archiveJSON } from './archive.js';
 import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
 import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
@@ -348,6 +349,7 @@ async function handleApi(req, res, url) {
     case 'POST /api/social/summary':
     case 'GET /api/social/laps':
     case 'GET /api/social/records':
+    case 'GET /api/social/racecontrol':
     case 'GET /api/social/forecast':
     case 'GET /api/social/schedule':
     case 'POST /api/social/schedule':
@@ -383,6 +385,16 @@ async function handleApi(req, res, url) {
           }
           if (!key) return sendJSON(res, 404, { error: failed ? archiveError(year, failed) : 'Circuit introuvable dans les archives de la F1' });
           return sendJSON(res, 200, await circuitRecords(key, year));
+        }
+        // Direction de course de la course (SC, VSC, drapeaux, pénalités) : vidéo animée
+        if (route === 'GET /api/social/racecontrol') {
+          const year = yearOf(url.searchParams.get('year'));
+          const race = (await season(year)).races.find((r) => r.round === Number(url.searchParams.get('round')));
+          if (!race) return sendJSON(res, 404, { error: 'Manche inconnue' });
+          const idx = await seasonIndex(year);
+          const ses = idx.find((m) => m.name === race.name)?.sessions.find((s) => s.type === 'Race' && !/sprint/i.test(s.name));
+          if (!ses) return sendJSON(res, 404, { error: 'Course introuvable dans les archives de la F1' });
+          return sendJSON(res, 200, { messages: parseRaceControl(await archiveJSON(`${ses.path}RaceControlMessages.json`, { timeout: 30000 })) });
         }
         // Météo prévue sur le circuit (programme du week-end)
         if (route === 'GET /api/social/forecast') return sendJSON(res, 200, { days: await forecast(url.searchParams.get('lat'), url.searchParams.get('lon')) });

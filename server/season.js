@@ -116,14 +116,15 @@ const lapsMem = new Map();
 export async function raceLaps(year, round) {
   const key = `${year}-${round}`;
   if (lapsMem.has(key)) return lapsMem.get(key);
-  const file = path.join(CACHE_DIR, `laps-${key}.json`);
+  const file = path.join(CACHE_DIR, `laps2-${key}.json`);
   const disk = readDisk(file);
   if (disk?.total) { lapsMem.set(key, disk); return disk; }
-  const [pages, results] = await Promise.all([
+  const [pages, results, pits] = await Promise.all([
     all(`${year}/${round}/laps`, (m) => m?.RaceTable?.Races || []),
     all(`${year}/${round}/results`, (m) => m?.RaceTable?.Races || []),
+    all(`${year}/${round}/pitstops`, (m) => m?.RaceTable?.Races || []).catch(() => []),
   ]).catch((err) => { throw new Error(apiError(err)); });
-  const data = parseRaceLaps(pages, results.flatMap((r) => r.Results || []));
+  const data = parseRaceLaps(pages, results.flatMap((r) => r.Results || []), pits);
   if (data.total) {
     lapsMem.set(key, data);
     try { fs.writeFileSync(file, JSON.stringify(data)); } catch { /* cache facultatif */ }

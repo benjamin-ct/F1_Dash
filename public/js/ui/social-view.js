@@ -204,12 +204,19 @@ async function seasonSource(sig) {
     d = teamDuelsData(data, { year, upTo: race.round, live });
     extra = msg(t('Bilan de la saison jusqu\'à la manche choisie : qui devance l\'autre en qualifications et en course.'));
   } else {
-    const laps = await lapsOf().catch((err) => ({ error: err.message }));
+    // Tours, tracé du circuit et direction de course (safety car, VSC, drapeaux) pour la vidéo
+    const info = circuitInfo(race.circuitId);
+    const [laps, track, rc] = await Promise.all([
+      lapsOf().catch((err) => ({ error: err.message })),
+      info ? cached(`circuit|${info.key}|${year}`, () => jget(`/api/circuit?key=${info.key}&year=${year}`, 60000), 3600e3).catch(() => null) : null,
+      cached(`rc|${year}|${race.round}`, () => jget(`/api/social/racecontrol?year=${year}&round=${race.round}`, 60000), 3600e3).catch(() => null),
+    ]);
     if (laps.error || !laps.total) return { head: head + msg(laps.error || t('Tours de cette course pas encore publiés.'), true) };
-    d = raceLapsData(race, laps, { year, live });
+    d = raceLapsData(race, laps, { year, live, track, rcm: rc?.messages?.length ? rc.messages : null });
     const sec = Math.round(raceVideoTiming(d).duration);
     extra = `<div class="row posts-news-bar"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo animée')}</button>
-      <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels) de {} s : le classement évolue tour par tour.', sec))}</span></div>
+      <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels) de {} s : les voitures sur le circuit, safety cars, drapeaux et moments forts de la course.', sec))}</span></div>
+      ${d.story.estimated ? msg(t('Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.')) : ''}
       <video class="posts-vid" data-rv controls playsinline hidden></video>`;
   }
   const label = SEASON_TYPES.find(([k]) => k === seasonType)[1];

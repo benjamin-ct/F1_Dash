@@ -19,6 +19,7 @@ import { summarize } from '/shared/season-data.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { editionOf, recordsOf, recordYears } from '/shared/circuit-records.js';
+import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
 import { makeAnimation } from '/shared/social-video.js';
 import { extractArticle } from '/shared/article.js';
 import { merge } from '/shared/merge.js';
@@ -721,10 +722,24 @@ async function recordsFor(year, key) {
   if (!rec.editions.length && failed) throw new Error(me.f1tv ? 'Archives de la F1 indisponibles pour le moment' : 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli, puis réactivez la page');
   return rec;
 }
-const lapsOf = (year, round) => memoOf(`l${year}-${round}`, async () => {
+const lapsOf = (year, round) => memoOf(`l2${year}-${round}`, async () => {
   const pages = (await jolpica(`${year}/${round}/laps`)).flatMap((m) => m?.RaceTable?.Races || []);
   const res = (await jolpica(`${year}/${round}/results`)).flatMap((m) => m?.RaceTable?.Races || []).flatMap((r) => r.Results || []);
-  return parseRaceLaps(pages, res);
+  const pits = (await jolpica(`${year}/${round}/pitstops`).catch(() => [])).flatMap((m) => m?.RaceTable?.Races || []);
+  return parseRaceLaps(pages, res, pits);
+});
+// Tracé du circuit (API MultiViewer) et direction de course (archives de la F1 : safety car, VSC, drapeaux)
+const trackOf = (year, key) => memoOf(`c${key}-${year}`, async () => {
+  for (const y of [year, year - 1]) {
+    const r = await fetch(`https://api.multiviewer.app/api/v1/circuits/${key}/${y}`).catch(() => null);
+    if (r?.ok) return r.json();
+  }
+  return null;
+});
+const raceControlOf = (year, race) => memoOf(`rc${year}-${race.round}`, async () => {
+  const p = raceSessionPath(await readArchive(`${year}/Index.json`), { name: race.name, circuitKey: circuitInfo(race.circuitId)?.key });
+  if (!p) throw new Error('Course introuvable dans les archives');
+  return parseRaceControl(await readArchive(`${p}RaceControlMessages.json`));
 });
 async function forecastOf(lat, lon) {
   const q = new URLSearchParams({ latitude: Number(lat).toFixed(4), longitude: Number(lon).toFixed(4), daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: 'auto', forecast_days: '16' });
@@ -764,16 +779,9 @@ async function seasonEditor(year, data, race) {
   let note = '';
   if (state.stype === 'raceweek') {
     const info = circuitInfo(race.circuitId);
-    const trackOf = async () => {
-      for (const y of [year, year - 1]) {
-        const r = await fetch(`https://api.multiviewer.app/api/v1/circuits/${info.key}/${y}`).catch(() => null);
-        if (r?.ok) return r.json();
-      }
-      return null;
-    };
     const [fc, track, winners] = await Promise.all([
       Number.isFinite(race.lat) ? forecastOf(race.lat, race.lon) : [],
-      info ? memoOf(`c${info.key}-${year}`, trackOf).catch(() => null) : null,
+      info ? trackOf(year, info.key).catch(() => null) : null,
       memoOf(`w${year - 1}`, async () => (await jolpica(`${year - 1}/results/1`)).flatMap((m) => m?.RaceTable?.Races || [])).catch(() => []),
     ]);
     const w = winners.find((r) => r.Circuit?.circuitId === race.circuitId || r.raceName === race.name)?.Results?.[0];
@@ -796,9 +804,15 @@ async function seasonEditor(year, data, race) {
   } else if (state.stype === 'teamduels') {
     d = teamDuelsData(data, { year, upTo: race.round, live });
   } else {
-    const laps = await lapsOf(year, race.round);
+    const info = circuitInfo(race.circuitId);
+    const [laps, track, rcm] = await Promise.all([
+      lapsOf(year, race.round),
+      info ? trackOf(year, info.key).catch(() => null) : null,
+      raceControlOf(year, race).catch(() => null),
+    ]);
     if (!laps.total) throw new Error('Tours de cette course pas encore publiés');
-    d = raceLapsData(race, laps, { year, live });
+    d = raceLapsData(race, laps, { year, live, track, rcm: rcm?.length ? rcm : null });
+    if (d.story.estimated) note = 'Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.';
   }
   const video = state.stype === 'racelaps';
   let clip = null;
@@ -806,7 +820,7 @@ async function seasonEditor(year, data, race) {
     back: () => home(),
     head: `<p class="small muted">${esc(d.gp)} · manche ${race.round}</p>${note ? `<p class="note">${esc(note)}</p>` : ''}
       ${video ? `<div class="row"><button id="mkvid">Créer la vidéo animée (${Math.round(raceVideoTiming(d).duration)} s)</button><button id="sharevid" disabled>Partager la vidéo</button></div>
-        <p class="small muted" id="vidst">Vidéo verticale pour TikTok, Reels ou une story : le classement évolue tour par tour. Garder l'écran allumé pendant l'enregistrement.</p>
+        <p class="small muted" id="vidst">Vidéo verticale pour TikTok, Reels ou une story : les voitures sur le circuit, safety cars, drapeaux et moments forts. Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden style="width:100%;border-radius:12px"></video>` : ''}`,
     data: () => d, caps: () => seasonCaptions(d, SIG),
     record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${STYPES.find(([k]) => k === state.stype)[1]} · ${d.gp}` }),

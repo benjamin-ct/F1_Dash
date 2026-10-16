@@ -5,6 +5,7 @@
 import { gpNameFr } from './summary.js';
 import { driverRatings, qualiGaps } from './season-calc.js';
 import { cleanPace, lapsLedBy } from './race-laps.js';
+import { raceStory } from './race-story.js';
 import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
 import { circuitInfo, trackShape, flagColors } from './circuits-info.js';
 
@@ -179,7 +180,9 @@ export function teamDuelsData(season, { year, upTo = null, live = {} } = {}) {
 }
 
 // ---------- 5. Course tour par tour (graphique des positions, vidéo) ----------
-export function raceLapsData(race, laps, { year, live = {} } = {}) {
+// track : tracé du circuit (API MultiViewer) ; rcm : direction de course (parseRaceControl), sinon
+// neutralisations estimées d'après les temps au tour (vidéo animée, graphique des positions)
+export function raceLapsData(race, laps, { year, live = {}, track = null, rcm = null } = {}) {
   const d = base(race, year, 'racelaps', 'Course');
   d.total = laps.total;
   d.drivers = laps.drivers.map((x) => ({ ...x, color: teamColor(x.teamId || x.team, live[x.code]) }));
@@ -188,6 +191,8 @@ export function raceLapsData(race, laps, { year, live = {} } = {}) {
   d.leadChanges = changes;
   d.climbs = d.drivers.filter((x) => x.classified && x.grid).map((x) => ({ ...x, gain: x.grid - x.finish })).sort((a, b) => b.gain - a.gain).slice(0, 3);
   d.rows = [...d.drivers].sort((a, b) => (a.finish || 99) - (b.finish || 99));
+  d.track = trackShape(track);
+  d.story = raceStory(laps, rcm);
   return d;
 }
 
