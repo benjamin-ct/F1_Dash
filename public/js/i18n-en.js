@@ -1936,4 +1936,6 @@ export default {
   "La semaine en F1": "The week in F1",
   "Une question adaptée au post en fin de texte, pour faire réagir en commentaire": "A question suited to the post at the end of the text, to spark comments",
   "Question en fin de texte": "Question at the end of the text",
+  "Race Week": "Race Week",
+  "Tracé du circuit indisponible pour ce Grand Prix : visuel sans le circuit.": "Circuit layout unavailable for this Grand Prix: visual without the circuit.",
 };

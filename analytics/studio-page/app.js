@@ -13,10 +13,11 @@ import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
 import { slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
-import { weekendData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
+import { raceWeekData, weekendData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { summarize } from '/shared/season-data.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
+import { circuitInfo } from '/shared/circuits-info.js';
 import { makeAnimation } from '/shared/social-video.js';
 import { extractArticle } from '/shared/article.js';
 import { merge } from '/shared/merge.js';
@@ -34,7 +35,7 @@ const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'Tim
 let key = null;
 try { key = localStorage.getItem(KEY) || sessionStorage.getItem(KEY); } catch { /* stockage bloqué */ }
 let me = null;
-const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'weekend', round: null };
+const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'raceweek', round: null };
 let news = null;        // nouvelles lues (toutes sources)
 let sessions = null;    // séances de la saison
 let lastDrivers = {};   // liste des pilotes de la dernière séance lue (photos des news)
@@ -131,7 +132,7 @@ async function assets(d) {
   const photos = {};
   if (state.photos) await Promise.all((d.rows || []).slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
-  return { photos, flag: iso ? await loadImage(`https://flagcdn.com/w160/${iso}.png`) : null, signature: SIG };
+  return { photos, flag: iso ? await loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`) : null, signature: SIG };
 }
 
 // ---------- News ----------
@@ -613,7 +614,7 @@ const memoOf = (k, fn, ttl = Infinity) => {
   }
   return seasonMemo.get(k);
 };
-const seasonOf = (year) => memoOf(`s${year}`, async () => {
+const seasonOf = (year) => memoOf(`s3-${year}`, async () => {
   const races = (pages) => pages.flatMap((m) => m?.RaceTable?.Races || []);
   const [schedule, ds, cs, results, quali, sprint] = [
     races(await jolpica(`${year}`)), await jolpica(`${year}/driverstandings`), await jolpica(`${year}/constructorstandings`),
@@ -632,12 +633,12 @@ async function forecastOf(lat, lon) {
   const d = j?.daily || {};
   return (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null })).filter((x) => x.tmax !== null);
 }
-const STYPES = [['weekend', 'Programme'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['racelaps', 'Tour par tour']];
+const STYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['racelaps', 'Tour par tour']];
 async function seasonTab(body) {
   body.innerHTML = '<p class="muted">Lecture de la saison (jusqu\'à une minute la première fois)…</p>';
   const year = new Date().getUTCFullYear();
   const data = await seasonOf(year);
-  const upcoming = state.stype === 'weekend';
+  const upcoming = ['raceweek', 'weekend'].includes(state.stype);
   const races = upcoming ? data.races : data.races.filter((r) => r.results.length);
   const def = upcoming ? (races.find((r) => Date.parse(r.date) > Date.now() - 12 * 3600e3) || races.at(-1)) : races.at(-1);
   const race = races.find((r) => r.round === state.round) || def;
@@ -650,7 +651,25 @@ async function seasonEditor(year, data, race) {
   const live = Object.fromEntries(Object.values(await latestDrivers()).filter((x) => x?.Tla && x.TeamColour).map((x) => [x.Tla, `#${String(x.TeamColour).replace('#', '')}`]));
   let d;
   let note = '';
-  if (state.stype === 'weekend') {
+  if (state.stype === 'raceweek') {
+    const info = circuitInfo(race.circuitId);
+    const trackOf = async () => {
+      for (const y of [year, year - 1]) {
+        const r = await fetch(`https://api.multiviewer.app/api/v1/circuits/${info.key}/${y}`).catch(() => null);
+        if (r?.ok) return r.json();
+      }
+      return null;
+    };
+    const [fc, track, winners] = await Promise.all([
+      Number.isFinite(race.lat) ? forecastOf(race.lat, race.lon) : [],
+      info ? memoOf(`c${info.key}-${year}`, trackOf).catch(() => null) : null,
+      memoOf(`w${year - 1}`, async () => (await jolpica(`${year - 1}/results/1`)).flatMap((m) => m?.RaceTable?.Races || [])).catch(() => []),
+    ]);
+    const w = winners.find((r) => r.Circuit?.circuitId === race.circuitId || r.raceName === race.name)?.Results?.[0];
+    const prev = w ? { name: `${w.Driver?.givenName || ''} ${w.Driver?.familyName || ''}`.trim(), team: w.Constructor?.name || '', teamId: w.Constructor?.constructorId || '', laps: Number(w.laps) || null } : null;
+    d = raceWeekData(race, { year, rounds: data.races.length, tyres: builtinNomination(year, { name: race.name, location: race.locality, country: race.country }), forecast: fc, track, prev });
+    if (!track) note = 'Tracé du circuit indisponible pour ce Grand Prix : visuel sans le circuit.';
+  } else if (state.stype === 'weekend') {
     const fc = Number.isFinite(race.lat) ? await forecastOf(race.lat, race.lon) : [];
     d = weekendData(race, { year, tyres: builtinNomination(year, { name: race.name, location: race.locality, country: race.country }), forecast: fc });
     if (!d.forecast.length) note = 'Météo prévue disponible environ 2 semaines avant le week-end.';

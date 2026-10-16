@@ -28,7 +28,7 @@ export function summarize({ schedule, driverStandings, constructorStandings, res
   const row = (x) => ({
     ...driverOf(x.Driver), team: x.Constructor?.name || '', teamId: x.Constructor?.constructorId || '',
     grid: Number(x.grid) || null, pos: Number(x.position) || null, posText: x.positionText, status: x.status,
-    points: Number(x.points) || 0, fastest: x.FastestLap?.rank === '1', time: x.Time?.time || null,
+    points: Number(x.points) || 0, fastest: x.FastestLap?.rank === '1', time: x.Time?.time || null, laps: Number(x.laps) || null,
   });
   const races = schedule.map((r) => {
     const sessions = [['FirstPractice', 'EL1'], ['SecondPractice', 'EL2'], ['ThirdPractice', 'EL3'], ['SprintQualifying', 'Qualif. sprint'], ['Sprint', 'Sprint'], ['Qualifying', 'Qualifications']]
@@ -39,7 +39,7 @@ export function summarize({ schedule, driverStandings, constructorStandings, res
       q: [x.Q1, x.Q2, x.Q3].map((t) => lapTime(t)) }));
     const s = (spr.get(r.round) || []).map(row);
     return {
-      round: Number(r.round), name: r.raceName, circuit: r.Circuit?.circuitName, locality: r.Circuit?.Location?.locality,
+      round: Number(r.round), name: r.raceName, circuit: r.Circuit?.circuitName, circuitId: r.Circuit?.circuitId || '', locality: r.Circuit?.Location?.locality,
       country: r.Circuit?.Location?.country, lat: Number(r.Circuit?.Location?.lat), lon: Number(r.Circuit?.Location?.long),
       date: iso(r), sprint: !!r.Sprint, sessions,
       results, quali: q, sprintResults: s,

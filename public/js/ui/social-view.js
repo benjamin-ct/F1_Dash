@@ -10,13 +10,14 @@ import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
 import { FORMATS, slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
-import { weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
+import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { makeAnimation } from '/shared/social-video.js';
 import { bigNews, newsPost, newsCaptions, newsKind, OTHER_SERIES } from '/shared/social-news.js';
 import { builtinNomination } from '/shared/tyres.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { postedEntry } from '/shared/post-history.js';
+import { circuitInfo } from '/shared/circuits-info.js';
 import { openPublish } from './social-publish-view.js';
 
 const SIG_KEY = 'paddock.postSignature';
@@ -27,8 +28,8 @@ let withPhotos = storageGet(OPT_KEY, {}).photos !== false;
 let noSpoiler = storageGet(OPT_KEY, {}).noSpoiler !== false;   // texte sans le vainqueur au début
 let mode = ['news', 'season'].includes(storageGet(OPT_KEY, {}).mode) ? storageGet(OPT_KEY, {}).mode : 'session';
 let withQuestion = storageGet(OPT_KEY, {}).question !== false;   // question en fin de texte (commentaires)
-const SEASON_TYPES = [['weekend', 'Programme du week-end'], ['records', 'Le saviez-vous'], ['ratings', 'Notes des pilotes'], ['teamduels', 'Duels coéquipiers'], ['racelaps', 'Course tour par tour']];
-let seasonType = SEASON_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).seasonType) ? storageGet(OPT_KEY, {}).seasonType : 'weekend';
+const SEASON_TYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme du week-end'], ['records', 'Le saviez-vous'], ['ratings', 'Notes des pilotes'], ['teamduels', 'Duels coéquipiers'], ['racelaps', 'Course tour par tour']];
+let seasonType = SEASON_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).seasonType) ? storageGet(OPT_KEY, {}).seasonType : 'raceweek';
 let roundSel = null;   // manche choisie (posts de saison)
 let recapMode = false; // news : récap de la semaine
 let curPost = null;    // post affiché et ses visuels (vidéo animée de la course)
@@ -68,7 +69,7 @@ async function assets(d) {
     await Promise.all(d.rows.slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   }
   const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
-  const flag = iso ? await loadImage(`https://flagcdn.com/w160/${iso}.png`, true) : null;
+  const flag = iso ? await loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`, true) : null;
   return { photos, flag };
 }
 
@@ -162,7 +163,7 @@ async function seasonSource(sig) {
   const year = Number(String(store.state?.SessionInfo?.Path || '').slice(0, 4)) || new Date().getFullYear();
   let data;
   try { data = await cached(`season|${year}`, () => jget(`/api/season?year=${year}`)); } catch (err) { return { head: `${types}<p class="muted">${esc(err.message)}</p>` }; }
-  const upcoming = ['weekend', 'records'].includes(seasonType);
+  const upcoming = ['raceweek', 'weekend', 'records'].includes(seasonType);
   const races = upcoming ? data.races : data.races.filter((r) => r.results.length);
   if (!races.length) return { head: `${types}<p class="muted">${t('Aucune manche disponible pour cette saison.')}</p>` };
   const def = upcoming ? (races.find((r) => Date.parse(r.date) > Date.now() - 12 * 3600e3) || races.at(-1)) : races.at(-1);
@@ -174,7 +175,18 @@ async function seasonSource(sig) {
   const lapsOf = () => cached(`laps|${year}|${race.round}`, () => jget(`/api/social/laps?year=${year}&round=${race.round}`, 120000), 3600e3);
   let d;
   let extra = '';
-  if (seasonType === 'weekend') {
+  if (seasonType === 'raceweek') {
+    // Tracé du circuit, météo, vainqueur de l'édition précédente
+    const info = circuitInfo(race.circuitId);
+    const [fc, track, before] = await Promise.all([
+      Number.isFinite(race.lat) ? cached(`fc|${race.lat}|${race.lon}`, () => jget(`/api/social/forecast?lat=${race.lat}&lon=${race.lon}`, 40000)).catch(() => null) : null,
+      info ? cached(`circuit|${info.key}|${year}`, () => jget(`/api/circuit?key=${info.key}&year=${year}`, 60000), 3600e3).catch(() => null) : null,
+      cached(`season|${year - 1}`, () => jget(`/api/season?year=${year - 1}`), 3600e3).catch(() => null),
+    ]);
+    const prev = before?.races?.find((r) => (r.circuitId && r.circuitId === race.circuitId) || r.name === race.name)?.results?.[0] || null;
+    d = raceWeekData(race, { year, rounds: data.races.length, tyres: builtinNomination(year, { name: race.name, location: race.locality, country: race.country }), forecast: fc?.days, track, prev });
+    if (!track) extra = msg(t('Tracé du circuit indisponible pour ce Grand Prix : visuel sans le circuit.'));
+  } else if (seasonType === 'weekend') {
     const tyres = builtinNomination(year, { name: race.name, location: race.locality, country: race.country });
     const fc = Number.isFinite(race.lat) ? await cached(`fc|${race.lat}|${race.lon}`, () => jget(`/api/social/forecast?lat=${race.lat}&lon=${race.lon}`, 40000)).catch(() => null) : null;
     d = weekendData(race, { year, tyres, forecast: fc?.days });

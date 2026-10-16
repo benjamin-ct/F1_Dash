@@ -4,7 +4,7 @@
 
 import { teammateDuels, FLASH_KINDS, GRID_SOURCE } from './social-more.js';
 import { followReason } from './social-follow.js';
-import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem } from './social-draw-season.js';
+import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem, raceweek } from './social-draw-season.js';
 
 export const FORMATS = {
   ig: { w: 1080, h: 1350, name: 'instagram' },
@@ -31,6 +31,7 @@ function baseSlides(d, fmt) {
   if (d.post === 'champ') return ['couverture', 'champpilotes', 'champecuries'];
   if (d.post === 'flash') return ['flash'];
   if (d.post === 'weekend') return ['couverture', 'horaires', ...(d.tyres || d.forecast?.length ? ['infos'] : [])];
+  if (d.post === 'raceweek') return ['raceweek', 'horaires', ...(d.tyres || d.forecast?.length ? ['infos'] : [])];
   if (d.post === 'records') return d.facts.length ? ['couverture', 'records', ...(d.editions.length >= 2 ? ['editions'] : [])] : [];
   if (d.post === 'ratings') return d.rows.length ? ['couverture', 'topflop', 'notes'] : [];
   if (d.post === 'teamduels') return d.rows.length ? ['couverture', ...Array.from({ length: Math.ceil(d.rows.length / 5) }, (_, i) => `equipes-${i + 1}`)] : [];
@@ -54,7 +55,7 @@ export function pointPages(points, fmt = 'ig') {
   for (let k = 0; k < n; k++) { const take = Math.ceil((list.length - i) / (n - k)); pages.push(list.slice(i, i + take)); i += take; }
   return pages;
 }
-export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', essentiel: "L'essentiel", horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info' };
+export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', essentiel: "L'essentiel", raceweek: 'Race Week', horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info' };
 export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
 
 // ---------- Outils de dessin ----------
@@ -870,6 +871,7 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   // X : 4 images au plus par post, le sommaire n'annonce que celles publiées
   if (slide === 'news') newsSlide(ctx, w, h, d, o, fmt);
   else if (slide === 'abonnement') follow(ctx, w, h, d, o);
+  else if (slide === 'raceweek') raceweek(ctx, w, h, d, o);
   else if (slide === 'horaires') horaires(ctx, w, h, d, o);
   else if (slide === 'infos') infos(ctx, w, h, d, o);
   else if (slide === 'records') faits(ctx, w, h, d, o, 'Le saviez-vous ?');

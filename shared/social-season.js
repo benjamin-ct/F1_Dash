@@ -6,9 +6,12 @@ import { gpNameFr } from './summary.js';
 import { driverRatings, qualiGaps } from './season-calc.js';
 import { cleanPace, lapsLedBy } from './race-laps.js';
 import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
+import { circuitInfo, trackShape, flagColors } from './circuits-info.js';
 
 const TZ = 'Europe/Paris';
 const fmt = (t, o) => new Date(t).toLocaleString('fr-FR', { timeZone: TZ, ...o });
+// « 1 novembre » -> « 1er novembre »
+const fr1 = (s) => String(s).replace(/^1(?= )/, '1er');
 const capFirst = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1);
 const dec = (v, n = 1) => (v == null ? '—' : Number(v).toFixed(n).replace('.', ','));
 export const lapStr = (s) => (s ? `${Math.floor(s / 60)}:${(s % 60).toFixed(3).padStart(6, '0')}` : '—');
@@ -36,7 +39,7 @@ function base(race, year, post, label) {
   return {
     post, label, year, round: race?.round || null, gpEn, gp: gpEn ? gpNameFr(gpEn).replace(/^le /, '') : 'Grand Prix',
     circuit: race?.locality || race?.circuit || '', iso: COUNTRY_ISO[race?.country] || '', countryName: race?.country || '',
-    date: race?.date ? fmt(Date.parse(race.date), { day: 'numeric', month: 'long', year: 'numeric' }) : '', final: true,
+    date: race?.date ? fr1(fmt(Date.parse(race.date), { day: 'numeric', month: 'long', year: 'numeric' })) : '', final: true,
     sprint: !!race?.sprint, rows: [], facts: [], summary: { paragraphs: [] },
   };
 }
@@ -53,18 +56,40 @@ export function weekendData(race, { year, tyres = null, forecast = null } = {}) 
   const d = base(race, year, 'weekend', 'Programme');
   d.sessions = (race.sessions || []).filter((s) => s.t).map((s) => {
     const t = Date.parse(s.t);
-    return { label: SESSION_FR[s.label] || s.label, t, day: capFirst(fmt(t, { weekday: 'long' })), dayNum: fmt(t, { day: 'numeric', month: 'long' }), time: fmt(t, { hour: '2-digit', minute: '2-digit' }), main: /^(Course|Qualifications|Course sprint)$/.test(SESSION_FR[s.label] || s.label) };
+    return { label: SESSION_FR[s.label] || s.label, t, day: capFirst(fmt(t, { weekday: 'long' })), dayNum: fr1(fmt(t, { day: 'numeric', month: 'long' })), time: fmt(t, { hour: '2-digit', minute: '2-digit' }), main: /^(Course|Qualifications|Course sprint)$/.test(SESSION_FR[s.label] || s.label) };
   }).sort((a, b) => a.t - b.t);
   if (d.sessions.length) {
     const first = d.sessions[0].t, last = d.sessions.at(-1).t;
     const sameMonth = fmt(first, { month: 'long' }) === fmt(last, { month: 'long' });
-    d.date = `${fmt(first, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'long' })} au ${fmt(last, { day: 'numeric', month: 'long', year: 'numeric' })}`;
+    d.date = `${fr1(fmt(first, sameMonth ? { day: 'numeric' } : { day: 'numeric', month: 'long' }))} au ${fr1(fmt(last, { day: 'numeric', month: 'long', year: 'numeric' }))}`;
   }
   d.tyres = tyres;
   // Météo prévue pour chaque jour de séance
   const days = [...new Set(d.sessions.map((s) => fmt(s.t, { year: 'numeric', month: '2-digit', day: '2-digit' }).split('/').reverse().join('-')))];
   d.forecast = (forecast || []).filter((f) => days.includes(f.date)).map((f) => ({ ...f, day: capFirst(fmt(Date.parse(`${f.date}T12:00:00Z`), { weekday: 'long' })) }));
   d.rows = d.sessions;
+  return d;
+}
+
+// ---------- Race Week : annonce du Grand Prix en début de semaine ----------
+// track : tracé MultiViewer ; prev : vainqueur de l'édition précédente ({ name, team, teamId, laps }) ;
+// rounds : nombre de manches de la saison. Visuel propre à chaque Grand Prix : couleurs du drapeau,
+// tracé du circuit, nom de la ville, mise en page qui alterne selon la manche.
+export function raceWeekData(race, { year, rounds = null, tyres = null, forecast = null, track = null, prev = null } = {}) {
+  const d = weekendData(race, { year, tyres, forecast });
+  d.post = 'raceweek';
+  d.label = 'Race Week';
+  d.rounds = rounds;
+  d.city = race.locality || race.circuit || '';
+  const info = circuitInfo(race.circuitId);
+  d.km = info?.km ?? null;
+  d.laps = info?.laps ?? prev?.laps ?? null;
+  d.shape = trackShape(track);
+  d.corners = track?.corners?.length || null;
+  d.palette = flagColors(d.iso);
+  d.prev = prev ? { name: prev.name, team: prev.team, year: year - 1, color: teamColor(prev.teamId || prev.team) } : null;
+  d.race = d.sessions.find((x) => x.label === 'Course') || null;
+  d.variant = (race.round || 0) % 3;
   return d;
 }
 
@@ -208,6 +233,15 @@ export function seasonCaptions(d, sig = '') {
     if (sun) extra.push(`Météo prévue ${sun.day.toLowerCase()} : ${Math.round(sun.tmax)} °C, ${Math.round(sun.rain ?? 0)} % de risque de pluie.`);
     return finish(d, `Programme du week-end : ${d.gp}${d.sprint ? ' (format sprint)' : ''}`, [...lines, '(heures de Paris)', ...(extra.length ? ['', ...extra] : [])], sig, ['#RaceWeek'],
       d.sessions.filter((s) => s.main).map((s) => `${s.day.slice(0, 3)}. ${s.time} · ${s.label}`));
+  }
+  if (d.post === 'raceweek') {
+    const lines = [`Manche ${d.round}${d.rounds ? `/${d.rounds}` : ''} · du ${d.date}${d.city ? ` · ${d.city}` : ''}`];
+    if (d.race) lines.push(`Course ${d.race.day.toLowerCase()} à ${d.race.time} (heure de Paris)`);
+    const facts = [d.laps && `${d.laps} tours`, d.km && `${dec(d.km, 3)} km`, d.corners && `${d.corners} virage${d.corners > 1 ? 's' : ''}`].filter(Boolean);
+    if (facts.length) lines.push(facts.join(' · '));
+    if (d.prev) lines.push(`Vainqueur ${d.prev.year} : ${d.prev.name} (${d.prev.team})`);
+    if (d.tyres) lines.push(`Pneus : C${d.tyres.hard}, C${d.tyres.medium}, C${d.tyres.soft}`);
+    return finish(d, `RACE WEEK | ${capFirst(d.gp)}${d.sprint ? ' (format sprint)' : ''}`, lines, sig, ['#RaceWeek', d.city ? hashtag(d.city) : ''], lines.slice(0, 3));
   }
   if (d.post === 'records') {
     const lines = d.facts.map((f) => `${f.label} : ${f.value} — ${f.sub}`);

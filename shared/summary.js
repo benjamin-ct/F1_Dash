@@ -16,7 +16,8 @@ const GP_FR = {
   Canadian: 'du Canada', Austrian: "d'Autriche", British: 'de Grande-Bretagne', Belgian: 'de Belgique', Hungarian: 'de Hongrie',
   Dutch: 'des Pays-Bas', Italian: "d'Italie", Madrid: 'de Madrid', Azerbaijan: "d'Azerbaïdjan", Singapore: 'de Singapour',
   'United States': 'des États-Unis', 'Mexico City': 'de Mexico', 'São Paulo': 'de São Paulo', 'Las Vegas': 'de Las Vegas',
-  Qatar: 'du Qatar', 'Abu Dhabi': "d'Abou Dhabi",
+  Qatar: 'du Qatar', 'Abu Dhabi': "d'Abou Dhabi", Brazilian: 'du Brésil', Mexican: 'du Mexique', Portuguese: 'du Portugal', French: 'de France',
+  German: "d'Allemagne", Turkish: 'de Turquie', Russian: 'de Russie', Styrian: 'de Styrie', Malaysian: 'de Malaisie', Korean: 'de Corée', Indian: "d'Inde",
 };
 export function gpNameFr(name) {
   const base = String(name || '').replace(/ Grand Prix$/i, '').trim();

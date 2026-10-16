@@ -5,7 +5,7 @@ import { xLength } from './social.js';
 
 export function followReason(d) {
   if (d.news || d.post === 'recap') return 'pour ne rater aucune actu de la Formule 1';
-  if (d.post === 'weekend') return 'pour suivre tout le week-end en direct';
+  if (d.post === 'weekend' || d.post === 'raceweek') return 'pour suivre tout le week-end en direct';
   if (d.post === 'prerace') return `pour suivre ${d.sprint ? 'le sprint' : 'la course'} et avoir les résultats dès l'arrivée`;
   if (d.post === 'champ') return 'pour suivre la lutte pour le titre';
   if (d.post === 'flash') return 'pour suivre la course en direct';
@@ -24,6 +24,7 @@ export function questionFor(d) {
     case 'champ': return 'Qui sera champion ? Votre pronostic en commentaire.';
     case 'flash': return FLASH_Q[d.event?.kind] || "Qu'en pensez-vous ? Dites-le en commentaire.";
     case 'weekend': return 'Qui gagne ce week-end ? Votre pronostic en commentaire.';
+    case 'raceweek': return 'Qui gagne ce week-end ? Votre pronostic en commentaire.';
     case 'records': return 'Un record va-t-il tomber ce week-end ? Votre avis en commentaire.';
     case 'ratings': return "D'accord avec ces notes ? Donnez les vôtres en commentaire.";
     case 'teamduels': return 'Quel duel vous surprend le plus ? Dites-le en commentaire.';
