@@ -4,6 +4,12 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.8 — à venir
+
+### Améliorations
+- Petites améliorations internes.
+- Code de passage de « F1 Dash » à « Paddock Live » retiré : une installation restée en v1.24 ou avant ne retrouve plus ses réglages en passant directement à cette version (installer d'abord la v1.27.7 pour les garder).
+
 ## v1.27.7 — 2026-10-16
 
 ### Améliorations
