@@ -8,14 +8,17 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { getConfig, saveConfig, DATA_DIR } from './config.js';
 
-const HASH = '821f51db5c6d39c7ae10873a31723f8d4748fc2a925c6736f4a57afa7d2dacc0';
+// Empreinte remplaçable seulement pour les tests (variable d'environnement de l'ordinateur)
+const HASH = process.env.PADDOCK_CREATOR_HASH || '821f51db5c6d39c7ae10873a31723f8d4748fc2a925c6736f4a57afa7d2dacc0';
 const sha = (s) => crypto.createHash('sha256').update(s).digest();
 
 export const creatorEnabled = () => getConfig().creator === true;
 
+export const checkCode = (code) => crypto.timingSafeEqual(sha(`paddock-live:${String(code || '').trim().toUpperCase()}`), Buffer.from(HASH, 'hex'));
+
 export function setCreator(code, on = true) {
   if (!on) { saveConfig({ creator: false }); return false; }
-  const ok = crypto.timingSafeEqual(sha(`paddock-live:${String(code || '').trim().toUpperCase()}`), Buffer.from(HASH, 'hex'));
+  const ok = checkCode(code);
   if (ok) saveConfig({ creator: true });
   return ok;
 }

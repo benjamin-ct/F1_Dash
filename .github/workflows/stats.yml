@@ -17,6 +17,15 @@ on:
       - 'shared/stats.js'
       - 'shared/radio-text.js'
       - 'shared/translation-check.js'
+      - 'shared/news.js'
+      - 'shared/news-sources.js'
+      - 'shared/meta-publish.js'
+      - 'shared/social*.js'
+      - 'shared/summary.js'
+      - 'shared/pits.js'
+      - 'shared/merge.js'
+      - 'shared/flags.js'
+      - 'scripts/build-studio.mjs'
       - '.github/workflows/stats.yml'
 
 concurrency: stats-deploy
@@ -46,6 +55,8 @@ jobs:
           [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error::Secret CLOUDFLARE_API_TOKEN manquant"; exit 1; }
           [ -n "$STATS_KEY" ] || { echo "::error::Secret STATS_KEY manquant"; exit 1; }
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID
+      - name: Fichiers statiques (page web du créateur, code partagé, polices)
+        run: node ../scripts/build-studio.mjs
       - name: Base D1 (créée si besoin)
         run: |
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || unset CLOUDFLARE_ACCOUNT_ID

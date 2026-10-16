@@ -29,6 +29,7 @@ import { predictionsView, savePrediction } from './predict.js';
 import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights } from './lights.js';
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
+import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync } from './studio-sync.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
@@ -322,13 +323,24 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/accounts':
     case 'POST /api/social/accounts':
     case 'POST /api/social/tiktok/login':
-    case 'POST /api/social/publish': {
+    case 'POST /api/social/publish':
+    case 'GET /api/social/studio':
+    case 'POST /api/social/studio': {
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
         if (route === 'GET /api/social/accounts') return sendJSON(res, 200, accountsInfo());
+        if (route === 'GET /api/social/studio') return sendJSON(res, 200, studioInfo());
+        if (route === 'POST /api/social/studio') {
+          const b = await readBody(req, 1e4);
+          return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));
+        }
         if (route === 'POST /api/social/tiktok/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
         const body = await readBody(req, route === 'POST /api/social/publish' ? 120e6 : 1e6);
-        if (route === 'POST /api/social/accounts') return sendJSON(res, 200, await saveAccount(String(body.network || ''), body));
+        if (route === 'POST /api/social/accounts') {
+          const info = await saveAccount(String(body.network || ''), body);
+          syncStudio();   // page web du créateur : comptes à jour
+          return sendJSON(res, 200, info);
+        }
         return sendJSON(res, 200, await publishSocial(String(body.network || ''), body));
       } catch (err) {
         return sendJSON(res, 400, { error: err.message });
@@ -662,6 +674,7 @@ startStats(hub, live);
 
 // Actualités : chaque nouvelle est envoyée tout de suite aux fenêtres ouvertes
 startNews();
+startStudioSync();
 onNews((list) => {
   const str = JSON.stringify({ type: 'news', items: list });
   for (const c of hub.clients) hub.send(c, str);

@@ -1,0 +1,178 @@
+// Publication sur Facebook, Instagram et Threads (API de Meta), partagée par l'appli de bureau et la
+// page web du créateur (serveur Paddock Live). Les jetons sont passés par l'appelant ; rien n'est
+// gardé ici à part les adresses des images déjà déposées (une heure).
+// Instagram et Threads vont chercher les images à une adresse publique : celle de la page Facebook,
+// où elles sont déposées sans être publiées.
+
+export const GRAPH = 'https://graph.facebook.com/v25.0';
+export const THREADS = 'https://graph.threads.net/v1.0';
+export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3 };
+const HOST_TTL = 60 * 60e3;
+const hostedCache = new Map();   // empreinte de l'image + page -> { id, url, at }
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Requête HTTP : réponse JSON, message d'erreur de l'API sinon
+export async function call(url, { method = 'GET', headers = {}, json, form, body } = {}) {
+  const opts = { method, headers: { ...headers }, signal: AbortSignal.timeout(120000) };
+  if (json !== undefined) { opts.body = JSON.stringify(json); opts.headers['Content-Type'] = 'application/json'; }
+  else if (form) opts.body = form instanceof FormData ? form : new URLSearchParams(form);
+  else if (body !== undefined) opts.body = body;
+  const res = await fetch(url, opts);
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  const err = data?.error;
+  if (!res.ok || (err && (typeof err === 'string' || err.message || (err.code && err.code !== 'ok')))) {
+    const msg = (typeof err === 'string' ? err : err?.error_user_msg || err?.message) || data?.detail || data?.title || data?.errors?.[0]?.message || data?.error_description || `HTTP ${res.status}`;
+    throw new Error(String(msg).slice(0, 300));
+  }
+  return data;
+}
+
+// Tâches en parallèle (au plus `n` à la fois), résultats dans l'ordre
+async function mapLimit(list, n, fn) {
+  const out = new Array(list.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(n, list.length) }, async () => {
+    while (next < list.length) { const i = next++; out[i] = await fn(list[i], i); }
+  }));
+  return out;
+}
+
+async function digest(blob, salt) {
+  const buf = await crypto.subtle.digest('SHA-256', new Uint8Array([...new TextEncoder().encode(salt), ...new Uint8Array(await blob.arrayBuffer())]));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function hostOne(img, m, fresh) {
+  const key = await digest(img, m.pageId);
+  const hit = hostedCache.get(key);
+  if (!fresh && hit && Date.now() - hit.at < HOST_TTL) return hit;
+  const form = new FormData();
+  form.append('source', img, img.type === 'image/jpeg' ? 'image.jpg' : 'image.png');
+  form.append('published', 'false');
+  form.append('access_token', m.pageToken);
+  const r = await call(`${GRAPH}/${m.pageId}/photos`, { method: 'POST', form });
+  const info = await call(`${GRAPH}/${r.id}?${new URLSearchParams({ fields: 'images', access_token: m.pageToken })}`);
+  const best = (info.images || []).sort((a, b) => b.width - a.width)[0];
+  if (!best?.source) throw new Error('Image déposée sur la page Facebook sans adresse publique');
+  const h = { id: r.id, url: best.source, at: Date.now() };
+  hostedCache.set(key, h);
+  for (const [k, v] of hostedCache) if (Date.now() - v.at >= HOST_TTL) hostedCache.delete(k);
+  return h;
+}
+
+// Images (Blob PNG ou JPEG) déposées sur la page, une heure de mémoire pour tous les réseaux d'une
+// même publication. fresh : nouvel envoi obligatoire (une photo déjà jointe à un post Facebook ne
+// peut pas l'être à un autre).
+export async function hostOnPage(meta, images, { fresh = false } = {}) {
+  if (!meta?.pageToken) throw new Error('Page Facebook non connectée (nécessaire aussi pour Instagram et Threads)');
+  return mapLimit(images, 3, (img) => hostOne(img, meta, fresh));
+}
+
+export async function publishFacebook(meta, text, images) {
+  const hosted = await hostOnPage(meta, images, { fresh: true });
+  const form = { message: text, access_token: meta.pageToken };
+  hosted.forEach((h, i) => { form[`attached_media[${i}]`] = JSON.stringify({ media_fbid: h.id }); });
+  const r = await call(`${GRAPH}/${meta.pageId}/feed`, { method: 'POST', form });
+  return { url: `https://www.facebook.com/${r.id}`, id: r.id };
+}
+
+// Premier commentaire de la page sous son post (lien de l'article…) : permission
+// pages_manage_engagement du jeton
+export async function commentFacebook(meta, postId, text) {
+  return call(`${GRAPH}/${postId}/comments`, { method: 'POST', form: { message: text, access_token: meta.pageToken } });
+}
+
+// Conteneur prêt : le réseau a fini de récupérer et de préparer l'image (sinon le carrousel ou la
+// publication sont refusés). Statut relu toutes les 1,5 à 5 secondes, 4 minutes au plus.
+async function ready(url, field, what) {
+  const t0 = Date.now();
+  for (let i = 0; ; i++) {
+    const s = await call(url);
+    const v = s[field];
+    if (v === 'FINISHED' || v === 'PUBLISHED') return;
+    if (v === 'ERROR' || v === 'EXPIRED') {
+      const detail = s.error_message || (typeof s.status === 'string' && s.status !== v ? s.status : '');
+      throw new Error(`${what} refusé${detail ? ` : ${detail}` : ` (${v})`}`.slice(0, 300));
+    }
+    if (Date.now() - t0 >= timing.readyMs) throw new Error(`${what} : préparation trop longue, réessayez dans quelques minutes`);
+    await wait(Math.min(timing.poll * (i + 1), timing.maxPoll));
+  }
+}
+
+// Carrousel : images préparées en parallèle, chacune attendue, puis le carrousel lui-même
+async function carousel(hosted, makeItem, status, field) {
+  const kids = await mapLimit(hosted, 3, async (h, i) => {
+    try { return (await makeItem(h)).id; } catch (err) { throw new Error(`Image ${i + 1} : ${err.message}`); }
+  });
+  await Promise.all(kids.map((id, i) => ready(status(id), field, `Image ${i + 1}`)));
+  return kids;
+}
+
+export async function publishInstagram(meta, text, images) {
+  if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
+  const hosted = await hostOnPage(meta, images.slice(0, 10));
+  const tok = { access_token: meta.pageToken };
+  const status = (id) => `${GRAPH}/${id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`;
+  const media = (form) => call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { ...form, ...tok } });
+  let creation;
+  if (hosted.length === 1) {
+    creation = (await media({ image_url: hosted[0].url, caption: text })).id;
+  } else {
+    const kids = await carousel(hosted, (h) => media({ image_url: h.url, is_carousel_item: 'true' }), status, 'status_code');
+    creation = (await media({ media_type: 'CAROUSEL', children: kids.join(','), caption: text })).id;
+  }
+  await ready(status(creation), 'status_code', 'Post');
+  const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: creation, ...tok } });
+  const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
+  return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}` };
+}
+
+// Jeton Threads de 60 jours : prolongé quand il reste moins de 10 jours. Renvoie le compte à jour
+// (à enregistrer par l'appelant s'il a changé), ou le même si la prolongation échoue.
+export async function freshThreads(th) {
+  if (!th?.token) throw new Error('Compte Threads non connecté');
+  if (!th.expiresAt || th.expiresAt - Date.now() >= 10 * 86400e3) return th;
+  try {
+    const r = await call(`https://graph.threads.net/refresh_access_token?${new URLSearchParams({ grant_type: 'th_refresh_token', access_token: th.token })}`);
+    return { ...th, token: r.access_token, expiresAt: Date.now() + (r.expires_in || 5184000) * 1000 };
+  } catch { return th; }
+}
+
+export async function publishThreads(th, meta, text, images) {
+  const token = th.token;
+  const hosted = await hostOnPage(meta, images.slice(0, 20));
+  const base = `${THREADS}/${th.userId}`;
+  const status = (id) => `${THREADS}/${id}?${new URLSearchParams({ fields: 'status,error_message', access_token: token })}`;
+  const container = (form) => call(`${base}/threads`, { method: 'POST', form: { ...form, access_token: token } });
+  let creation;
+  if (hosted.length === 1) {
+    creation = (await container({ media_type: 'IMAGE', image_url: hosted[0].url, text })).id;
+  } else {
+    const kids = await carousel(hosted, (h) => container({ media_type: 'IMAGE', image_url: h.url, is_carousel_item: 'true' }), status, 'status');
+    creation = (await container({ media_type: 'CAROUSEL', children: kids.join(','), text })).id;
+  }
+  await ready(status(creation), 'status', 'Post');
+  const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: creation, access_token: token } });
+  const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: token })}`).catch(() => ({}));
+  return { url: link.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id };
+}
+
+// Réponse au post Threads (premier commentaire) : permission threads_manage_replies du jeton
+export async function replyThreads(th, postId, text) {
+  const token = th.token;
+  const c = await call(`${THREADS}/${th.userId}/threads`, { method: 'POST', form: { media_type: 'TEXT', text, reply_to_id: postId, access_token: token } });
+  await ready(`${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: token })}`, 'status', 'Commentaire');
+  return call(`${THREADS}/${th.userId}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: token } });
+}
+
+// Publication puis premier commentaire ; un commentaire refusé ne fait pas échouer la publication
+export async function withComment(post, comment, addComment) {
+  const r = await post();
+  if (!comment || !r.id) return r;
+  try { await addComment(r.id, comment); return { ...r, comment: true }; } catch (err) {
+    const msg = /permission|\(#10\)|\(#200\)|not authorized|scope/i.test(err.message) ? `${err.message} (permission manquante : régénérez le jeton avec les nouvelles autorisations)` : err.message;
+    return { ...r, commentError: msg.slice(0, 300) };
+  }
+}

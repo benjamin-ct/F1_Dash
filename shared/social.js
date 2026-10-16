@@ -20,7 +20,10 @@ export function gapFr(v) {
   return /^\+?\d/.test(s) ? `+${dec(s.replace('+', ''))} s` : s;
 }
 
-const hashtag = (s) => `#${String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '')}`;
+// Longueur d'un texte pour X : chaque lien compte pour 23 caractères (raccourci t.co)
+export const xLength = (s) => String(s || '').replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length;
+
+export const hashtag = (s) => `#${String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '')}`;
 
 export function postData(state) {
   const kind = sessionKindOf(state);
@@ -53,7 +56,7 @@ export function postData(state) {
     return {
       pos: i + 1, num: n, tla: d.Tla || n, first: d.FirstName || '', last: d.LastName || d.Tla || n,
       team: d.TeamName || '', color: d.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: d.HeadshotUrl || null,
-      gap, grid, delta: kind === 'race' && grid && !out ? grid - (i + 1) : null, out,
+      gap, grid, delta: kind === 'race' && grid && !out ? grid - (i + 1) : null, out, laps: Number(lines[n].NumberOfLaps) || 0,
       points: kind === 'race' && !out ? (pts[i] || 0) : 0, knockedOut: !!lines[n].KnockedOut,
       // Partie de la qualif où le pilote a été éliminé (dernier temps réalisé : Q1 ou Q2)
       koPart: lines[n].KnockedOut ? Math.max(1, list(lines[n].BestLapTimes).filter((x) => x?.Value).length) : null,
@@ -82,6 +85,23 @@ export function postData(state) {
     const ko = rows.filter((r) => r.knockedOut);
     if (ko.length) facts.push({ label: 'Éliminés', value: String(ko.length), sub: ko.map((r) => r.tla).join(', ') });
     if (rows[1]) facts.push({ label: 'Écart pole / P2', value: rows[1].gap || '—', sub: `${rows[0].last} devant ${rows[1].last}`, color: rows[0].color });
+  } else if (rows.length) {
+    // Essais : écart en tête, pneus du meilleur temps, roulage, pilotes dans la seconde
+    const [p1, p2] = rows;
+    if (p2?.gap) facts.push({ label: 'Écart P1 / P2', value: p2.gap, sub: `${p1.last} devant ${p2.last}`, color: p1.color });
+    const best = lines[p1.num]?.BestLapTime?.Value;
+    const stint = best && list(app[p1.num]?.Stints).find((st) => st?.LapTime === best);
+    if (stint && COMP[stint.Compound]) {
+      const fresh = String(stint.New) === 'true' ? ' · train neuf' : String(stint.New) === 'false' ? ' · train utilisé' : '';
+      facts.push({ label: 'Pneus du meilleur temps', value: COMP[stint.Compound], sub: `${p1.last}${fresh}`, color: p1.color });
+    }
+    const most = [...rows].sort((a, b) => b.laps - a.laps)[0];
+    if (most?.laps) facts.push({ label: 'Le plus de tours', value: most.last, sub: `${most.laps} tours`, color: most.color });
+    const total = rows.reduce((n, r) => n + r.laps, 0);
+    if (total) facts.push({ label: 'Tours bouclés', value: String(total), sub: `par les ${rows.length} pilotes` });
+    const diff = (r) => Number(String(lines[r.num]?.TimeDiffToFastest ?? '').replace('+', ''));
+    const close = rows.slice(1).filter((r) => diff(r) > 0 && diff(r) < 1).length + 1;
+    if (best && rows.slice(1).some((r) => diff(r) > 0)) facts.push({ label: 'Dans la seconde', value: `${close} pilote${close > 1 ? 's' : ''}`, sub: 'à moins d\'1 s du meilleur temps' });
   }
 
   // Championnat projeté (publié par la F1 pendant les courses et les sprints)
@@ -116,13 +136,14 @@ const TEAM_TAGS = [
   [/mclaren/i, 'McLaren'], [/mercedes/i, 'MercedesAMGF1'], [/aston/i, 'AstonMartinF1'], [/williams/i, 'WilliamsRacing'],
   [/alpine/i, 'AlpineF1Team'], [/haas/i, 'HaasF1'], [/audi|sauber|kick/i, 'AudiF1'], [/cadillac/i, 'CadillacF1'],
 ];
-const teamTag = (team) => hashtag(TEAM_TAGS.find(([re]) => re.test(team || ''))?.[1] || team);
+export const teamTag = (team) => hashtag(TEAM_TAGS.find(([re]) => re.test(team || ''))?.[1] || team);
 
-export function hashtags(d) {
+export function hashtags(d, { spoiler = true } = {}) {
   const [p1, p2, p3] = d.rows;
   const gpTag = hashtag(`${d.gpEn.replace(/ Grand Prix$/i, '')}GP`);
   const session = d.kind === 'race' ? (d.sprint ? ['#F1Sprint', '#Sprint'] : ['#RaceDay']) : d.kind === 'quali' ? ['#Qualifying', '#Qualifs'] : ['#F1Practice'];
   const people = d.kind === 'practice' ? [p1] : [p1, p2, p3];
+  const winnerTag = p1 && spoiler ? hashtag(`${p1.first}${p1.last}`) : '';
   const raw = [
     BRAND_TAG, '#F1', '#Formula1', '#Formule1', gpTag, d.year ? `#F1${d.year}` : '', ...session,
     p1 ? hashtag(`${p1.first}${p1.last}`) : '', ...people.filter(Boolean).map((r) => hashtag(r.last)),
@@ -133,18 +154,27 @@ export function hashtags(d) {
   const all = raw.filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase())).slice(0, 25);
   return {
     all,
-    x: [BRAND_TAG, '#F1', gpTag, p1 ? hashtag(`${p1.first}${p1.last}`) : ''].filter((t) => t.length > 2),
+    x: [BRAND_TAG, '#F1', gpTag, winnerTag].filter((t) => t.length > 2),
     threads: ['#F1', BRAND_TAG],
   };
 }
 
-// Légendes prêtes à copier
-export function captions(d, signature = '') {
+// Accroche sans le nom du vainqueur (texte « sans spoiler », avec la couverture des visuels)
+function teaser(d) {
+  if (d.kind === 'race') return `Résultats ${d.sprint ? 'du sprint du' : 'du'} ${d.gp} : qui l'a emporté ? Réponse en images.`;
+  if (d.kind === 'quali') return `${d.label} du ${d.gp} : qui part en pole ? Réponse en images.`;
+  return `${d.label} du ${d.gp} : qui signe le meilleur temps ? Réponse en images.`;
+}
+
+// Légendes prêtes à copier. spoiler: false : premières lignes et texte court sans le vainqueur
+// (Instagram / Facebook n'affichent que le début de la légende : le détail suit, plus bas)
+export function captions(d, signature = '', { spoiler = true } = {}) {
   if (!d.rows.length) return { instagram: '', x: '', threads: '', story: '' };
   const [p1, p2, p3] = d.rows;
   const sig = signature ? `\n\n${signature}` : '';
-  const tags = hashtags(d);
-  const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${i + 1}. ${r.first} ${r.last} (${r.team})${i && r.gap ? ` ${r.gap}` : ''}`).join('\n');
+  const tags = hashtags(d, { spoiler });
+  // Essais et qualifs : temps du premier aussi ; course : écarts seulement
+  const podium = [p1, p2, p3].filter(Boolean).map((r, i) => `${i + 1}. ${r.first} ${r.last} (${r.team})${(i || d.kind !== 'race') && r.gap ? ` ${r.gap}` : ''}`).join('\n');
   let head; let short;
   if (d.kind === 'race') {
     head = `${p1.first} ${p1.last} remporte ${d.sprint ? 'le sprint du ' : 'le '}${d.gp} !`;
@@ -158,13 +188,18 @@ export function captions(d, signature = '') {
   }
   const facts = d.facts.filter((f) => f.value && f.value !== 'Aucun').map((f) => `${f.label} : ${f.value}${f.sub ? ` (${f.sub})` : ''}`).join('\n');
   const story = d.summary.paragraphs.slice(0, 2).join(' ');
-  const instagram = `${head}\n\n${d.kind === 'quali' ? 'Grille de départ' : 'Podium'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.all.join(' ')}`;
+  if (!spoiler) {
+    head = `${teaser(d)}\nFaites défiler pour ${d.kind === 'practice' ? 'le top 3' : d.kind === 'quali' ? 'la grille' : 'le podium'} et tous les détails.\n\n.\n.\n.\n\n${head}`;
+    short = teaser(d);
+  }
+  const instagram = `${head}\n\n${d.kind === 'quali' ? 'Grille de départ' : d.kind === 'race' ? 'Podium' : 'Top 3'} :\n${podium}${facts ? `\n\n${facts}` : ''}\n\n${story}${sig}\n\n${tags.all.join(' ')}`;
   // X : 280 caractères, hashtags retirés un à un si besoin (le compte du créateur reste)
   const xt = [...tags.x];
   let x = `${short}\n\n${xt.join(' ')}`;
   while (x.length > 280 && xt.length > 1) { xt.pop(); x = `${short}\n\n${xt.join(' ')}`; }
   if (x.length > 280) x = `${short.slice(0, 276 - xt[0].length)}… ${xt[0]}`;
-  let threads = `${head}\n\n${podium}${sig}\n\n${tags.threads.join(' ')}`;
-  if (threads.length > 500) threads = `${head}\n\n${tags.threads.join(' ')}`.slice(0, 500);
-  return { instagram, x, threads, story: head };
+  // Threads affiche tout le texte : sans spoiler, seulement l'accroche
+  let threads = spoiler ? `${head}\n\n${podium}${sig}\n\n${tags.threads.join(' ')}` : `${short}${sig}\n\n${tags.threads.join(' ')}`;
+  if (threads.length > 500) threads = `${spoiler ? head : short}\n\n${tags.threads.join(' ')}`.slice(0, 500);
+  return { instagram, x, threads, story: spoiler ? head : short };
 }

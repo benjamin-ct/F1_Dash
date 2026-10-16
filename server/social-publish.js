@@ -3,9 +3,9 @@
 // (jamais dans une sauvegarde des réglages) ; l'interface n'en voit que le nom du compte.
 import crypto from 'node:crypto';
 import { getConfig, saveConfig } from './config.js';
+import { xLength } from '../shared/social.js';
+import { call, GRAPH, THREADS, timing, publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
 
-const GRAPH = 'https://graph.facebook.com/v25.0';
-const THREADS = 'https://graph.threads.net/v1.0';
 const XAPI = 'https://api.x.com/2';
 const TIKTOK = 'https://open.tiktokapis.com/v2';
 export const NETWORKS = ['x', 'facebook', 'instagram', 'threads', 'tiktok'];
@@ -13,24 +13,6 @@ export const NETWORKS = ['x', 'facebook', 'instagram', 'threads', 'tiktok'];
 const conf = () => getConfig().social || {};
 const save = (net, v) => saveConfig({ social: { ...conf(), [net]: v } });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-
-// Requête HTTP : réponse JSON, message d'erreur de l'API sinon
-async function call(url, { method = 'GET', headers = {}, json, form, body } = {}) {
-  const opts = { method, headers: { ...headers }, signal: AbortSignal.timeout(120000) };
-  if (json !== undefined) { opts.body = JSON.stringify(json); opts.headers['Content-Type'] = 'application/json'; }
-  else if (form) opts.body = form instanceof FormData ? form : new URLSearchParams(form);
-  else if (body !== undefined) opts.body = body;
-  const res = await fetch(url, opts);
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
-  const err = data?.error;
-  if (!res.ok || (err && (typeof err === 'string' || err.message || (err.code && err.code !== 'ok')))) {
-    const msg = (typeof err === 'string' ? err : err?.error_user_msg || err?.message) || data?.detail || data?.title || data?.errors?.[0]?.message || data?.error_description || `HTTP ${res.status}`;
-    throw new Error(String(msg).slice(0, 300));
-  }
-  return data;
-}
 
 // ---------- Comptes ----------
 export function accountsInfo() {
@@ -111,97 +93,24 @@ async function publishX(text, images) {
   }
   const post = await call(`${XAPI}/tweets`, { method: 'POST', headers: auth('POST', `${XAPI}/tweets`), json: { text, ...(ids.length ? { media: { media_ids: ids } } : {}) } });
   const user = String(k.username || '').replace('@', '') || 'i';
-  return { url: `https://x.com/${user}/status/${post?.data?.id}` };
+  return { url: `https://x.com/${user}/status/${post?.data?.id}`, id: post?.data?.id };
 }
 
-// ---------- Meta : images déposées (non publiées) sur la page Facebook ----------
-// Instagram et Threads vont chercher les images à une adresse publique : celle de la page.
-async function hostOnPage(images) {
-  const m = conf().meta;
-  if (!m?.pageToken) throw new Error('Page Facebook non connectée (nécessaire aussi pour Instagram et Threads)');
-  const out = [];
-  for (const img of images) {
-    const form = new FormData();
-    form.append('source', new Blob([img], { type: 'image/png' }), 'image.png');
-    form.append('published', 'false');
-    form.append('access_token', m.pageToken);
-    const r = await call(`${GRAPH}/${m.pageId}/photos`, { method: 'POST', form });
-    const info = await call(`${GRAPH}/${r.id}?${new URLSearchParams({ fields: 'images', access_token: m.pageToken })}`);
-    const best = (info.images || []).sort((a, b) => b.width - a.width)[0];
-    out.push({ id: r.id, url: best?.source });
-  }
-  return out;
+// Réponse à son propre post X (premier commentaire)
+async function replyX(postId, text) {
+  const k = conf().x;
+  return call(`${XAPI}/tweets`, { method: 'POST', headers: { Authorization: oauth1('POST', `${XAPI}/tweets`, k) }, json: { text, reply: { in_reply_to_tweet_id: postId } } });
 }
 
-async function publishFacebook(text, images) {
-  const m = conf().meta;
-  const hosted = await hostOnPage(images);
-  const form = { message: text, access_token: m.pageToken };
-  hosted.forEach((h, i) => { form[`attached_media[${i}]`] = JSON.stringify({ media_fbid: h.id }); });
-  const r = await call(`${GRAPH}/${m.pageId}/feed`, { method: 'POST', form });
-  return { url: `https://www.facebook.com/${r.id}` };
-}
+// ---------- Meta : Facebook, Instagram, Threads (code partagé avec la page web du créateur) ----------
+export { timing };
+const blobs = (images) => images.map((b) => new Blob([b], { type: 'image/png' }));
 
-async function ready(url, field, ok, fail) {
-  for (let i = 0; i < 30; i++) {
-    const s = await call(url);
-    if (ok.includes(s[field])) return;
-    if (fail.includes(s[field])) throw new Error(`Traitement refusé (${s[field]}${s.error_message ? ` : ${s.error_message}` : ''})`);
-    await wait(2000);
-  }
-  throw new Error('Traitement trop long');
-}
-
-async function publishInstagram(text, images) {
-  const m = conf().meta;
-  if (!m?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
-  const hosted = await hostOnPage(images.slice(0, 10));
-  const tok = { access_token: m.pageToken };
-  let creation;
-  if (hosted.length === 1) {
-    creation = (await call(`${GRAPH}/${m.igId}/media`, { method: 'POST', form: { image_url: hosted[0].url, caption: text, ...tok } })).id;
-  } else {
-    const kids = [];
-    for (const h of hosted) kids.push((await call(`${GRAPH}/${m.igId}/media`, { method: 'POST', form: { image_url: h.url, is_carousel_item: 'true', ...tok } })).id);
-    creation = (await call(`${GRAPH}/${m.igId}/media`, { method: 'POST', form: { media_type: 'CAROUSEL', children: kids.join(','), caption: text, ...tok } })).id;
-  }
-  await ready(`${GRAPH}/${creation}?${new URLSearchParams({ fields: 'status_code', ...tok })}`, 'status_code', ['FINISHED'], ['ERROR', 'EXPIRED']);
-  const pub = await call(`${GRAPH}/${m.igId}/media_publish`, { method: 'POST', form: { creation_id: creation, ...tok } });
-  const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
-  return { url: link.permalink || `https://www.instagram.com/${m.igUsername || ''}` };
-}
-
-async function threadsToken() {
+async function threadsAccount() {
   const t = conf().threads;
-  if (!t?.token) throw new Error('Compte Threads non connecté');
-  // Jeton de 60 jours : prolongé automatiquement quand il reste moins de 10 jours
-  if (t.expiresAt && t.expiresAt - Date.now() < 10 * 86400e3) {
-    try {
-      const r = await call(`https://graph.threads.net/refresh_access_token?${new URLSearchParams({ grant_type: 'th_refresh_token', access_token: t.token })}`);
-      save('threads', { ...t, token: r.access_token, expiresAt: Date.now() + (r.expires_in || 5184000) * 1000 });
-      return r.access_token;
-    } catch { /* on tente avec l'ancien */ }
-  }
-  return t.token;
-}
-
-async function publishThreads(text, images) {
-  const t = conf().threads;
-  const token = await threadsToken();
-  const hosted = await hostOnPage(images.slice(0, 20));
-  const base = `${THREADS}/${t.userId}`;
-  let creation;
-  if (hosted.length === 1) {
-    creation = (await call(`${base}/threads`, { method: 'POST', form: { media_type: 'IMAGE', image_url: hosted[0].url, text, access_token: token } })).id;
-  } else {
-    const kids = [];
-    for (const h of hosted) kids.push((await call(`${base}/threads`, { method: 'POST', form: { media_type: 'IMAGE', image_url: h.url, is_carousel_item: 'true', access_token: token } })).id);
-    creation = (await call(`${base}/threads`, { method: 'POST', form: { media_type: 'CAROUSEL', children: kids.join(','), text, access_token: token } })).id;
-  }
-  await ready(`${THREADS}/${creation}?${new URLSearchParams({ fields: 'status,error_message', access_token: token })}`, 'status', ['FINISHED'], ['ERROR', 'EXPIRED']);
-  const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: creation, access_token: token } });
-  const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: token })}`).catch(() => ({}));
-  return { url: link.permalink || `https://www.threads.net/@${t.username || ''}` };
+  const fresh = await freshThreads(t);
+  if (fresh !== t) save('threads', fresh);
+  return fresh;
 }
 
 // ---------- TikTok : connexion (PKCE, retour sur cet ordinateur) et brouillon vidéo ----------
@@ -256,13 +165,18 @@ async function publishTiktok(video, mime) {
 }
 
 // ---------- Publication ----------
-export async function publish(net, { text = '', images = [], video = null, mime = 'video/mp4' }) {
+export async function publish(net, { text = '', images = [], video = null, mime = 'video/mp4', comment = '' }) {
   const imgs = images.map((b) => Buffer.from(String(b), 'base64')).filter((b) => b.length > 8 && b.readUInt32BE(0) === 0x89504e47);
   const body = String(text || '');
-  if (net === 'x') return publishX(body.slice(0, 280), imgs);
-  if (net === 'facebook') return publishFacebook(body, imgs);
-  if (net === 'instagram') return publishInstagram(body.slice(0, 2200), imgs);
-  if (net === 'threads') return publishThreads(body.slice(0, 500), imgs);
+  // Premier commentaire (lien de l'article d'une news) : X, Facebook, Threads
+  const note = String(comment || '').trim().slice(0, 500);
+  if (net === 'x') return withComment(() => publishX(xLength(body) > 280 ? body.slice(0, 280) : body, imgs), note, replyX);
+  if (net === 'facebook') return withComment(() => publishFacebook(conf().meta, body, blobs(imgs)), note, (id, t) => commentFacebook(conf().meta, id, t));
+  if (net === 'instagram') return publishInstagram(conf().meta, body.slice(0, 2200), blobs(imgs));
+  if (net === 'threads') {
+    const th = await threadsAccount();
+    return withComment(() => publishThreads(th, conf().meta, body.slice(0, 500), blobs(imgs)), note, (id, t) => replyThreads(th, id, t));
+  }
   if (net === 'tiktok') return publishTiktok(video ? Buffer.from(String(video), 'base64') : null, /^video\/(mp4|webm|quicktime)$/.test(mime) ? mime : 'video/mp4');
   throw new Error('Réseau inconnu');
 }

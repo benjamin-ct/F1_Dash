@@ -36,8 +36,8 @@ const HELP = {
     '« Keys and tokens » : copiez API Key et API Key Secret, puis générez Access Token et Access Token Secret (après le passage en lecture-écriture).'],
   meta: ['Passez votre compte Instagram en compte professionnel (créateur) et reliez-le à votre page Facebook.',
     'developers.facebook.com : créez une app (type Business) ; identifiant et clé secrète dans Paramètres → Général.',
-    'Outils → Explorateur de l\'API Graph : choisissez l\'app, ajoutez pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish et business_management, puis « Generate Access Token » et collez-le ici.'],
-  threads: ['Dans l\'app Meta, ajoutez le cas d\'usage « Accéder à l\'API Threads » (threads_basic, threads_content_publish).',
+    'Outils → Explorateur de l\'API Graph : choisissez l\'app, ajoutez pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, instagram_basic, instagram_content_publish et business_management, puis « Generate Access Token » et collez-le ici.'],
+  threads: ['Dans l\'app Meta, ajoutez le cas d\'usage « Accéder à l\'API Threads » (threads_basic, threads_content_publish, threads_manage_replies).',
     'Ajoutez votre compte Threads comme testeur, puis acceptez l\'invitation dans Threads (Paramètres → Compte → Autorisations du site web).',
     'Copiez la clé secrète Threads de l\'app et générez un jeton avec « User Token Generator ». Il est prolongé automatiquement.'],
   tiktok: ['developers.tiktok.com → Manage apps : créez une app avec Login Kit (plateforme Desktop) et Content Posting API.',
@@ -62,6 +62,7 @@ async function accountsDialog(onChange) {
     document.body.appendChild(dlg);
   }
   const info = await api('/api/social/accounts');
+  const studio = await api('/api/social/studio').catch(() => ({ enabled: false }));
   const status = (k) => {
     const a = k === 'meta' ? [info.facebook, info.instagram] : [info[k]];
     const on = a.filter((x) => x?.connected);
@@ -77,9 +78,41 @@ async function accountsDialog(onChange) {
         <div class="row"><button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>
           ${k === 'tiktok' ? `<button class="btn small" data-tiktok ${info.tiktok.configured ? '' : 'disabled'}>${t('Se connecter à TikTok')}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}
+      <details class="posts-acc" data-studio ${studio.enabled ? '' : 'open'}><summary><b>${t('Page web (téléphone)')}</b> ${studio.enabled ? `<span class="posts-ok">${icon('check')} ${t('Activée')}</span>` : `<span class="muted">${t('Désactivée')}</span>`}</summary>
+        <p class="small">${t("Préparez et publiez les posts depuis votre téléphone, même ordinateur éteint : grosses news et séances, publication sur Instagram, Facebook et Threads après confirmation, partage vers les autres applis. Les comptes ci-dessus et la connexion F1 TV sont envoyés chiffrés au serveur Paddock Live.")}</p>
+        ${studio.enabled ? `<p class="small">${t('Adresse :')} <a href="${esc(studio.url)}" target="_blank" rel="noopener">${esc(studio.url)}</a> — ${t('entrez avec le code du mode créateur.')}</p>
+          ${studio.error ? `<p class="small posts-warn">${icon('warning')} ${esc(studio.error)}</p>` : ''}
+          ${studio.f1tv ? '' : `<p class="small muted">${icon('info')} ${t('Posts des séances : connectez F1 TV (Réglages → Compte F1 TV), les archives de la F1 sont réservées aux abonnés.')}</p>`}
+          <div class="row"><button class="btn small" data-studio-copy>${icon('doc')} ${t("Copier l'adresse")}</button><button class="btn small" data-studio-sync>${t('Renvoyer les comptes')}</button><button class="btn small" data-studio-off>${t('Désactiver')}</button></div>`
+        : `<label class="small">${t('Code du mode créateur')}<input type="password" data-studio-code autocomplete="off" spellcheck="false"></label>
+          <div class="row"><button class="btn small btn-accent" data-studio-on>${t('Activer la page web')}</button></div>`}
+      </details>
     </div>`;
   dlg.onclick = async (e) => {
     if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); onChange?.(); return; }
+    const sbtn = e.target.closest('[data-studio] button');
+    if (sbtn) {
+      try {
+        sbtn.disabled = true;
+        if (sbtn.dataset.studioOn !== undefined) {
+          await api('/api/social/studio', { code: $('[data-studio-code]', dlg).value });
+          toast(t('Page web activée'), 3000, 'check');
+        } else if (sbtn.dataset.studioSync !== undefined) {
+          const r = await api('/api/social/studio', { sync: true });
+          if (r.error) throw new Error(r.error);
+          toast(t('Comptes envoyés'), 2500, 'check');
+        } else if (sbtn.dataset.studioOff !== undefined) {
+          if (!window.confirm(t('Désactiver la page web ? Les comptes envoyés au serveur sont effacés.'))) return;
+          await api('/api/social/studio', { off: true });
+        } else if (sbtn.dataset.studioCopy !== undefined) {
+          await navigator.clipboard.writeText(studio.url);
+          toast(t('Adresse copiée'), 2000, 'check');
+          return;
+        }
+        accountsDialog(onChange);
+      } catch (err) { toast(err.message, 5000, 'warning'); } finally { sbtn.disabled = false; }
+      return;
+    }
     const box = e.target.closest('[data-net]');
     const btn = e.target.closest('button');
     if (!box || !btn) return;
@@ -125,9 +158,11 @@ export async function openPublish({ d, caps, render, folder }) {
           <span><b>${n.name}</b> <span class="small muted">${esc(info[n.id]?.connected ? info[n.id].name || t('Connecté') : t('Non connecté'))}</span><br><span class="small muted">${esc(t(n.what))}</span></span>
           <span class="posts-st small" data-st="${n.id}"></span></label>`).join('')}</div>
         <button class="btn small" data-acc>${icon('lock')} ${t('Comptes…')}</button>
-        <label class="small muted">${t('Texte Instagram / Facebook')}<textarea rows="6" data-txt="instagram">${esc(caps.instagram)}</textarea></label>
+        <label class="small muted">${t(caps.facebook ? 'Texte Instagram' : 'Texte Instagram / Facebook')}<textarea rows="6" data-txt="instagram">${esc(caps.instagram)}</textarea></label>
+        ${caps.facebook ? `<label class="small muted">${t("Texte Facebook (avec le lien de l'article)")}<textarea rows="6" data-txt="facebook">${esc(caps.facebook)}</textarea></label>` : ''}
         <label class="small muted">${t('Texte Threads (500 caractères max.)')}<textarea rows="3" data-txt="threads" maxlength="500">${esc(caps.threads)}</textarea></label>
-        <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x" maxlength="280">${esc(caps.x)}</textarea></label>
+        <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x">${esc(caps.x)}</textarea></label>
+        ${caps.comment ? `<label class="small muted">${t('Premier commentaire (Facebook, Threads, X)')}<textarea rows="2" data-txt="comment">${esc(caps.comment)}</textarea></label>` : ''}
         <fieldset class="posts-video"><legend class="small">${t('Vidéo TikTok')}</legend>
           <div class="row small">
             <label class="toggle"><input type="radio" name="pmusic" value="gen" checked> ${t('Musique générée (libre de droits)')}</label>
@@ -180,6 +215,9 @@ export async function openPublish({ d, caps, render, folder }) {
         for (const n of nets) {
           const st = $(`[data-st="${n}"]`, dlg);
           st.className = 'posts-st small'; st.textContent = t('Envoi…');
+          // Temps écoulé : Instagram et Threads préparent chaque image avant de publier (jusqu'à quelques minutes)
+          const t0 = Date.now();
+          const tick = setInterval(() => { st.textContent = t('Envoi… {} s', Math.round((Date.now() - t0) / 1000)); }, 1000);
           try {
             let body;
             if (n === 'tiktok') {
@@ -187,17 +225,20 @@ export async function openPublish({ d, caps, render, folder }) {
               body = { network: n, video: await b64(video.blob), mime: video.mime };
             } else if (n === 'x') {
               xs ||= await Promise.all((await render('x')).slice(0, 4).map(png));
-              body = { network: n, text: txt('x'), images: xs };
+              body = { network: n, text: txt('x'), images: xs, comment: caps.comment ? txt('comment') : '' };
             } else {
               ig ||= await Promise.all((await render('ig')).map(png));
-              body = { network: n, text: txt(n === 'threads' ? 'threads' : 'instagram'), images: ig };
+              body = { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
             }
             const r = await api('/api/social/publish', body);
             st.className = 'posts-st small ok';
-            st.innerHTML = r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${icon('check')} ${t('Publié')}</a>` : `${icon('check')} ${esc(t(r.note || 'Envoyé'))}`;
+            st.innerHTML = (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${icon('check')} ${t('Publié')}</a>` : `${icon('check')} ${esc(t(r.note || 'Envoyé'))}`)
+              + (r.comment ? ` · ${t('commentaire ajouté')}` : r.commentError ? ` <span class="posts-warn">· ${esc(t('commentaire refusé : {}', r.commentError))}</span>` : '');
           } catch (err) {
             st.className = 'posts-st small err';
             st.textContent = err.message;
+          } finally {
+            clearInterval(tick);
           }
         }
         btn.disabled = false;
