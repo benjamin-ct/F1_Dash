@@ -103,7 +103,15 @@ async function showTab({ force = false, restore = false } = {}) {
   try {
     await fn(body, { force, restore: restore ? scrolls[state.tab] || 0 : 0, current: () => run === tabRun && body.isConnected });
   } catch (err) {
-    if (run === tabRun && body.isConnected) body.innerHTML = failure(err);
+    if (run !== tabRun || !body.isConnected) return;
+    // Liste déjà affichée (données gardées) : elle reste, l'échec est signalé à part ; sinon écran
+    // d'erreur avec « Réessayer »
+    if (body.querySelector('.card:not(.skel), .row-item, .tile')) toast(`Actualisation impossible : ${err.message}`, 'bad');
+    else {
+      body.innerHTML = failure(err);
+      const retry = $('[data-retry]', body);
+      if (retry) retry.onclick = () => showTab({ force: true });
+    }
   } finally { if (run === tabRun) spin?.classList.remove('spin'); }
 }
 const restoreScroll = (y) => { if (y) requestAnimationFrame(() => scrollTo(0, y)); };

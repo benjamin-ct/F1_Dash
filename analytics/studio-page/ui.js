@@ -116,7 +116,7 @@ export function toast(text, kind = '') {
 // Lignes grises en attendant les données
 export const skeleton = (n = 4) => `<div class="list">${Array.from({ length: n }, () => '<div class="card skel"><i style="width:28%"></i><i></i><i style="width:62%"></i></div>').join('')}</div>`;
 export const empty = (text, ic = 'news') => `<div class="empty">${icon(ic)}<p>${esc(text)}</p></div>`;
-export const failure = (err) => `<div class="empty err">${icon('alert')}<p>${esc(err?.message || err)}</p></div>`;
+export const failure = (err) => `<div class="empty err">${icon('alert')}<p>${esc(err?.message || err)}</p><button class="btn small" data-retry>${icon('refresh')}Réessayer</button></div>`;
 
 // Segments (À la une / Plus récentes, Instagram / Story / X…) : pastille qui glisse sous le choix ;
 // position retenue par segment (id) pour glisser aussi quand la vue est redessinée

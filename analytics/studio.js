@@ -165,6 +165,7 @@ async function feed(req, url) {
 // (domaine personnalisé)
 const FEEDS_TTL = 120e3;
 let feedsMemo = null;
+let feedsLoading = null;
 export async function feeds({ fetchFn = fetch, now = Date.now() } = {}) {
   const key = new Request('https://studio.cache/feeds-all');
   // Réponse jamais gardée par le navigateur (« Actualiser » relit toujours le serveur)
@@ -172,19 +173,23 @@ export async function feeds({ fetchFn = fetch, now = Date.now() } = {}) {
   if (feedsMemo && now - feedsMemo.at < FEEDS_TTL) return send(feedsMemo.body);
   const hit = await caches.default.match(key).catch(() => null);
   if (hit) return send(hit.body);
-  const list = DEFAULT_SOURCES.filter((s) => s.kind === 'rss');
-  const parts = await Promise.all(list.map(async (s) => {
-    try {
-      const res = await fetchFn(feedUrl(s), { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' }, signal: AbortSignal.timeout(5000) });
-      if (res.status !== 200) return null;
-      return { id: s.id, type: res.headers.get('Content-Type') || '', body: new Uint8Array(await res.arrayBuffer()) };
-    } catch { return null; }
-  }));
-  // Texte pour la compression de Cloudflare ; lu en octets par la page
-  const body = packFeeds(parts);
-  feedsMemo = { at: now, body };
-  await caches.default.put(key, new Response(body, { headers: { 'Cache-Control': `max-age=${FEEDS_TTL / 1000}` } })).catch(() => {});
-  return send(body);
+  // Plusieurs « Actualiser » en même temps : une seule lecture des sources, partagée
+  feedsLoading ||= (async () => {
+    const list = DEFAULT_SOURCES.filter((s) => s.kind === 'rss');
+    const parts = await Promise.all(list.map(async (s) => {
+      try {
+        const res = await fetchFn(feedUrl(s), { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' }, signal: AbortSignal.timeout(5000) });
+        if (res.status !== 200) return null;
+        return { id: s.id, type: res.headers.get('Content-Type') || '', body: new Uint8Array(await res.arrayBuffer()) };
+      } catch { return null; }
+    }));
+    // Texte pour la compression de Cloudflare ; lu en octets par la page
+    const body = packFeeds(parts);
+    feedsMemo = { at: now, body };
+    await caches.default.put(key, new Response(body, { headers: { 'Cache-Control': `max-age=${FEEDS_TTL / 1000}` } })).catch(() => {});
+    return body;
+  })().finally(() => { feedsLoading = null; });
+  return send(await feedsLoading);
 }
 
 async function archive(req, url, vault) {

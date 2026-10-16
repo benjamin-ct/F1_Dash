@@ -218,6 +218,7 @@ button.row-item:active { background: var(--surface-2); }
 .empty { padding: 44px 20px; text-align: center; color: var(--muted); }
 .empty .ic { width: 36px; height: 36px; margin: 0 auto 8px; opacity: .5; }
 .empty p { margin: 0 auto; max-width: 34ch; }
+.empty .btn { margin-top: 14px; }
 .empty.err { color: var(--bad); }
 .skel i { display: block; height: 12px; margin: 9px 0; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2) 30%, color-mix(in srgb, var(--surface-2) 40%, var(--surface)) 50%, var(--surface-2) 70%); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; }
 .link { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-2); font-size: 13.5px; font-weight: 600; text-decoration: none; }
