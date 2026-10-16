@@ -10,6 +10,7 @@ export function feedItems(s, xml, now = Date.now()) {
   const out = [];
   for (const raw of parseFeed(xml).items) {
     if (s.filter === 'f1' && !F1_ONLY.test(`${raw.title} ${raw.summary}`)) continue;
+    if (s.match && !new RegExp(s.match, 'i').test(`${raw.title} ${raw.summary}`)) continue;
     const t = raw.t && raw.t <= now + 10 * 60e3 ? raw.t : now - 24 * 3600e3;
     const it = { id: `${s.id}|${raw.link || raw.guid}`, src: s.id, srcName: s.name, title: String(raw.title || '').slice(0, 300), summary: raw.summary || '', link: raw.link, t, lang: s.lang, cat: s.cat, kind: 'article' };
     it.tags = newsTags(`${it.title} ${it.summary}`);

@@ -282,7 +282,7 @@ function sourcesView() {
       <form class="nw-add" id="nwAdd"><input type="text" id="nwAddUrl" placeholder="https://… ou @compte.bsky.social" required>
         <select id="nwAddCat"><option value="media">Média</option><option value="team">Écurie</option><option value="driver">Pilote</option><option value="official">Officiel</option></select>
         <button class="btn" type="submit">Ajouter</button></form>
-      <p class="muted small">X (Twitter), Instagram et TikTok ne sont pas proposés : ces réseaux n'offrent pas d'accès gratuit à leurs publications. Les annonces officielles qui y paraissent sont reprises par la F1, les écuries et les médias ci-dessous.</p></div>
+      </div>
     ${block('official', `${icon('landmark')} Officiel : F1 et FIA`)}${block('team', `${icon('car')} Écuries (chaînes officielles)`)}${block('driver', `${icon('user')} Pilotes (chaînes officielles)`)}${block('media', `${icon('globe')} Médias`)}`;
 }
 

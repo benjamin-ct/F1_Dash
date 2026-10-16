@@ -425,6 +425,10 @@ ipcMain.handle('window-focus', (e) => {
 });
 
 async function start() {
+  // User-agent de Chrome standard pour toutes les fenêtres (sans la mention Electron ni le nom de
+  // l'appli) : le lecteur YouTube intégré de l'Actu refusait les vidéos (« Cette vidéo n'est pas
+  // disponible ») face au navigateur d'Electron, comme F1 TV et X pour leurs pages de connexion
+  app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '').replace(/\) (?!Chrome\/)\S+\/\S+ (?=Chrome\/)/, ') ');
   const updater = require('./updater.cjs');
   updater.init(ipcMain);
   const splash = createSplash();
