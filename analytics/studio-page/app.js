@@ -21,7 +21,7 @@ const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'Tim
 let key = null;
 try { key = localStorage.getItem(KEY) || sessionStorage.getItem(KEY); } catch { /* stockage bloqué */ }
 let me = null;
-const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false };
+const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true };
 let news = null;        // nouvelles lues (toutes sources)
 let sessions = null;    // séances de la saison
 let lastDrivers = {};   // liste des pilotes de la dernière séance lue (photos des news)
@@ -188,13 +188,15 @@ async function newsEditor(it) {
       <p class="small muted">${esc(it.srcName)} · il y a ${ago(it.t)} · <a class="muted" href="${esc(it.link)}" target="_blank" rel="noopener">lire l'article</a></p>
       <label>Titre</label><input type="text" id="ntitle" maxlength="160" value="${esc(d.title)}">
       <label>Résumé</label><textarea id="nsum" rows="4" maxlength="400">${esc(d.summary)}</textarea>
+      <label class="check"><input type="checkbox" id="linkcomment" ${state.linkComment ? 'checked' : ''}> Lien de l'article en premier commentaire (Facebook, Threads, X)</label>
       <p class="note">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
     data: () => d,
-    caps: () => newsCaptions(d, SIG),
+    caps: () => newsCaptions(d, SIG, { linkInComment: state.linkComment }),
     bind: (redraw) => {
       let tm = null;
       const upd = () => { clearTimeout(tm); tm = setTimeout(async () => { d = await make($('#ntitle').value, $('#nsum').value); redraw(true); }, 400); };
       $('#ntitle').oninput = upd;
+      $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
       $('#nsum').oninput = upd;
     },
   });
@@ -298,17 +300,20 @@ function editor({ back, head, data, caps, bind }) {
       ${c.facebook ? `<label>Texte Facebook (avec le lien de l'article)</label><textarea id="cap-facebook" rows="8">${esc(c.facebook)}</textarea>` : ''}
       <label>Texte Threads (500 caractères max.)</label><textarea id="cap-threads" rows="4" maxlength="500">${esc(c.threads)}</textarea>
       <label>Texte X (280 caractères max., lien = 23)</label><textarea id="cap-x" rows="3">${esc(c.x)}</textarea>
+      ${c.comment ? `<label>Premier commentaire (Facebook, Threads ; X : à coller en réponse)</label><textarea id="cap-comment" rows="2">${esc(c.comment)}</textarea>
+        <div class="row"><button id="copycomment">Copier le commentaire</button></div>` : ''}
       <hr>
       <div class="nets">${[['instagram', 'Instagram', me.instagram], ['facebook', 'Facebook', me.facebook], ['threads', 'Threads', me.threads]].map(([k, v, acc]) => `<label class="check"><input type="checkbox" data-net="${k}" ${acc ? 'checked' : 'disabled'}> <b>${v}</b> <span class="muted small">${esc(acc || 'non connecté')}</span><span class="st" data-st="${k}"></span></label>`).join('')}</div>
       <p class="small muted">Instagram, Facebook et Threads reçoivent les visuels au format Instagram. Pour X, TikTok ou une story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.</p>
       <div class="row sticky"><button class="accent" id="go">Publier…</button><button id="share">Partager</button><button id="dl">Télécharger</button></div>`;
-    for (const k of ['instagram', 'facebook', 'threads', 'x'].filter((x) => $(`#cap-${x}`))) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
+    for (const k of ['instagram', 'facebook', 'threads', 'x', 'comment'].filter((x) => $(`#cap-${x}`))) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
     const o = await assets(d);
     canvases = [...main.querySelectorAll('canvas')];
     for (const cv of canvases) drawSlide(cv, cv.dataset.slide, state.fmt, d, o);
     $('#go').onclick = () => publishAll(d, o, slides);
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     $('#dl').onclick = () => download(canvases, d);
+    if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText($('#cap-comment').value); $('#copycomment').textContent = 'Copié ✓'; } catch { /* presse-papiers refusé */ } };
   };
   $('#back').onclick = back;
   app.querySelectorAll('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; app.querySelectorAll('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); redraw(); }; });
@@ -358,6 +363,7 @@ async function publishAll(d, o, slides) {
       form.append('network', n);
       form.append('text', $(`#cap-${n === 'threads' ? 'threads' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value);
       blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
+      if (n !== 'instagram' && $('#cap-comment')?.value.trim()) form.append('comment', $('#cap-comment').value.trim());
       const res = await api('publish', { method: 'POST', body: form, raw: true });
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -377,7 +383,8 @@ async function publishAll(d, o, slides) {
       }
       if (!result) throw new Error('Réponse interrompue : vérifiez sur le réseau avant de réessayer');
       st.className = 'st ok';
-      st.innerHTML = result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ✓</a>` : 'Publié ✓';
+      st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ✓</a>` : 'Publié ✓')
+        + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '');
     } catch (err) {
       st.className = 'st err';
       st.textContent = err.message;

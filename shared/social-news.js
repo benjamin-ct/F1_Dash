@@ -125,8 +125,9 @@ export function newsPost(item, { title, summary, driverList = {}, sourceName = '
   };
 }
 
-// Légendes prêtes à copier (Instagram / Facebook, X, Threads, story)
-export function newsCaptions(nd, signature = '') {
+// Légendes prêtes à copier (Instagram / Facebook, X, Threads, story). linkInComment : le lien de
+// l'article part en premier commentaire (Facebook, Threads, X) au lieu d'être dans le texte.
+export function newsCaptions(nd, signature = '', { linkInComment = false } = {}) {
   const sig = signature ? `\n\n${signature}` : '';
   const src = nd.source ? `Source : ${nd.source}${nd.sources > 1 ? ` (repris par ${nd.sources - 1} autre${nd.sources > 2 ? 's' : ''} média${nd.sources > 2 ? 's' : ''})` : ''}` : '';
   const people = [
@@ -140,7 +141,9 @@ export function newsCaptions(nd, signature = '') {
     .filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
   const head = `${nd.badge.label} | ${nd.title}`;
   // Lien de l'article : Facebook, Threads et X (pas Instagram, où il n'est pas cliquable)
-  const link = /^https:\/\//.test(nd.link || '') ? nd.link : '';
+  const url = /^https:\/\//.test(nd.link || '') ? nd.link : '';
+  const comment = url && linkInComment ? `Lire l'article : ${url}` : '';
+  const link = comment ? '' : url;
   const srcLink = `${src}${link ? `${src ? '\n' : ''}Lire l'article : ${link}` : ''}`;
   const instagram = `${head}\n\n${nd.summary}${src ? `\n\n${src}` : ''}${sig}\n\n${tags.join(' ')}`;
   const facebook = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n${tags.join(' ')}`;
@@ -155,5 +158,5 @@ export function newsCaptions(nd, signature = '') {
   let threads = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n#F1 ${BRAND_TAG}`;
   if (threads.length > 500) threads = `${head}${srcLink ? `\n\n${srcLink}` : ''}\n\n#F1 ${BRAND_TAG}`;
   if (threads.length > 500) threads = `${head.slice(0, 500 - (threads.length - head.length) - 1)}…${threads.slice(head.length)}`;
-  return { instagram, facebook, x, threads, story: head };
+  return { instagram, facebook, x, threads, story: head, comment };
 }

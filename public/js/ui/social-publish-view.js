@@ -36,8 +36,8 @@ const HELP = {
     '« Keys and tokens » : copiez API Key et API Key Secret, puis générez Access Token et Access Token Secret (après le passage en lecture-écriture).'],
   meta: ['Passez votre compte Instagram en compte professionnel (créateur) et reliez-le à votre page Facebook.',
     'developers.facebook.com : créez une app (type Business) ; identifiant et clé secrète dans Paramètres → Général.',
-    'Outils → Explorateur de l\'API Graph : choisissez l\'app, ajoutez pages_show_list, pages_read_engagement, pages_manage_posts, instagram_basic, instagram_content_publish et business_management, puis « Generate Access Token » et collez-le ici.'],
-  threads: ['Dans l\'app Meta, ajoutez le cas d\'usage « Accéder à l\'API Threads » (threads_basic, threads_content_publish).',
+    'Outils → Explorateur de l\'API Graph : choisissez l\'app, ajoutez pages_show_list, pages_read_engagement, pages_manage_posts, pages_manage_engagement, instagram_basic, instagram_content_publish et business_management, puis « Generate Access Token » et collez-le ici.'],
+  threads: ['Dans l\'app Meta, ajoutez le cas d\'usage « Accéder à l\'API Threads » (threads_basic, threads_content_publish, threads_manage_replies).',
     'Ajoutez votre compte Threads comme testeur, puis acceptez l\'invitation dans Threads (Paramètres → Compte → Autorisations du site web).',
     'Copiez la clé secrète Threads de l\'app et générez un jeton avec « User Token Generator ». Il est prolongé automatiquement.'],
   tiktok: ['developers.tiktok.com → Manage apps : créez une app avec Login Kit (plateforme Desktop) et Content Posting API.',
@@ -162,6 +162,7 @@ export async function openPublish({ d, caps, render, folder }) {
         ${caps.facebook ? `<label class="small muted">${t("Texte Facebook (avec le lien de l'article)")}<textarea rows="6" data-txt="facebook">${esc(caps.facebook)}</textarea></label>` : ''}
         <label class="small muted">${t('Texte Threads (500 caractères max.)')}<textarea rows="3" data-txt="threads" maxlength="500">${esc(caps.threads)}</textarea></label>
         <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x">${esc(caps.x)}</textarea></label>
+        ${caps.comment ? `<label class="small muted">${t('Premier commentaire (Facebook, Threads, X)')}<textarea rows="2" data-txt="comment">${esc(caps.comment)}</textarea></label>` : ''}
         <fieldset class="posts-video"><legend class="small">${t('Vidéo TikTok')}</legend>
           <div class="row small">
             <label class="toggle"><input type="radio" name="pmusic" value="gen" checked> ${t('Musique générée (libre de droits)')}</label>
@@ -224,14 +225,15 @@ export async function openPublish({ d, caps, render, folder }) {
               body = { network: n, video: await b64(video.blob), mime: video.mime };
             } else if (n === 'x') {
               xs ||= await Promise.all((await render('x')).slice(0, 4).map(png));
-              body = { network: n, text: txt('x'), images: xs };
+              body = { network: n, text: txt('x'), images: xs, comment: caps.comment ? txt('comment') : '' };
             } else {
               ig ||= await Promise.all((await render('ig')).map(png));
-              body = { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig };
+              body = { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig, comment: n === 'instagram' || !caps.comment ? '' : txt('comment') };
             }
             const r = await api('/api/social/publish', body);
             st.className = 'posts-st small ok';
-            st.innerHTML = r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${icon('check')} ${t('Publié')}</a>` : `${icon('check')} ${esc(t(r.note || 'Envoyé'))}`;
+            st.innerHTML = (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${icon('check')} ${t('Publié')}</a>` : `${icon('check')} ${esc(t(r.note || 'Envoyé'))}`)
+              + (r.comment ? ` · ${t('commentaire ajouté')}` : r.commentError ? ` <span class="posts-warn">· ${esc(t('commentaire refusé : {}', r.commentError))}</span>` : '');
           } catch (err) {
             st.className = 'posts-st small err';
             st.textContent = err.message;

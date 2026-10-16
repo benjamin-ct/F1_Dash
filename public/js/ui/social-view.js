@@ -18,7 +18,8 @@ let enabled = false;
 let fmt = storageGet(OPT_KEY, {}).fmt || 'ig';
 let withPhotos = storageGet(OPT_KEY, {}).photos !== false;
 let noSpoiler = storageGet(OPT_KEY, {}).noSpoiler !== false;   // texte sans le vainqueur au début
-let mode = storageGet(OPT_KEY, {}).mode === 'news' ? 'news' : 'session';   // posts de la séance ou d'une grosse news
+let mode = storageGet(OPT_KEY, {}).mode === 'news' ? 'news' : 'session';
+let linkComment = storageGet(OPT_KEY, {}).linkComment !== false;   // news : lien de l'article en premier commentaire   // posts de la séance ou d'une grosse news
 const imgCache = new Map();
 
 function loadImage(src, cors = false) {
@@ -104,9 +105,10 @@ async function newsSource(sig) {
     <div class="posts-news-edit">
       <label class="small muted">${t('Titre')}<input type="text" data-ntitle maxlength="160" value="${esc(d.title)}"></label>
       <label class="small muted">${t('Résumé')}<textarea data-nsum rows="3" maxlength="400">${esc(d.summary)}</textarea></label>
+      <label class="toggle small" title="${t("Facebook, Threads et X : le lien de l'article est publié en premier commentaire plutôt que dans le texte (Instagram : pas de lien)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
     </div>`;
-  return { d, caps: newsCaptions(d, sig), head };
+  return { d, caps: newsCaptions(d, sig, { linkInComment: linkComment }), head };
 }
 const fileOf = (i, slide) => `${FORMATS[fmt].name}-${i + 1}-${slide}`;
 
@@ -166,6 +168,7 @@ async function render(dlg, keepHead = false) {
       <textarea class="posts-cap" rows="${fmt === 'x' ? 4 : 12}" data-no-i18n>${esc(fmt === 'x' ? caps.x : caps.instagram)}</textarea>
       <div class="row"><button class="btn small" data-cap>${icon('doc')} ${t('Copier le texte')}</button>${fmt === 'x' ? `<span class="small muted" data-count></span><span class="spacer"></span>
         <span class="small muted">${t('Publier gratuitement :')}</span>${Object.entries(INTENTS).map(([k, v]) => `<button class="btn small btn-accent" data-intent="${k}" title="${t("Ouvre la page de {} pour écrire un post, avec ce texte, et copie la première image : collez-la puis publiez. Gratuit, sans clés d'accès.", v.name)}">${icon('external')} ${v.name}</button>`).join('')}` : ''}</div>
+      ${fmt === 'x' && caps.comment ? `<div class="row small"><span class="muted">${t('Premier commentaire :')}</span> <span data-no-i18n>${esc(caps.comment)}</span><button class="btn small" data-copycomment>${icon('doc')} ${t('Copier')}</button></div>` : ''}
       ${fmt === 'x' ? `<p class="small muted posts-xhelp" hidden>${icon('info')} ${t("Fenêtre ouverte avec le texte : collez l'image avec Ctrl+V (Cmd+V sur Mac), puis publiez. Pour d'autres images, cliquez sur « Copier » sous chacune et collez-les aussi.")}</p>` : ''}`}
     </div>`;
   // Titre ou résumé d'une news en cours de saisie : seuls les visuels et les textes sont redessinés
@@ -188,6 +191,7 @@ async function render(dlg, keepHead = false) {
       if (b.dataset.copy !== undefined) { await copyImage(canvases[Number(b.dataset.copy)]); toast(t('Image copiée'), 2000, 'check'); }
       if (b.dataset.save !== undefined) { const r = await saveImages(d, [canvases[Number(b.dataset.save)]]); toast(t('Image enregistrée dans {}', r.dir), 4000, 'check'); }
       if (b.dataset.cap !== undefined) { await navigator.clipboard.writeText(area.value); toast(t('Texte copié'), 2000, 'check'); }
+      if (b.dataset.copycomment !== undefined) { await navigator.clipboard.writeText(caps.comment); toast(t('Commentaire copié : publiez-le en réponse à votre post'), 3500, 'check'); }
       // Publication sans accès payant : page officielle du réseau préremplie, première image copiée
       const net = INTENTS[b.dataset.intent];
       if (net) {
@@ -233,7 +237,7 @@ function open() {
       for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('active', b.dataset.mode === mode);
       $('[data-nospoil]', dlg).checked = noSpoiler;
       $('[data-nospoil]', dlg).closest('label').hidden = mode === 'news';
-      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode });
+      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment });
     };
     dlg.addEventListener('click', async (e) => {
       if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
@@ -252,6 +256,7 @@ function open() {
     dlg.addEventListener('change', (e) => {
       if (e.target.matches('[data-newspick]')) { newsSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-newsall]')) { newsAll = e.target.checked; render(dlg); }
+      if (e.target.matches('[data-linkcomment]')) { linkComment = e.target.checked; sync(); render(dlg); }
     });
     dlg.addEventListener('input', (e) => {
       if (!e.target.matches('[data-ntitle], [data-nsum]') || !newsSel) return;

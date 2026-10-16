@@ -4,7 +4,7 @@
 import crypto from 'node:crypto';
 import { getConfig, saveConfig } from './config.js';
 import { xLength } from '../shared/social.js';
-import { call, GRAPH, THREADS, timing, publishFacebook, publishInstagram, publishThreads, freshThreads } from '../shared/meta-publish.js';
+import { call, GRAPH, THREADS, timing, publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
 
 const XAPI = 'https://api.x.com/2';
 const TIKTOK = 'https://open.tiktokapis.com/v2';
@@ -93,7 +93,13 @@ async function publishX(text, images) {
   }
   const post = await call(`${XAPI}/tweets`, { method: 'POST', headers: auth('POST', `${XAPI}/tweets`), json: { text, ...(ids.length ? { media: { media_ids: ids } } : {}) } });
   const user = String(k.username || '').replace('@', '') || 'i';
-  return { url: `https://x.com/${user}/status/${post?.data?.id}` };
+  return { url: `https://x.com/${user}/status/${post?.data?.id}`, id: post?.data?.id };
+}
+
+// Réponse à son propre post X (premier commentaire)
+async function replyX(postId, text) {
+  const k = conf().x;
+  return call(`${XAPI}/tweets`, { method: 'POST', headers: { Authorization: oauth1('POST', `${XAPI}/tweets`, k) }, json: { text, reply: { in_reply_to_tweet_id: postId } } });
 }
 
 // ---------- Meta : Facebook, Instagram, Threads (code partagé avec la page web du créateur) ----------
@@ -159,13 +165,18 @@ async function publishTiktok(video, mime) {
 }
 
 // ---------- Publication ----------
-export async function publish(net, { text = '', images = [], video = null, mime = 'video/mp4' }) {
+export async function publish(net, { text = '', images = [], video = null, mime = 'video/mp4', comment = '' }) {
   const imgs = images.map((b) => Buffer.from(String(b), 'base64')).filter((b) => b.length > 8 && b.readUInt32BE(0) === 0x89504e47);
   const body = String(text || '');
-  if (net === 'x') return publishX(xLength(body) > 280 ? body.slice(0, 280) : body, imgs);
-  if (net === 'facebook') return publishFacebook(conf().meta, body, blobs(imgs));
+  // Premier commentaire (lien de l'article d'une news) : X, Facebook, Threads
+  const note = String(comment || '').trim().slice(0, 500);
+  if (net === 'x') return withComment(() => publishX(xLength(body) > 280 ? body.slice(0, 280) : body, imgs), note, replyX);
+  if (net === 'facebook') return withComment(() => publishFacebook(conf().meta, body, blobs(imgs)), note, (id, t) => commentFacebook(conf().meta, id, t));
   if (net === 'instagram') return publishInstagram(conf().meta, body.slice(0, 2200), blobs(imgs));
-  if (net === 'threads') return publishThreads(await threadsAccount(), conf().meta, body.slice(0, 500), blobs(imgs));
+  if (net === 'threads') {
+    const th = await threadsAccount();
+    return withComment(() => publishThreads(th, conf().meta, body.slice(0, 500), blobs(imgs)), note, (id, t) => replyThreads(th, id, t));
+  }
   if (net === 'tiktok') return publishTiktok(video ? Buffer.from(String(video), 'base64') : null, /^video\/(mp4|webm|quicktime)$/.test(mime) ? mime : 'video/mp4');
   throw new Error('Réseau inconnu');
 }

@@ -7,7 +7,7 @@
 // (envoyés par l'appli) sont chiffrés avec cette clé (AES-GCM) : sans elle, la base ne contient
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -179,6 +179,7 @@ async function publish(req, env, raw, vault) {
   try { form = await req.formData(); } catch { return json({ error: 'Formulaire illisible' }, 400); }
   const net = String(form.get('network') || '');
   const text = String(form.get('text') || '');
+  const comment = String(form.get('comment') || '').trim().slice(0, 500);
   const images = form.getAll('images').filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type) && f.size < 8e6).slice(0, 20);
   if (!['facebook', 'instagram', 'threads'].includes(net)) return json({ error: 'Réseau inconnu' }, 400);
   if (!images.length) return json({ error: 'Aucune image' }, 400);
@@ -189,10 +190,13 @@ async function publish(req, env, raw, vault) {
     try {
       await line({ step: 'Envoi des images…' });
       let r;
-      if (net === 'facebook') r = await publishFacebook(vault.meta, text, images);
+      if (net === 'facebook') r = await withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
       else if (net === 'instagram') r = await publishInstagram(vault.meta, text.slice(0, 2200), images);
-      else r = await publishThreads((await refresh(env, raw, vault)).threads, vault.meta, text.slice(0, 500), images);
-      await line({ done: true, url: r.url || null });
+      else {
+        const th = (await refresh(env, raw, vault)).threads;
+        r = await withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images), comment, (id, t) => replyThreads(th, id, t));
+      }
+      await line({ done: true, url: r.url || null, comment: !!r.comment, commentError: r.commentError || null });
     } catch (err) {
       await line({ error: String(err?.message || err).slice(0, 300) });
     } finally {

@@ -84,6 +84,7 @@ test('page du créateur : coffre chiffré, sans le code rien n\'est lisible', as
 
   // Publication sur Facebook : progression puis lien
   const realFetch = globalThis.fetch;
+  let refuse = false;
   Object.assign(timing, { poll: 1, maxPoll: 1 });
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
@@ -91,6 +92,7 @@ test('page du créateur : coffre chiffré, sans le code rien n\'est lisible', as
     if (u.pathname.endsWith('/photos')) return ok({ id: 'ph1' });
     if (u.searchParams.get('fields') === 'images') return ok({ images: [{ width: 1080, source: 'https://cdn.test/a.jpg' }] });
     if (u.pathname.endsWith('/feed')) return ok({ id: 'p1_42' });
+    if (u.pathname.endsWith('/comments')) return refuse ? new Response(JSON.stringify({ error: { message: '(#200) Permissions error' } }), { status: 403 }) : ok({ id: 'c1' });
     return realFetch(url, opts);
   };
   try {
@@ -98,9 +100,18 @@ test('page du créateur : coffre chiffré, sans le code rien n\'est lisible', as
     form.append('network', 'facebook');
     form.append('text', 'Bonjour');
     form.append('images', new Blob([new Uint8Array([0xff, 0xd8, 0xff, 1, 2])], { type: 'image/jpeg' }), 'a.jpg');
-    const r = await worker('https://s.test/studio/api/publish', { method: 'POST', body: form, headers: { 'X-Studio-Key': studioKey(CODE) } });
-    const lines = (await r.text()).trim().split('\n').map((l) => JSON.parse(l));
-    assert.deepEqual(lines.at(-1), { done: true, url: 'https://www.facebook.com/p1_42' });
+    form.append('comment', "Lire l'article : https://a.test/x");
+    const send = async () => {
+      const r = await worker('https://s.test/studio/api/publish', { method: 'POST', body: form, headers: { 'X-Studio-Key': studioKey(CODE) } });
+      return (await r.text()).trim().split('\n').map((l) => JSON.parse(l)).at(-1);
+    };
+    assert.deepEqual(await send(), { done: true, url: 'https://www.facebook.com/p1_42', comment: true, commentError: null });
+    // Commentaire refusé (permission manquante) : le post est publié quand même, avec la raison
+    refuse = true;
+    const r2 = await send();
+    assert.equal(r2.done, true);
+    assert.equal(r2.comment, false);
+    assert.match(r2.commentError, /Permissions error.*permission manquante/);
   } finally { globalThis.fetch = realFetch; }
 
   await disableStudio({ fetchFn });

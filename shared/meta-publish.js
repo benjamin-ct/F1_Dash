@@ -75,7 +75,13 @@ export async function publishFacebook(meta, text, images) {
   const form = { message: text, access_token: meta.pageToken };
   hosted.forEach((h, i) => { form[`attached_media[${i}]`] = JSON.stringify({ media_fbid: h.id }); });
   const r = await call(`${GRAPH}/${meta.pageId}/feed`, { method: 'POST', form });
-  return { url: `https://www.facebook.com/${r.id}` };
+  return { url: `https://www.facebook.com/${r.id}`, id: r.id };
+}
+
+// Premier commentaire de la page sous son post (lien de l'article…) : permission
+// pages_manage_engagement du jeton
+export async function commentFacebook(meta, postId, text) {
+  return call(`${GRAPH}/${postId}/comments`, { method: 'POST', form: { message: text, access_token: meta.pageToken } });
 }
 
 // Conteneur prêt : le réseau a fini de récupérer et de préparer l'image (sinon le carrousel ou la
@@ -150,5 +156,23 @@ export async function publishThreads(th, meta, text, images) {
   await ready(status(creation), 'status', 'Post');
   const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: creation, access_token: token } });
   const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: token })}`).catch(() => ({}));
-  return { url: link.permalink || `https://www.threads.net/@${th.username || ''}` };
+  return { url: link.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id };
+}
+
+// Réponse au post Threads (premier commentaire) : permission threads_manage_replies du jeton
+export async function replyThreads(th, postId, text) {
+  const token = th.token;
+  const c = await call(`${THREADS}/${th.userId}/threads`, { method: 'POST', form: { media_type: 'TEXT', text, reply_to_id: postId, access_token: token } });
+  await ready(`${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: token })}`, 'status', 'Commentaire');
+  return call(`${THREADS}/${th.userId}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: token } });
+}
+
+// Publication puis premier commentaire ; un commentaire refusé ne fait pas échouer la publication
+export async function withComment(post, comment, addComment) {
+  const r = await post();
+  if (!comment || !r.id) return r;
+  try { await addComment(r.id, comment); return { ...r, comment: true }; } catch (err) {
+    const msg = /permission|\(#10\)|\(#200\)|not authorized|scope/i.test(err.message) ? `${err.message} (permission manquante : régénérez le jeton avec les nouvelles autorisations)` : err.message;
+    return { ...r, commentError: msg.slice(0, 300) };
+  }
 }
