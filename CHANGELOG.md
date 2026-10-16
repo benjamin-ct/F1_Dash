@@ -4,6 +4,11 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.14 — à venir
+
+### Améliorations
+- Petites améliorations internes.
+
 ## v1.27.13 — 2026-10-16
 
 ### Améliorations
