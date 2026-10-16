@@ -18,14 +18,24 @@ async function instagram(meta, id) {
   return { likes: base?.like_count ?? null, comments: base?.comments_count ?? null, reach: metric(ins, 'reach'), views: metric(ins, 'views'), shares: metric(ins, 'shares'), saves: metric(ins, 'saved') };
 }
 
+// Valeur d'une mesure : nombre, ou total d'un détail (payant / naturel…)
+const num = (v) => (v == null ? null : typeof v === 'object' ? Object.values(v).reduce((a, x) => a + (Number(x) || 0), 0) : Number(v));
+
 async function facebook(meta, id) {
   const tok = { access_token: meta.pageToken };
-  const [base, ins] = await Promise.all([
+  const insights = (metric) => safe(call(`${GRAPH}/${id}/insights?${new URLSearchParams({ metric, ...tok })}`));
+  // Vues et vues uniques des médias (mesures de Meta depuis la suppression des « impressions »),
+  // ancienne mesure seulement si les nouvelles sont refusées
+  const [base, now] = await Promise.all([
     safe(call(`${GRAPH}/${id}?${new URLSearchParams({ fields: 'reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0),shares', ...tok })}`)),
-    safe(call(`${GRAPH}/${id}/insights?${new URLSearchParams({ metric: 'post_impressions_unique', ...tok })}`)),
+    insights('post_total_media_view_unique,post_media_view'),
   ]);
-  if (!base && !ins) return null;
-  return { likes: base?.reactions?.summary?.total_count ?? null, comments: base?.comments?.summary?.total_count ?? null, shares: base?.shares?.count ?? 0, reach: metric(ins, 'post_impressions_unique') };
+  const old = now ? null : await insights('post_impressions_unique');
+  if (!base && !now && !old) return null;
+  const out = { likes: base?.reactions?.summary?.total_count ?? null, comments: base?.comments?.summary?.total_count ?? null, shares: base?.shares?.count ?? 0, reach: num(metric(now, 'post_total_media_view_unique') ?? metric(old, 'post_impressions_unique')) };
+  const views = num(metric(now, 'post_media_view'));
+  if (views != null) out.views = views;
+  return out;
 }
 
 async function threads(th, id) {

@@ -144,7 +144,9 @@ details{margin-top:14px}summary{cursor:pointer;color:var(--ink-2);font-size:13px
 </section>
 </div></main>
 <script type="application/json" id="data">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>`;
-  return page('Statistiques · Paddock Live', body, nonce, css, CLIENT);
+  // Tirer vers le bas pour recharger (page ouverte depuis l'écran d'accueil) : fichier à part
+  // (site/stats-refresh.js, non transformé par la compilation du Worker), sans lien avec le reste du script
+  return page('Statistiques · Paddock Live', `${body}<script nonce="${nonce}" src="/stats-refresh.js" defer></script>`, nonce, css, CLIENT);
 }
 
 // Script du tableau de bord (exécuté dans le navigateur). Textes insérés avec textContent.
