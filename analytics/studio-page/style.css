@@ -62,11 +62,12 @@ body { min-height: 100vh; min-height: 100lvh; }
 .appbar {
   position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px;
   padding: calc(6px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right), calc((100vw - var(--w)) / 2 + 12px)) 8px max(12px, env(safe-area-inset-left), calc((100vw - var(--w)) / 2 + 12px));
-  /* Bord de défilement : fond qui s'efface vers le bas, flou sous le contenu */
-  background: linear-gradient(to bottom, rgba(11, 12, 15, .92), rgba(11, 12, 15, .6) 70%, rgba(11, 12, 15, 0));
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  -webkit-mask-image: linear-gradient(to bottom, #000 80%, transparent); mask-image: linear-gradient(to bottom, #000 80%, transparent);
+  /* Fond flouté sous le contenu qui défile ; pas de masque (Safari floute alors aussi le logo et
+     les boutons) : le fondu du bas est une bande à part */
+  background: rgba(11, 12, 15, .82);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6); backdrop-filter: blur(16px) saturate(1.6);
 }
+.appbar::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 14px; background: linear-gradient(rgba(11, 12, 15, .55), rgba(11, 12, 15, 0)); pointer-events: none; }
 .brand { display: flex; align-items: center; gap: 10px; padding-left: 2px; }
 .brand .logo { width: 30px; height: 30px; }
 .brand span { font: 800 22px/1 'Saira Condensed', sans-serif; letter-spacing: .3px; }
@@ -294,3 +295,5 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 /* Retour par glissement depuis le bord gauche (appli installée sur l'iPhone) */
 .editing .page { transition: transform .2s; }
 .editing.swiping .page { transition: none; }
+/* « Tirer pour actualiser » : sous la barre d'état et l'encoche, au-dessus de l'en-tête, en verre */
+.ptr { top: env(safe-area-inset-top) !important; z-index: 30 !important; background: var(--glass-strong) !important; color: var(--text) !important; border: 1px solid var(--glass-line); box-shadow: var(--glass-hi), var(--glass-shadow) !important; -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
