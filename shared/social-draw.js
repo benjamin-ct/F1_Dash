@@ -14,14 +14,14 @@ const BODY = '"Titillium Web", sans-serif';
 const MONO = '"JetBrains Mono", monospace';
 const MEDAL = [C.gold, C.silver, C.bronze];
 
-// Diapositives selon la séance ; carrousel Instagram / Facebook / Threads : une couverture
-// « Résultats » en premier (le vainqueur n'est pas dévoilé dès la première image)
-export function slidesFor(d, fmt = 'ig') {
+// Diapositives selon la séance, après une couverture « Résultats » (anti-spoiler : le vainqueur
+// n'est pas dévoilé dès la première image, ni dans l'aperçu du réseau)
+export function slidesFor(d) {
   if (!d.rows.length) return [];
   let list = ['classement'];
   if (d.kind === 'race') list = ['vainqueur', 'podium', 'classement', 'faits', ...(d.champ ? ['championnat'] : [])];
   else if (d.kind === 'quali') list = ['pole', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
-  return fmt === 'ig' ? ['couverture', ...list] : list;
+  return ['couverture', ...list];
 }
 export const SLIDE_NAMES = { couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat' };
 
@@ -341,7 +341,7 @@ function championnat(ctx, W, H, d, o) {
 }
 
 // Couverture du carrousel : Grand Prix, séance, date, circuit et sommaire des images suivantes
-function cover(ctx, W, H, d, o, next) {
+function cover(ctx, W, H, d, o, next, fmt) {
   background(ctx, W, H, C.red);
   const land = W > H;
   const u = Math.min(W, H) / 1080;
@@ -368,7 +368,8 @@ function cover(ctx, W, H, d, o, next) {
 
   // Bloc central : drapeau, « Résultats », séance, nom du Grand Prix
   const colW = land ? W * 0.5 : W - pad * 2;
-  let y = land ? H * 0.3 : H * 0.24;
+  const tall = H / W > 1.5;   // story : bloc et sommaire groupés au milieu
+  let y = land ? H * 0.3 : tall ? H * 0.27 : H * 0.24;
   if (o.flag) {
     const fh = Math.round(66 * u);
     const fw = Math.round(fh * o.flag.width / o.flag.height);
@@ -393,7 +394,7 @@ function cover(ctx, W, H, d, o, next) {
   const items = next.map((s, i) => [String(i + 2).padStart(2, '0'), SLIDE_NAMES[s] || s]);
   const sx = land ? W * 0.62 : pad;
   const end = H - Math.round(Math.min(W, H) * 0.13);   // au-dessus du pied
-  let sy = land ? H * 0.3 : Math.max(y + 80 * u, end - items.length * 52 * u - 40 * u);
+  let sy = land ? H * 0.3 : tall ? y + 120 * u : Math.max(y + 80 * u, end - items.length * 52 * u - 40 * u);
   const lh = Math.min(52 * u, (end - sy - 22 * u) / Math.max(items.length, 1));
   txt(ctx, 'AU PROGRAMME', sx, sy, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, spacing: 4 });
   sy += 22 * u;
@@ -409,7 +410,9 @@ function cover(ctx, W, H, d, o, next) {
   ctx.fillStyle = C.line;
   ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
   txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, spacing: 1 });
-  const swipe = d.final ? 'FAITES DÉFILER' : 'RÉSULTATS PROVISOIRES · FAITES DÉFILER';
+  // Carrousel : on fait défiler ; story, vidéo et X : la suite vient après
+  const hint = fmt === 'ig' ? 'FAITES DÉFILER' : 'À SUIVRE';
+  const swipe = d.final ? hint : `RÉSULTATS PROVISOIRES · ${hint}`;
   const ax = W - pad;
   const ay = fy - Math.round(Math.min(W, H) * 0.009);
   ctx.save();
@@ -428,7 +431,8 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, h);
-  if (slide === 'couverture') cover(ctx, w, h, d, o, slidesFor(d, fmt).filter((sl) => sl !== 'couverture'));
+  // X : 4 images au plus par post, le sommaire n'annonce que celles publiées
+  if (slide === 'couverture') cover(ctx, w, h, d, o, slidesFor(d).slice(1, fmt === 'x' ? 4 : undefined), fmt);
   else if (slide === 'vainqueur') hero(ctx, w, h, d, o, 'VAINQUEUR');
   else if (slide === 'pole') hero(ctx, w, h, d, o, 'POLE POSITION');
   else if (slide === 'podium') podium(ctx, w, h, d, o);

@@ -16,6 +16,7 @@ const OPT_KEY = 'paddock.postOptions';
 let enabled = false;
 let fmt = storageGet(OPT_KEY, {}).fmt || 'ig';
 let withPhotos = storageGet(OPT_KEY, {}).photos !== false;
+let noSpoiler = storageGet(OPT_KEY, {}).noSpoiler !== false;   // texte sans le vainqueur au début
 const imgCache = new Map();
 
 function loadImage(src, cors = false) {
@@ -85,9 +86,9 @@ async function render(dlg) {
   dlg.dataset.ready = '';
   dlg.publish = null;
   const d = postData(store.state);
-  const slides = slidesFor(d, fmt);
+  const slides = slidesFor(d);
   const sig = storageGet(SIG_KEY, '@BenjyPaddock');
-  const caps = captions(d, sig);
+  const caps = captions(d, sig, { spoiler: !noSpoiler });
   const body = $('.posts-body', dlg);
   if (!slides.length) { body.innerHTML = `<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
   body.innerHTML = `${d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`}
@@ -105,7 +106,7 @@ async function render(dlg) {
   const o = { ...(await assets(d)), signature: sig };
   if (id !== renderId) return;   // format ou réglage changé entre-temps
   // Publication : visuels de n'importe quel format, dessinés à part
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), render: async (f) => slidesFor(d, f).map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), render: async (f) => slides.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
   const canvases = [...body.querySelectorAll('canvas')];
   for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
   const count = $('[data-count]', body);
@@ -148,6 +149,7 @@ function open() {
       <div class="posts-bar">
         <div class="posts-seg" role="tablist">${Object.entries({ ig: 'Instagram / Facebook', story: 'Story / TikTok', x: 'X / Threads / Bluesky' }).map(([k, v]) => `<button class="posts-fmt" data-fmt="${k}">${v}</button>`).join('')}</div>
         <label class="toggle small"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
+        <label class="toggle small" title="${t("Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
         <label class="small muted">${t('Signature')} <input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
         <span class="spacer"></span>
         <button class="btn" data-open hidden>${icon('external')} ${t('Ouvrir le dossier')}</button>
@@ -159,7 +161,8 @@ function open() {
     const sync = () => {
       for (const b of dlg.querySelectorAll('[data-fmt]')) b.classList.toggle('active', b.dataset.fmt === fmt);
       $('[data-photos]', dlg).checked = withPhotos;
-      storageSet(OPT_KEY, { fmt, photos: withPhotos });
+      $('[data-nospoil]', dlg).checked = noSpoiler;
+      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler });
     };
     dlg.addEventListener('click', async (e) => {
       if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
@@ -170,6 +173,7 @@ function open() {
       if (e.target.closest('[data-open]')) fetch('/api/posts/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: dlg.dataset.folder }) });
     });
     $('[data-photos]', dlg).addEventListener('change', (e) => { withPhotos = e.target.checked; sync(); render(dlg); });
+    $('[data-nospoil]', dlg).addEventListener('change', (e) => { noSpoiler = e.target.checked; sync(); render(dlg); });
     const sig = $('.posts-sig', dlg);
     sig.value = storageGet(SIG_KEY, '@BenjyPaddock');
     let tm = null;

@@ -76,11 +76,24 @@ test('posts : qualifications', () => {
   assert.match(captions(d).instagram, /^Pole position pour Lando Norris au Grand Prix d'Italie !/);
 });
 
-test('posts : couverture « Résultats » en première image du carrousel Instagram seulement', () => {
+test('posts : couverture « Résultats » (anti-spoiler) en première image de chaque format', () => {
   const d = { kind: 'race', rows: [{}], facts: [], champ: {} };
-  assert.deepEqual(slidesFor(d, 'ig'), ['couverture', 'vainqueur', 'podium', 'classement', 'faits', 'championnat']);
-  assert.deepEqual(slidesFor(d, 'x'), ['vainqueur', 'podium', 'classement', 'faits', 'championnat']);
-  assert.deepEqual(slidesFor(d, 'story')[0], 'vainqueur');
-  assert.deepEqual(slidesFor({ ...d, kind: 'quali', champ: null }, 'ig').slice(0, 2), ['couverture', 'pole']);
-  assert.deepEqual(slidesFor({ ...d, rows: [] }, 'ig'), []);
+  assert.deepEqual(slidesFor(d), ['couverture', 'vainqueur', 'podium', 'classement', 'faits', 'championnat']);
+  assert.deepEqual(slidesFor({ ...d, kind: 'quali', champ: null }).slice(0, 2), ['couverture', 'pole']);
+  assert.deepEqual(slidesFor({ ...d, kind: 'practice' }), ['couverture', 'classement']);
+  assert.deepEqual(slidesFor({ ...d, rows: [] }), []);
+});
+
+test('posts : texte sans spoiler (début de légende et texte court sans le vainqueur)', () => {
+  const d = { kind: 'race', sprint: false, label: 'Course', gp: "Grand Prix d'Azerbaïdjan", gpEn: 'Azerbaijan Grand Prix', year: 2026, countryName: 'Azerbaijan', circuit: 'Baku', facts: [], summary: { paragraphs: ['Résumé.'] },
+    rows: [{ first: 'Max', last: 'Verstappen', team: 'Red Bull Racing', gap: '' }, { first: 'Lando', last: 'Norris', team: 'McLaren', gap: '+2,1 s' }, { first: 'Charles', last: 'Leclerc', team: 'Ferrari', gap: '+4,0 s' }] };
+  const c = captions(d, '@moi', { spoiler: false });
+  // Instagram : les premières lignes (visibles sans « plus ») ne citent pas le vainqueur, le détail suit
+  assert.match(c.instagram, /^Résultats du Grand Prix d'Azerbaïdjan : qui l'a emporté \? Réponse en images\.\nFaites défiler/);
+  assert.ok(!c.instagram.split('\n.\n')[0].includes('Verstappen'));
+  assert.match(c.instagram, /Max Verstappen remporte/);
+  for (const k of ['x', 'threads', 'story']) assert.ok(!c[k].includes('Verstappen'), k);
+  assert.ok(c.x.length <= 280 && c.threads.length <= 500);
+  // Par défaut : comme avant
+  assert.match(captions(d, '').x, /^Verstappen remporte/);
 });

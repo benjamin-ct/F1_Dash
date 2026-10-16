@@ -1540,6 +1540,8 @@ export default {
   "utilisation de l'échappatoire": "use of the escape road",
   "Vainqueur": "Winner",
   "Couverture": "Cover",
+  "Texte sans spoiler": "Spoiler-free text",
+  "Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images": "Start of the text without the winner's name: the result is revealed by scrolling through the images",
   "Vainqueur sprint": "Sprint winner",
   "valeur": "value",
   "valeur du circuit": "circuit value",
