@@ -6,6 +6,8 @@
 // - GET / : connexion (mot de passe = secret STATS_KEY du Worker), puis tableau de bord sur /stats.
 //   Session : cookie signé (HMAC du mot de passe), valable 30 jours.
 // - GET /stats.json : les mêmes chiffres en JSON (connecté, ou ?key=…).
+// - /studio/ : page web du créateur (fichiers statiques du dossier site/) et son API /studio/api/…
+//   (studio.js : accès par clé dérivée du code, jetons chiffrés, relais, publication).
 import { cleanBatch, LABELS, FEATURE_GROUPS } from '../shared/stats.js';
 import { studioApi } from './studio.js';
 import { loginPage, dashboardPage } from './page.js';
