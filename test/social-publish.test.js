@@ -180,6 +180,8 @@ test('TikTok : clés vérifiées à l\'enregistrement, connexion effacée si l\'
     const b = new URLSearchParams(String(opts.body));
     assert.equal(String(url), 'https://open.tiktokapis.com/v2/oauth/token/');
     assert.equal(b.get('grant_type'), 'client_credentials');
+    // TikTok refuse « …;charset=UTF-8 » (invalid_request)
+    assert.equal(opts.headers['Content-Type'], 'application/x-www-form-urlencoded');
     const d = b.get('client_secret') === 'bon' ? { access_token: 'clt', expires_in: 7200 } : { error: 'invalid_client', error_description: 'Client key or secret is incorrect.' };
     return { ok: !d.error, status: d.error ? 401 : 200, text: async () => JSON.stringify(d) };
   };
