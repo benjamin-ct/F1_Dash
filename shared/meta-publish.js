@@ -129,6 +129,26 @@ export async function publishInstagram(meta, text, images) {
   return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id };
 }
 
+// Stories (une par image, dans l'ordre) : Instagram (conteneur STORIES) et page Facebook (photo
+// déposée sans être publiée, puis photo_stories). Mêmes autorisations que les posts.
+export async function storyInstagram(meta, images) {
+  if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
+  const tok = { access_token: meta.pageToken };
+  const hosted = await hostOnPage(meta, images.slice(0, 10));
+  for (const [i, h] of hosted.entries()) {
+    const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'STORIES', image_url: h.url, ...tok } });
+    await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', `Story ${i + 1}`);
+    await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: c.id, ...tok } });
+  }
+  return { url: `https://www.instagram.com/stories/${meta.igUsername || ''}/`, id: null, count: hosted.length };
+}
+
+export async function storyFacebook(meta, images) {
+  const hosted = await hostOnPage(meta, images.slice(0, 10), { fresh: true });
+  for (const h of hosted) await call(`${GRAPH}/${meta.pageId}/photo_stories`, { method: 'POST', form: { photo_id: h.id, access_token: meta.pageToken } });
+  return { url: `https://www.facebook.com/${meta.pageId}`, id: null, count: hosted.length };
+}
+
 // Jeton Threads de 60 jours : prolongé quand il reste moins de 10 jours. Renvoie le compte à jour
 // (à enregistrer par l'appelant s'il a changé), ou le même si la prolongation échoue.
 export async function freshThreads(th) {

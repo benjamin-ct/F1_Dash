@@ -345,3 +345,64 @@ test('page du créateur : toutes les sources d\'actu en une réponse (octets d\'
   await feeds({ fetchFn: down, now: t0 + 430e3 });
   assert.equal(urls.length, m + rss.length); // relu
 });
+
+test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTok, Short YouTube en privé)', async () => {
+  saveConfig({ creator: true, social: {
+    tiktok: { clientKey: 'ck', clientSecret: 'secret-tiktok', accessToken: 'vieux', expiresAt: 0, refreshToken: 'rt-tiktok', openId: 'o1', name: 'Benjy Paddock' },
+    youtube: { clientId: '1-a.apps.googleusercontent.com', clientSecret: 'secret-google', accessToken: 'yat', expiresAt: Date.now() + 3600e3, refreshToken: 'rt-google', name: 'Benjy Paddock' },
+  } });
+  const fetchFn = (url, init) => worker(url, init);
+  await enableStudio(CODE, { fetchFn });
+  const sealed = env.DB.studio.get('vault');
+  for (const s of ['secret-tiktok', 'secret-google', 'rt-tiktok']) assert.ok(!sealed.includes(s));
+  const key = { 'X-Studio-Key': studioKey(CODE) };
+  const me = await (await worker('https://s.test/studio/api/me', { headers: key })).json();
+  assert.equal(me.tiktok, 'Benjy Paddock');
+  assert.equal(me.youtube, 'Benjy Paddock');
+  for (const s of ['secret-tiktok', 'secret-google', 'rt-tiktok', 'rt-google', '"yat"']) assert.ok(!JSON.stringify(me).includes(s));
+
+  env.ASSETS = { fetch: async (req) => (new URL(req.url).pathname === '/kit/benjy/video.mp4' ? new Response(new Uint8Array([1, 2, 3, 4])) : new Response(null, { status: 404 })) };
+  const realFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    calls.push(u);
+    if (u === 'https://open.tiktokapis.com/v2/oauth/token/') {
+      assert.equal(new URLSearchParams(String(opts.body)).get('client_secret'), 'secret-tiktok');
+      return new Response(JSON.stringify({ access_token: 'neuf', expires_in: 86400, refresh_token: 'rt-tiktok' }));
+    }
+    if (u.endsWith('/post/publish/inbox/video/init/')) {
+      assert.equal(opts.headers.Authorization, 'Bearer neuf');
+      return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt' } }));
+    }
+    if (u === 'https://up.test/tt') { assert.equal(opts.body.length, 4); return new Response(null, { status: 201 }); }
+    if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) {
+      assert.equal(JSON.parse(opts.body).status.privacyStatus, 'private');
+      return new Response('{}', { headers: { location: 'https://up.test/yt' } });
+    }
+    if (u === 'https://up.test/yt') return new Response(JSON.stringify({ id: 'v42' }));
+    throw new Error(`inattendu : ${u}`);
+  };
+  const send = (body) => worker('https://s.test/studio/api/video', { method: 'POST', headers: key, body: JSON.stringify(body) });
+  try {
+    let r = await send({ network: 'tiktok', src: '/kit/benjy/video.mp4' });
+    assert.equal(r.status, 200);
+    assert.match((await r.json()).note, /Brouillon envoyé/);
+    // Jeton renouvelé gardé par le serveur : pas de nouveau renouvellement au 2e envoi
+    r = await send({ network: 'tiktok', src: '/kit/benjy/video.mp4' });
+    assert.equal(r.status, 200);
+    assert.equal(calls.filter((u) => u.endsWith('/oauth/token/')).length, 1);
+    // L'appli renvoie ses jetons (plus anciens) : ceux du serveur sont gardés
+    await syncStudio({ force: true, fetchFn });
+    r = await send({ network: 'tiktok', src: '/kit/benjy/video.mp4' });
+    assert.equal(calls.filter((u) => u.endsWith('/oauth/token/')).length, 1);
+    r = await send({ network: 'youtube', src: '/kit/benjy/video.mp4', text: 'Bienvenue\nLe récap' });
+    assert.equal((await r.json()).url, 'https://youtube.com/shorts/v42');
+    // Seulement les vidéos du kit, seulement TikTok et YouTube
+    assert.equal((await send({ network: 'tiktok', src: 'https://ailleurs.test/v.mp4' })).status, 400);
+    assert.equal((await send({ network: 'tiktok', src: '/kit/../secret.mp4' })).status, 400);
+    assert.equal((await send({ network: 'x', src: '/kit/benjy/video.mp4' })).status, 400);
+    assert.equal((await send({ network: 'tiktok', src: '/kit/autre/video.mp4' })).status, 404);
+  } finally { globalThis.fetch = realFetch; delete env.ASSETS; }
+  await disableStudio({ fetchFn });
+});

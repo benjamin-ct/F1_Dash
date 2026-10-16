@@ -1,9 +1,10 @@
 // Studio : kit de lancement des comptes (Benjy Paddock, Paddock Live) sur tous les réseaux, au même
 // endroit. Pour chaque réseau : visuels ou vidéo, texte prêt (modifiable), publication directe
-// quand le compte est relié au Studio (Instagram, Facebook, Threads, Bluesky), sinon Partager /
-// Copier le texte ; chaque réseau se coche « Fait » (gardé sur le téléphone).
+// quand le compte est relié au Studio (Instagram, Facebook, Threads, Bluesky), vidéo envoyée en
+// brouillon TikTok ou en privé sur YouTube, sinon Partager / Copier le texte ; chaque réseau se
+// coche « Fait » (gardé sur le téléphone).
 import { openImageViewer } from '/shared/image-viewer.js';
-import { $, $$, esc, icon, toast, store, session, IOS } from './ui.js';
+import { $, $$, esc, api, icon, toast, store, session, IOS } from './ui.js';
 import { sendPost, enterPage, goBack } from './editor.js';
 
 const FILE = { ig: 'instagram', x: 'x', story: 'story' };
@@ -109,17 +110,18 @@ Chronos, carte GPS, radios d'équipe traduites et stratégie en direct, calés s
   },
 };
 
-// Réseaux du kit : api = publication directe par le Studio (compte relié) ; media = visuels utilisés
+// Réseaux du kit : api = publication directe par le Studio (compte relié) ; draft = vidéo envoyée
+// par le serveur (brouillon TikTok, Short YouTube en privé) ; media = visuels utilisés
 const NETS = [
   { id: 'instagram', name: 'Instagram', media: 'ig', text: 'instagram', api: 'instagram', hint: 'Carrousel' },
   { id: 'facebook', name: 'Facebook', media: 'ig', text: 'instagram', api: 'facebook', hint: 'Carrousel' },
   { id: 'threads', name: 'Threads', media: 'ig', text: 'threads', api: 'threads', hint: 'Carrousel' },
   { id: 'bluesky', name: 'Bluesky', media: 'x', text: 'bluesky', api: 'bluesky', hint: '4 images au plus', max: 300 },
   { id: 'x', name: 'X', media: 'x', text: 'x', hint: 'Images à joindre au post', max: 280, intent: 'https://x.com/intent/post?text=' },
-  { id: 'tiktok', name: 'TikTok', media: 'video', text: 'tiktok', hint: 'Vidéo verticale' },
+  { id: 'tiktok', name: 'TikTok', media: 'video', text: 'tiktok', draft: 'tiktok', hint: 'Vidéo verticale : envoyée en brouillon, son et texte à ajouter dans TikTok' },
   { id: 'reels', name: 'Reels Instagram', media: 'video', text: 'tiktok', hint: 'Même vidéo, en Reel' },
-  { id: 'youtube', name: 'YouTube Shorts', media: 'video', text: 'youtube', hint: '1re ligne = titre (100 caractères au plus)' },
-  { id: 'story', name: 'Stories Instagram et Facebook', media: 'story', hint: 'Une story par image' },
+  { id: 'youtube', name: 'YouTube Shorts', media: 'video', text: 'youtube', draft: 'youtube', hint: '1re ligne = titre (100 caractères au plus). Envoyé en privé : verrouillé tant que l\'audit de l\'API YouTube n\'est pas passé' },
+  { id: 'story', name: 'Stories Instagram et Facebook', media: 'story', hint: 'Une story par image, dans l\'ordre', stories: [['instagram-story', 'instagram', 'Instagram'], ['facebook-story', 'facebook', 'Facebook']] },
 ];
 
 const done = () => store.get('launch')?.v || {};
@@ -183,8 +185,10 @@ function block(x, a, isDone) {
   const text = x.text ? a.text[x.text] : '';
   // Publication directe seulement sur le compte du kit choisi (le Studio est relié à un seul compte
   // par réseau : pas de post de Paddock Live sur le compte de Benjy Paddock, ni l'inverse)
-  const linked = x.api ? session.me?.[x.api] : null;
-  const account = linked && a.match.test(String(linked).replace(/[\s._-]/g, '')) ? linked : null;
+  const linked = x.api || x.draft ? session.me?.[x.api || x.draft] : null;
+  const mine = (name) => (name && a.match.test(String(name).replace(/[\s._-]/g, '')) ? name : null);
+  const account = mine(linked);
+  const stories = (x.stories || []).filter(([, net]) => mine(session.me?.[net]));
   const thumbs = x.media === 'video'
     ? `<video src="${media[0]}" playsinline controls preload="metadata"></video>`
     : `<div class="kit-media ${x.media}">${media.map((u, i) => `<img src="${u}" alt="" loading="lazy" data-i="${i}">`).join('')}</div>`;
@@ -194,7 +198,9 @@ function block(x, a, isDone) {
       ${thumbs}
       ${x.text ? `<textarea rows="${x.media === 'ig' ? 6 : 4}" data-text>${esc(text)}</textarea><small class="kit-count" data-count></small>` : ''}
       <div class="row kit-actions">
-        ${account ? `<button class="btn primary small" data-publish>${icon('send')}Publier sur ${esc(account)}</button>` : ''}
+        ${account && x.api ? `<button class="btn primary small" data-publish>${icon('send')}Publier sur ${esc(account)}</button>` : ''}
+        ${stories.map(([id, net, label]) => `<button class="btn primary small" data-story="${id}">${icon('send')}Story ${label} (${esc(session.me[net])})</button>`).join('')}
+        ${account && x.draft ? `<button class="btn primary small" data-draft>${icon('send')}${x.draft === 'tiktok' ? 'Brouillon' : 'Envoyer en privé'} sur ${esc(account)}</button>` : ''}
         ${x.intent ? `<button class="btn small" data-intent>${icon('link')}Ouvrir ${esc(x.name)}</button>` : ''}
         <button class="btn small" data-share>${icon('share')}${IOS ? 'Partager' : 'Enregistrer'}</button>
         ${x.text ? `<button class="btn small" data-copy>${icon('copy')}Copier le texte</button>` : ''}
@@ -226,6 +232,49 @@ function bind(x) {
     try { await share(media, area?.value || ''); } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); }
   };
   if ($('[data-intent]', box)) $('[data-intent]', box).onclick = () => { open(x.intent + encodeURIComponent(area.value), '_blank', 'noopener'); };
+  $$('[data-story]', box).forEach((btn) => {
+    btn.onclick = async () => {
+      const st = $('[data-st]', box);
+      const where = btn.textContent.trim();
+      if (!confirm(`Publier maintenant ${media.length} stories (${where}) ?\n\nElles seront publiques pendant 24 heures.`)) return;
+      btn.disabled = true;
+      st.className = 'st';
+      st.textContent = 'Envoi des stories…';
+      try {
+        const r = await sendPost(btn.dataset.story, '', await Promise.all(media.map(fileOf)));
+        st.className = 'st ok';
+        st.innerHTML = r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(where)} : publiée ${icon('check')}</a>` : `${esc(where)} : publiée ${icon('check')}`;
+        toast('Stories publiées', 'ok');
+      } catch (err) {
+        st.className = 'st err';
+        st.textContent = err.message;
+        btn.disabled = false;
+      }
+    };
+  });
+  if ($('[data-draft]', box)) {
+    $('[data-draft]', box).onclick = async (e) => {
+      const b = e.currentTarget;
+      const st = $('[data-st]', box);
+      const who = session.me?.[x.draft];
+      if (!confirm(x.draft === 'tiktok'
+        ? `Envoyer la vidéo en brouillon sur TikTok (${who}) ?\n\nRien n'est publié : ouvrez ensuite la notification dans TikTok pour ajouter le son, coller le texte et publier.`
+        : `Envoyer la vidéo en privé sur YouTube (${who}) ?\n\nTant que votre projet Google n'a pas passé l'audit de l'API YouTube, YouTube la verrouille en privé (impossible de la rendre publique).`)) return;
+      b.disabled = true;
+      st.className = 'st';
+      st.textContent = 'Envoi de la vidéo…';
+      try {
+        const r = await api('video', { method: 'POST', body: JSON.stringify({ network: x.draft, src: media[0], text: area?.value || '' }) });
+        if (x.draft === 'tiktok') { try { await navigator.clipboard.writeText(area.value); } catch { /* presse-papiers refusé */ } }
+        st.className = 'st ok';
+        st.innerHTML = `${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Envoyé ${icon('check')}</a>` : `Envoyé ${icon('check')}`} ${esc(r.note || '')}${x.draft === 'tiktok' ? ' (texte copié)' : ''}`;
+        toast(x.draft === 'tiktok' ? 'Brouillon envoyé dans TikTok' : 'Short envoyé en privé', 'ok');
+      } catch (err) {
+        st.className = 'st err';
+        st.textContent = err.message;
+      } finally { b.disabled = false; }
+    };
+  }
   if ($('[data-publish]', box)) {
     $('[data-publish]', box).onclick = async (e) => {
       const b = e.currentTarget;

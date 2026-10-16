@@ -18,7 +18,7 @@
 
 <h2>Données des comptes de réseaux sociaux (TikTok, Instagram, X…)</h2>
 <ul>
-<li>Quand vous connectez un compte (par exemple TikTok via « Se connecter à TikTok »), l'application reçoit un jeton d'accès. Ce jeton est enregistré uniquement sur votre ordinateur, dans le fichier de configuration de l'application. Il n'est envoyé à aucun serveur de Paddock Live.</li>
+<li>Quand vous connectez un compte (par exemple TikTok via « Se connecter à TikTok »), l'application reçoit un jeton d'accès. Ce jeton est enregistré sur votre ordinateur, dans le fichier de configuration de l'application. Seulement si vous activez la publication depuis un téléphone, il est aussi envoyé chiffré au serveur de Paddock Live, qui ne s'en sert que pour publier ce que vous demandez ; désactiver cette option l'efface du serveur.</li>
 <li>Pour TikTok, seules les autorisations <code>user.info.basic</code> (nom affiché du compte, pour indiquer quel compte est connecté) et <code>video.upload</code> (envoi d'une vidéo en brouillon) sont demandées.</li>
 <li>Les vidéos sont envoyées directement de votre ordinateur vers TikTok, uniquement quand vous le demandez. Elles arrivent en brouillon : vous les relisez et les publiez vous-même dans l'application TikTok.</li>
 <li>Paddock Live ne lit pas vos vidéos, abonnés, messages ni statistiques TikTok, et ne publie rien sans action de votre part.</li>
@@ -29,9 +29,9 @@
 <ul>
 <li>Paddock Live utilise les services d'API YouTube pour envoyer, à votre demande, une vidéo verticale (Short) sur votre propre chaîne. En connectant votre compte YouTube, vous acceptez les <a href="https://www.youtube.com/t/terms">conditions d'utilisation de YouTube</a>. Les données transmises à Google sont traitées selon les <a href="https://policies.google.com/privacy">règles de confidentialité de Google</a>.</li>
 <li>Autorisations demandées : <code>youtube.upload</code> (envoyer la vidéo) et <code>youtube.readonly</code> (lire le nom de votre chaîne, pour indiquer quel compte est connecté). Paddock Live ne lit ni vos vidéos, ni vos abonnés, ni vos commentaires, ni vos statistiques YouTube.</li>
-<li>Données conservées, uniquement sur votre ordinateur, dans le fichier de configuration de l'application : le jeton d'accès Google, le nom de la chaîne, et l'adresse des vidéos envoyées (historique des publications). Rien n'est envoyé aux serveurs de Paddock Live ni partagé avec des tiers.</li>
+<li>Données conservées sur votre ordinateur, dans le fichier de configuration de l'application : le jeton d'accès Google, le nom de la chaîne, et l'adresse des vidéos envoyées (historique des publications). Si vous activez la publication depuis un téléphone, le jeton et le nom de la chaîne sont aussi envoyés chiffrés au serveur de Paddock Live, uniquement pour envoyer les vidéos que vous demandez. Rien n'est partagé avec des tiers.</li>
 <li>Les vidéos sont envoyées en privé ; vous choisissez vous-même de les rendre publiques dans YouTube Studio.</li>
-<li>Suppression : « Déconnecter » dans l'application efface le jeton et le nom de la chaîne ; désinstaller l'application efface toutes ces données. Vous pouvez aussi retirer l'accès à tout moment depuis la <a href="https://security.google.com/settings/security/permissions">page des autorisations de votre compte Google</a>.</li>
+<li>Suppression : « Déconnecter » dans l'application efface le jeton et le nom de la chaîne (et, au prochain envoi, du serveur) ; désinstaller l'application efface toutes ces données. Vous pouvez aussi retirer l'accès à tout moment depuis la <a href="https://security.google.com/settings/security/permissions">page des autorisations de votre compte Google</a>.</li>
 </ul>
 
 <h2>Statistiques d'utilisation anonymes</h2>
@@ -60,7 +60,7 @@
 
 <h2>Social media account data (TikTok, Instagram, X…)</h2>
 <ul>
-<li>When you connect an account (for example TikTok via “Connect to TikTok”), the app receives an access token. This token is stored only on your computer, in the app's configuration file. It is never sent to any Paddock Live server.</li>
+<li>When you connect an account (for example TikTok via “Connect to TikTok”), the app receives an access token. This token is stored on your computer, in the app's configuration file. Only if you turn on publishing from a phone is it also sent, encrypted, to the Paddock Live server, which uses it only to publish what you ask for; turning this option off deletes it from the server.</li>
 <li>For TikTok, only the <code>user.info.basic</code> scope (account display name, to show which account is connected) and the <code>video.upload</code> scope (uploading a video as a draft) are requested.</li>
 <li>Videos are uploaded directly from your computer to TikTok, only when you ask for it. They arrive as drafts: you review and publish them yourself in the TikTok app.</li>
 <li>Paddock Live does not read your TikTok videos, followers, messages or analytics, and never posts anything without your action.</li>
@@ -71,9 +71,9 @@
 <ul>
 <li>Paddock Live uses YouTube API Services to upload, at your request, a vertical video (Short) to your own channel. By connecting your YouTube account, you agree to the <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a>. Data sent to Google is handled under the <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.</li>
 <li>Scopes requested: <code>youtube.upload</code> (upload the video) and <code>youtube.readonly</code> (read your channel name, to show which account is connected). Paddock Live does not read your YouTube videos, subscribers, comments or analytics.</li>
-<li>Data stored, only on your computer, in the app's configuration file: the Google access token, the channel name, and the links of uploaded videos (post history). Nothing is sent to Paddock Live servers or shared with third parties.</li>
+<li>Data stored on your computer, in the app's configuration file: the Google access token, the channel name, and the links of uploaded videos (post history). If you turn on publishing from a phone, the token and channel name are also sent, encrypted, to the Paddock Live server, only to upload the videos you ask for. Nothing is shared with third parties.</li>
 <li>Videos are uploaded as private; you decide yourself to make them public in YouTube Studio.</li>
-<li>Deletion: “Disconnect” in the app erases the token and channel name; uninstalling the app erases all of this data. You can also revoke access at any time from your <a href="https://security.google.com/settings/security/permissions">Google Account permissions page</a>.</li>
+<li>Deletion: “Disconnect” in the app erases the token and channel name (and from the server at the next sync); uninstalling the app erases all of this data. You can also revoke access at any time from your <a href="https://security.google.com/settings/security/permissions">Google Account permissions page</a>.</li>
 </ul>
 
 <h2>Anonymous usage statistics</h2>

@@ -6,11 +6,10 @@ import { getConfig, saveConfig } from './config.js';
 import { xLength } from '../shared/social.js';
 import { bskySession, publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { call, GRAPH, THREADS, timing, publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
+import { YOUTUBE, tiktokOAuth, googleOAuth, tiktokTokens, youtubeTokens, freshTiktok, freshYoutube, tiktokDraft, youtubeUpload, youtubeSnippet } from '../shared/video-publish.js';
 
 const XAPI = 'https://api.x.com/2';
 const TIKTOK = 'https://open.tiktokapis.com/v2';
-const GOOGLE_TOKEN = 'https://oauth2.googleapis.com/token';
-const YOUTUBE = 'https://www.googleapis.com/youtube/v3';
 export const NETWORKS = ['x', 'facebook', 'instagram', 'threads', 'bluesky', 'tiktok', 'youtube'];
 
 const conf = () => getConfig().social || {};
@@ -140,24 +139,6 @@ async function threadsAccount() {
 }
 
 // ---------- TikTok : connexion (PKCE, retour sur cet ordinateur) et brouillon vidéo ----------
-// Jetons TikTok : formulaire envoyé avec « application/x-www-form-urlencoded » tout court. TikTok
-// refuse l'en-tête que fetch met de lui-même (« …;charset=UTF-8 ») : « invalid_request ».
-async function tiktokOAuth(form) {
-  const res = await fetch(`${TIKTOK}/oauth/token/`, {
-    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(), signal: AbortSignal.timeout(30000),
-  });
-  let d = {};
-  try { d = JSON.parse(await res.text()); } catch { /* réponse illisible */ }
-  if (!res.ok || d.error || !d.access_token) {
-    const why = [d.error, d.error_description].filter(Boolean).join(' : ') || `HTTP ${res.status}`;
-    const e = new Error(String(why).slice(0, 300));
-    e.code = d.error || '';
-    throw e;
-  }
-  return d;
-}
-
 const pending = new Map();   // state -> { verifier, redirect, at }
 
 export function tiktokLoginUrl(origin) {
@@ -173,7 +154,7 @@ export function tiktokLoginUrl(origin) {
 }
 
 function storeTiktok(t, r) {
-  save('tiktok', { ...t, accessToken: r.access_token, expiresAt: Date.now() + (r.expires_in || 86400) * 1000, refreshToken: r.refresh_token || t.refreshToken, openId: r.open_id || t.openId });
+  save('tiktok', tiktokTokens(t, r));
   return conf().tiktok;
 }
 
@@ -193,40 +174,17 @@ export async function tiktokCallback(params) {
 
 async function tiktokToken() {
   const t = conf().tiktok;
-  if (!t?.refreshToken) throw new Error('Compte TikTok non connecté');
-  if (t.accessToken && t.expiresAt - Date.now() > 5 * 60e3) return t.accessToken;
-  const r = await tiktokOAuth({ client_key: t.clientKey, client_secret: t.clientSecret, grant_type: 'refresh_token', refresh_token: t.refreshToken });
-  return storeTiktok(t, r).accessToken;
+  const fresh = await freshTiktok(t);
+  if (fresh !== t) save('tiktok', fresh);
+  return fresh.accessToken;
 }
 
 async function publishTiktok(video, mime) {
   if (!video?.length) throw new Error('Vidéo manquante');
-  const token = await tiktokToken();
-  const init = await call(`${TIKTOK}/post/publish/inbox/video/init/`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, json: { source_info: { source: 'FILE_UPLOAD', video_size: video.length, chunk_size: video.length, total_chunk_count: 1 } } });
-  const res = await fetch(init.data.upload_url, { method: 'PUT', headers: { 'Content-Type': mime, 'Content-Length': String(video.length), 'Content-Range': `bytes 0-${video.length - 1}/${video.length}` }, body: video, signal: AbortSignal.timeout(300000) });
-  if (!res.ok) throw new Error(`Envoi de la vidéo refusé (HTTP ${res.status})`);
-  return { url: null, note: 'Brouillon envoyé : ouvrez la notification dans TikTok pour ajouter un son et publier' };
+  return tiktokDraft(await tiktokToken(), video, mime);
 }
 
 // ---------- YouTube : connexion Google (PKCE, retour sur cet ordinateur) et Short envoyé en privé ----------
-// Projet Google sans audit de l'API YouTube : YouTube verrouille en privé les vidéos envoyées par l'API
-// (impossible de les rendre publiques). Après l'audit, le Short envoyé en privé se rend public dans YouTube Studio.
-async function googleOAuth(form) {
-  const res = await fetch(GOOGLE_TOKEN, {
-    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString(), signal: AbortSignal.timeout(30000),
-  });
-  let d = {};
-  try { d = JSON.parse(await res.text()); } catch { /* réponse illisible */ }
-  if (!res.ok || d.error || !d.access_token) {
-    const why = [d.error, d.error_description].filter(Boolean).join(' : ') || `HTTP ${res.status}`;
-    const e = new Error(String(why).slice(0, 300));
-    e.code = d.error || '';
-    throw e;
-  }
-  return d;
-}
-
 export function youtubeLoginUrl(origin) {
   const y = conf().youtube;
   if (!y?.clientId) throw new Error('Renseignez d\'abord l\'ID client et le code secret Google');
@@ -242,7 +200,7 @@ export function youtubeLoginUrl(origin) {
 }
 
 function storeYoutube(y, r) {
-  save('youtube', { ...y, accessToken: r.access_token, expiresAt: Date.now() + (r.expires_in || 3600) * 1000, refreshToken: r.refresh_token || y.refreshToken });
+  save('youtube', youtubeTokens(y, r));
   return conf().youtube;
 }
 
@@ -263,10 +221,10 @@ export async function youtubeCallback(params) {
 
 async function youtubeToken() {
   const y = conf().youtube;
-  if (!y?.refreshToken) throw new Error('Compte YouTube non connecté');
-  if (y.accessToken && y.expiresAt - Date.now() > 5 * 60e3) return y.accessToken;
   try {
-    return storeYoutube(y, await googleOAuth({ client_id: y.clientId, client_secret: y.clientSecret, grant_type: 'refresh_token', refresh_token: y.refreshToken })).accessToken;
+    const fresh = await freshYoutube(y);
+    if (fresh !== y) save('youtube', fresh);
+    return fresh.accessToken;
   } catch (err) {
     // Accès retiré ou expiré (projet Google en mode « Test » : 7 jours) : il faut se reconnecter
     if (err.code === 'invalid_grant') {
@@ -278,35 +236,11 @@ async function youtubeToken() {
   }
 }
 
-// Titre (1re ligne, 100 caractères) et description : YouTube refuse les chevrons
-export function youtubeSnippet(text) {
-  const clean = String(text || '').replace(/[<>]/g, '').trim();
-  const lines = clean.split('\n');
-  const title = [...(lines[0] || '').trim()].slice(0, 100).join('').trim() || 'Paddock';
-  let description = lines.slice(1).join('\n').trim();
-  if (!/#shorts\b/i.test(clean)) description = `${description}${description ? '\n\n' : ''}#Shorts`;
-  return { title, description: [...description].slice(0, 4900).join(''), categoryId: '17' };
-}
+export { youtubeSnippet };
 
 async function publishYoutube(video, mime, text) {
   if (!video?.length) throw new Error('Vidéo manquante');
-  const token = await youtubeToken();
-  const init = await fetch(`https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Length': String(video.length), 'X-Upload-Content-Type': mime },
-    body: JSON.stringify({ snippet: youtubeSnippet(text), status: { privacyStatus: 'private', selfDeclaredMadeForKids: false } }),
-    signal: AbortSignal.timeout(30000),
-  });
-  const where = init.headers.get('location');
-  if (!init.ok || !where) {
-    const j = await init.json().catch(() => ({}));
-    const why = j.error?.errors?.[0]?.reason === 'quotaExceeded' ? 'quota du jour de l\'API YouTube atteint, réessayez demain' : j.error?.message || `HTTP ${init.status}`;
-    throw new Error(`Envoi refusé par YouTube : ${why}`);
-  }
-  const res = await fetch(where, { method: 'PUT', headers: { 'Content-Type': mime, 'Content-Length': String(video.length) }, body: video, signal: AbortSignal.timeout(600000) });
-  const v = await res.json().catch(() => ({}));
-  if (!res.ok || !v.id) throw new Error(`Envoi de la vidéo refusé par YouTube (${v.error?.message || `HTTP ${res.status}`})`);
-  return { url: `https://youtube.com/shorts/${v.id}`, id: v.id, note: 'Short envoyé en privé (verrouillé par YouTube tant que votre projet Google n\'a pas passé l\'audit de l\'API YouTube)' };
+  return youtubeUpload(await youtubeToken(), video, mime, text);
 }
 
 // ---------- Publication ----------

@@ -27,6 +27,7 @@ on:
       - 'shared/flags.js'
       - 'shared/post-*.js'
       - 'shared/bluesky-publish.js'
+      - 'shared/video-publish.js'
       - 'shared/tyres.js'
       - 'shared/news-collect.js'
       - 'shared/feed-pack.js'

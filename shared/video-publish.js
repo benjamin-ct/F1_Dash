@@ -1,0 +1,85 @@
+// Envoi des vidéos verticales du créateur : brouillon TikTok (à finir dans l'appli TikTok) et Short
+// YouTube envoyé en privé. Code partagé par l'appli de bureau et la page web du créateur (Studio) ;
+// les jetons sont renouvelés ici et rendus à l'appelant, qui les enregistre.
+import { call } from './meta-publish.js';
+
+const TIKTOK = 'https://open.tiktokapis.com/v2';
+const GOOGLE_TOKEN = 'https://oauth2.googleapis.com/token';
+export const YOUTUBE = 'https://www.googleapis.com/youtube/v3';
+
+// Jetons TikTok et Google : formulaire envoyé avec « application/x-www-form-urlencoded » tout court.
+// TikTok refuse l'en-tête que fetch met de lui-même (« …;charset=UTF-8 ») : « invalid_request ».
+export async function formOAuth(url, form, fetchFn = fetch) {
+  const res = await fetchFn(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(form).toString(), signal: AbortSignal.timeout(30000),
+  });
+  let d = {};
+  try { d = JSON.parse(await res.text()); } catch { /* réponse illisible */ }
+  if (!res.ok || d.error || !d.access_token) {
+    const why = [d.error, d.error_description].filter(Boolean).join(' : ') || `HTTP ${res.status}`;
+    const e = new Error(String(why).slice(0, 300));
+    e.code = d.error || '';
+    throw e;
+  }
+  return d;
+}
+export const tiktokOAuth = (form, fetchFn) => formOAuth(`${TIKTOK}/oauth/token/`, form, fetchFn);
+export const googleOAuth = (form, fetchFn) => formOAuth(GOOGLE_TOKEN, form, fetchFn);
+
+// Jetons gardés à jour : le même objet s'il est encore valable 5 minutes, sinon un nouvel objet
+export const tiktokTokens = (t, r) => ({ ...t, accessToken: r.access_token, expiresAt: Date.now() + (r.expires_in || 86400) * 1000, refreshToken: r.refresh_token || t.refreshToken, openId: r.open_id || t.openId });
+export async function freshTiktok(t) {
+  if (!t?.refreshToken) throw new Error('Compte TikTok non connecté');
+  if (t.accessToken && t.expiresAt - Date.now() > 5 * 60e3) return t;
+  return tiktokTokens(t, await tiktokOAuth({ client_key: t.clientKey, client_secret: t.clientSecret, grant_type: 'refresh_token', refresh_token: t.refreshToken }));
+}
+export const youtubeTokens = (y, r) => ({ ...y, accessToken: r.access_token, expiresAt: Date.now() + (r.expires_in || 3600) * 1000, refreshToken: r.refresh_token || y.refreshToken });
+// Accès retiré ou expiré chez Google (projet en mode « Test » : 7 jours) : erreur avec code invalid_grant
+export async function freshYoutube(y) {
+  if (!y?.refreshToken) throw new Error('Compte YouTube non connecté');
+  if (y.accessToken && y.expiresAt - Date.now() > 5 * 60e3) return y;
+  return youtubeTokens(y, await googleOAuth({ client_id: y.clientId, client_secret: y.clientSecret, grant_type: 'refresh_token', refresh_token: y.refreshToken }));
+}
+
+// Brouillon TikTok (boîte de réception de l'appli TikTok) ; video : octets (Uint8Array ou Buffer)
+export async function tiktokDraft(token, video, mime = 'video/mp4') {
+  if (!video?.length) throw new Error('Vidéo manquante');
+  const init = await call(`${TIKTOK}/post/publish/inbox/video/init/`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, json: { source_info: { source: 'FILE_UPLOAD', video_size: video.length, chunk_size: video.length, total_chunk_count: 1 } } });
+  const res = await fetch(init.data.upload_url, { method: 'PUT', headers: { 'Content-Type': mime, 'Content-Range': `bytes 0-${video.length - 1}/${video.length}` }, body: video, signal: AbortSignal.timeout(300000) });
+  if (!res.ok) throw new Error(`Envoi de la vidéo refusé (HTTP ${res.status})`);
+  return { url: null, note: 'Brouillon envoyé : ouvrez la notification dans TikTok pour ajouter un son et publier' };
+}
+
+// Titre (1re ligne, 100 caractères) et description : YouTube refuse les chevrons
+export function youtubeSnippet(text) {
+  const clean = String(text || '').replace(/[<>]/g, '').trim();
+  const lines = clean.split('\n');
+  const title = [...(lines[0] || '').trim()].slice(0, 100).join('').trim() || 'Paddock';
+  let description = lines.slice(1).join('\n').trim();
+  if (!/#shorts\b/i.test(clean)) description = `${description}${description ? '\n\n' : ''}#Shorts`;
+  return { title, description: [...description].slice(0, 4900).join(''), categoryId: '17' };
+}
+
+// Short envoyé en privé (envoi par reprise). Projet Google sans audit de l'API YouTube : YouTube
+// verrouille la vidéo en privé (impossible de la rendre publique) ; après l'audit, elle se rend
+// publique dans YouTube Studio.
+export async function youtubeUpload(token, video, mime, text) {
+  if (!video?.length) throw new Error('Vidéo manquante');
+  const init = await fetch('https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Length': String(video.length), 'X-Upload-Content-Type': mime },
+    body: JSON.stringify({ snippet: youtubeSnippet(text), status: { privacyStatus: 'private', selfDeclaredMadeForKids: false } }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const where = init.headers.get('location');
+  if (!init.ok || !where) {
+    const j = await init.json().catch(() => ({}));
+    const why = j.error?.errors?.[0]?.reason === 'quotaExceeded' ? 'quota du jour de l\'API YouTube atteint, réessayez demain' : j.error?.message || `HTTP ${init.status}`;
+    throw new Error(`Envoi refusé par YouTube : ${why}`);
+  }
+  const res = await fetch(where, { method: 'PUT', headers: { 'Content-Type': mime }, body: video, signal: AbortSignal.timeout(600000) });
+  const v = await res.json().catch(() => ({}));
+  if (!res.ok || !v.id) throw new Error(`Envoi de la vidéo refusé par YouTube (${v.error?.message || `HTTP ${res.status}`})`);
+  return { url: `https://youtube.com/shorts/${v.id}`, id: v.id, note: 'Short envoyé en privé (verrouillé par YouTube tant que votre projet Google n\'a pas passé l\'audit de l\'API YouTube)' };
+}

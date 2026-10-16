@@ -1,14 +1,16 @@
 // Page web du créateur (/studio/) : posts des séances et des grosses news, préparés dans le
 // navigateur (téléphone compris) et publiés sur Facebook, Instagram et Threads depuis ce serveur,
-// toujours après validation. Rien n'est publié tout seul.
+// toujours après validation. Rien n'est publié tout seul. Vidéos du kit de lancement : brouillon
+// TikTok et Short YouTube en privé, envoyés par ce serveur.
 //
 // Accès : clé dérivée du code du mode créateur (PBKDF2, calculée par l'appli et par la page, jamais
 // le code lui-même sauf à l'activation, vérifiée contre son empreinte). Les jetons des réseaux
 // (envoyés par l'appli) sont chiffrés avec cette clé (AES-GCM) : sans elle, la base ne contient
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
+import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
 import { pushApi } from './alerts.js';
@@ -75,6 +77,8 @@ function cleanVault(v) {
   if (v?.meta?.pageToken) out.meta = { pageId: s(v.meta.pageId, 40), pageName: s(v.meta.pageName, 120), pageToken: s(v.meta.pageToken), igId: s(v.meta.igId, 40), igUsername: s(v.meta.igUsername, 60) };
   if (v?.threads?.token) out.threads = { token: s(v.threads.token), userId: s(v.threads.userId, 40), username: s(v.threads.username, 60), expiresAt: Number(v.threads.expiresAt) || null };
   if (v?.bluesky?.appPassword) out.bluesky = { handle: s(v.bluesky.handle, 120), appPassword: s(v.bluesky.appPassword, 100), did: s(v.bluesky.did, 120) };
+  if (v?.tiktok?.refreshToken) out.tiktok = { clientKey: s(v.tiktok.clientKey, 200), clientSecret: s(v.tiktok.clientSecret, 200), accessToken: s(v.tiktok.accessToken), expiresAt: Number(v.tiktok.expiresAt) || 0, refreshToken: s(v.tiktok.refreshToken), openId: s(v.tiktok.openId, 200), name: s(v.tiktok.name, 120) };
+  if (v?.youtube?.refreshToken) out.youtube = { clientId: s(v.youtube.clientId, 300), clientSecret: s(v.youtube.clientSecret, 200), accessToken: s(v.youtube.accessToken), expiresAt: Number(v.youtube.expiresAt) || 0, refreshToken: s(v.youtube.refreshToken), name: s(v.youtube.name, 120) };
   if (v?.f1tv) out.f1tv = s(v.f1tv, 6000);
   if (v?.f1tvOff === true) out.f1tvOff = true;
   return out;
@@ -134,6 +138,9 @@ function keepNewer(old, incoming) {
   const out = { ...incoming };
   if (old.threads?.token && out.threads?.token && old.threads.userId === out.threads.userId && (old.threads.expiresAt || 0) > (out.threads.expiresAt || 0)) out.threads = old.threads;
   if (old.f1tv && out.f1tv && jwtSession(old.f1tv) === jwtSession(out.f1tv) && jwtExp(old.f1tv) > jwtExp(out.f1tv)) out.f1tv = old.f1tv;
+  // TikTok, YouTube : jetons renouvelés par le serveur gardés s'ils sont plus récents (même compte, même app)
+  if (old.tiktok && out.tiktok && old.tiktok.openId === out.tiktok.openId && old.tiktok.clientKey === out.tiktok.clientKey && (old.tiktok.expiresAt || 0) > (out.tiktok.expiresAt || 0)) out.tiktok = { ...out.tiktok, accessToken: old.tiktok.accessToken, expiresAt: old.tiktok.expiresAt, refreshToken: old.tiktok.refreshToken };
+  if (old.youtube && out.youtube && old.youtube.clientId === out.youtube.clientId && old.youtube.refreshToken === out.youtube.refreshToken && (old.youtube.expiresAt || 0) > (out.youtube.expiresAt || 0)) out.youtube = { ...out.youtube, accessToken: old.youtube.accessToken, expiresAt: old.youtube.expiresAt };
   // Jeton expiré dans l'appli (restée fermée) : celui que le serveur a renouvelé est gardé
   if (old.f1tv && !out.f1tv && !out.f1tvOff && jwtExp(old.f1tv) > Date.now()) out.f1tv = old.f1tv;
   delete out.f1tvOff;
@@ -259,10 +266,13 @@ async function sendTo(net, vault, { text, comment, images, small = [] }, threads
   }
   if (net === 'facebook') return withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
   if (net === 'instagram') return publishInstagram(vault.meta, text.slice(0, 2200), images);
+  if (net === 'instagram-story') return storyInstagram(vault.meta, images);
+  if (net === 'facebook-story') return storyFacebook(vault.meta, images);
   const th = await threads();
   return withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images), comment, (id, t) => replyThreads(th, id, t));
 }
 const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
+const STORIES = ['instagram-story', 'facebook-story'];   // kit de lancement : publication directe seulement
 // Compte du réseau absent du coffre : raison, sinon null
 function missing(net, vault) {
   if (net === 'bluesky') return vault.bluesky ? null : 'Compte Bluesky non envoyé : connectez-le dans l\'appli';
@@ -280,7 +290,7 @@ async function publish(req, env, raw, vault) {
   const text = String(form.get('text') || '');
   const comment = String(form.get('comment') || '').trim().slice(0, 500);
   const images = form.getAll('images').filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type) && f.size < 8e6).slice(0, 20);
-  if (!NETS.includes(net)) return json({ error: 'Réseau inconnu' }, 400);
+  if (!NETS.includes(net) && !STORIES.includes(net)) return json({ error: 'Réseau inconnu' }, 400);
   if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
   if (!images.length) return json({ error: 'Aucune image' }, 400);
   const { readable, writable } = new TransformStream();
@@ -298,6 +308,32 @@ async function publish(req, env, raw, vault) {
     }
   })();
   return new Response(readable, { headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
+// ---------- Vidéo du kit de lancement : brouillon TikTok, Short YouTube en privé ----------
+// Seulement les vidéos du kit (fichiers du site) : rien d'autre ne transite par ici.
+async function sendVideo(req, env, raw, vault, url) {
+  let body;
+  try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+  const net = String(body?.network || '');
+  const src = String(body?.src || '');
+  if (net !== 'tiktok' && net !== 'youtube') return json({ error: 'Réseau inconnu' }, 400);
+  if (!vault[net]) return json({ error: `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »` }, 409);
+  if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src) || !env.ASSETS) return json({ error: 'Vidéo inconnue' }, 400);
+  const file = await env.ASSETS.fetch(new Request(new URL(src, url)));
+  if (!file.ok) return json({ error: 'Vidéo du kit introuvable' }, 404);
+  const video = new Uint8Array(await file.arrayBuffer());
+  try {
+    const acc = await (net === 'tiktok' ? freshTiktok : freshYoutube)(vault[net]);
+    if (acc !== vault[net]) await setRow(env, 'vault', await seal(raw, { ...vault, [net]: acc }));
+    const r = net === 'tiktok' ? await tiktokDraft(acc.accessToken, video, 'video/mp4') : await youtubeUpload(acc.accessToken, video, 'video/mp4', String(body?.text || ''));
+    return json({ ok: true, url: r.url || null, id: r.id ?? null, note: r.note });
+  } catch (err) {
+    const msg = err.code === 'invalid_grant' || err.code === 'invalid_client'
+      ? `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-vous dans l'appli (Comptes…), puis « Renvoyer les comptes »`
+      : String(err?.message || err).slice(0, 300);
+    return json({ error: msg }, 502);
+  }
 }
 
 // ---------- Publications programmées ----------
@@ -458,6 +494,7 @@ export async function studioApi(req, env, url) {
     return json({
       facebook: vault.meta?.pageName || null, instagram: vault.meta?.igId ? `@${vault.meta.igUsername || ''}` : null,
       threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, bluesky: vault.bluesky ? `@${vault.bluesky.handle}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
+      tiktok: vault.tiktok ? vault.tiktok.name || 'TikTok' : null, youtube: vault.youtube ? vault.youtube.name || 'YouTube' : null,
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
   }
@@ -507,6 +544,7 @@ export async function studioApi(req, env, url) {
     if (!vault.meta?.pageToken && !vault.bluesky) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
     return publish(req, env, a.raw, vault);
   }
+  if (path === 'video' && req.method === 'POST') return sendVideo(req, env, a.raw, vault, url);
   // Alertes des grosses news sur le téléphone (abonnements, dernières alertes)
   const pushed = await pushApi(path, req, env);
   if (pushed) return pushed;
