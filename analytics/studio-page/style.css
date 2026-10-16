@@ -57,7 +57,8 @@ a { color: inherit; }
 /* ---------- Structure : en-tête, page, barres flottantes ---------- */
 /* Page toujours au moins aussi haute que l'écran : sur l'iPhone (page installée sous la barre
    d'état), une page plus courte remontait les barres fixées en bas de la hauteur de la barre d'état */
-html { min-height: 100%; }
+html { min-height: 100%; overflow-x: hidden; }
+.page { overflow-x: clip; }
 body { min-height: 100vh; min-height: 100lvh; }
 .appbar {
   position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px;
@@ -136,7 +137,8 @@ body { min-height: 100vh; min-height: 100lvh; }
 .seg.wide { display: flex; width: 100%; }
 .seg.wide button { flex: 1; padding-inline: 4px; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
-.chip-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+.chip-toggle { position: relative; }
+.chip-toggle input { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
 .chip-toggle span { display: inline-block; padding: 9px 15px; border: 1px solid var(--line-2); border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--text-2); cursor: pointer; }
 .chip-toggle input:checked + span { background: var(--brand-wash); border-color: transparent; color: var(--brand); }
 .chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 calc(-1 * var(--gutter)) 10px; padding: 0 var(--gutter) 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
@@ -249,8 +251,10 @@ button.row-item:active { background: var(--surface-2); }
 .slides.x .sl { width: min(86vw, 440px); }
 .slides.story .sl { width: min(56vw, 240px); }
 .slides canvas { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 22px rgba(0, 0, 0, .22); transition: opacity .2s, filter .2s; }
-.pick { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
-.pick input { position: absolute; opacity: 0; pointer-events: none; }
+/* Case cachée placée dans son image (sinon, rattachée à la page, celles des dernières images
+   débordaient à droite et l'iPhone dézoomait toute la page) */
+.pick { position: relative; display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.pick input { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
 .pick [data-num] { display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 4px; border-radius: 6px; background: var(--brand); color: #fff; font: 700 12px 'JetBrains Mono', monospace; }
 .sl.off canvas { opacity: .3; filter: grayscale(1); }
 .sl.off .pick { color: var(--muted); text-decoration: line-through; }
