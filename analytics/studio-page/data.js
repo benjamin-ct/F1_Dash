@@ -48,13 +48,21 @@ async function fetchNews() {
   const now = Date.now();
   const bySrc = new Map(session.me.sources.map((s) => [s.id, s]));
   const items = [];
+  const got = new Set();
   try {
     const buf = new Uint8Array(await (await api('feeds', { raw: true })).arrayBuffer());
     for (const p of unpackFeeds(buf)) {
       const s = bySrc.get(p.id);
       if (!s) continue;
-      try { items.push(...feedItems(s, await decodeBody(new Response(p.body, { headers: { 'Content-Type': p.type } })), now)); } catch { /* flux illisible */ }
+      try {
+        const list = feedItems(s, await decodeBody(new Response(p.body, { headers: { 'Content-Type': p.type } })), now);
+        if (list.length) { items.push(...list); got.add(p.id); }
+      } catch { /* flux illisible */ }
     }
+    // Sources absentes de cette lecture (lentes, en panne) : articles déjà connus gardés (moins de
+    // 12 heures), sinon les grosses news reprises par ces médias disparaîtraient de la liste
+    const prev = news || store.get('news', NEWS_KEEP)?.v || [];
+    for (const it of prev) if (!got.has(it.src) && bySrc.has(it.src)) items.push({ ...it });
   } catch (err) {
     if (err.message === 'Code incorrect') throw err;
     // Serveur d'avant la lecture groupée : une requête par source
