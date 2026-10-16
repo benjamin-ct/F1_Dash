@@ -41,6 +41,7 @@ import { cloud, createCloudTranslator } from './cloud-translate.js';
 import { cloudRadio } from './cloud-transcribe.js';
 import { createNewsTranslator, startNewsTranslation } from './news-translate.js';
 import { createArticleReader } from './article.js';
+import { createNewsSummarizer } from './news-summary.js';
 
 let lan = null;   // accès depuis un téléphone / une tablette du réseau local
 
@@ -70,6 +71,7 @@ const live = new LiveSource(hub, () => {
 const replay = new ReplaySource(hub);
 // Articles de l'Actu lus dans l'appli (server/article.js)
 const articles = createArticleReader({ items: () => newsSnapshot().items });
+const summarize = createNewsSummarizer({ articles });
 
 // Actualités traduites d'avance (server/news-translate.js)
 const newsTranslator = createNewsTranslator({
@@ -331,6 +333,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/stats':
     case 'GET /api/social/history':
     case 'GET /api/social/grid':
+    case 'POST /api/social/summary':
     case 'POST /api/social/history': {
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
@@ -345,6 +348,8 @@ async function handleApi(req, res, url) {
           if (!Number(q.get('year')) || !meeting.name) return sendJSON(res, 400, { error: 'Paramètres year et name requis' });
           return sendJSON(res, 200, { grid: await officialGrid(Number(q.get('year')), meeting, { sprint: q.get('sprint') === '1' }) });
         }
+        // Résumé détaillé d'une news en points clés (images suivantes du post)
+        if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
         if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
         if (route === 'POST /api/social/studio') {
           const b = await readBody(req, 1e4);

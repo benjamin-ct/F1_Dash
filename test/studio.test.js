@@ -187,3 +187,21 @@ test('page du créateur : relais des documents de la FIA limité aux pages F1 et
   } finally { globalThis.fetch = real; }
   assert.deepEqual(asked, ['https://www.fia.com/system/files/decision-document/2026_azerbaijan_grand_prix_-_final_starting_grid.pdf', 'https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Azerbaijan%20Grand%20Prix']);
 });
+
+test("page du créateur : relais des pages d'articles (résumé détaillé) en texte brut, adresses sûres seulement", async () => {
+  const page = (u) => worker(`https://s.test/studio/api/page?u=${encodeURIComponent(u)}`, { headers: { 'X-Studio-Key': studioKey('TEST') } });
+  for (const bad of ['http://www.formula1.com/a', 'https://127.0.0.1/a', 'https://localhost/a', 'https://user:pw@www.formula1.com/a', 'https://www.formula1.com:8443/a', 'file:///etc/passwd', 'pas une adresse']) {
+    assert.equal((await page(bad)).status, 400, bad);
+  }
+  const real = globalThis.fetch;
+  const asked = [];
+  globalThis.fetch = async (u) => { asked.push(String(u)); return new Response('<html><p>Été</p></html>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } }); };
+  try {
+    const r = await page('https://www.formula1.com/en/latest/article/hamilton.1234');
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('Content-Type'), 'text/plain; charset=utf-8');   // jamais servie comme une page du serveur
+    assert.equal(await r.text(), '<html><p>Été</p></html>');
+  } finally { globalThis.fetch = real; }
+  assert.deepEqual(asked, ['https://www.formula1.com/en/latest/article/hamilton.1234']);
+  assert.equal((await worker('https://s.test/studio/api/page?u=https%3A%2F%2Fwww.formula1.com%2Fa')).status, 401);
+});

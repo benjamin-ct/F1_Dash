@@ -32,6 +32,7 @@ on:
       - 'shared/fia-list.js'
       - 'shared/fia-grid.js'
       - 'shared/pull-refresh.js'
+      - 'shared/article.js'
       - 'scripts/build-studio.mjs'
       - '.github/workflows/stats.yml'
 

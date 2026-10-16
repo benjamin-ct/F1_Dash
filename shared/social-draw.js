@@ -3,6 +3,7 @@
 // (1600 × 900). Les textes des visuels sont en français (contenu publié).
 
 import { teammateDuels, FLASH_KINDS, GRID_SOURCE } from './social-more.js';
+import { followReason } from './social-follow.js';
 
 export const FORMATS = {
   ig: { w: 1080, h: 1350, name: 'instagram' },
@@ -17,9 +18,14 @@ const MONO = '"JetBrains Mono", monospace';
 const MEDAL = [C.gold, C.silver, C.bronze];
 
 // Diapositives selon la séance, après une couverture « Résultats » (anti-spoiler : le vainqueur
-// n'est pas dévoilé dès la première image, ni dans l'aperçu du réseau)
-export function slidesFor(d) {
-  if (d.news) return ['news'];
+// n'est pas dévoilé dès la première image, ni dans l'aperçu du réseau). follow : dernière image
+// « Abonnez-vous » sur les carrousels (pas au format X : X et Bluesky publient 4 images au plus).
+export function slidesFor(d, { fmt = 'ig', follow = false } = {}) {
+  const list = baseSlides(d, fmt);
+  return follow && fmt !== 'x' && list.length > 1 ? [...list, 'abonnement'] : list;
+}
+function baseSlides(d, fmt) {
+  if (d.news) return ['news', ...pointPages(d.points, fmt).map((_, i) => `essentiel-${i + 1}`)];
   if (d.post === 'prerace') return ['couverture', 'grille', ...(d.weather || d.tyres ? ['meteo'] : [])];
   if (d.post === 'champ') return ['couverture', 'champpilotes', 'champecuries'];
   if (d.post === 'flash') return ['flash'];
@@ -30,7 +36,19 @@ export function slidesFor(d) {
   else if (d.kind === 'quali') list = ['pole', 'podium', 'classement', ...duels, ...(d.facts.length ? ['faits'] : [])];
   return ['couverture', ...list];
 }
-export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat' };
+// Points clés d'une news répartis en images de taille égale (3 au plus par image, 5 en story)
+export function pointPages(points, fmt = 'ig') {
+  const list = (points || []).filter(Boolean);
+  if (!list.length) return [];
+  const per = fmt === 'story' ? 5 : 3;
+  const n = Math.ceil(list.length / per);
+  const pages = [];
+  let i = 0;
+  for (let k = 0; k < n; k++) { const take = Math.ceil((list.length - i) / (n - k)); pages.push(list.slice(i, i + take)); i += take; }
+  return pages;
+}
+export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', essentiel: "L'essentiel" };
+export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
 
 // ---------- Outils de dessin ----------
 function rr(ctx, x, y, w, h, r) {
@@ -463,7 +481,7 @@ const lightColor = (hex) => {
   return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255) > 150;
 };
 
-function newsSlide(ctx, W, H, d, o) {
+function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   background(ctx, W, H, d.color);
   const land = W > H;
   const u = Math.min(W, H) / 1080;
@@ -476,6 +494,20 @@ function newsSlide(ctx, W, H, d, o) {
   txt(ctx, d.date.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   const bottom = fy - Math.round(Math.min(W, H) * 0.07);
+  // Résumé détaillé dans les images suivantes : invitation à faire défiler
+  const more = d.points?.filter(Boolean).length;
+  if (more && fmt !== 'x') {
+    const ax = W - pad;
+    const ay = top + 38 * u;
+    ctx.save();
+    ctx.strokeStyle = C.red; ctx.lineWidth = 5 * u; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (const k of [0, 1]) {
+      const cx = ax - k * 18 * u;
+      ctx.beginPath(); ctx.moveTo(cx - 14 * u, ay - 13 * u); ctx.lineTo(cx, ay); ctx.lineTo(cx - 14 * u, ay + 13 * u); ctx.stroke();
+    }
+    ctx.restore();
+    txt(ctx, `L'ESSENTIEL EN ${more} POINTS`, ax - 52 * u, ay + 10 * u, { size: Math.round(26 * u), weight: 700, family: TITLE, align: 'right', spacing: 2 });
+  }
 
   // Photos des pilotes cités : une grande, ou une rangée de ronds
   const withPhoto = d.drivers.filter((p) => o.photos?.[p.num]);
@@ -710,6 +742,115 @@ function flash(ctx, W, H, d, o) {
   if (ev.lap) txt(ctx, `TOUR ${ev.lap}${d.laps ? ` / ${d.laps}` : ''}`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.024), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }
 
+// ---------- Dernière image des carrousels : s'abonner au compte ----------
+const FOLLOW_TOPICS = [
+  ['RÉSULTATS', 'Chaque séance, du podium au classement complet'],
+  ['GRILLES', 'Les grilles de départ officielles et les pénalités'],
+  ['ACTU', 'Transferts, annonces et décisions des commissaires'],
+  ['CHAMPIONNAT', 'Les classements pilotes et constructeurs'],
+];
+function follow(ctx, W, H, d, o) {
+  background(ctx, W, H, C.red);
+  const land = W > H;
+  const u = Math.min(W, H) / 1080;
+  const pad = Math.round(W * 0.055);
+  const top = Math.round(Math.min(W, H) * 0.06);
+  ctx.fillStyle = C.red;
+  ctx.fillRect(pad, top, 10, Math.round(64 * u));
+  txt(ctx, 'FORMULE 1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
+  txt(ctx, `SAISON ${d.year || ''}`.trim(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 3 });
+  const handle = o.signature || '@BenjyPaddock';
+  const colW = land ? W * 0.48 : W - pad * 2;
+  const fy = H - Math.round(Math.min(W, H) * 0.045);
+  // Bloc d'appel : grand titre, raison adaptée au post, compte dans une pastille rouge
+  const tall = H / W > 1.5;
+  let y = land ? H * 0.3 : tall ? H * 0.22 : H * 0.19;
+  const big = txt(ctx, 'ABONNEZ-VOUS', pad, y + 150 * u, { size: Math.round(170 * u), weight: 800, family: TITLE, max: colW, spacing: 2 });
+  y += big * 0.88 + 60 * u;
+  const reason = followReason(d);
+  const r = fitLines(ctx, reason.charAt(0).toUpperCase() + reason.slice(1), colW, [46, 42, 38].map((v) => Math.round(v * u)), 3, BODY, 600);
+  r.lines.forEach((l, i) => txt(ctx, l, pad, y + r.size * 0.8 + i * r.size * 1.3, { size: r.size, weight: 600, color: C.text }));
+  y += r.lines.length * r.size * 1.3 + 50 * u;
+  const hs = Math.round(58 * u);
+  ctx.font = `800 ${hs}px ${TITLE}`;
+  const hw = Math.min(colW, ctx.measureText(handle).width + 80 * u);
+  rr(ctx, pad, y, hw, hs * 1.7, hs * 0.85); ctx.fillStyle = C.red; ctx.fill();
+  txt(ctx, handle, pad + 40 * u, y + hs * 1.17, { size: hs, weight: 800, family: TITLE, color: '#fff', max: hw - 80 * u, spacing: 1 });
+  y += hs * 1.7;
+  // Ce que l'on trouve sur le compte
+  const tx = land ? W * 0.58 : pad;
+  const tw = land ? W - tx - pad : W - pad * 2;
+  let ty = land ? H * 0.24 : y + (tall ? 130 : 80) * u;
+  const end = fy - Math.round(Math.min(W, H) * 0.08);
+  const rowH = Math.min((tall ? 150 : 118) * u, (end - ty - 50 * u) / FOLLOW_TOPICS.length);
+  txt(ctx, 'AU PROGRAMME DU COMPTE', tx, ty, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, spacing: 4 });
+  ty += 26 * u;
+  ctx.fillStyle = C.line; ctx.fillRect(tx, ty, tw, 2);
+  for (const [k, v] of FOLLOW_TOPICS) {
+    ty += 14 * u;
+    ctx.fillStyle = C.red; ctx.fillRect(tx, ty + rowH * 0.22, 8 * u, rowH * 0.56);
+    txt(ctx, k, tx + 32 * u, ty + rowH * 0.45, { size: Math.round(Math.min(38 * u, rowH * 0.34)), weight: 800, family: TITLE, spacing: 2, max: tw - 40 * u });
+    txt(ctx, v, tx + 32 * u, ty + rowH * 0.82, { size: Math.round(Math.min(28 * u, rowH * 0.25)), weight: 400, color: C.muted, max: tw - 40 * u });
+    ty += rowH - 14 * u;
+  }
+  ctx.fillStyle = C.line;
+  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
+  txt(ctx, handle, pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, spacing: 1 });
+  txt(ctx, 'ACTIVEZ LES NOTIFICATIONS', W - pad, fy, { size: Math.round(Math.min(W, H) * 0.022), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
+}
+
+// ---------- News : l'essentiel de l'article en points clés (images suivantes) ----------
+function essentiel(ctx, W, H, d, o, page, fmt) {
+  const pages = pointPages(d.points, fmt);
+  const pts = pages[page - 1] || [];
+  const first = pages.slice(0, page - 1).reduce((n, p) => n + p.length, 0);
+  background(ctx, W, H, d.color);
+  const land = W > H;
+  const u = Math.min(W, H) / 1080;
+  const pad = Math.round(W * 0.055);
+  const top = Math.round(Math.min(W, H) * 0.06);
+  ctx.fillStyle = C.red;
+  ctx.fillRect(pad, top, 10, Math.round(64 * u));
+  txt(ctx, "L'ESSENTIEL", pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
+  txt(ctx, d.badge.label.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
+  if (pages.length > 1) txt(ctx, `${page} / ${pages.length}`, W - pad, top + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
+  const fy = H - Math.round(Math.min(W, H) * 0.045);
+  const bottom = fy - Math.round(Math.min(W, H) * 0.08);
+  const colW = W - pad * 2;
+  // Rappel du titre
+  let y = top + 120 * u;
+  const t = fitLines(ctx, d.title.toUpperCase(), colW, [56, 50, 44].map((v) => Math.round(v * u)), land ? 1 : 2, TITLE, 800);
+  t.lines.forEach((l, i) => txt(ctx, l, pad, y + t.size * 0.82 + i * t.size, { size: t.size, weight: 800, family: TITLE, color: C.muted }));
+  y += t.lines.length * t.size + 26 * u;
+  ctx.fillStyle = d.color ? vivid(d.color) : C.red;
+  ctx.fillRect(pad, y, 90 * u, 6 * u);
+  y += 50 * u;
+  // Points numérotés : le plus grand corps qui tient dans la hauteur
+  const numW = 92 * u;
+  const gap = (land ? 30 : 44) * u;
+  let pick = null;
+  for (const size of [52, 48, 44, 40, 36, 33, 30, 27].map((v) => Math.round(v * u))) {
+    const lh = Math.round(size * 1.32);
+    const blocks = pts.map((p) => fitLines(ctx, p, colW - numW, [size], 99, BODY, 600).lines);
+    const h = blocks.reduce((n, b) => n + Math.max(b.length * lh, numW * 0.75), 0) + gap * (pts.length - 1);
+    pick = { size, lh, blocks, h };
+    if (h <= bottom - y) break;
+  }
+  if (pick) {
+    y += Math.max(0, (bottom - y - pick.h) / 2.5);
+    pick.blocks.forEach((lines, i) => {
+      const bh = Math.max(lines.length * pick.lh, numW * 0.75);
+      txt(ctx, String(first + i + 1).padStart(2, '0'), pad, y + pick.size * 0.95, { size: Math.round(pick.size * 1.35), weight: 800, family: TITLE, color: C.red });
+      lines.forEach((l, k) => { if (y + (k + 1) * pick.lh <= bottom + pick.lh * 0.3) txt(ctx, l, pad + numW, y + pick.size * 0.9 + k * pick.lh, { size: pick.size, weight: 600, color: C.text }); });
+      y += bh + gap;
+    });
+  }
+  ctx.fillStyle = C.line;
+  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
+  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, spacing: 1 });
+  if (d.source) txt(ctx, `D'APRÈS ${d.source.toUpperCase()}`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.022), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2, max: W * 0.55 });
+}
+
 export function drawSlide(canvas, slide, fmt, d, o = {}) {
   const { w, h } = FORMATS[fmt];
   canvas.width = w;
@@ -717,7 +858,9 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, h);
   // X : 4 images au plus par post, le sommaire n'annonce que celles publiées
-  if (slide === 'news') newsSlide(ctx, w, h, d, o);
+  if (slide === 'news') newsSlide(ctx, w, h, d, o, fmt);
+  else if (slide === 'abonnement') follow(ctx, w, h, d, o);
+  else if (/^essentiel-\d+$/.test(slide)) essentiel(ctx, w, h, d, o, Number(slide.slice(10)), fmt);
   else if (slide === 'grille') grille(ctx, w, h, d, o);
   else if (slide === 'meteo') meteo(ctx, w, h, d, o);
   else if (slide === 'champpilotes') standings(ctx, w, h, d, o, 'Pilotes', d.champ.drivers.map((r) => ({ ...r, label: r.last.toUpperCase() })));

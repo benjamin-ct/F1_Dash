@@ -11,7 +11,9 @@ import { builtinNomination } from '/shared/tyres.js';
 import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/shared/fia-list.js';
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
-import { slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
+import { slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
+import { followCaptions } from '/shared/social-follow.js';
+import { extractArticle } from '/shared/article.js';
 import { merge } from '/shared/merge.js';
 import { gpNameFr } from '/shared/summary.js';
 import { FLAG_ISO } from '/shared/flags.js';
@@ -27,7 +29,7 @@ const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'Tim
 let key = null;
 try { key = localStorage.getItem(KEY) || sessionStorage.getItem(KEY); } catch { /* stockage bloqué */ }
 let me = null;
-const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true };
+const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true };
 let news = null;        // nouvelles lues (toutes sources)
 let sessions = null;    // séances de la saison
 let lastDrivers = {};   // liste des pilotes de la dernière séance lue (photos des news)
@@ -226,10 +228,24 @@ async function latestDrivers() {
 
 const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok' };
 
+// Résumé détaillé : page de l'article lue par le serveur, texte extrait ici, points clés rédigés par
+// l'IA du serveur (reformulés, jamais recopiés)
+async function detailedSummary(it) {
+  const html = await decodeBody(await api(`page?u=${encodeURIComponent(it.link)}`, { raw: true }));
+  const a = extractArticle(html, it.link);
+  const text = a.blocks.map((b) => b.h || b.p || '').filter(Boolean).join('\n\n').slice(0, 12000);
+  if (text.length < 400) throw new Error('Pas de texte lisible sur cette page (vidéo, accès réservé…)');
+  const res = await fetch('/s', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: it.title || a.title, text }) });
+  const j = await res.json().catch(() => ({}));
+  if (res.status === 429) throw new Error('Plafond du jour atteint, réessayez demain');
+  if (!res.ok || !Array.isArray(j.points)) throw new Error(j.error || 'Résumé indisponible pour le moment');
+  return j.points;
+}
+
 async function newsEditor(it, done = null) {
   const [title, summary] = await toFrench([{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]);
   const failed = title === null || summary === null;
-  const make = async (t, s) => newsPost(it, { title: t, summary: s, driverList: await latestDrivers(), sourceName: it.srcName });
+  const make = async (t, s, p = '') => newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
   let d = await make(title ?? it.title, summary ?? it.summary);
   editor({
     back: () => home(),
@@ -238,6 +254,8 @@ async function newsEditor(it, done = null) {
       <p class="small muted">${esc(it.srcName)} · il y a ${ago(it.t)} · <a class="muted" href="${esc(it.link)}" target="_blank" rel="noopener">lire l'article</a></p>
       <label>Titre</label><input type="text" id="ntitle" maxlength="160" value="${esc(d.title)}">
       <label>Résumé</label><textarea id="nsum" rows="4" maxlength="400">${esc(d.summary)}</textarea>
+      <label>Points clés, un par ligne (images suivantes du carrousel)</label><textarea id="npoints" rows="5" maxlength="1600" placeholder="Facultatif : « Résumé détaillé » ou à écrire soi-même"></textarea>
+      ${it.link ? '<div class="row"><button id="nsummary">Résumé détaillé</button><span class="small muted" id="nsumst"></span></div>' : ''}
       <label class="check"><input type="checkbox" id="linkcomment" ${state.linkComment ? 'checked' : ''}> Lien de l'article en premier commentaire (Facebook, Threads, Bluesky, X)</label>
       <p class="note">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
     data: () => d,
@@ -245,8 +263,19 @@ async function newsEditor(it, done = null) {
     record: () => ({ key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) }),
     bind: (redraw) => {
       let tm = null;
-      const upd = () => { clearTimeout(tm); tm = setTimeout(async () => { d = await make($('#ntitle').value, $('#nsum').value); redraw(true); }, 400); };
+      const upd = () => { clearTimeout(tm); tm = setTimeout(async () => { d = await make($('#ntitle').value, $('#nsum').value, $('#npoints').value); redraw(true); }, 400); };
       $('#ntitle').oninput = upd;
+      $('#npoints').oninput = upd;
+      if ($('#nsummary')) $('#nsummary').onclick = async () => {
+        const btn = $('#nsummary');
+        btn.disabled = true;
+        $('#nsumst').textContent = 'Lecture de l\'article et résumé…';
+        try {
+          $('#npoints').value = (await detailedSummary(it)).join('\n');
+          $('#nsumst').textContent = 'Points clés reformulés par l\'IA : relisez-les avant de publier.';
+          upd();
+        } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; }
+      };
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
       $('#nsum').oninput = upd;
     },
@@ -406,15 +435,16 @@ function editor({ back, head, data, caps, bind, record }) {
       <div class="seg">${[['ig', 'Instagram'], ['story', 'Story'], ['x', 'X']].map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
     ${head}
     <label class="check"><input type="checkbox" id="photos" ${state.photos ? 'checked' : ''}> Photos des pilotes</label>
+    <label class="check"><input type="checkbox" id="follow" ${state.follow ? 'checked' : ''}> Image « Abonnez-vous » à la fin des carrousels (et une ligne dans les textes)</label>
     <div id="main"></div>`;
   // changed : données modifiées (titre d'une news, texte sans spoiler) -> textes régénérés
   const redraw = async (changed = false) => {
     if (changed) edited = {};
     const d = data();
-    const c = { ...caps(), ...edited };
-    const slides = slidesFor(d);
+    const c = { ...(state.follow ? followCaptions(caps(), d, SIG) : caps()), ...edited };
+    const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow });
     const main = $('#main');
-    main.innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<canvas data-slide="${sl}" title="${esc(SLIDE_NAMES[sl] || sl)}"></canvas>`).join('')}</div>
+    main.innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<canvas data-slide="${sl}" title="${esc(slideName(sl))}"></canvas>`).join('')}</div>
       <label>${c.facebook ? 'Légende Instagram' : 'Légende Instagram / Facebook'}</label><textarea id="cap-instagram" rows="8">${esc(c.instagram)}</textarea>
       ${c.facebook ? `<label>Texte Facebook (avec le lien de l'article)</label><textarea id="cap-facebook" rows="8">${esc(c.facebook)}</textarea>` : ''}
       <label>Texte Threads (500 caractères max.)</label><textarea id="cap-threads" rows="4" maxlength="500">${esc(c.threads)}</textarea>
@@ -430,7 +460,7 @@ function editor({ back, head, data, caps, bind, record }) {
     const o = await assets(d);
     canvases = [...main.querySelectorAll('canvas')];
     for (const cv of canvases) drawSlide(cv, cv.dataset.slide, state.fmt, d, o);
-    $('#go').onclick = () => publishAll(d, o, slides, record?.());
+    $('#go').onclick = () => publishAll(d, o, record?.());
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     $('#dl').onclick = () => download(canvases, d);
     if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText($('#cap-comment').value); $('#copycomment').textContent = 'Copié ✓'; } catch { /* presse-papiers refusé */ } };
@@ -438,6 +468,7 @@ function editor({ back, head, data, caps, bind, record }) {
   $('#back').onclick = back;
   app.querySelectorAll('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; app.querySelectorAll('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); redraw(); }; });
   $('#photos').onchange = (e) => { state.photos = e.target.checked; redraw(); };
+  $('#follow').onchange = (e) => { state.follow = e.target.checked; redraw(true); };
   bind(redraw);
   redraw();
 }
@@ -464,17 +495,18 @@ async function download(canvases) {
 }
 
 // Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
-async function publishAll(d, o, slides, record = null) {
+async function publishAll(d, o, record = null) {
   const nets = [...app.querySelectorAll('[data-net]:checked')].map((i) => i.dataset.net);
   if (!nets.length) { alert('Cochez au moins un réseau'); return; }
   const names = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky' };
   if (!confirm(`Publier maintenant sur : ${nets.map((n) => names[n]).join(', ')} ?\n\nLes posts seront publics.`)) return;
   const go = $('#go');
   go.disabled = true;
+  const slides = slidesFor(d, { fmt: 'ig', follow: state.follow });
   const blobs = await Promise.all(slides.map((sl) => toBlob(drawSlide(document.createElement('canvas'), sl, 'ig', d, o), 'image/jpeg', 0.92)));
   // Bluesky : 4 visuels au format X, moins de 1 Mo chacun
   const small = async (cv) => { let b = null; for (const q of [0.92, 0.85, 0.75, 0.6, 0.45]) { b = await toBlob(cv, 'image/jpeg', q); if (b.size <= 950 * 1024) break; } return b; };
-  const bsky = nets.includes('bluesky') ? await Promise.all(slides.slice(0, 4).map((sl) => small(drawSlide(document.createElement('canvas'), sl, 'x', d, o)))) : [];
+  const bsky = nets.includes('bluesky') ? await Promise.all(slidesFor(d, { fmt: 'x', follow: state.follow }).slice(0, 4).map((sl) => small(drawSlide(document.createElement('canvas'), sl, 'x', d, o)))) : [];
   for (const n of nets) {
     const st = $(`[data-st="${n}"]`);
     st.className = 'st';

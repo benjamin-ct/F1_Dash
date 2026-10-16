@@ -8,7 +8,8 @@ import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
-import { FORMATS, slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
+import { FORMATS, slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
+import { followCaptions } from '/shared/social-follow.js';
 import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
 import { builtinNomination } from '/shared/tyres.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -23,6 +24,7 @@ let withPhotos = storageGet(OPT_KEY, {}).photos !== false;
 let noSpoiler = storageGet(OPT_KEY, {}).noSpoiler !== false;   // texte sans le vainqueur au début
 let mode = storageGet(OPT_KEY, {}).mode === 'news' ? 'news' : 'session';
 let linkComment = storageGet(OPT_KEY, {}).linkComment !== false;   // news : lien de l'article en premier commentaire
+let follow = storageGet(OPT_KEY, {}).follow !== false;   // image « Abonnez-vous » et ligne dans les textes
 const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
 let postType = POST_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).postType) ? storageGet(OPT_KEY, {}).postType : 'results';   // séance : type de post
 let flashSel = null;   // évènement choisi pour un post flash
@@ -180,14 +182,17 @@ async function newsSource(sig) {
   newsSel = it.id;
   const [title, summary] = edits.get(it.id) ? [edits.get(it.id).title, edits.get(it.id).summary]
     : await toFrench([{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]);
+  const points = edits.get(it.id)?.points ?? '';
   const failed = title === null || summary === null;
-  const d = newsPost(it, { title: title ?? it.title, summary: summary ?? it.summary, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src });
+  const d = newsPost(it, { title: title ?? it.title, summary: summary ?? it.summary, points, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src });
   const done = posted[list.indexOf(it)];
   const head = `${bar(it)}
     ${done ? `<p class="posts-warn small">${icon('check')} ${esc(t('Déjà publiée le {} sur {}', new Date(done.at).toLocaleString(), Object.keys(done.nets).map((n) => NET_NAMES[n] || n).join(', ')))}</p>` : ''}
     <div class="posts-news-edit">
       <label class="small muted">${t('Titre')}<input type="text" data-ntitle maxlength="160" value="${esc(d.title)}"></label>
       <label class="small muted">${t('Résumé')}<textarea data-nsum rows="3" maxlength="400">${esc(d.summary)}</textarea></label>
+      <label class="small muted">${t('Points clés, un par ligne (images suivantes du carrousel)')}<textarea data-npoints rows="4" maxlength="1600" placeholder="${t('Facultatif : cliquez sur « Résumé détaillé » ou écrivez-les vous-même')}">${esc(points)}</textarea></label>
+      <div class="row">${it.link ? `<button class="btn small" data-nsummary title="${t("Résumé de l'article en 3 à 5 points, reformulés par l'IA du serveur Paddock Live : relisez-les avant de publier")}">${icon('doc')} ${t('Résumé détaillé')}</button>` : ''}<span class="small muted" data-nsumst></span></div>
       <label class="toggle small" title="${t("Facebook, Threads et X : le lien de l'article est publié en premier commentaire plutôt que dans le texte (Instagram : pas de lien)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
     </div>`;
@@ -242,10 +247,11 @@ async function render(dlg, keepHead = false) {
     if (!r.d) { body.innerHTML = r.head; return; }
     ({ d, caps, head, record } = r);
   }
-  const slides = slidesFor(d);
-  if (!slides.length || (!d.rows.length && d.post !== 'flash')) { body.innerHTML = `${mode === 'session' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
+  const slides = slidesFor(d, { fmt, follow });
+  if (follow) caps = followCaptions(caps, d, sig);
+  if (!slides.length || (!d.rows.length && d.post !== 'flash' && !d.news)) { body.innerHTML = `${mode === 'session' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
   const main = `<div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item"><canvas data-slide="${s}"></canvas>
-      <figcaption><span>${i + 1}. ${esc(t(SLIDE_NAMES[s]))}</span>
+      <figcaption><span>${i + 1}. ${esc(t(slideName(s)))}</span>
         <button class="btn small" data-copy="${i}" title="${t('Copier l\'image, à coller dans le réseau social')}">${icon('doc')} ${t('Copier')}</button>
         <button class="btn small" data-save="${i}">${icon('save')} ${t('Enregistrer')}</button></figcaption></figure>`).join('')}</div>
     <div class="posts-caps">
@@ -262,7 +268,7 @@ async function render(dlg, keepHead = false) {
   const o = { ...(await assets(d)), signature: sig };
   if (id !== renderId) return;   // format ou réglage changé entre-temps
   // Publication : visuels de n'importe quel format, dessinés à part
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => slides.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => slidesFor(d, { fmt: f, follow }).map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
   const canvases = [...body.querySelectorAll('canvas')];
   for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
   const count = $('[data-count]', body);
@@ -324,6 +330,27 @@ async function openStats() {
   } catch (err) { body.innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
 }
 
+// Résumé détaillé de la news choisie : points clés rédigés par le serveur, à relire et corriger
+async function detailedSummary(dlg, btn) {
+  const id = newsSel;
+  const it = (newsCache?.items || []).find((x) => x.id === id);
+  if (!it?.link) return;
+  const st = $('[data-nsumst]', dlg);
+  btn.disabled = true;
+  if (st) st.textContent = t("Lecture de l'article et résumé…");
+  try {
+    const r = await fetch('/api/social/summary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link: it.link }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !Array.isArray(j.points)) throw new Error(j.error || t('Résumé indisponible pour le moment'));
+    edits.set(id, { title: $('[data-ntitle]', dlg).value, summary: $('[data-nsum]', dlg).value, points: j.points.join('\n') });
+    if (newsSel === id) render(dlg);
+    toast(t('{} points clés : relisez-les avant de publier', j.points.length), 3500, 'check');
+  } catch (err) {
+    if (st) st.textContent = '';
+    toast(err.message, 5000, 'warning');
+  } finally { btn.disabled = false; }
+}
+
 function open() {
   let dlg = $('#postsDlg');
   if (!dlg) {
@@ -336,6 +363,7 @@ function open() {
         <div class="posts-seg" role="tablist">${Object.entries({ ig: 'Instagram / Facebook', story: 'Story / TikTok', x: 'X / Threads / Bluesky' }).map(([k, v]) => `<button class="posts-fmt" data-fmt="${k}">${v}</button>`).join('')}</div>
         <label class="toggle small"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
         <label class="toggle small" title="${t("Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
+        <label class="toggle small" title="${t("Dernière image des carrousels et une ligne dans les textes pour inviter à s'abonner au compte (X et Bluesky : dans le texte seulement)")}"><input type="checkbox" data-follow> ${t('Image « Abonnez-vous »')}</label>
         <label class="small muted">${t('Signature')} <input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
         <span class="spacer"></span>
         <button class="btn" data-open hidden>${icon('external')} ${t('Ouvrir le dossier')}</button>
@@ -350,8 +378,9 @@ function open() {
       $('[data-photos]', dlg).checked = withPhotos;
       for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('active', b.dataset.mode === mode);
       $('[data-nospoil]', dlg).checked = noSpoiler;
+      $('[data-follow]', dlg).checked = follow;
       $('[data-nospoil]', dlg).closest('label').hidden = mode === 'news' || postType !== 'results';
-      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment, postType });
+      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment, postType, follow });
     };
     dlg.addEventListener('click', async (e) => {
       if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
@@ -362,12 +391,14 @@ function open() {
       const f = e.target.closest('[data-fmt]')?.dataset.fmt;
       if (f && f !== fmt) { fmt = f; sync(); render(dlg); }
       if (e.target.closest('[data-stats]')) openStats();
+      if (e.target.closest('[data-nsummary]')) detailedSummary(dlg, e.target.closest('[data-nsummary]'));
       if (e.target.closest('[data-all]')) { try { await dlg.onSaveAll?.(); } catch (err) { toast(err.message, 5000, 'warning'); } }
       if (e.target.closest('[data-publish]')) { if (dlg.publish) dlg.publish(); else toast(t('Visuels en préparation, réessayez dans un instant'), 3000); }
       if (e.target.closest('[data-open]')) fetch('/api/posts/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: dlg.dataset.folder }) });
     });
     $('[data-photos]', dlg).addEventListener('change', (e) => { withPhotos = e.target.checked; sync(); render(dlg); });
     $('[data-nospoil]', dlg).addEventListener('change', (e) => { noSpoiler = e.target.checked; sync(); render(dlg); });
+    $('[data-follow]', dlg).addEventListener('change', (e) => { follow = e.target.checked; sync(); render(dlg); });
     // News : choix de la nouvelle, toutes les actus, titre et résumé corrigés à la main
     let te = null;
     dlg.addEventListener('change', (e) => {
@@ -377,8 +408,8 @@ function open() {
       if (e.target.matches('[data-linkcomment]')) { linkComment = e.target.checked; sync(); render(dlg); }
     });
     dlg.addEventListener('input', (e) => {
-      if (!e.target.matches('[data-ntitle], [data-nsum]') || !newsSel) return;
-      edits.set(newsSel, { title: $('[data-ntitle]', dlg).value, summary: $('[data-nsum]', dlg).value });
+      if (!e.target.matches('[data-ntitle], [data-nsum], [data-npoints]') || !newsSel) return;
+      edits.set(newsSel, { title: $('[data-ntitle]', dlg).value, summary: $('[data-nsum]', dlg).value, points: $('[data-npoints]', dlg).value });
       clearTimeout(te);
       te = setTimeout(() => renderNewsOnly(dlg), 450);
     });
