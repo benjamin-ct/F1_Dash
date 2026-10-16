@@ -4,7 +4,7 @@
 // Modèle de langage (Mistral Small 3.1) avec des consignes F1 : noms propres gardés, jargon des fans.
 // Plusieurs textes par appel ; réponse mal formée -> modèle de traduction simple (m2m100) en secours.
 // Traduction avec des caractères d'une autre écriture (chinois glissé dans du français…) : refaite.
-import { badScript } from '../shared/translation-check.js';
+import { badTranslation } from '../shared/translation-check.js';
 export const MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct';
 export const FALLBACK = '@cf/meta/m2m100-1.2b';
 const MODEL_TAG = 'ms31';   // dans la clé du cache : changer de modèle = nouvelles traductions
@@ -83,7 +83,7 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
   if (want.length) {
     const rows = (await env.DB.prepare(`SELECT k, out FROM translations WHERE k IN (${want.map(() => '?').join(',')})`).bind(...want).all()).results || [];
     const found = new Map(rows.map((r) => [r.k, r.out]));
-    keys.forEach((k, i) => { if (out[i] === null && found.has(k) && !badScript(found.get(k), req.to)) out[i] = found.get(k); });
+    keys.forEach((k, i) => { if (out[i] === null && found.has(k) && !badTranslation(found.get(k), req.to, req.items[i].text)) out[i] = found.get(k); });
   }
   const todo = [...new Set(keys.filter((k, i) => out[i] === null))].map((k) => ({ k, it: req.items[keys.indexOf(k)] }));
   if (!todo.length) return { out, cached: true };
@@ -100,9 +100,9 @@ export async function translateBatch(env, req, day = new Date().toISOString().sl
     try { list = await llm(env, g.map(({ it }) => it.text), req.to); } catch { list = null; }
     // Paquet raté : tout en traduction simple ; sinon seulement les traductions suspectes
     return Promise.all(g.map(async ({ it }, j) => {
-      if (list && !badScript(list[j], req.to)) return list[j];
+      if (list && !badTranslation(list[j], req.to, it.text)) return list[j];
       const s = await simple(env, it.text, it.from, req.to);
-      return s && !badScript(s, req.to) ? s : null;
+      return s && !badTranslation(s, req.to, it.text) ? s : null;
     }));
   });
   const done = results.flat();

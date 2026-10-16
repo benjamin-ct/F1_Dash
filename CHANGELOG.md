@@ -6,6 +6,13 @@ l'application (Réglages → Application → Nouveautés).
 
 ## v1.27.23 — à venir
 
+### Radios
+- Radios inaudibles (son des caméras embarquées couvert par le moteur, radio hachée) : le charabia que la reconnaissance vocale inventait parfois (« Goldmannutformificeyan… », caractères illisibles ou d'un autre alphabet) n'est plus affiché, la radio compte comme « pas de parole reconnue ». Les transcriptions déjà enregistrées sont nettoyées aussi.
+- La traduction ne « répond » plus à la place de traduire (« Je ne comprends pas cette séquence, peux-tu reformuler ? ») : ces réponses sont refusées et la traduction est refaite.
+
+### Réglages
+- Réglages → Application : liens vers la politique de confidentialité et les conditions d'utilisation.
+
 ### Divers
 - Petites améliorations internes.
 

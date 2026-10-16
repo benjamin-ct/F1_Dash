@@ -141,3 +141,12 @@ test('traduction partagée : caractères d\'une autre écriture refusés, refait
   const again = await translateBatch(f.env, { to: 'fr', items: [{ text: 'Cached', from: 'en' }] }, 'd');
   assert.deepEqual(again.out, ['[fr] Cached']);
 });
+
+test('traduction : réponse du modèle au lieu d\'une traduction refusée', async () => {
+  const { chatty, badTranslation } = await import('../shared/translation-check.js');
+  assert.equal(chatty('Je ne comprends pas cette séquence de mots. Il semble y avoir une erreur. Pourrais-je t\'assister ?', 'Moderate gift Goldmann'), true);
+  assert.equal(chatty('Could you please clarify what you mean?', 'Abc def'), true);
+  assert.equal(chatty('Verstappen remporte le Grand Prix', 'Verstappen wins the Grand Prix'), false);
+  assert.equal(chatty("Je ne comprends pas, répète", "I don't understand, say again"), false);
+  assert.equal(badTranslation('Laurent Mekies将继续', 'fr', 'x'), true);
+});
