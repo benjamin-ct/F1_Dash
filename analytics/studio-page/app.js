@@ -140,12 +140,21 @@ async function newsTab(body, { force, restore, current }) {
   const y = scrollY;
   renderNews(body, items, { at: Date.now() });
   if (known) scrollTo(0, y);
-  // Titres traduits au fur et à mesure (déjà connus : affichés tout de suite)
-  const list = shown;
-  const fr = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
-  if (!current() || list !== shown) return;
-  list.forEach((it, i) => { const t = $(`[data-i="${i}"] .t`, body); if (t && fr[i]) t.textContent = fr[i]; });
   setTimeout(() => posts().catch(() => {}), 300);   // éditeur préchargé
+}
+
+// Titres pas encore traduits de la liste affichée : demandés au serveur, remplacés dès qu'ils
+// arrivent (à chaque affichage : chargement, tri, filtre, « Toutes »)
+async function translateShown(body, list) {
+  const todo = list.filter((it) => it.lang !== 'fr' && !knownFrench(it.title, it.lang));
+  if (!todo.length) return;
+  await toFrench(todo.map((it) => ({ text: it.title, from: it.lang })));
+  if (list !== shown || !body.isConnected) return;
+  list.forEach((it, i) => {
+    const fr = knownFrench(it.title, it.lang);
+    const t = $(`[data-i="${i}"] .t`, body);
+    if (t && fr && t.textContent !== fr) t.textContent = fr;
+  });
 }
 
 let shown = [];
@@ -172,6 +181,7 @@ function renderNews(body, items, { at, stale = false }) {
         <div class="t">${esc(knownFrench(it.title, it.lang) || it.title)}</div><div class="meta">${esc(it.srcName)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>`;
     }).join('')}</div>` : empty(state.all ? 'Aucune actu ces dernières 48 heures.' : 'Aucune grosse news ces dernières 48 heures : essayez « Toutes ».')}`;
   glide(body);
+  translateShown(body, list);
   $('#all', body).onchange = (e) => { state.all = e.target.checked; renderNews(body, items, { at, stale }); };
   $$('#nsort [data-by]', body).forEach((b) => { b.onclick = () => { state.nsort = b.dataset.by; renderNews(body, items, { at, stale }); }; });
   $$('#nkinds [data-k]', body).forEach((b) => { b.onclick = () => { state.nkind = b.dataset.k || null; renderNews(body, items, { at, stale }); }; });
