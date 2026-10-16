@@ -307,7 +307,7 @@ async function alertsBlock(el) {
   }
   const sub = await currentSub().catch(() => null);
   const on = !!sub && Notification.permission === 'granted';
-  el.innerHTML = `<div class="group"><div class="row-item static"><span class="grow"><b>${on ? 'Actives sur ce téléphone' : 'Désactivées'}</b><small>Une notification à chaque grosse news (transfert, pénalité, annonce officielle…), le post prêt à relire</small></span><span class="state ${on ? 'on' : ''}"></span></div></div>
+  el.innerHTML = `<div class="group"><div class="row-item static"><span class="grow"><b>${on ? `Actives sur ${/iPhone|Android.*Mobile/.test(navigator.userAgent) ? 'ce téléphone' : IOS || matchMedia('(pointer: coarse)').matches ? 'cet appareil' : 'cet ordinateur'}` : 'Désactivées'}</b><small>Une notification à chaque grosse news (transfert, pénalité, annonce officielle…), le post prêt à relire</small></span><span class="state ${on ? 'on' : ''}"></span></div></div>
     <div class="row">${on ? `<button class="btn" id="alerttest">${icon('bell')}Tester</button><button class="btn" id="alertoff">Couper</button>` : `<button class="btn primary" id="alerton">${icon('bell')}Activer</button>`}</div>`;
   const fail = (err) => toast(err.message, 'bad');
   if ($('#alerton', el)) $('#alerton', el).onclick = () => enableAlerts().then(() => { toast('Alertes activées', 'ok'); alertsBlock(el); }).catch(fail);
