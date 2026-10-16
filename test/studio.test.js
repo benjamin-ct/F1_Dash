@@ -9,7 +9,7 @@ process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-st
 const CODE = 'ESSAI-42';
 const HASH = (await import('node:crypto')).createHash('sha256').update(`paddock-live:${CODE}`).digest('hex');
 process.env.PADDOCK_CREATOR_HASH = HASH;
-const { studioApi } = await import('../analytics/studio.js');
+const { studioApi, freshF1tv } = await import('../analytics/studio.js');
 const { studioKey, enableStudio, syncStudio, disableStudio, studioInfo } = await import('../server/studio-sync.js');
 const { saveConfig, getConfig } = await import('../server/config.js');
 const { timing } = await import('../shared/meta-publish.js');
@@ -119,4 +119,22 @@ test('page du créateur : relais limités (sources connues, archives F1, images 
   assert.equal((await worker('https://s.test/studio/api/archive?p=2026/x/../y/Index.json', h)).status, 400);
   assert.equal((await worker(`https://s.test/studio/api/img?u=${encodeURIComponent('https://evil.test/a.png')}`, h)).status, 400);
   assert.equal((await worker('https://s.test/studio/api/publish', { method: 'POST', body: new FormData(), ...h })).status, 409);   // pas de comptes
+});
+
+const jwt = (payload) => `x.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.y`;
+
+test('page du créateur : connexion F1 TV renouvelée par le serveur (appli fermée)', async () => {
+  const now = Date.UTC(2026, 9, 16);
+  const session = jwt({ exp: now / 1000 + 20 * 86400 });
+  const old = jwt({ exp: now / 1000 + 3600, SessionId: session });
+  const next = jwt({ exp: now / 1000 + 4 * 86400, SessionId: session });
+  let asked = null;
+  const fetchFn = async (url, init) => { asked = init.headers['cd-sessionid']; return new Response(JSON.stringify({ data: { subscriptionToken: next } }), { status: 200 }); };
+  assert.equal(await freshF1tv(old, { now, fetchFn }), next);
+  assert.equal(asked, session);
+  // Encore valable plus de 24 h : rien demandé ; refus de la F1 : ancien jeton gardé
+  asked = null;
+  assert.equal(await freshF1tv(next, { now, fetchFn }), next);
+  assert.equal(asked, null);
+  assert.equal(await freshF1tv(old, { now, fetchFn: async () => new Response('{}', { status: 401 }) }), old);
 });

@@ -20,6 +20,7 @@ export function studioVault(c = getConfig()) {
     meta: s.meta?.pageToken ? { pageId: s.meta.pageId, pageName: s.meta.pageName, pageToken: s.meta.pageToken, igId: s.meta.igId, igUsername: s.meta.igUsername } : null,
     threads: s.threads?.token ? { token: s.threads.token, userId: s.threads.userId, username: s.threads.username, expiresAt: s.threads.expiresAt || null } : null,
     f1tv,
+    f1tvOff: !c.f1tvToken,   // F1 TV déconnecté dans l'appli (et pas seulement expiré, appli fermée)
   };
 }
 const digest = (v) => crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');

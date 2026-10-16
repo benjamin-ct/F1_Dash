@@ -70,6 +70,7 @@ function cleanVault(v) {
   if (v?.meta?.pageToken) out.meta = { pageId: s(v.meta.pageId, 40), pageName: s(v.meta.pageName, 120), pageToken: s(v.meta.pageToken), igId: s(v.meta.igId, 40), igUsername: s(v.meta.igUsername, 60) };
   if (v?.threads?.token) out.threads = { token: s(v.threads.token), userId: s(v.threads.userId, 40), username: s(v.threads.username, 60), expiresAt: Number(v.threads.expiresAt) || null };
   if (v?.f1tv) out.f1tv = s(v.f1tv, 6000);
+  if (v?.f1tvOff === true) out.f1tvOff = true;
   return out;
 }
 
@@ -83,6 +84,54 @@ async function auth(req, env) {
   if (!verifier) return { error: json({ error: 'Page pas encore activée : activez-la depuis l\'appli (Posts → Publier… → Comptes…)' }, 409) };
   if (!sameHex(await sha(raw), verifier)) { await failed(env, req); return { error: json({ error: 'Code incorrect' }, 401) }; }
   return { raw };
+}
+
+// ---------- Jetons tenus à jour par le serveur (l'appli peut rester fermée) ----------
+const jwtExp = (jwt) => {
+  try { return (JSON.parse(atob(String(jwt).split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp || 0) * 1000; } catch { return 0; }
+};
+// Session du compte formula1.com contenue dans le jeton (envoyée telle quelle à la F1)
+const jwtSession = (jwt) => {
+  try { const id = JSON.parse(atob(String(jwt).split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).SessionId; return typeof id === 'string' && id ? id : null; } catch { return null; }
+};
+
+// Connexion F1 TV (jeton de ~4 jours) : renouvelée dans ses dernières 24 heures avec la session du
+// compte formula1.com (~30 jours), comme le fait l'appli. Clé et identifiant publics du site F1.
+export async function freshF1tv(token, { now = Date.now(), fetchFn = fetch } = {}) {
+  if (!token || jwtExp(token) - now > 24 * 3600e3) return token;
+  const sid = jwtSession(token);
+  if (!sid) return token;
+  try {
+    const res = await fetchFn('https://api.formula1.com/v1/account/Subscriber/RetrieveSubscriber', {
+      method: 'POST', body: '{}',
+      headers: { 'User-Agent': UA, 'Content-Type': 'application/json', apikey: 'fCUCjWrKPu9ylJwRAv8BpGLEgiAuThx7', 'CD-SystemId': '60a9ad84-e93d-480f-80d6-af37494f2e22', 'cd-sessionid': sid, orderSubmitted: 'true' },
+    });
+    if (res.status !== 200) return token;
+    const next = (await res.json())?.data?.subscriptionToken;
+    return next && jwtExp(next) > jwtExp(token) ? next : token;
+  } catch { return token; }
+}
+
+// Jetons prolongés si besoin (Threads : 60 jours, F1 TV : 4 jours), coffre réenregistré s'ils changent
+async function refresh(env, raw, vault) {
+  const th = vault.threads?.token ? await freshThreads(vault.threads) : vault.threads;
+  const f1tv = await freshF1tv(vault.f1tv);
+  if (th === vault.threads && f1tv === vault.f1tv) return vault;
+  const next = { ...vault, threads: th, f1tv };
+  await setRow(env, 'vault', await seal(raw, next));
+  return next;
+}
+
+// Envoi de l'appli : ses jetons remplacent ceux du serveur, sauf s'ils sont plus anciens que ceux
+// que le serveur a lui-même prolongés (appli restée fermée longtemps)
+function keepNewer(old, incoming) {
+  const out = { ...incoming };
+  if (old.threads?.token && out.threads?.token && old.threads.userId === out.threads.userId && (old.threads.expiresAt || 0) > (out.threads.expiresAt || 0)) out.threads = old.threads;
+  if (old.f1tv && out.f1tv && jwtSession(old.f1tv) === jwtSession(out.f1tv) && jwtExp(old.f1tv) > jwtExp(out.f1tv)) out.f1tv = old.f1tv;
+  // Jeton expiré dans l'appli (restée fermée) : celui que le serveur a renouvelé est gardé
+  if (old.f1tv && !out.f1tv && !out.f1tvOff && jwtExp(old.f1tv) > Date.now()) out.f1tv = old.f1tv;
+  delete out.f1tvOff;
+  return out;
 }
 
 // ---------- Relais (le navigateur ne peut pas lire ces sites directement) ----------
@@ -113,7 +162,7 @@ async function archive(req, url, vault) {
   if ((res.status === 502 || res.status === 404) && vault?.f1tv) {
     res = await cached(req, ARCHIVE + p, { headers: { 'User-Agent': UA, Authorization: `Bearer ${vault.f1tv}`, ascendontoken: vault.f1tv } }, ttl);
   }
-  if (res.status !== 200) return json({ error: vault?.f1tv ? 'Archive indisponible (pas encore publiée, ou connexion F1 TV expirée : rouvrez l\'appli)' : 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli, puis réactivez la page' }, res.status === 404 ? 404 : 502);
+  if (res.status !== 200) return json({ error: vault?.f1tv ? 'Archive indisponible (pas encore publiée, ou session formula1.com expirée après ~30 jours : reconnectez F1 TV dans l\'appli)' : 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli, puis réactivez la page' }, res.status === 404 ? 404 : 502);
   return res;
 }
 
@@ -142,11 +191,7 @@ async function publish(req, env, raw, vault) {
       let r;
       if (net === 'facebook') r = await publishFacebook(vault.meta, text, images);
       else if (net === 'instagram') r = await publishInstagram(vault.meta, text.slice(0, 2200), images);
-      else {
-        const th = await freshThreads(vault.threads);
-        if (th !== vault.threads) await setRow(env, 'vault', await seal(raw, { ...vault, threads: th }));
-        r = await publishThreads(th, vault.meta, text.slice(0, 500), images);
-      }
+      else r = await publishThreads((await refresh(env, raw, vault)).threads, vault.meta, text.slice(0, 500), images);
       await line({ done: true, url: r.url || null });
     } catch (err) {
       await line({ error: String(err?.message || err).slice(0, 300) });
@@ -179,12 +224,12 @@ export async function studioApi(req, env, url) {
 
   const a = await auth(req, env);
   if (a.error) return a.error;
-  const vault = await open(a.raw, await getRow(env, 'vault')).catch(() => null) || {};
+  let vault = await open(a.raw, await getRow(env, 'vault')).catch(() => null) || {};
 
   if (path === 'sync' && req.method === 'POST') {
     let body;
     try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
-    await setRow(env, 'vault', await seal(a.raw, cleanVault(body?.vault)));
+    await setRow(env, 'vault', await seal(a.raw, keepNewer(vault, cleanVault(body?.vault))));
     return json({ ok: true });
   }
   if (path === 'forget' && req.method === 'POST') {
@@ -192,6 +237,7 @@ export async function studioApi(req, env, url) {
     return json({ ok: true });
   }
   if (path === 'me' && req.method === 'GET') {
+    vault = await refresh(env, a.raw, vault);
     return json({
       facebook: vault.meta?.pageName || null, instagram: vault.meta?.igId ? `@${vault.meta.igUsername || ''}` : null,
       threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
@@ -199,7 +245,7 @@ export async function studioApi(req, env, url) {
     });
   }
   if (path === 'feed' && req.method === 'GET') return feed(req, url);
-  if (path === 'archive' && req.method === 'GET') return archive(req, url, vault);
+  if (path === 'archive' && req.method === 'GET') return archive(req, url, await refresh(env, a.raw, vault));
   if (path === 'img' && req.method === 'GET') return image(req, url);
   if (path === 'publish' && req.method === 'POST') {
     if (!vault.meta?.pageToken) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
