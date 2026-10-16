@@ -4,6 +4,11 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.15 — à venir
+
+### Corrections
+- Synchronisation avec la TV : sur téléphone, le bouton « Enregistrer le délai actuel » ne dépasse plus de la fenêtre.
+
 ## v1.27.14 — 2026-10-16
 
 ### Améliorations

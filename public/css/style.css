@@ -518,8 +518,9 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .sync-list .se-kind { display: inline-block; font-size: 10px; font-weight: 900; text-transform: uppercase; padding: 0 5px; border-radius: 3px; background: var(--panel-3); margin-right: 5px; color: var(--text-2); }
 .sync-list li.lap .se-kind { background: var(--accent); color: #fff; }
 .sync-list li.empty { display: block; color: var(--muted); text-align: center; padding: 18px; }
-.sync-save { display: flex; gap: 8px; margin-top: 12px; }
-.sync-save input { flex: 1; background: var(--panel-3); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
+.sync-save { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sync-save input { flex: 1 1 160px; min-width: 0; background: var(--panel-3); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; }
+.sync-save .btn { flex: 0 1 auto; max-width: 100%; }
 .preset-manage { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-3); border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 12.5px; }
 .chip button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; }
