@@ -2,6 +2,9 @@
 import { store, f1Now, versionOf } from '../store.js';
 import { $, esc, fmtDuration, sessionKind, currentStint } from '../util.js';
 import { trackStatusInfo, SESSION_STATUS_FR, parseUtc, parseLapTime } from '/shared/f1.js';
+import { FLAG_ISO } from '/shared/flags.js';
+
+export { FLAG_ISO };
 import { icon } from '../icons.js';
 
 const POPOUT = new URLSearchParams(location.search).has('win');
@@ -115,13 +118,6 @@ export function renderHeader() {
 }
 
 let gmtOffset = null;
-
-// Code pays de la F1 (3 lettres) -> code ISO à 2 lettres (images des drapeaux)
-export const FLAG_ISO = {
-  AUS: 'au', AUT: 'at', AZE: 'az', BRN: 'bh', BEL: 'be', BRA: 'br', CAN: 'ca', CHN: 'cn', ESP: 'es', FRA: 'fr', GBR: 'gb',
-  GER: 'de', HUN: 'hu', ITA: 'it', JPN: 'jp', KSA: 'sa', MEX: 'mx', MON: 'mc', NED: 'nl', POR: 'pt', QAT: 'qa', RUS: 'ru',
-  SGP: 'sg', TUR: 'tr', UAE: 'ae', ARE: 'ae', USA: 'us', ARG: 'ar', RSA: 'za', KOR: 'kr', IND: 'in', MAL: 'my', MYS: 'my', VIE: 'vn', SUI: 'ch', MAR: 'ma', THA: 'th',
-};
 
 // « 04:00:00 », « -05:00:00 » -> décalage en ms par rapport à UTC
 function parseGmtOffset(v) {

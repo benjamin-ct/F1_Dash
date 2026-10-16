@@ -62,6 +62,7 @@ async function accountsDialog(onChange) {
     document.body.appendChild(dlg);
   }
   const info = await api('/api/social/accounts');
+  const studio = await api('/api/social/studio').catch(() => ({ enabled: false }));
   const status = (k) => {
     const a = k === 'meta' ? [info.facebook, info.instagram] : [info[k]];
     const on = a.filter((x) => x?.connected);
@@ -77,9 +78,41 @@ async function accountsDialog(onChange) {
         <div class="row"><button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>
           ${k === 'tiktok' ? `<button class="btn small" data-tiktok ${info.tiktok.configured ? '' : 'disabled'}>${t('Se connecter à TikTok')}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}
+      <details class="posts-acc" data-studio ${studio.enabled ? '' : 'open'}><summary><b>${t('Page web (téléphone)')}</b> ${studio.enabled ? `<span class="posts-ok">${icon('check')} ${t('Activée')}</span>` : `<span class="muted">${t('Désactivée')}</span>`}</summary>
+        <p class="small">${t("Préparez et publiez les posts depuis votre téléphone, même ordinateur éteint : grosses news et séances, publication sur Instagram, Facebook et Threads après confirmation, partage vers les autres applis. Les comptes ci-dessus et la connexion F1 TV sont envoyés chiffrés au serveur Paddock Live.")}</p>
+        ${studio.enabled ? `<p class="small">${t('Adresse :')} <a href="${esc(studio.url)}" target="_blank" rel="noopener">${esc(studio.url)}</a> — ${t('entrez avec le code du mode créateur.')}</p>
+          ${studio.error ? `<p class="small posts-warn">${icon('warning')} ${esc(studio.error)}</p>` : ''}
+          ${studio.f1tv ? '' : `<p class="small muted">${icon('info')} ${t('Posts des séances : connectez F1 TV (Réglages → Compte F1 TV), les archives de la F1 sont réservées aux abonnés.')}</p>`}
+          <div class="row"><button class="btn small" data-studio-copy>${icon('doc')} ${t("Copier l'adresse")}</button><button class="btn small" data-studio-sync>${t('Renvoyer les comptes')}</button><button class="btn small" data-studio-off>${t('Désactiver')}</button></div>`
+        : `<label class="small">${t('Code du mode créateur')}<input type="password" data-studio-code autocomplete="off" spellcheck="false"></label>
+          <div class="row"><button class="btn small btn-accent" data-studio-on>${t('Activer la page web')}</button></div>`}
+      </details>
     </div>`;
   dlg.onclick = async (e) => {
     if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); onChange?.(); return; }
+    const sbtn = e.target.closest('[data-studio] button');
+    if (sbtn) {
+      try {
+        sbtn.disabled = true;
+        if (sbtn.dataset.studioOn !== undefined) {
+          await api('/api/social/studio', { code: $('[data-studio-code]', dlg).value });
+          toast(t('Page web activée'), 3000, 'check');
+        } else if (sbtn.dataset.studioSync !== undefined) {
+          const r = await api('/api/social/studio', { sync: true });
+          if (r.error) throw new Error(r.error);
+          toast(t('Comptes envoyés'), 2500, 'check');
+        } else if (sbtn.dataset.studioOff !== undefined) {
+          if (!window.confirm(t('Désactiver la page web ? Les comptes envoyés au serveur sont effacés.'))) return;
+          await api('/api/social/studio', { off: true });
+        } else if (sbtn.dataset.studioCopy !== undefined) {
+          await navigator.clipboard.writeText(studio.url);
+          toast(t('Adresse copiée'), 2000, 'check');
+          return;
+        }
+        accountsDialog(onChange);
+      } catch (err) { toast(err.message, 5000, 'warning'); } finally { sbtn.disabled = false; }
+      return;
+    }
     const box = e.target.closest('[data-net]');
     const btn = e.target.closest('button');
     if (!box || !btn) return;

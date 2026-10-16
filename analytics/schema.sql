@@ -45,3 +45,8 @@ CREATE TABLE IF NOT EXISTS error_details (
   n INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (day, version, os, device, kind, place, msg, stack)
 );
+
+-- Page web du créateur : vérificateur de la clé et coffre chiffré des jetons (k = 'verifier' | 'vault')
+CREATE TABLE IF NOT EXISTS studio (k TEXT PRIMARY KEY, v TEXT NOT NULL, at INTEGER NOT NULL);
+-- Essais de clé ratés, par adresse et par jour
+CREATE TABLE IF NOT EXISTS studio_fail (ip TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (ip, day));

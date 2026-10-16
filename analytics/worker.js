@@ -7,6 +7,7 @@
 //   Session : cookie signé (HMAC du mot de passe), valable 30 jours.
 // - GET /stats.json : les mêmes chiffres en JSON (connecté, ou ?key=…).
 import { cleanBatch, LABELS, FEATURE_GROUPS } from '../shared/stats.js';
+import { studioApi } from './studio.js';
 import { loginPage, dashboardPage } from './page.js';
 import { cleanRequest, translateBatch } from './translate.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
@@ -200,6 +201,10 @@ export default {
         const res = await translateBatch(env, r);
         return json(res, res.limited ? 429 : 200);
       } catch { return json({ error: 'Erreur' }, 500); }
+    }
+    // Page web du créateur : API (la page elle-même est un fichier statique, dossier site/)
+    if (url.pathname.startsWith('/studio/api/')) {
+      try { return await studioApi(req, env, url); } catch { return json({ error: 'Erreur' }, 500); }
     }
     // Transcription partagée des radios : déjà faite (empreinte du fichier son), sinon envoi du son
     if (url.pathname === '/r' || url.pathname.startsWith('/r/')) {

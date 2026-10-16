@@ -5,6 +5,11 @@ main = "worker.js"
 compatibility_date = "2025-09-01"
 workers_dev = true
 
+# Fichiers statiques : page web du créateur (/studio/), copiée avec le code partagé et les polices
+# par scripts/build-studio.mjs avant le déploiement (dossier généré, non suivi par git)
+[assets]
+directory = "./site"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "paddock-live-stats"
