@@ -1570,6 +1570,7 @@ export default {
   "Premier commentaire (Facebook, Threads, X)": "First comment (Facebook, Threads, X)",
   "commentaire ajouté": "comment added",
   "commentaire refusé : {}": "comment refused: {}",
+  "pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)": "not publicly visible on Threads: check the post (hidden account or post)",
   "Texte Instagram": "Instagram text",
   "Texte Facebook (avec le lien de l'article)": "Facebook text (with the article link)",
   "Page web (téléphone)": "Web page (phone)",
@@ -1936,4 +1937,6 @@ export default {
   "La semaine en F1": "The week in F1",
   "Une question adaptée au post en fin de texte, pour faire réagir en commentaire": "A question suited to the post at the end of the text, to spark comments",
   "Question en fin de texte": "Question at the end of the text",
+  "Race Week": "Race Week",
+  "Tracé du circuit indisponible pour ce Grand Prix : visuel sans le circuit.": "Circuit layout unavailable for this Grand Prix: visual without the circuit.",
 };

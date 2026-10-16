@@ -200,7 +200,11 @@ async function handleApi(req, res, url) {
       if (!/^\d{4}\/[\w\-./]+\/$/.test(p)) return sendJSON(res, 400, { error: 'Séance invalide' });
       const until = Number(url.searchParams.get('until')) || Date.now();
       const hint = Object.fromEntries(['name', 'location', 'country', 'session'].map((k) => [k, (url.searchParams.get(k) || '').slice(0, 80)]));
-      return sendJSON(res, 200, await weekendTyres(p, until, hint));
+      try {
+        return sendJSON(res, 200, await weekendTyres(p, until, hint));
+      } catch (err) {
+        return sendJSON(res, /introuvable/i.test(err.message) ? 404 : 502, { error: err.message });
+      }
     }
 
     // Pole et meilleur tour en course des éditions précédentes sur ce circuit

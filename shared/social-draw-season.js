@@ -394,3 +394,157 @@ export function raceFrame(ctx, W, H, d, o, time) {
   txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(30 * u), weight: 700, family: TITLE, spacing: 1 });
   if (lap >= d.total) txt(ctx, 'ABONNEZ-VOUS POUR LA SUITE', W - pad, fy, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, align: 'right', spacing: 2 });
 }
+
+// ---------- Race Week : visuel propre à chaque Grand Prix ----------
+// Couleurs du drapeau du pays, drapeau en fond, nom de la ville en filigrane, tracé lumineux du
+// circuit ; mise en page qui alterne selon la manche (tracé à droite, en bas ou à gauche).
+const rgba = (hex, a) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  const v = m ? parseInt(m[1], 16) : 0xe10600;
+  return `rgba(${v >> 16},${(v >> 8) & 255},${v & 255},${a})`;
+};
+function drawTrack(ctx, shape, box, color, u) {
+  const s = Math.min(box.w / shape.w, box.h / shape.h);
+  const ox = box.x + (box.w - shape.w * s) / 2;
+  const oy = box.y + (box.h - shape.h * s) / 2;
+  const P = ([x, y]) => [ox + x * s, oy + y * s];
+  const path = () => { ctx.beginPath(); shape.pts.forEach((p, i) => { const [x, y] = P(p); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); };
+  ctx.save();
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  // Halo, piste, ligne centrale
+  ctx.shadowColor = color; ctx.shadowBlur = 60 * u;
+  ctx.strokeStyle = rgba(color, 0.55); ctx.lineWidth = 34 * u; path(); ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = color; ctx.lineWidth = 16 * u; path(); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.92)'; ctx.lineWidth = 4 * u; path(); ctx.stroke();
+  // Ligne de départ : damier
+  const [sx, sy] = P(shape.pts[0]);
+  const q = 9 * u;
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { ctx.fillStyle = (i + j) % 2 ? '#111' : '#fff'; ctx.fillRect(sx - 2 * q + i * q, sy - q + j * q, q, q); }
+  ctx.restore();
+}
+export function raceweek(ctx, W, H, d, o) {
+  const land = W > H;
+  const u = Math.min(W, H) / 1080;
+  const [c1, c2] = d.palette;
+  const v = d.variant || 0;
+  // Fond : dégradé sombre teinté aux couleurs du pays
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#07080c'); g.addColorStop(1, '#10131b');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const glow = (x, y, r, col, a) => { const rg = ctx.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, rgba(col, a)); rg.addColorStop(1, rgba(col, 0)); ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H); };
+  glow(v === 2 ? W * 0.15 : W * 0.85, H * 0.18, Math.max(W, H) * 0.75, c1, 0.42);
+  glow(v === 2 ? W * 0.9 : W * 0.1, H * 0.95, Math.max(W, H) * 0.6, c2, 0.16);
+  // Drapeau en grand, incliné et fondu
+  if (o.flag) {
+    ctx.save();
+    ctx.globalAlpha = 0.09;
+    ctx.translate(W * (v === 2 ? 0.25 : 0.72), H * 0.32);
+    ctx.rotate(-0.21);
+    const fw = Math.max(W, H) * 0.95;
+    ctx.drawImage(o.flag, -fw / 2, -fw * o.flag.height / o.flag.width / 2, fw, fw * o.flag.height / o.flag.width);
+    ctx.restore();
+  }
+  // Nom de la ville en filigrane
+  if (d.city) {
+    ctx.save();
+    ctx.translate(W / 2, H * (land ? 0.62 : 0.56));
+    ctx.rotate(-0.14);
+    const word = d.city.toUpperCase();
+    let fs = 400 * u;
+    ctx.font = `800 ${fs}px ${TITLE}`;
+    const wmax = (land ? W : H) * 1.15;
+    if (ctx.measureText(word).width > wmax) { fs *= wmax / ctx.measureText(word).width; ctx.font = `800 ${fs}px ${TITLE}`; }
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 3 * u; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeText(word, 0, 0);
+    ctx.restore();
+  }
+  // Bandes de vitesse aux couleurs du drapeau
+  ctx.save();
+  ctx.translate(v === 2 ? 0 : W, 0);
+  if (v !== 2) ctx.scale(-1, 1);
+  [[c1, 0], [c2, 1], ['#ffffff', 2]].forEach(([col, i]) => {
+    ctx.fillStyle = rgba(col, i === 2 ? 0.5 : 0.85);
+    ctx.beginPath(); ctx.moveTo(0, H * (0.06 + i * 0.035)); ctx.lineTo(W * 0.22 - i * 40 * u, H * (0.06 + i * 0.035)); ctx.lineTo(W * 0.2 - i * 40 * u, H * (0.06 + i * 0.035) + 12 * u); ctx.lineTo(0, H * (0.06 + i * 0.035) + 12 * u); ctx.fill();
+  });
+  ctx.restore();
+  const pad = Math.round(W * 0.06);
+  const fy = H - Math.round(Math.min(W, H) * 0.045);
+  const story = H / W > 1.5;
+  // Bloc de texte : hauteur calculée d'abord, le tracé prend la place qui reste
+  const right = !land && v === 2;
+  const textLeft = land && v === 1 ? W * 0.52 : pad;
+  const tx = right ? W - pad : textLeft;
+  const align = right ? 'right' : 'left';
+  const colW = land ? W * 0.42 : W - pad * 2;
+  const facts = [[d.laps, 'TOURS'], [d.km != null ? String(d.km).replace('.', ',') : null, 'KM'], [d.corners, 'VIRAGES']].filter(([x]) => x != null);
+  let big = Math.round((land ? 150 : story ? 210 : 170) * u);
+  const titleSizes = [64, 56, 50, 44].map((x) => Math.round(x * (land ? 0.85 : 1) * u));
+  const measure = (bg, withPrev) => {
+    const t = fitLines(ctx, d.gp.toUpperCase(), colW, titleSizes, 2, TITLE, 800);
+    const h = 30 * u + bg * 1.76 + 46 * u + t.lines.length * t.size * 1.02 + 20 * u + 60 * u + (facts.length ? 106 * u : 0) + (d.race ? 80 * u : 0) + (withPrev && d.prev ? 36 * u : 0);
+    return { t, h };
+  };
+  const top0 = land ? H * 0.1 : H * 0.075;
+  const bottom0 = fy - 56 * u;
+  const minTrack = land ? 0 : (story ? 0.3 : 0.24) * H;
+  let withPrev = true;
+  let m = measure(big, withPrev);
+  while (m.h > bottom0 - top0 - minTrack && big > 110 * u) { big -= 10 * u; m = measure(big, withPrev); }
+  if (m.h > bottom0 - top0 - minTrack) { withPrev = false; m = measure(big, false); }
+  // Position du texte (en haut pour la variante 1, en bas sinon ; à gauche ou à droite en paysage)
+  const textTop = land ? top0 + Math.max(0, (bottom0 - top0 - m.h) / 2) : v === 1 ? top0 : bottom0 - m.h;
+  // Tracé du circuit dans l'espace libre
+  if (d.shape) {
+    const gap = 30 * u;
+    const box = land
+      ? { x: v === 1 ? pad : W * 0.52, y: H * 0.12, w: W * 0.42, h: H * 0.7 }
+      : v === 1 ? { x: pad, y: textTop + m.h + gap, w: W - pad * 2, h: bottom0 - (textTop + m.h + gap) }
+        : { x: v === 2 ? pad : W * 0.3, y: Math.max(top0 + 40 * u, H * 0.15), w: W * 0.64, h: textTop - gap - Math.max(top0 + 40 * u, H * 0.15) };
+    if (box.h > 80 * u) drawTrack(ctx, d.shape, box, c1, u * (land ? 0.8 : 1));
+  }
+  let y = textTop;
+  txt(ctx, `MANCHE ${d.round}${d.rounds ? ` / ${d.rounds}` : ''}`, tx, y + 26 * u, { size: Math.round(30 * u), weight: 800, family: TITLE, color: /^#F5F5F5$/i.test(c1) ? c2 : c1, align, spacing: 6 * u });
+  y += 30 * u;
+  txt(ctx, 'RACE', tx, y + big * 0.86, { size: big, weight: 800, family: TITLE, align, max: colW });
+  y += big * 0.86;
+  // WEEK : contour aux couleurs du pays
+  ctx.save();
+  ctx.font = `800 ${big}px ${TITLE}`;
+  ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  ctx.lineWidth = 5 * u; ctx.strokeStyle = c1; ctx.fillStyle = rgba(c1, 0.18);
+  ctx.fillText('WEEK', tx, y + big * 0.9); ctx.strokeText('WEEK', tx, y + big * 0.9);
+  ctx.restore();
+  y += big * 0.9 + 46 * u;
+  const t = m.t;
+  t.lines.forEach((l, i) => txt(ctx, l, tx, y + t.size * 0.82 + i * t.size * 1.02, { size: t.size, weight: 800, family: TITLE, align }));
+  y += t.lines.length * t.size * 1.02 + 20 * u;
+  txt(ctx, `${d.date}${d.city ? `  ·  ${d.city}` : ''}`.toUpperCase(), tx, y + 28 * u, { size: Math.round(28 * u), weight: 600, family: TITLE, color: C.muted, align, spacing: 2 * u, max: colW });
+  y += 60 * u;
+  // Chiffres du circuit
+  if (facts.length) {
+    const fw = Math.min(200 * u, colW / facts.length);
+    facts.forEach(([val, lab], i) => {
+      const fx = right ? tx - (facts.length - 1 - i) * fw : tx + i * fw;
+      ctx.fillStyle = c1; ctx.fillRect(right ? fx - 6 * u : fx, y, 6 * u, 74 * u);
+      const ix = right ? fx - 22 * u : fx + 22 * u;
+      txt(ctx, String(val), ix, y + 44 * u, { size: Math.round(50 * u), weight: 800, family: TITLE, align });
+      txt(ctx, lab, ix, y + 72 * u, { size: Math.round(20 * u), weight: 700, family: TITLE, color: C.muted, align, spacing: 3 * u });
+    });
+    y += 106 * u;
+  }
+  if (d.race) {
+    const label = `COURSE ${d.race.day.toUpperCase()} ${d.race.time.replace(':', 'H')}`;
+    ctx.font = `800 ${Math.round(30 * u)}px ${TITLE}`;
+    const w = ctx.measureText(label).width + 40 * u + label.length * 2 * u;
+    const bx = right ? tx - w : tx;
+    rr(ctx, bx, y, w, 54 * u, 27 * u); ctx.fillStyle = C.red; ctx.fill();
+    txt(ctx, label, bx + w / 2, y + 37 * u, { size: Math.round(30 * u), weight: 800, family: TITLE, color: '#fff', align: 'center', spacing: 2 * u });
+    y += 80 * u;
+  }
+  if (withPrev && d.prev) txt(ctx, `VAINQUEUR ${d.prev.year} : ${d.prev.name.toUpperCase()}`, tx, y + 20 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, align, spacing: 2 * u, max: colW });
+  // Pied
+  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, spacing: 1 });
+  txt(ctx, 'HEURE DE PARIS', W - pad, fy, { size: Math.round(Math.min(W, H) * 0.02), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
+}

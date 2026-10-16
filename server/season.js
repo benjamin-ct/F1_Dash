@@ -48,7 +48,7 @@ async function all(pathname, pick) {
 }
 
 // Format des données enregistrées : une copie plus ancienne est rechargée une fois
-const FORMAT = 2;
+const FORMAT = 3;
 
 async function fetchSeason(year) {
   const [schedule, ds, cs, results, quali, sprint] = await Promise.all([

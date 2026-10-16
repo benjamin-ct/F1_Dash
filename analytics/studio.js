@@ -207,6 +207,27 @@ async function image(req, url) {
   return cached(req, u.href, { headers: { 'User-Agent': UA } }, 86400);
 }
 
+// Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour
+async function sendTo(net, vault, { text, comment, images, small = [] }, threads) {
+  if (net === 'bluesky') {
+    const pics = small.slice(0, 4).map((blob) => ({ blob, width: 1600, height: 900 }));
+    return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
+  }
+  if (net === 'facebook') return withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
+  if (net === 'instagram') return publishInstagram(vault.meta, text.slice(0, 2200), images);
+  const th = await threads();
+  return withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images), comment, (id, t) => replyThreads(th, id, t));
+}
+const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
+// Compte du réseau absent du coffre : raison, sinon null
+function missing(net, vault) {
+  if (net === 'bluesky') return vault.bluesky ? null : 'Compte Bluesky non envoyé : connectez-le dans l\'appli';
+  if (!vault.meta?.pageToken) return 'Comptes Meta non envoyés : connectez-les dans l\'appli';
+  if (net === 'threads' && !vault.threads?.token) return 'Compte Threads non envoyé : connectez-le dans l\'appli';
+  return null;
+}
+const resultOf = (r) => ({ url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null, ...(r.visible != null ? { visible: r.visible } : {}) });
+
 // ---------- Publication : progression ligne par ligne (JSON), puis le résultat ----------
 async function publish(req, env, raw, vault) {
   let form;
@@ -215,10 +236,8 @@ async function publish(req, env, raw, vault) {
   const text = String(form.get('text') || '');
   const comment = String(form.get('comment') || '').trim().slice(0, 500);
   const images = form.getAll('images').filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type) && f.size < 8e6).slice(0, 20);
-  if (!['facebook', 'instagram', 'threads', 'bluesky'].includes(net)) return json({ error: 'Réseau inconnu' }, 400);
-  if (net === 'bluesky' && !vault.bluesky) return json({ error: 'Compte Bluesky non envoyé : connectez-le dans l\'appli' }, 409);
-  if (net !== 'bluesky' && !vault.meta?.pageToken) return json({ error: 'Comptes Meta non envoyés : connectez-les dans l\'appli' }, 409);
-  if (net === 'threads' && !vault.threads?.token) return json({ error: 'Compte Threads non envoyé : connectez-le dans l\'appli' }, 409);
+  if (!NETS.includes(net)) return json({ error: 'Réseau inconnu' }, 400);
+  if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
   if (!images.length) return json({ error: 'Aucune image' }, 400);
   const { readable, writable } = new TransformStream();
   const w = writable.getWriter();
@@ -226,17 +245,8 @@ async function publish(req, env, raw, vault) {
   (async () => {
     try {
       await line({ step: 'Envoi des images…' });
-      let r;
-      if (net === 'bluesky') {
-        const pics = images.slice(0, 4).map((blob) => ({ blob, width: 1600, height: 900 }));
-        r = await withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
-      } else if (net === 'facebook') r = await withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
-      else if (net === 'instagram') r = await publishInstagram(vault.meta, text.slice(0, 2200), images);
-      else {
-        const th = (await refresh(env, raw, vault)).threads;
-        r = await withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images), comment, (id, t) => replyThreads(th, id, t));
-      }
-      await line({ done: true, url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null });
+      const r = await sendTo(net, vault, { text, comment, images, small: images }, async () => (await refresh(env, raw, vault)).threads);
+      await line({ done: true, ...resultOf(r) });
     } catch (err) {
       await line({ error: String(err?.message || err).slice(0, 300) });
     } finally {
@@ -244,6 +254,125 @@ async function publish(req, env, raw, vault) {
     }
   })();
   return new Response(readable, { headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
+// ---------- Publications programmées ----------
+// Le post (textes de chaque réseau, visuels) est gardé dans la base et publié à l'heure choisie par
+// le relevé du serveur (toutes les minutes, un réseau par passage), même page fermée. Les jetons
+// utiles sont copiés pour l'occasion, chiffrés avec une clé tirée du secret du serveur (STATS_KEY,
+// hors de la base) : la base seule ne permet toujours pas de publier. Visuels et jetons sont effacés
+// une fois la publication faite.
+const SCHED = { max: 20, ahead: 7 * 86400e3, late: 24 * 3600e3, keep: 7 * 86400e3, running: 15 * 60e3, img: 1.4e6 };
+const schedKey = async (env) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(`paddock-live-schedule-v1:${env.STATS_KEY}`)));
+// Base64 par morceaux (visuels de plus d'un Mo)
+function b64big(bytes) {
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(out);
+}
+async function rowsLike(env, prefix) {
+  const r = await env.DB.prepare('SELECT k, v FROM studio WHERE k LIKE ?').bind(`${prefix}%`).all();
+  return r.results || [];
+}
+const delLike = (env, prefix) => env.DB.prepare('DELETE FROM studio WHERE k LIKE ?').bind(`${prefix}%`).run();
+
+// Programmations avec l'état de chaque réseau (pending, running, done, error, expired)
+async function schedJobs(env) {
+  const states = new Map((await rowsLike(env, 'schedpost:')).map((r) => [r.k, JSON.parse(r.v)]));
+  return (await rowsLike(env, 'sched:')).map((r) => {
+    const j = JSON.parse(r.v);
+    return { ...j, nets: Object.fromEntries(j.posts.map((p) => [p.network, states.get(`schedpost:${j.id}:${p.network}`) || { status: 'pending' }])) };
+  }).sort((a, b) => a.at - b.at);
+}
+const schedSummary = (j) => ({ id: j.id, at: j.at, title: j.title, nets: j.nets });
+
+async function scheduleAdd(req, env, raw, vault, now = Date.now()) {
+  if (!env.STATS_KEY) return json({ error: 'Secret du serveur absent : programmation impossible' }, 503);
+  let form;
+  try { form = await req.formData(); } catch { return json({ error: 'Formulaire illisible' }, 400); }
+  const at = Number(form.get('at'));
+  if (!Number.isFinite(at) || at < now - 60e3 || at > now + SCHED.ahead) return json({ error: 'Date de publication invalide (dans les 7 prochains jours)' }, 400);
+  let posts, record;
+  try { posts = JSON.parse(String(form.get('posts') || '[]')); record = JSON.parse(String(form.get('record') || 'null')); } catch { return json({ error: 'JSON invalide' }, 400); }
+  if (!Array.isArray(posts) || !posts.length || posts.length > NETS.length) return json({ error: 'Aucun réseau choisi' }, 400);
+  posts = posts.map((p) => ({ network: String(p?.network || ''), text: String(p?.text || '').slice(0, 5000), comment: String(p?.comment || '').trim().slice(0, 500) }));
+  if (posts.some((p) => !NETS.includes(p.network)) || new Set(posts.map((p) => p.network)).size !== posts.length) return json({ error: 'Réseau inconnu' }, 400);
+  for (const p of posts) if (missing(p.network, vault)) return json({ error: missing(p.network, vault) }, 409);
+  const files = (k, n) => form.getAll(k).filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type)).slice(0, n);
+  const sets = { ig: files('ig', 20), x: files('x', 4) };
+  if ([...sets.ig, ...sets.x].some((f) => f.size > SCHED.img)) return json({ error: 'Visuel trop lourd (1,4 Mo au plus)' }, 413);
+  if (posts.some((p) => p.network !== 'bluesky') && !sets.ig.length) return json({ error: 'Aucune image' }, 400);
+  if (posts.some((p) => p.network === 'bluesky') && !sets.x.length) return json({ error: 'Aucune image' }, 400);
+  if ((await schedJobs(env)).filter((j) => Object.values(j.nets).some((s) => s.status === 'pending')).length >= SCHED.max) return json({ error: `${SCHED.max} publications programmées au plus` }, 409);
+  // Jetons du moment (Threads prolongé si besoin), seulement ceux des réseaux choisis
+  const v = await refresh(env, raw, vault);
+  const nets = posts.map((p) => p.network);
+  const keys = { ...(nets.some((n) => n !== 'bluesky') ? { meta: v.meta } : {}), ...(nets.includes('threads') ? { threads: v.threads } : {}), ...(nets.includes('bluesky') ? { bluesky: v.bluesky } : {}) };
+  const id = hex(crypto.getRandomValues(new Uint8Array(8)));
+  for (const [set, list] of Object.entries(sets)) {
+    for (const [i, f] of list.entries()) await setRow(env, `schedimg:${id}:${set}:${i}`, JSON.stringify({ type: f.type, data: b64big(new Uint8Array(await f.arrayBuffer())) }));
+  }
+  const job = { id, at, title: String(form.get('title') || '').slice(0, 200), record: record && typeof record === 'object' ? record : null, posts, sets: { ig: sets.ig.length, x: sets.x.length }, keys: await seal(await schedKey(env), keys), created: now };
+  await setRow(env, `sched:${id}`, JSON.stringify(job));
+  return json({ item: schedSummary({ ...job, nets: Object.fromEntries(nets.map((n) => [n, { status: 'pending' }])) }) });
+}
+
+async function scheduleCancel(env, id) {
+  if (!/^[a-f0-9]{16}$/.test(String(id))) return json({ error: 'Publication inconnue' }, 404);
+  const j = (await schedJobs(env)).find((x) => x.id === id);
+  if (!j) return json({ error: 'Publication inconnue' }, 404);
+  if (Object.values(j.nets).some((s) => s.status === 'running')) return json({ error: 'Publication en cours' }, 409);
+  await delLike(env, `schedimg:${id}:`);
+  await delLike(env, `schedpost:${id}:`);
+  await delLike(env, `sched:${id}`);
+  return json({ items: (await schedJobs(env)).map(schedSummary) });
+}
+
+// Relevé du serveur : publie le premier réseau arrivé à l'heure. Renvoie { published } si un post est
+// parti (le relevé des alertes attend alors le passage suivant), null sinon.
+export async function runSchedule(env, { now = Date.now() } = {}) {
+  if (!env.DB || !env.STATS_KEY) return null;
+  const jobs = await schedJobs(env);
+  const setState = (j, net, st) => setRow(env, `schedpost:${j.id}:${net}`, JSON.stringify(st));
+  let out = null;
+  for (const j of jobs) {
+    for (const p of j.posts) {
+      const st = j.nets[p.network];
+      // Envoi resté « en cours » (serveur interrompu) : jamais renvoyé en double
+      if (st.status === 'running' && now - (st.started || 0) > SCHED.running) { st.status = 'error'; st.error = 'Envoi interrompu : vérifiez sur le réseau'; await setState(j, p.network, st); }
+      if (out || st.status !== 'pending' || j.at > now) continue;
+      if (now - j.at > SCHED.late) { st.status = 'expired'; await setState(j, p.network, st); continue; }
+      st.status = 'running';
+      await setState(j, p.network, { status: 'running', started: now });
+      try {
+        const keys = await open(await schedKey(env), j.keys);
+        if (!keys) throw new Error('Jetons effacés');
+        const imgs = async (set) => {
+          const list = [];
+          for (let i = 0; i < (j.sets?.[set] || 0); i++) {
+            const row = JSON.parse(await getRow(env, `schedimg:${j.id}:${set}:${i}`) || 'null');
+            if (row) list.push(new Blob([unb64(row.data)], { type: row.type }));
+          }
+          return list;
+        };
+        const r = await sendTo(p.network, keys, { text: p.text, comment: p.network === 'instagram' ? '' : p.comment, images: p.network === 'bluesky' ? [] : await imgs('ig'), small: p.network === 'bluesky' ? await imgs('x') : [] }, () => freshThreads(keys.threads));
+        Object.assign(st, { status: 'done', at: Date.now(), ...resultOf(r) });
+        if (j.record) await setRow(env, 'history', JSON.stringify(addEntry(JSON.parse(await getRow(env, 'history') || '[]'), { ...j.record, at: Date.now(), nets: { [p.network]: { id: st.id, url: st.url } } })));
+      } catch (err) {
+        Object.assign(st, { status: 'error', error: String(err?.message || err).slice(0, 300) });
+      }
+      delete st.started;
+      await setState(j, p.network, st);
+      out = { published: p.network, id: j.id };
+    }
+    // Programmation terminée : visuels et jetons effacés, puis la trace au bout de 7 jours
+    const states = Object.values(j.nets);
+    if (states.every((s) => !['pending', 'running'].includes(s.status))) {
+      if (j.keys) { await delLike(env, `schedimg:${j.id}:`); const { nets, ...rest } = j; await setRow(env, `sched:${j.id}`, JSON.stringify({ ...rest, keys: null })); }
+      if (now - j.at > SCHED.keep) { await delLike(env, `schedpost:${j.id}:`); await delLike(env, `sched:${j.id}`); }
+    }
+  }
+  return out;
 }
 
 // ---------- Routes /studio/api/… ----------
@@ -310,6 +439,13 @@ export async function studioApi(req, env, url) {
   if (path === 'img' && req.method === 'GET') return image(req, url);
   if (path === 'fia' && req.method === 'GET') return fia(req, url);
   if (path === 'page' && req.method === 'GET') return page(req, url);
+  if (path === 'schedule' && req.method === 'GET') return json({ items: (await schedJobs(env)).map(schedSummary) });
+  if (path === 'schedule' && req.method === 'POST') return scheduleAdd(req, env, a.raw, vault);
+  if (path === 'schedule/cancel' && req.method === 'POST') {
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    return scheduleCancel(env, body?.id);
+  }
   if (path === 'publish' && req.method === 'POST') {
     if (!vault.meta?.pageToken && !vault.bluesky) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
     return publish(req, env, a.raw, vault);

@@ -55,7 +55,7 @@ export function createScheduler({ dir, publish, record = null, now = Date.now, e
           const net = p.body.network;
           try {
             const r = await publish(net, p.body);
-            j.results[net] = { ok: true, url: r?.url || null };
+            j.results[net] = { ok: true, url: r?.url || null, ...(r?.visible === false ? { hidden: true } : {}) };
             if (record && j.record) await record({ ...j.record, at: now(), nets: { [net]: { id: r?.id ?? null, url: r?.url || null } } }).catch(() => {});
           } catch (err) { j.results[net] = { ok: false, error: err.message }; }
         }

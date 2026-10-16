@@ -150,3 +150,58 @@ test('météo prévue : jours, températures et risque de pluie', async () => {
   assert.deepEqual(days, [{ date: '2026-10-23', tmax: 25, tmin: 14, rain: 10 }, { date: '2026-10-24', tmax: 26, tmin: 15, rain: null }]);
   await assert.rejects(forecast('a', 1), /Coordonnées/);
 });
+
+test('race week : tracé du circuit, couleurs du pays, vainqueur précédent, mise en page selon la manche', async () => {
+  const { raceWeekData } = await import('../shared/social-season.js');
+  const { trackShape, circuitInfo, flagColors } = await import('../shared/circuits-info.js');
+  const track = { rotation: 90, x: [0, 1000, 1000, 0], y: [0, 0, 500, 500], corners: [{ number: 1, trackPosition: { x: 1000, y: 0 } }] };
+  const sh = trackShape(track);
+  assert.equal(sh.pts.length, 4);
+  assert.ok(sh.pts.every(([x, y]) => x >= 0 && x <= 1 && y >= 0 && y <= 1));
+  assert.ok(Math.abs(sh.h - 1) < 1e-9 && Math.abs(sh.w - 0.5) < 1e-9);   // tourné d'un quart de tour
+  assert.equal(trackShape(null), null);
+  assert.deepEqual(circuitInfo('americas'), { key: 9, km: 5.513, laps: 56 });
+  assert.deepEqual(flagColors('zz'), ['#e10600', '#f3f5f9']);
+  const race = { ...R1, round: 18, circuitId: 'americas' };
+  const d = raceWeekData(race, { year: 2026, rounds: 23, track, prev: { name: 'Max Verstappen', team: 'Red Bull', teamId: 'red_bull' }, tyres: { hard: 2, medium: 3, soft: 4 } });
+  assert.equal(d.post, 'raceweek');
+  assert.equal(d.variant, 0);
+  assert.deepEqual([d.laps, d.km, d.corners, d.city], [56, 5.513, 1, 'Austin']);
+  assert.deepEqual(d.palette, flagColors('us'));
+  assert.deepEqual(slidesFor(d), ['raceweek', 'horaires', 'infos']);
+  const c = seasonCaptions(d, '@moi');
+  assert.match(c.instagram, /^RACE WEEK \| Grand Prix des États-Unis\n\nManche 18\/23 · du 23 au 25 octobre 2026 · Austin\nCourse dimanche à 20:00 \(heure de Paris\)\n56 tours · 5,513 km · 1 virage\nVainqueur 2025 : Max Verstappen \(Red Bull\)/);
+  assert.match(c.instagram, /#RaceWeek #Austin/);
+  assert.ok(xLength(c.x) <= 280);
+  assert.equal(raceWeekData({ ...race, round: 19 }, { year: 2026 }).variant, 1);
+  // « 1 novembre » écrit « 1er novembre »
+  const nov = raceWeekData({ ...race, sessions: [{ label: 'EL1', t: '2026-10-30T18:30:00Z' }, { label: 'Course', t: '2026-11-01T20:00:00Z' }] }, { year: 2026 });
+  assert.equal(nov.date, '30 octobre au 1er novembre 2026');
+});
+
+test('records du circuit : éditions lues dans les archives (commun à l\'appli et à la page du créateur)', async () => {
+  const { editionOf, recordsOf, recordYears, sessionBest } = await import('../shared/circuit-records.js');
+  assert.deepEqual(recordYears(2026), [2025, 2024, 2023, 2022]);
+  assert.deepEqual(recordYears(2019), [2018]);
+  assert.equal(sessionBest({ Lines: {} }), null);
+  const files = {
+    '2025/Index.json': { Meetings: [{ Name: 'Italian Grand Prix', Circuit: { Key: 39 }, Sessions: [
+      { Name: 'Sprint Qualifying', Type: 'Qualifying', Path: '2025/sq/' }, { Name: 'Qualifying', Type: 'Qualifying', Path: '2025/q/' }, { Name: 'Race', Type: 'Race', Path: '2025/r/' }] }] },
+    '2025/q/TimingData.json': { Lines: { 1: { BestLapTime: { Value: '1:18.792', Lap: 20 } }, 16: { BestLapTime: { Value: '1:18.900' } } } },
+    '2025/q/DriverList.json': { 1: { Tla: 'VER', TeamName: 'Red Bull Racing', TeamColour: '4781D7' } },
+    '2025/r/TimingData.json': { Lines: { 4: { BestLapTime: { Value: '1:20.901', Lap: 50 } } } },
+    '2024/Index.json': { Meetings: [{ Name: 'Monaco Grand Prix', Circuit: { Key: 22 }, Sessions: [{ Name: 'Race', Type: 'Race', Path: '2024/m/' }] }] },
+    '2023/Index.json': { Meetings: [{ Name: 'Italian Grand Prix', Circuit: { Key: 39 }, Sessions: [{ Name: 'Qualifying', Type: 'Qualifying', Path: '2023/q/' }, { Name: 'Race', Type: 'Race', Path: '2023/r/' }] }] },
+  };
+  const read = async (p) => { if (!files[p]) throw new Error('404'); return files[p]; };
+  const e25 = await editionOf(2025, 39, read);
+  assert.equal(e25.pole.tla, 'VER');
+  assert.equal(e25.pole.time, 78.792);
+  assert.equal(e25.fastest.tla, '4');            // pilote absent de la liste : numéro gardé
+  assert.equal(await editionOf(2024, 39, read), null);                 // pas au calendrier
+  assert.deepEqual(await editionOf(2023, 39, read), { pending: true }); // archive pas encore publiée
+  const rec = recordsOf(39, [e25, null, { pending: true }]);
+  assert.equal(rec.editions.length, 1);
+  assert.equal(rec.bestPole.year, 2025);
+  assert.equal(rec.bestRaceLap.time, 80.901);
+});

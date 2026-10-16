@@ -6,7 +6,7 @@
 
 export const GRAPH = 'https://graph.facebook.com/v25.0';
 export const THREADS = 'https://graph.threads.net/v1.0';
-export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3 };
+export const timing = { poll: 1500, maxPoll: 5000, readyMs: 4 * 60e3, visible: [8e3, 15e3, 20e3] };
 const HOST_TTL = 60 * 60e3;
 const hostedCache = new Map();   // empreinte de l'image + page -> { id, url, at }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -156,7 +156,27 @@ export async function publishThreads(th, meta, text, images) {
   await ready(status(creation), 'status', 'Post');
   const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: creation, access_token: token } });
   const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: token })}`).catch(() => ({}));
-  return { url: link.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id };
+  const visible = link.permalink ? await threadsVisible(link.permalink, th.username) : null;
+  return { url: link.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id, visible };
+}
+
+// Le post est-il visible sans être connecté ? La page publique (lue comme un aperçu de lien) porte
+// « (@compte) on Threads » ; un post caché ou introuvable renvoie la page de connexion. Plusieurs
+// essais espacés (le temps que le post soit en ligne) ; null si la page n'a pas pu être lue.
+export async function threadsVisible(url, username, delays = timing.visible) {
+  let seen = null;
+  for (const ms of delays) {
+    await wait(ms);
+    try {
+      const res = await fetch(url, { headers: { 'user-agent': 'facebookexternalhit/1.1' }, redirect: 'follow' });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const title = (html.match(/<meta property="og:title" content="([^"]*)"/)?.[1] || '').replace(/&#0*64;/g, '@').replace(/&#x2022;/gi, '•');
+      if (username ? title.includes(`@${username})`) : / on Threads$/.test(title)) return true;
+      if (/Log in$/i.test(title)) seen = false;
+    } catch { /* réessayé au tour suivant */ }
+  }
+  return seen;
 }
 
 // Réponse au post Threads (premier commentaire) : permission threads_manage_replies du jeton

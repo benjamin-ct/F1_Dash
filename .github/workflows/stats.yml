@@ -35,6 +35,9 @@ on:
       - 'shared/article.js'
       - 'shared/season-*.js'
       - 'shared/race-laps.js'
+      - 'shared/circuits-info.js'
+      - 'shared/circuit-records.js'
+      - 'shared/f1.js'
       - 'scripts/build-studio.mjs'
       - '.github/workflows/stats.yml'
 

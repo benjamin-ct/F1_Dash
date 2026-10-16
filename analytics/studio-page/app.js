@@ -13,10 +13,12 @@ import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
 import { slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
-import { weekendData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
+import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { summarize } from '/shared/season-data.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
+import { circuitInfo } from '/shared/circuits-info.js';
+import { editionOf, recordsOf, recordYears } from '/shared/circuit-records.js';
 import { makeAnimation } from '/shared/social-video.js';
 import { extractArticle } from '/shared/article.js';
 import { merge } from '/shared/merge.js';
@@ -34,7 +36,7 @@ const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'Tim
 let key = null;
 try { key = localStorage.getItem(KEY) || sessionStorage.getItem(KEY); } catch { /* stockage bloqué */ }
 let me = null;
-const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'weekend', round: null };
+const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'raceweek', round: null };
 let news = null;        // nouvelles lues (toutes sources)
 let sessions = null;    // séances de la saison
 let lastDrivers = {};   // liste des pilotes de la dernière séance lue (photos des news)
@@ -131,7 +133,7 @@ async function assets(d) {
   const photos = {};
   if (state.photos) await Promise.all((d.rows || []).slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
-  return { photos, flag: iso ? await loadImage(`https://flagcdn.com/w160/${iso}.png`) : null, signature: SIG };
+  return { photos, flag: iso ? await loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`) : null, signature: SIG };
 }
 
 // ---------- News ----------
@@ -465,12 +467,15 @@ function editor({ back, head, data, caps, bind, record }) {
       <hr>
       <div class="nets">${[['instagram', 'Instagram', me.instagram], ['facebook', 'Facebook', me.facebook], ['threads', 'Threads', me.threads], ['bluesky', 'Bluesky', me.bluesky]].map(([k, v, acc]) => `<label class="check"><input type="checkbox" data-net="${k}" ${acc ? 'checked' : 'disabled'}> <b>${v}</b> <span class="muted small">${esc(acc || 'non connecté')}</span><span class="st" data-st="${k}"></span></label>`).join('')}</div>
       <p class="small muted">Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. Pour X, TikTok ou une story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.</p>
-      <div class="row sticky"><button class="accent" id="go">Publier…</button><button id="share">Partager</button><button id="dl">Télécharger</button></div>`;
+      <div class="row sticky"><button class="accent" id="go">Publier…</button><button id="plan">Programmer…</button><button id="share">Partager</button><button id="dl">Télécharger</button></div>
+      <div id="schedbox" hidden></div><div id="schedlist"></div>`;
     for (const k of ['instagram', 'facebook', 'threads', 'x', 'bsky', 'comment'].filter((x) => $(`#cap-${x}`))) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
     const o = await assets(d);
     canvases = [...main.querySelectorAll('canvas')];
     for (const cv of canvases) drawSlide(cv, cv.dataset.slide, state.fmt, d, o);
     $('#go').onclick = () => publishAll(d, o, record?.());
+    $('#plan').onclick = () => schedulePanel(d, o, record?.());
+    schedList($('#schedlist'));
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     $('#dl').onclick = () => download(canvases, d);
     if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText($('#cap-comment').value); $('#copycomment').textContent = 'Copié ✓'; } catch { /* presse-papiers refusé */ } };
@@ -505,19 +510,99 @@ async function download(canvases) {
   }
 }
 
+// Réseaux cochés, texte et premier commentaire de chacun
+const checkedNets = () => [...app.querySelectorAll('[data-net]:checked')].map((i) => i.dataset.net);
+const textOf = (n) => $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value;
+const commentOf = (n) => (n !== 'instagram' && $('#cap-comment')?.value.trim()) || '';
+// JPEG de moins de max octets (qualité baissée au besoin)
+async function fitJpeg(cv, max) {
+  let b = null;
+  for (const q of [0.92, 0.85, 0.75, 0.6, 0.45]) { b = await toBlob(cv, 'image/jpeg', q); if (b.size <= max) break; }
+  return b;
+}
+// Visuels : format Instagram (Instagram, Facebook, Threads) ; Bluesky : 4 au format X, moins de 1 Mo
+async function postImages(d, o, nets, maxIg = Infinity) {
+  const draw = (fmt, max, n = 99) => Promise.all(slidesFor(d, { fmt, follow: state.follow }).slice(0, n).map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, o), max)));
+  return { ig: nets.some((n) => n !== 'bluesky') ? await draw('ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
+}
+
+// Publication programmée : envoyée au serveur, publiée à l'heure même page fermée
+const localValue = (t) => new Date(t - t.getTimezoneOffset() * 60e3).toISOString().slice(0, 16);
+function schedulePanel(d, o, record = null) {
+  const box = $('#schedbox');
+  box.hidden = !box.hidden;
+  if (box.hidden) return;
+  const t = new Date(Date.now() + 3600e3);
+  t.setMinutes(Math.ceil(t.getMinutes() / 15) * 15, 0, 0);
+  box.innerHTML = `<label>Date et heure de publication</label>
+    <div class="row"><input type="datetime-local" id="when" value="${localValue(t)}"><button class="accent" id="dosched">Programmer</button></div>
+    <p class="small muted">Sur les réseaux cochés, avec les textes et visuels ci-dessus. Le serveur publie à l'heure choisie, même page fermée, un réseau par minute (7 jours à l'avance au plus).</p>
+    <p class="small" id="schedst"></p>`;
+  $('#dosched').onclick = async () => {
+    const nets = checkedNets();
+    const at = new Date($('#when').value).getTime();
+    const st = $('#schedst');
+    if (!nets.length) { alert('Cochez au moins un réseau'); return; }
+    if (!Number.isFinite(at) || at < Date.now() - 60e3) { st.className = 'small err'; st.textContent = 'Choisissez une heure à venir'; return; }
+    if (!confirm(`Programmer pour le ${new Date(at).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })} sur : ${nets.map((n) => NET_NAMES[n]).join(', ')} ?\n\nLes posts seront publics à cette heure-là.`)) return;
+    const btn = $('#dosched');
+    btn.disabled = true;
+    st.className = 'small';
+    st.textContent = 'Envoi des visuels…';
+    try {
+      const imgs = await postImages(d, o, nets, 1.3e6);
+      const form = new FormData();
+      form.append('at', String(at));
+      form.append('title', record?.title || d.title || d.gp || 'Post');
+      form.append('record', JSON.stringify(record));
+      form.append('posts', JSON.stringify(nets.map((n) => ({ network: n, text: textOf(n), comment: commentOf(n) }))));
+      imgs.ig.forEach((b, i) => form.append('ig', b, `image-${i + 1}.jpg`));
+      imgs.x.forEach((b, i) => form.append('x', b, `x-${i + 1}.jpg`));
+      await api('schedule', { method: 'POST', body: form });
+      st.className = 'small ok';
+      st.textContent = `Programmé ✓ (${new Date(at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })})`;
+      schedList($('#schedlist'));
+    } catch (err) {
+      st.className = 'small err';
+      st.textContent = err.message;
+    } finally { btn.disabled = false; }
+  };
+}
+
+// Publications programmées : état de chaque réseau, annulation tant que rien n'est parti
+const SCHED_ST = { pending: 'à venir', running: 'en cours…', done: 'publié', error: 'erreur', expired: 'abandonné (plus de 24 h de retard)' };
+async function schedList(el) {
+  if (!el) return;
+  const r = await api('schedule').catch(() => ({ items: [] }));
+  const items = (r.items || []).filter((j) => j.at > Date.now() - 2 * 86400e3);
+  el.innerHTML = items.length ? `<h3>Publications programmées</h3><div class="list">${items.map((j) => {
+    const states = Object.values(j.nets);
+    const cancel = states.some((x) => x.status === 'pending') && !states.some((x) => x.status === 'running' || x.status === 'done');
+    return `<div class="card" style="cursor:default"><div class="t">${esc(j.title || 'Post')}</div><div class="small muted">${esc(new Date(j.at).toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' }))}</div>
+      ${Object.entries(j.nets).map(([n, x]) => `<div class="small">${esc(NET_NAMES[n] || n)} : ${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${SCHED_ST[x.status]} ✓</a>` : esc(SCHED_ST[x.status] || x.status)}`
+        + (x.error ? ` <span class="err">${esc(x.error)}</span>` : '')
+        + (x.commentError ? ` <span class="err">· commentaire refusé : ${esc(x.commentError)}</span>` : '')
+        + (x.visible === false ? ' <span class="err">· pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)</span>' : '') + '</div>').join('')}
+      ${cancel ? `<div class="row" style="margin-top:6px"><button data-cancel="${esc(j.id)}">Annuler</button></div>` : ''}</div>`;
+  }).join('')}</div>` : '';
+  el.querySelectorAll('[data-cancel]').forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm('Annuler cette publication programmée ?')) return;
+      b.disabled = true;
+      try { await api('schedule/cancel', { method: 'POST', body: JSON.stringify({ id: b.dataset.cancel }) }); } catch (err) { alert(err.message); }
+      schedList(el);
+    };
+  });
+}
+
 // Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
 async function publishAll(d, o, record = null) {
-  const nets = [...app.querySelectorAll('[data-net]:checked')].map((i) => i.dataset.net);
+  const nets = checkedNets();
   if (!nets.length) { alert('Cochez au moins un réseau'); return; }
-  const names = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky' };
-  if (!confirm(`Publier maintenant sur : ${nets.map((n) => names[n]).join(', ')} ?\n\nLes posts seront publics.`)) return;
+  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n]).join(', ')} ?\n\nLes posts seront publics.`)) return;
   const go = $('#go');
   go.disabled = true;
-  const slides = slidesFor(d, { fmt: 'ig', follow: state.follow });
-  const blobs = await Promise.all(slides.map((sl) => toBlob(drawSlide(document.createElement('canvas'), sl, 'ig', d, o), 'image/jpeg', 0.92)));
-  // Bluesky : 4 visuels au format X, moins de 1 Mo chacun
-  const small = async (cv) => { let b = null; for (const q of [0.92, 0.85, 0.75, 0.6, 0.45]) { b = await toBlob(cv, 'image/jpeg', q); if (b.size <= 950 * 1024) break; } return b; };
-  const bsky = nets.includes('bluesky') ? await Promise.all(slidesFor(d, { fmt: 'x', follow: state.follow }).slice(0, 4).map((sl) => small(drawSlide(document.createElement('canvas'), sl, 'x', d, o)))) : [];
+  const { ig: blobs, x: bsky } = await postImages(d, o, nets);
   for (const n of nets) {
     const st = $(`[data-st="${n}"]`);
     st.className = 'st';
@@ -527,9 +612,9 @@ async function publishAll(d, o, record = null) {
     try {
       const form = new FormData();
       form.append('network', n);
-      form.append('text', $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value);
+      form.append('text', textOf(n));
       (n === 'bluesky' ? bsky : blobs).forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
-      if (n !== 'instagram' && $('#cap-comment')?.value.trim()) form.append('comment', $('#cap-comment').value.trim());
+      if (commentOf(n)) form.append('comment', commentOf(n));
       const res = await api('publish', { method: 'POST', body: form, raw: true });
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -551,7 +636,8 @@ async function publishAll(d, o, record = null) {
       st.className = 'st ok';
       if (record) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
       st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ✓</a>` : 'Publié ✓')
-        + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '');
+        + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '')
+        + (result.visible === false ? ' <span class="err">· pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)</span>' : '');
     } catch (err) {
       st.className = 'st err';
       st.textContent = err.message;
@@ -613,7 +699,7 @@ const memoOf = (k, fn, ttl = Infinity) => {
   }
   return seasonMemo.get(k);
 };
-const seasonOf = (year) => memoOf(`s${year}`, async () => {
+const seasonOf = (year) => memoOf(`s3-${year}`, async () => {
   const races = (pages) => pages.flatMap((m) => m?.RaceTable?.Races || []);
   const [schedule, ds, cs, results, quali, sprint] = [
     races(await jolpica(`${year}`)), await jolpica(`${year}/driverstandings`), await jolpica(`${year}/constructorstandings`),
@@ -621,6 +707,20 @@ const seasonOf = (year) => memoOf(`s${year}`, async () => {
   ];
   return summarize({ schedule, driverStandings: ds[0]?.StandingsTable?.StandingsLists?.[0]?.DriverStandings, constructorStandings: cs[0]?.StandingsTable?.StandingsLists?.[0]?.ConstructorStandings, results, quali, sprint });
 }, 30 * 60e3);
+// Records du circuit : éditions précédentes lues dans les archives de la F1 (gardées sur le
+// téléphone, définitives ; une archive pas encore publiée sera relue la fois suivante)
+const readArchive = async (p) => JSON.parse((await (await api(`archive?p=${encodeURIComponent(p)}`, { raw: true })).text()).replace(/^\uFEFF/, ''));
+async function recordsFor(year, key) {
+  let failed = null;
+  const editions = await Promise.all(recordYears(year).map((y) => memoOf(`r${key}-${y}`, async () => {
+    const e = await editionOf(y, key, readArchive);
+    if (e?.pending) throw new Error('Archive pas encore publiée');
+    return e;
+  }).catch((err) => { failed ||= err; return null; })));
+  const rec = recordsOf(key, editions);
+  if (!rec.editions.length && failed) throw new Error(me.f1tv ? 'Archives de la F1 indisponibles pour le moment' : 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli, puis réactivez la page');
+  return rec;
+}
 const lapsOf = (year, round) => memoOf(`l${year}-${round}`, async () => {
   const pages = (await jolpica(`${year}/${round}/laps`)).flatMap((m) => m?.RaceTable?.Races || []);
   const res = (await jolpica(`${year}/${round}/results`)).flatMap((m) => m?.RaceTable?.Races || []).flatMap((r) => r.Results || []);
@@ -632,17 +732,29 @@ async function forecastOf(lat, lon) {
   const d = j?.daily || {};
   return (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null })).filter((x) => x.tmax !== null);
 }
-const STYPES = [['weekend', 'Programme'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['racelaps', 'Tour par tour']];
+const STYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme'], ['records', 'Le saviez-vous'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['racelaps', 'Tour par tour']];
+// Grands Prix de la Saison : le prochain (ou la dernière course) en tête et mis en avant, puis les
+// suivants dans l'ordre du calendrier, et les courses passées de la plus récente à la plus ancienne
+function raceList(races, def, upcoming) {
+  const card = (r, hl = false) => `<button class="card${hl ? ' next' : ''}" data-r="${r.round}">${hl ? `<span class="badge">${upcoming ? 'PROCHAIN GRAND PRIX' : 'DERNIÈRE COURSE'}</span>` : ''}<div class="t">${esc(r.name)}</div><div class="small muted">Manche ${r.round} · ${esc(new Date(r.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }))}</div></button>`;
+  const later = races.filter((r) => r.round > def.round);
+  const before = races.filter((r) => r.round < def.round).reverse();
+  return `<div class="list">${card(def, true)}</div>
+    ${upcoming && later.length ? `<h3>Ensuite</h3><div class="list">${later.map((r) => card(r)).join('')}</div>` : ''}
+    ${before.length ? `<h3>${upcoming ? 'Déjà courus' : 'Courses précédentes'}</h3><div class="list">${before.map((r) => card(r)).join('')}</div>` : ''}`;
+}
 async function seasonTab(body) {
   body.innerHTML = '<p class="muted">Lecture de la saison (jusqu\'à une minute la première fois)…</p>';
   const year = new Date().getUTCFullYear();
   const data = await seasonOf(year);
-  const upcoming = state.stype === 'weekend';
+  const upcoming = ['raceweek', 'weekend', 'records'].includes(state.stype);
   const races = upcoming ? data.races : data.races.filter((r) => r.results.length);
   const def = upcoming ? (races.find((r) => Date.parse(r.date) > Date.now() - 12 * 3600e3) || races.at(-1)) : races.at(-1);
-  const race = races.find((r) => r.round === state.round) || def;
   body.innerHTML = `<div class="seg" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>
-    <div class="list">${[...races].reverse().map((r) => `<button class="card" data-r="${r.round}"><div class="t">${esc(r.name)}</div><div class="small muted">Manche ${r.round} · ${esc(new Date(r.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }))}${r === race ? ' · par défaut' : ''}</div></button>`).join('')}</div>`;
+    ${def ? raceList(races, def, upcoming) : '<p class="muted">Aucune course terminée pour le moment.</p>'}`;
+  // Type choisi visible dans la barre (qui défile sur téléphone)
+  const on = $('#stypes .on');
+  if (on) $('#stypes').scrollLeft = on.offsetLeft - ($('#stypes').clientWidth - on.offsetWidth) / 2;
   body.querySelectorAll('[data-st]').forEach((b) => { b.onclick = () => { state.stype = b.dataset.st; state.round = null; seasonTab(body); }; });
   body.querySelectorAll('[data-r]').forEach((b) => { b.onclick = () => { state.round = Number(b.dataset.r); seasonEditor(year, data, races.find((r) => r.round === state.round)).catch((err) => alert(err.message)); }; });
 }
@@ -650,10 +762,33 @@ async function seasonEditor(year, data, race) {
   const live = Object.fromEntries(Object.values(await latestDrivers()).filter((x) => x?.Tla && x.TeamColour).map((x) => [x.Tla, `#${String(x.TeamColour).replace('#', '')}`]));
   let d;
   let note = '';
-  if (state.stype === 'weekend') {
+  if (state.stype === 'raceweek') {
+    const info = circuitInfo(race.circuitId);
+    const trackOf = async () => {
+      for (const y of [year, year - 1]) {
+        const r = await fetch(`https://api.multiviewer.app/api/v1/circuits/${info.key}/${y}`).catch(() => null);
+        if (r?.ok) return r.json();
+      }
+      return null;
+    };
+    const [fc, track, winners] = await Promise.all([
+      Number.isFinite(race.lat) ? forecastOf(race.lat, race.lon) : [],
+      info ? memoOf(`c${info.key}-${year}`, trackOf).catch(() => null) : null,
+      memoOf(`w${year - 1}`, async () => (await jolpica(`${year - 1}/results/1`)).flatMap((m) => m?.RaceTable?.Races || [])).catch(() => []),
+    ]);
+    const w = winners.find((r) => r.Circuit?.circuitId === race.circuitId || r.raceName === race.name)?.Results?.[0];
+    const prev = w ? { name: `${w.Driver?.givenName || ''} ${w.Driver?.familyName || ''}`.trim(), team: w.Constructor?.name || '', teamId: w.Constructor?.constructorId || '', laps: Number(w.laps) || null } : null;
+    d = raceWeekData(race, { year, rounds: data.races.length, tyres: builtinNomination(year, { name: race.name, location: race.locality, country: race.country }), forecast: fc, track, prev });
+    if (!track) note = 'Tracé du circuit indisponible pour ce Grand Prix : visuel sans le circuit.';
+  } else if (state.stype === 'weekend') {
     const fc = Number.isFinite(race.lat) ? await forecastOf(race.lat, race.lon) : [];
     d = weekendData(race, { year, tyres: builtinNomination(year, { name: race.name, location: race.locality, country: race.country }), forecast: fc });
     if (!d.forecast.length) note = 'Météo prévue disponible environ 2 semaines avant le week-end.';
+  } else if (state.stype === 'records') {
+    const key = circuitInfo(race.circuitId)?.key;
+    if (!key) throw new Error('Circuit inconnu : records indisponibles pour ce Grand Prix');
+    d = recordsData(race, await recordsFor(year, key), { year, names: Object.fromEntries((data.drivers || []).map((x) => [x.code, x.name])) });
+    if (!d.facts.length) throw new Error('Pas encore de records connus pour ce circuit (archives de la F1 depuis 2018).');
   } else if (state.stype === 'ratings') {
     const laps = await lapsOf(year, race.round).catch(() => null);
     d = ratingsData(race, { year, laps, live });
@@ -704,9 +839,10 @@ async function statsTab(body) {
   body.innerHTML = '<p class="muted">Lecture des statistiques…</p>';
   const r = await api('stats');
   const f = Object.entries(r.followers || {});
-  body.innerHTML = `${f.length ? `<div class="row" style="margin-top:12px">${f.map(([n, v]) => `<div class="card" style="width:auto;cursor:default"><div class="t">${fmtN(v)}</div><div class="small muted">abonnés ${esc(NET_NAMES[n] || n)}</div></div>`).join('')}</div>` : ''}
+  body.innerHTML = `<div id="schedlist"></div>${f.length ? `<div class="row" style="margin-top:12px">${f.map(([n, v]) => `<div class="card" style="width:auto;cursor:default"><div class="t">${fmtN(v)}</div><div class="small muted">abonnés ${esc(NET_NAMES[n] || n)}</div></div>`).join('')}</div>` : ''}
     <div class="list">${(r.posts || []).map((p) => `<div class="card" style="cursor:default"><div class="t">${esc(p.title || 'Post')}</div><div class="small muted">${esc(new Date(p.at).toLocaleString('fr-FR'))}</div>
-      ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${l} <b>${fmtN(s[k])}</b>`).join(' · ') : 'statistiques indisponibles'; return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--text)">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n)} : ${vals}</div>`; }).join('')}</div>`).join('') || '<p class="muted">Aucun post publié pour le moment.</p>'}</div>`;
+      ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s && !s.error ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${l} <b>${fmtN(s[k])}</b>`).join(' · ') : s?.error ? `statistiques indisponibles <span class="muted">(${esc(s.error)})</span>` : 'statistiques indisponibles'; return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--text)">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n)} : ${vals}</div>`; }).join('')}</div>`).join('') || '<p class="muted">Aucun post publié pour le moment.</p>'}</div>`;
+  schedList($('#schedlist'));
 }
 
 // ---------- Accueil ----------
