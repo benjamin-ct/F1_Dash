@@ -125,7 +125,7 @@ export async function pushApi(path, req, env) {
   if (path === 'push/test' && req.method === 'POST') {
     const s = subs.find((x) => x.endpoint === body?.endpoint);
     if (!s) return json({ error: 'Ce téléphone n\'est pas abonné' }, 404);
-    const r = await sendPush(await vapidKeys(env), s, { title: 'Paddock Studio', body: 'Alertes actives : les grosses news F1 arriveront ici.', url: '/studio/' }).catch(() => false);
+    const r = await sendPush(await vapidKeys(env), s, { title: 'Alertes activées', body: 'Chaque grosse news F1 (transfert, pénalité, annonce officielle…) arrivera ici, avec le post prêt à relire.', url: '/studio/' }).catch(() => false);
     return r === true ? json({ ok: true }) : json({ error: 'Envoi refusé par le service de notification' }, 502);
   }
   if (path === 'alerts' && req.method === 'GET') return json({ items: await readJSON(env, 'alerts', []) });
