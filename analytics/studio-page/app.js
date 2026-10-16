@@ -8,7 +8,7 @@
 import { bigNews, newsKind, newsKinds, sortNews } from '/shared/social-news.js';
 import { postedEntry } from '/shared/post-history.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
-import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, schedList, store, state, session, hasKey, setKey, forgetKey, onLogout, NET_NAMES, IOS, installed } from './ui.js';
+import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, schedList, store, state, session, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
 import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
 
 const app = $('#app');
@@ -51,25 +51,45 @@ onLogout(() => login());
 
 // ---------- Accueil : en-tête, onglet, barre d'onglets ----------
 const TABS = [['news', 'News', 'news'], ['sessions', 'Séances', 'flag'], ['season', 'Saison', 'calendar'], ['stats', 'Stats', 'chart']];
-const back = () => home();
+const tabIndex = (k) => TABS.findIndex(([x]) => x === k);
+// Retour d'un post : la liste revient en glissant depuis la gauche
+const back = () => home({ from: 'left' });
 
-function home() {
+// Animation d'entrée d'une vue (rejouée à chaque fois)
+// (retirée ensuite : une liste mise à jour après coup ne se rejoue pas)
+let enterTimer = null;
+function enter(el, dir) {
+  if (!el) return;
+  el.classList.remove('in-left', 'in-right', 'in-up');
+  void el.offsetWidth;
+  el.classList.add(`in-${dir}`);
+  clearTimeout(enterTimer);
+  enterTimer = setTimeout(() => el.classList.remove('in-left', 'in-right', 'in-up'), 700);
+}
+
+function home({ from = 'up' } = {}) {
   app.className = 'shell';
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
       <button class="iconbtn" id="refresh" aria-label="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="settings" aria-label="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
-    <nav class="tabbar">${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
+    <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
   $('#settings').onclick = settings;
   $('#refresh').onclick = () => showTab({ force: true });
   $$('[data-tab]').forEach((b) => {
     b.onclick = () => {
       if (state.tab === b.dataset.tab) { scrollTo({ top: 0, behavior: 'smooth' }); return; }
       scrolls[state.tab] = scrollY;
+      // Lentille qui glisse jusqu'à l'onglet choisi, contenu qui arrive du côté de l'onglet
+      const dir = tabIndex(b.dataset.tab) > tabIndex(state.tab) ? 'right' : 'left';
       state.tab = b.dataset.tab;
+      $('.tabbar').style.setProperty('--i', tabIndex(state.tab));
       $$('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
+      scrollTo(0, 0);
+      enter($('#body'), dir);
       showTab();
     };
   });
+  enter($('#body'), from);
   showTab({ restore: true });
 }
 
@@ -143,6 +163,7 @@ function renderNews(body, items, { at, stale = false }) {
       return `<button class="card news${posted ? ' done' : ''}" data-i="${i}"><div class="card-top"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${posted ? `<span class="pill ok">${icon('check')}Publiée</span>` : ''}<span class="grow"></span><time>${ago(it.t)}</time></div>
         <div class="t">${esc(knownFrench(it.title, it.lang) || it.title)}</div><div class="meta">${esc(it.srcName)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>`;
     }).join('')}</div>` : empty(state.all ? 'Aucune actu ces dernières 48 heures.' : 'Aucune grosse news ces dernières 48 heures : essayez « Toutes ».')}`;
+  glide(body);
   $('#all', body).onchange = (e) => { state.all = e.target.checked; renderNews(body, items, { at, stale }); };
   $$('#nsort [data-by]', body).forEach((b) => { b.onclick = () => { state.nsort = b.dataset.by; renderNews(body, items, { at, stale }); }; });
   $$('#nkinds [data-k]', body).forEach((b) => { b.onclick = () => { state.nkind = b.dataset.k || null; renderNews(body, items, { at, stale }); }; });
@@ -231,7 +252,8 @@ function settings() {
   const dlg = sheet('Réglages', `<h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
     <p class="hint">Comptes envoyés par l'appli de bureau (Posts → Publier… → Comptes…).</p>
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
-    <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>`);
+    <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
+    <p class="hint center">Version du Studio : ${esc(VERSION)}</p>`);
   alertsBlock($('#alerts', dlg));
   $('#out', dlg).onclick = () => { dlg.close(); forgetKey(); login(); };
 }
@@ -286,6 +308,19 @@ async function openAlert(id) {
     (await posts()).newsEditor(it, postedEntry(it, h), back);
   } catch { /* alerte introuvable : liste des news */ }
 }
+
+// Version de la page (dossier /m/<version>/) : affichée dans les réglages ; page installée sur
+// l'écran d'accueil rechargée d'elle-même au retour dans l'appli quand une nouvelle version est en
+// ligne (iOS garde sinon l'ancienne en mémoire)
+const VERSION = /\/m\/(\w+)\//.exec(import.meta.url)?.[1] || 'essai';
+async function checkUpdate() {
+  try {
+    const html = await (await fetch('/studio/', { cache: 'no-store' })).text();
+    const v = /\/m\/(\w+)\/studio\/app\.js/.exec(html)?.[1];
+    if (v && v !== VERSION && !$('#app.editing') && !$('dialog[open]')) location.reload();
+  } catch { /* hors ligne */ }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 
 const startAlert = new URLSearchParams(location.search).get('alert');
 if (startAlert) history.replaceState(null, '', '/studio/');

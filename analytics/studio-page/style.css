@@ -44,6 +44,7 @@ a { color: inherit; }
   --glass-blur: blur(22px) saturate(1.8); --glass-line: rgba(255, 255, 255, .13);
   --glass-hi: inset 0 1px 0 rgba(255, 255, 255, .16), inset 0 -1px 0 rgba(255, 255, 255, .04);
   --glass-shadow: 0 10px 30px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .3);
+  --spring: cubic-bezier(.3, 1.35, .5, 1); --ease: cubic-bezier(.2, .8, .2, 1);
 }
 .glass, .tabbar, .actionbar, .appbar .iconbtn, .toast, dialog.sheet {
   background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
@@ -62,13 +63,11 @@ body { min-height: 100vh; min-height: 100lvh; }
 .appbar {
   position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px;
   padding: calc(6px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right), calc((100vw - var(--w)) / 2 + 12px)) 8px max(12px, env(safe-area-inset-left), calc((100vw - var(--w)) / 2 + 12px));
-  /* Fond flouté sous le contenu qui défile, sur un calque à part derrière le logo et les boutons :
-     sur l'iPhone, un flou posé sur l'en-tête lui-même faisait dessiner son contenu en basse
-     résolution (logo et titre flous) */
-  isolation: isolate;
+  /* Fond plein, sans flou : sur l'iPhone (page installée sur l'écran d'accueil), un flou dans
+     l'en-tête faisait dessiner le logo et le titre en basse résolution */
+  background: var(--bg);
 }
-.appbar::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(11, 12, 15, .82); -webkit-backdrop-filter: blur(16px) saturate(1.6); backdrop-filter: blur(16px) saturate(1.6); pointer-events: none; }
-.appbar::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 14px; background: linear-gradient(rgba(11, 12, 15, .55), rgba(11, 12, 15, 0)); pointer-events: none; }
+.appbar::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 16px; background: linear-gradient(var(--bg), rgba(11, 12, 15, 0)); pointer-events: none; }
 .brand { display: flex; align-items: center; gap: 10px; padding-left: 2px; }
 .brand .logo { width: 30px; height: 30px; }
 .brand span { font: 800 22px/1 'Saira Condensed', sans-serif; letter-spacing: .3px; }
@@ -86,11 +85,15 @@ body { min-height: 100vh; min-height: 100lvh; }
   bottom: max(14px, calc(env(safe-area-inset-bottom) - 6px));
   border-radius: 32px; padding: 5px;
 }
-.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); }
+.tabbar .lens { position: absolute; top: 5px; bottom: 5px; left: 5px; width: calc((100% - 10px) / 4); border-radius: 26px; background: rgba(255, 255, 255, .11); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 4px 14px rgba(0, 0, 0, .25); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform .5s var(--spring); pointer-events: none; }
+.tabbar button { position: relative; z-index: 1; }
 .tabbar button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 0 6px; border: 0; border-radius: 26px; background: none; color: var(--text-2); font: 600 11px 'Titillium Web', sans-serif; cursor: pointer; transition: background .25s, color .25s; }
 /* Onglet choisi : lentille claire derrière l'icône, comme sur iOS 26 */
-.tabbar button.on { color: var(--brand); background: rgba(255, 255, 255, .1); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1); }
-.tabbar button:active { transform: scale(.94); }
+.tabbar button.on { color: var(--brand); }
+.tabbar button .ic { transition: transform .35s var(--spring); }
+.tabbar button.on .ic { transform: translateY(-1px) scale(1.08); }
+.tabbar button:active .ic { transform: scale(.86); }
 .tabbar .ic { width: 23px; height: 23px; }
 .actionbar { display: flex; gap: 6px; transition: transform .25s; }
 /* Clavier ouvert (texte en cours de saisie) : barre d'actions rangée, elle flotterait au-dessus */
@@ -123,10 +126,13 @@ body { min-height: 100vh; min-height: 100lvh; }
 .row.end { justify-content: flex-end; margin-top: 8px; }
 
 /* ---------- Commandes : segments, puces, interrupteurs ---------- */
-.seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--surface-2); max-width: 100%; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .25); }
+.seg { position: relative; display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--surface-2); max-width: 100%; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .25); }
+.seg > .thumb { position: absolute; top: 3px; bottom: 3px; left: 0; border-radius: 999px; background: rgba(255, 255, 255, .14); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 2px 8px rgba(0, 0, 0, .3); transition: transform .45s var(--spring), width .45s var(--spring), opacity .2s; pointer-events: none; }
+.seg button { position: relative; z-index: 1; }
 .seg button { border: 0; border-radius: 999px; background: none; color: var(--text-2); font: 600 14.5px 'Titillium Web', sans-serif; padding: 9px 14px; cursor: pointer; white-space: nowrap; }
-.seg button.on { background: rgba(255, 255, 255, .14); color: var(--text); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 2px 8px rgba(0, 0, 0, .3); }
-.seg button { transition: background .2s, color .2s; }
+.seg button.on { color: var(--text); }
+.seg button { transition: color .25s, transform .2s var(--spring); }
+.seg button:active { transform: scale(.94); }
 .seg button:disabled { opacity: .35; cursor: default; }
 .seg.wide { display: flex; width: 100%; }
 .seg.wide button { flex: 1; padding-inline: 4px; }
@@ -298,3 +304,34 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 .editing.swiping .page { transition: none; }
 /* « Tirer pour actualiser » : sous la barre d'état et l'encoche, au-dessus de l'en-tête, en verre */
 .ptr { top: env(safe-area-inset-top) !important; z-index: 30 !important; background: var(--glass-strong) !important; color: var(--text) !important; border: 1px solid var(--glass-line); box-shadow: var(--glass-hi), var(--glass-shadow) !important; -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+
+/* ---------- Animations ---------- */
+@keyframes in-right { from { opacity: 0; transform: translateX(28px); } }
+@keyframes in-left { from { opacity: 0; transform: translateX(-28px); } }
+@keyframes in-up { from { opacity: 0; transform: translateY(12px); } }
+@keyframes pop { from { opacity: 0; transform: scale(.96); } }
+.page.in-right { animation: in-right .38s var(--ease); }
+.page.in-left { animation: in-left .38s var(--ease); }
+.page.in-up { animation: in-up .4s var(--ease); }
+/* Ouverture d'un post : arrive de la droite, comme une page d'iOS */
+.editing .page { animation: in-right .4s var(--ease); }
+/* Cartes de la liste : arrivée en cascade à l'ouverture d'un onglet */
+.page[class*='in-'] .list > :nth-child(-n+8), .page[class*='in-'] .group, .page[class*='in-'] .card.hero, .page[class*='in-'] .card.feature { animation: in-up .45s var(--ease) both; }
+.page[class*='in-'] .list > :nth-child(2) { animation-delay: .03s; }
+.page[class*='in-'] .list > :nth-child(3) { animation-delay: .06s; }
+.page[class*='in-'] .list > :nth-child(4) { animation-delay: .09s; }
+.page[class*='in-'] .list > :nth-child(5) { animation-delay: .12s; }
+.page[class*='in-'] .list > :nth-child(n+6) { animation-delay: .15s; }
+/* Toucher : léger enfoncement avec rebond au relâcher */
+.btn, button.card, button.row-item, .chips button, .chip-toggle span, .iconbtn, .pick [data-num] { transition: transform .3s var(--spring), background .2s, color .2s, opacity .2s, border-color .2s; }
+.btn:active, .chips button:active, .chip-toggle span:active, .iconbtn:active { transform: scale(.93); }
+button.card:active { transform: scale(.975); }
+button.row-item:active { transform: scale(.985); }
+.chips button.on { animation: pop .3s var(--spring); }
+.slides canvas { transition: opacity .25s, filter .25s, transform .3s var(--spring); }
+.sl.off canvas { transform: scale(.96); }
+details.cap[open] textarea { animation: in-up .3s var(--ease); }
+.notice, .hint.err { animation: in-up .3s var(--ease); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
+}

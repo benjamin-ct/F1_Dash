@@ -3,7 +3,7 @@
 import { slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { FLAG_ISO } from '/shared/flags.js';
-import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
+import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
@@ -161,11 +161,12 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText($('#cap-comment').value); toast('Commentaire copié'); } catch { /* presse-papiers refusé */ } };
   };
   $('#back').onclick = goBack;
-  $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); redraw(); }; });
+  $$('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; $$('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); glide(); redraw(); }; });
   $('#photos').onchange = (e) => { state.photos = e.target.checked; redraw(); };
   $('#follow').onchange = (e) => { state.follow = e.target.checked; redraw(true); };
   $('#question').onchange = (e) => { state.question = e.target.checked; redraw(true); };
   bind(redraw);
+  glide();
   redraw();
   schedList($('#schedlist'));
 }

@@ -9,7 +9,7 @@ import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/share
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { extractArticle } from '/shared/article.js';
 import { recapData, seasonCaptions } from '/shared/social-season.js';
-import { $, $$, esc, api, ago, icon, toggle, state, SIG, NET_NAMES } from './ui.js';
+import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES } from './ui.js';
 import { toFrench, freshNews, cachedNews, latestDrivers, loadState, rememberDrivers, SESSION_FR } from './data.js';
 import { editor } from './editor.js';
 
@@ -162,6 +162,7 @@ export async function sessionEditor(s, back) {
         b.onclick = () => {
           type = b.dataset.ptype;
           $$('[data-ptype]').forEach((x) => x.classList.toggle('on', x === b));
+          glide();
           $('#flashrow').hidden = type !== 'flash';
           $('#gridnote').hidden = type !== 'prerace';
           if (type === 'prerace') { $('#gridnote').textContent = gridNote; loadGrid(redraw); }

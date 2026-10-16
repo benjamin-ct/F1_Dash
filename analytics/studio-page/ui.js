@@ -118,6 +118,32 @@ export const skeleton = (n = 4) => `<div class="list">${Array.from({ length: n }
 export const empty = (text, ic = 'news') => `<div class="empty">${icon(ic)}<p>${esc(text)}</p></div>`;
 export const failure = (err) => `<div class="empty err">${icon('alert')}<p>${esc(err?.message || err)}</p></div>`;
 
+// Segments (À la une / Plus récentes, Instagram / Story / X…) : pastille qui glisse sous le choix ;
+// position retenue par segment (id) pour glisser aussi quand la vue est redessinée
+const segPos = new Map();
+export function glide(root = document) {
+  for (const seg of root.querySelectorAll('.seg')) {
+    const on = seg.querySelector('button.on');
+    let th = seg.querySelector(':scope > .thumb');
+    if (!th) { th = document.createElement('i'); th.className = 'thumb'; seg.prepend(th); }
+    if (!on || !on.offsetWidth) { th.style.opacity = '0'; continue; }
+    const pos = { x: on.offsetLeft, w: on.offsetWidth };
+    const put = (p) => { th.style.transform = `translateX(${p.x}px)`; th.style.width = `${p.w}px`; };
+    const prev = seg.id && segPos.get(seg.id);
+    if (!th.dataset.ready) {
+      th.style.transition = 'none';
+      put(prev || pos);
+      void th.offsetWidth;
+      th.style.transition = '';
+      th.dataset.ready = '1';
+    }
+    th.style.opacity = '1';
+    put(pos);
+    if (seg.id) segPos.set(seg.id, pos);
+  }
+}
+addEventListener('resize', () => glide());
+
 // Interrupteur (case à cocher) avec libellé et explication
 export const toggle = (id, label, on, hint = '', attrs = '') => `<label class="switch"><span><b>${esc(label)}</b>${hint ? `<small>${esc(hint)}</small>` : ''}</span><input type="checkbox" role="switch" ${id ? `id="${id}"` : ''} ${attrs} ${on ? 'checked' : ''}></label>`;
 
