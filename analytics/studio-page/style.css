@@ -65,3 +65,6 @@ h3 { font-size: 15px; margin: 18px 0 0; }
 #stypes { display: flex; max-width: 100%; margin-top: 12px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 #stypes::-webkit-scrollbar { display: none; }
 #stypes button { flex: none; white-space: nowrap; }
+/* Prochain Grand Prix (ou dernière course) en tête de la Saison */
+.card.next { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+.card.next .badge { background: var(--accent); color: #fff; }

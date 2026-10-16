@@ -733,6 +733,16 @@ async function forecastOf(lat, lon) {
   return (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null })).filter((x) => x.tmax !== null);
 }
 const STYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme'], ['records', 'Le saviez-vous'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['racelaps', 'Tour par tour']];
+// Grands Prix de la Saison : le prochain (ou la dernière course) en tête et mis en avant, puis les
+// suivants dans l'ordre du calendrier, et les courses passées de la plus récente à la plus ancienne
+function raceList(races, def, upcoming) {
+  const card = (r, hl = false) => `<button class="card${hl ? ' next' : ''}" data-r="${r.round}">${hl ? `<span class="badge">${upcoming ? 'PROCHAIN GRAND PRIX' : 'DERNIÈRE COURSE'}</span>` : ''}<div class="t">${esc(r.name)}</div><div class="small muted">Manche ${r.round} · ${esc(new Date(r.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }))}</div></button>`;
+  const later = races.filter((r) => r.round > def.round);
+  const before = races.filter((r) => r.round < def.round).reverse();
+  return `<div class="list">${card(def, true)}</div>
+    ${upcoming && later.length ? `<h3>Ensuite</h3><div class="list">${later.map((r) => card(r)).join('')}</div>` : ''}
+    ${before.length ? `<h3>${upcoming ? 'Déjà courus' : 'Courses précédentes'}</h3><div class="list">${before.map((r) => card(r)).join('')}</div>` : ''}`;
+}
 async function seasonTab(body) {
   body.innerHTML = '<p class="muted">Lecture de la saison (jusqu\'à une minute la première fois)…</p>';
   const year = new Date().getUTCFullYear();
@@ -740,9 +750,11 @@ async function seasonTab(body) {
   const upcoming = ['raceweek', 'weekend', 'records'].includes(state.stype);
   const races = upcoming ? data.races : data.races.filter((r) => r.results.length);
   const def = upcoming ? (races.find((r) => Date.parse(r.date) > Date.now() - 12 * 3600e3) || races.at(-1)) : races.at(-1);
-  const race = races.find((r) => r.round === state.round) || def;
   body.innerHTML = `<div class="seg" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>
-    <div class="list">${[...races].reverse().map((r) => `<button class="card" data-r="${r.round}"><div class="t">${esc(r.name)}</div><div class="small muted">Manche ${r.round} · ${esc(new Date(r.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }))}${r === race ? ' · par défaut' : ''}</div></button>`).join('')}</div>`;
+    ${def ? raceList(races, def, upcoming) : '<p class="muted">Aucune course terminée pour le moment.</p>'}`;
+  // Type choisi visible dans la barre (qui défile sur téléphone)
+  const on = $('#stypes .on');
+  if (on) $('#stypes').scrollLeft = on.offsetLeft - ($('#stypes').clientWidth - on.offsetWidth) / 2;
   body.querySelectorAll('[data-st]').forEach((b) => { b.onclick = () => { state.stype = b.dataset.st; state.round = null; seasonTab(body); }; });
   body.querySelectorAll('[data-r]').forEach((b) => { b.onclick = () => { state.round = Number(b.dataset.r); seasonEditor(year, data, races.find((r) => r.round === state.round)).catch((err) => alert(err.message)); }; });
 }
