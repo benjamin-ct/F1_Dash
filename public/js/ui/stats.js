@@ -79,6 +79,9 @@ function listen() {
     return f ? `error.${f}:${Number(line) || 0}` : 'error.other';
   };
   window.addEventListener('error', (e) => {
+    // Avertissement du navigateur (mise en page qui change pendant une mesure de taille, reportée à
+    // l'image suivante), pas une erreur de l'appli : sans adresse ni ligne, rien à corriger
+    if (!e.error && /^ResizeObserver loop/.test(e.message || '')) return;
     if (errors++ >= 20) return;
     const w = where(e.filename, e.lineno);
     track(w);

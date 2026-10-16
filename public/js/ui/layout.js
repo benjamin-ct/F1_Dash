@@ -852,7 +852,7 @@ function alignCtrl(head) {
   const mid = (Math.min(...row.map((r) => r.top)) + Math.max(...row.map((r) => r.bottom))) / 2 - top;
   head.style.setProperty('--ctrl-top', `${Math.max(0, Math.round(mid - 13))}px`);
 }
-const headObserver = 'ResizeObserver' in window ? new ResizeObserver((entries) => { for (const e of entries) alignCtrl(e.target); }) : null;
+const headObserver = 'ResizeObserver' in window ? new ResizeObserver((entries) => { const heads = entries.map((e) => e.target); requestAnimationFrame(() => heads.forEach(alignCtrl)); }) : null;
 
 // ---------------- Initialisation ----------------
 export function initLayout() {

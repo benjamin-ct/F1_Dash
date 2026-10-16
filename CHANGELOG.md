@@ -4,6 +4,11 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.20 — à venir
+
+### Corrections
+- Classement et en-têtes des panneaux : ajustement plus fluide quand la fenêtre change de taille (plus d'avertissement « ResizeObserver » remonté comme une erreur).
+
 ## v1.27.19 — 2026-10-16
 
 ### Actu
