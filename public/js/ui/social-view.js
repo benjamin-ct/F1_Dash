@@ -9,8 +9,11 @@ import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
 import { FORMATS, slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
-import { followCaptions } from '/shared/social-follow.js';
-import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
+import { followCaptions, questionCaptions } from '/shared/social-follow.js';
+import { weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
+import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
+import { makeAnimation } from '/shared/social-video.js';
+import { bigNews, newsPost, newsCaptions, newsKind, OTHER_SERIES } from '/shared/social-news.js';
 import { builtinNomination } from '/shared/tyres.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { postedEntry } from '/shared/post-history.js';
@@ -22,7 +25,13 @@ let enabled = false;
 let fmt = storageGet(OPT_KEY, {}).fmt || 'ig';
 let withPhotos = storageGet(OPT_KEY, {}).photos !== false;
 let noSpoiler = storageGet(OPT_KEY, {}).noSpoiler !== false;   // texte sans le vainqueur au début
-let mode = storageGet(OPT_KEY, {}).mode === 'news' ? 'news' : 'session';
+let mode = ['news', 'season'].includes(storageGet(OPT_KEY, {}).mode) ? storageGet(OPT_KEY, {}).mode : 'session';
+let withQuestion = storageGet(OPT_KEY, {}).question !== false;   // question en fin de texte (commentaires)
+const SEASON_TYPES = [['weekend', 'Programme du week-end'], ['records', 'Le saviez-vous'], ['ratings', 'Notes des pilotes'], ['teamduels', 'Duels coéquipiers'], ['racelaps', 'Course tour par tour']];
+let seasonType = SEASON_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).seasonType) ? storageGet(OPT_KEY, {}).seasonType : 'weekend';
+let roundSel = null;   // manche choisie (posts de saison)
+let recapMode = false; // news : récap de la semaine
+let curPost = null;    // post affiché et ses visuels (vidéo animée de la course)
 let linkComment = storageGet(OPT_KEY, {}).linkComment !== false;   // news : lien de l'article en premier commentaire
 let follow = storageGet(OPT_KEY, {}).follow !== false;   // image « Abonnez-vous » et ligne dans les textes
 const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
@@ -58,13 +67,13 @@ async function assets(d) {
   if (withPhotos) {
     await Promise.all(d.rows.slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   }
-  const iso = FLAG_ISO[String(d.country || '').toUpperCase()];
+  const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
   const flag = iso ? await loadImage(`https://flagcdn.com/w160/${iso}.png`, true) : null;
   return { photos, flag };
 }
 
 const POST_FOLDER = { prerace: 'Avant-course', champ: 'Championnat', flash: 'Flash' };
-const folderOf = (d) => (d.news ? `Actu ${d.date} - ${d.title.slice(0, 50)}`
+const folderOf = (d) => (d.news ? `Actu ${d.date} - ${d.title.slice(0, 50)}` : d.recap ? `Actu semaine du ${d.date}`
   : `${d.year || ''} ${d.gpEn.replace(/ Grand Prix$/i, '') || 'Grand Prix'} - ${d.label}${POST_FOLDER[d.post] ? ` - ${POST_FOLDER[d.post]}` : ''}${d.event ? ` ${d.event.id}` : ''}`.trim());
 
 // ---------- Posts de la séance : résultats, avant-course, championnat, flash ----------
@@ -129,6 +138,97 @@ function sessionSource(sig) {
   return { d, caps: captions(d, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };
 }
 
+// ---------- Posts de saison : programme, records, notes, duels, course tour par tour ----------
+const jget = async (u, ms = 60000) => {
+  const r = await fetch(u, { signal: AbortSignal.timeout(ms) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || `Erreur ${r.status}`);
+  return j;
+};
+const memo = new Map();
+const cached = (k, fn, ttl = 10 * 60e3) => {
+  const hit = memo.get(k);
+  if (hit && Date.now() - hit.at < ttl) return hit.p;
+  const p = fn().catch((err) => { memo.delete(k); throw err; });
+  memo.set(k, { p, at: Date.now() });
+  return p;
+};
+const liveColors = () => Object.fromEntries(Object.values(store.state?.DriverList || {}).filter((x) => x?.Tla && x.TeamColour).map((x) => [x.Tla, `#${String(x.TeamColour).replace('#', '')}`]));
+const shortDate = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '');
+
+async function seasonSource(sig) {
+  const types = `<div class="row posts-news-bar"><span class="small muted">${t('Type de post')}</span>
+    <div class="posts-seg" role="tablist">${SEASON_TYPES.map(([k, v]) => `<button class="posts-fmt ${k === seasonType ? 'active' : ''}" data-stype="${k}">${t(v)}</button>`).join('')}</div></div>`;
+  const year = Number(String(store.state?.SessionInfo?.Path || '').slice(0, 4)) || new Date().getFullYear();
+  let data;
+  try { data = await cached(`season|${year}`, () => jget(`/api/season?year=${year}`)); } catch (err) { return { head: `${types}<p class="muted">${esc(err.message)}</p>` }; }
+  const upcoming = ['weekend', 'records'].includes(seasonType);
+  const races = upcoming ? data.races : data.races.filter((r) => r.results.length);
+  if (!races.length) return { head: `${types}<p class="muted">${t('Aucune manche disponible pour cette saison.')}</p>` };
+  const def = upcoming ? (races.find((r) => Date.parse(r.date) > Date.now() - 12 * 3600e3) || races.at(-1)) : races.at(-1);
+  const race = races.find((r) => r.round === roundSel) || def;
+  roundSel = race.round;
+  const head = `${types}<div class="row posts-news-bar"><select class="posts-news-sel" data-roundpick>${races.map((r) => `<option value="${r.round}" ${r === race ? 'selected' : ''}>${esc(t('Manche {}', r.round))} · ${esc(r.name)} · ${esc(shortDate(r.date))}</option>`).join('')}</select></div>`;
+  const msg = (m, warn = false) => (warn ? `<p class="posts-warn small">${icon('warning')} ${esc(m)}</p>` : `<p class="small muted">${icon('info')} ${esc(m)}</p>`);
+  const live = liveColors();
+  const lapsOf = () => cached(`laps|${year}|${race.round}`, () => jget(`/api/social/laps?year=${year}&round=${race.round}`, 120000), 3600e3);
+  let d;
+  let extra = '';
+  if (seasonType === 'weekend') {
+    const tyres = builtinNomination(year, { name: race.name, location: race.locality, country: race.country });
+    const fc = Number.isFinite(race.lat) ? await cached(`fc|${race.lat}|${race.lon}`, () => jget(`/api/social/forecast?lat=${race.lat}&lon=${race.lon}`, 40000)).catch(() => null) : null;
+    d = weekendData(race, { year, tyres, forecast: fc?.days });
+    if (!d.forecast.length) extra = msg(t('Météo prévue disponible environ 2 semaines avant le week-end.'));
+  } else if (seasonType === 'records') {
+    const rec = await cached(`rec|${year}|${race.round}`, () => jget(`/api/social/records?year=${year}&round=${race.round}`, 180000), 3600e3).catch((err) => ({ error: err.message }));
+    if (rec.error) return { head: head + msg(rec.error, true) };
+    d = recordsData(race, rec, { year, names: Object.fromEntries((data.drivers || []).map((x) => [x.code, x.name])) });
+    if (!d.facts.length) return { head: head + msg(t('Pas encore de records connus pour ce circuit (archives de la F1 depuis 2018).')) };
+  } else if (seasonType === 'ratings') {
+    const laps = await lapsOf().catch(() => null);
+    d = ratingsData(race, { year, laps, live });
+    extra = msg(t(d.withPace ? 'Note sur 10 calculée par Paddock Live : résultat, rythme en course, places gagnées et duel avec le coéquipier.' : 'Tours de cette course indisponibles : notes calculées sans le rythme en course.'));
+  } else if (seasonType === 'teamduels') {
+    d = teamDuelsData(data, { year, upTo: race.round, live });
+    extra = msg(t('Bilan de la saison jusqu\'à la manche choisie : qui devance l\'autre en qualifications et en course.'));
+  } else {
+    const laps = await lapsOf().catch((err) => ({ error: err.message }));
+    if (laps.error || !laps.total) return { head: head + msg(laps.error || t('Tours de cette course pas encore publiés.'), true) };
+    d = raceLapsData(race, laps, { year, live });
+    const sec = Math.round(raceVideoTiming(d).duration);
+    extra = `<div class="row posts-news-bar"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo animée')}</button>
+      <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels) de {} s : le classement évolue tour par tour.', sec))}</span></div>
+      <video class="posts-vid" data-rv controls playsinline hidden></video>`;
+  }
+  const label = SEASON_TYPES.find(([k]) => k === seasonType)[1];
+  return { d, caps: seasonCaptions(d, sig), head: head + extra, record: { key: `${seasonType}:${year}-${race.round}`, kind: seasonType, title: `${t(label)} · ${d.gp}` } };
+}
+
+// Vidéo animée de la course (format story) : enregistrée dans le navigateur
+let raceVideo = null;
+const raceVideoMaker = (d, o) => (opts) => makeAnimation((ctx, tt) => raceFrame(ctx, 1080, 1920, d, o, tt), raceVideoTiming(d).duration, opts);
+async function buildRaceVideo(dlg, btn) {
+  if (!curPost || curPost.d.post !== 'racelaps') return;
+  const st = $('[data-rvst]', dlg);
+  btn.disabled = true;
+  try {
+    const v = await raceVideoMaker(curPost.d, curPost.o)({ music: 'gen', onProgress: (p) => { st.textContent = t('Enregistrement de la vidéo… {} %', Math.round(p * 100)); } });
+    if (raceVideo?.url) URL.revokeObjectURL(raceVideo.url);
+    raceVideo = { ...v, url: URL.createObjectURL(v.blob), folder: folderOf(curPost.d) };
+    const el = $('[data-rv]', dlg);
+    el.src = raceVideo.url; el.hidden = false;
+    $('[data-racevideosave]', dlg).disabled = false;
+    st.textContent = t('Vidéo prête ({} Mo)', (v.blob.size / 1e6).toFixed(1).replace('.', ','));
+  } catch (err) { toast(err.message, 5000, 'warning'); } finally { btn.disabled = false; }
+}
+async function saveRaceVideo() {
+  if (!raceVideo) return;
+  const data = await new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(',')[1]); r.readAsDataURL(raceVideo.blob); });
+  const r = await fetch('/api/posts/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: raceVideo.folder, name: 'video-course', data }) }).then((x) => x.json());
+  if (r.error) throw new Error(r.error);
+  toast(t('Vidéo enregistrée dans {}', r.dir), 4000, 'check');
+}
+
 // ---------- Grosses news de l'Actu ----------
 let newsAll = false;   // toutes les actus des 48 dernières heures, pas seulement les grosses
 let newsSel = null;
@@ -176,7 +276,9 @@ async function newsSource(sig) {
   const bar = (sel) => `<div class="row posts-news-bar">
       <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${posted[i] ? `✓ ${esc(t('Publiée'))} · ` : ''}${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
       <label class="toggle small"><input type="checkbox" data-newsall ${newsAll ? 'checked' : ''}> ${t('Toutes les actus')}</label>
+      <label class="toggle small" title="${t('Carrousel des 5 grosses news des 7 derniers jours')}"><input type="checkbox" data-recap ${recapMode ? 'checked' : ''}> ${t('Récap de la semaine')}</label>
       ${sel?.link ? `<a class="btn small" href="${esc(sel.link)}" target="_blank" rel="noopener">${icon('external')} ${t("Lire l'article")}</a>` : ''}</div>`;
+  if (recapMode) return recapSource(sig, data, bar);
   if (!list.length) return { head: `${bar(null)}<p class="muted">${t('Aucune grosse news ces dernières 48 heures : cochez « Toutes les actus » pour en choisir une autre.')}</p>` };
   const it = list.find((x) => x.id === newsSel) || list[0];
   newsSel = it.id;
@@ -198,6 +300,18 @@ async function newsSource(sig) {
     </div>`;
   const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
   return { d, caps: newsCaptions(d, sig, { linkInComment: linkComment }), head, record };
+}
+// Récap de la semaine : les 5 plus grosses news des 7 derniers jours (une par sujet)
+async function recapSource(sig, data, bar) {
+  const f1 = (l) => l.filter((it) => !OTHER_SERIES.test(`${it.title} ${it.summary || ''}`));
+  let list = f1(bigNews(data.items, { hours: 7 * 24 })).slice(0, 5);
+  if (list.length < 3) list = f1(bigNews(data.items, { hours: 7 * 24, all: true })).slice(0, 5);
+  if (!list.length) return { head: `${bar(null)}<p class="muted">${t("Pas assez d'actus ces 7 derniers jours (l'appli garde les actus 10 jours quand elle est ouverte).")}</p>` };
+  const fr = await toFrench(list.flatMap((it) => [{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]));
+  const posts = list.map((it, i) => newsPost(it, { title: fr[2 * i] ?? it.title, summary: fr[2 * i + 1] ?? it.summary, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src }));
+  const d = recapData(posts);
+  const head = `${bar(null)}<p class="small muted">${icon('info')} ${t('Titres et résumés traduits automatiquement : relisez les visuels avant de publier.')}</p>`;
+  return { d, caps: seasonCaptions(d, sig), head, record: { key: `recap:${d.date}`, kind: 'recap', title: `${t('La semaine en F1')} · ${d.date}` } };
 }
 const fileOf = (i, slide) => `${FORMATS[fmt].name}-${i + 1}-${slide}`;
 
@@ -241,6 +355,12 @@ async function render(dlg, keepHead = false) {
     if (id !== renderId) return;
     if (!r.d) { body.innerHTML = r.head; return; }
     ({ d, caps, head, record } = r);
+  } else if (mode === 'season') {
+    let r;
+    try { r = await seasonSource(sig); } catch (err) { r = { head: `<p class="muted">${esc(err.message)}</p>` }; }
+    if (id !== renderId) return;
+    if (!r.d) { body.innerHTML = r.head; return; }
+    ({ d, caps, head, record } = r);
   } else {
     const r = await sessionSource(sig);
     if (id !== renderId) return;
@@ -248,8 +368,9 @@ async function render(dlg, keepHead = false) {
     ({ d, caps, head, record } = r);
   }
   const slides = slidesFor(d, { fmt, follow });
+  if (withQuestion) caps = questionCaptions(caps, d, sig);
   if (follow) caps = followCaptions(caps, d, sig);
-  if (!slides.length || (!d.rows.length && d.post !== 'flash' && !d.news)) { body.innerHTML = `${mode === 'session' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
+  if (!slides.length || (!d.rows?.length && !d.post && !d.news)) { body.innerHTML = `${mode !== 'news' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
   const main = `<div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item"><canvas data-slide="${s}"></canvas>
       <figcaption><span>${i + 1}. ${esc(t(slideName(s)))}</span>
         <button class="btn small" data-copy="${i}" title="${t('Copier l\'image, à coller dans le réseau social')}">${icon('doc')} ${t('Copier')}</button>
@@ -267,8 +388,9 @@ async function render(dlg, keepHead = false) {
   else body.innerHTML = `<div class="posts-head">${head}</div><div class="posts-main">${main}</div>`;
   const o = { ...(await assets(d)), signature: sig };
   if (id !== renderId) return;   // format ou réglage changé entre-temps
+  curPost = { d, o };
   // Publication : visuels de n'importe quel format, dessinés à part
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => slidesFor(d, { fmt: f, follow }).map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => slidesFor(d, { fmt: f, follow }).map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)), videoMaker: d.post === 'racelaps' ? raceVideoMaker(d, o) : null });
   const canvases = [...body.querySelectorAll('canvas')];
   for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
   const count = $('[data-count]', body);
@@ -359,10 +481,11 @@ function open() {
     dlg.className = 'modal posts-dlg';
     dlg.innerHTML = `<div class="sum-head"><b>${icon('megaphone')} ${t('Posts pour les réseaux sociaux')}</b><button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button></div>
       <div class="posts-bar">
-        <div class="posts-seg" role="tablist">${[['session', 'Séance'], ['news', 'News']].map(([k, v]) => `<button class="posts-fmt" data-mode="${k}">${t(v)}</button>`).join('')}</div>
+        <div class="posts-seg" role="tablist">${[['session', 'Séance'], ['season', 'Saison'], ['news', 'News']].map(([k, v]) => `<button class="posts-fmt" data-mode="${k}">${t(v)}</button>`).join('')}</div>
         <div class="posts-seg" role="tablist">${Object.entries({ ig: 'Instagram / Facebook', story: 'Story / TikTok', x: 'X / Threads / Bluesky' }).map(([k, v]) => `<button class="posts-fmt" data-fmt="${k}">${v}</button>`).join('')}</div>
         <label class="toggle small"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
         <label class="toggle small" title="${t("Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
+        <label class="toggle small" title="${t('Une question adaptée au post en fin de texte, pour faire réagir en commentaire')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>
         <label class="toggle small" title="${t("Dernière image des carrousels et une ligne dans les textes pour inviter à s'abonner au compte (X et Bluesky : dans le texte seulement)")}"><input type="checkbox" data-follow> ${t('Image « Abonnez-vous »')}</label>
         <label class="small muted">${t('Signature')} <input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
         <span class="spacer"></span>
@@ -379,13 +502,18 @@ function open() {
       for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('active', b.dataset.mode === mode);
       $('[data-nospoil]', dlg).checked = noSpoiler;
       $('[data-follow]', dlg).checked = follow;
-      $('[data-nospoil]', dlg).closest('label').hidden = mode === 'news' || postType !== 'results';
-      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment, postType, follow });
+      $('[data-question]', dlg).checked = withQuestion;
+      $('[data-nospoil]', dlg).closest('label').hidden = mode !== 'session' || postType !== 'results';
+      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment, postType, follow, question: withQuestion, seasonType });
     };
     dlg.addEventListener('click', async (e) => {
       if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
       const m = e.target.closest('[data-mode]')?.dataset.mode;
       if (m && m !== mode) { mode = m; sync(); render(dlg); }
+      const stp = e.target.closest('[data-stype]')?.dataset.stype;
+      if (stp && stp !== seasonType) { seasonType = stp; roundSel = null; sync(); render(dlg); }
+      if (e.target.closest('[data-racevideo]')) buildRaceVideo(dlg, e.target.closest('[data-racevideo]'));
+      if (e.target.closest('[data-racevideosave]')) saveRaceVideo().catch((err) => toast(err.message, 5000, 'warning'));
       const pt = e.target.closest('[data-ptype]')?.dataset.ptype;
       if (pt && pt !== postType) { postType = pt; sync(); render(dlg); }
       const f = e.target.closest('[data-fmt]')?.dataset.fmt;
@@ -399,12 +527,15 @@ function open() {
     $('[data-photos]', dlg).addEventListener('change', (e) => { withPhotos = e.target.checked; sync(); render(dlg); });
     $('[data-nospoil]', dlg).addEventListener('change', (e) => { noSpoiler = e.target.checked; sync(); render(dlg); });
     $('[data-follow]', dlg).addEventListener('change', (e) => { follow = e.target.checked; sync(); render(dlg); });
+    $('[data-question]', dlg).addEventListener('change', (e) => { withQuestion = e.target.checked; sync(); render(dlg); });
     // News : choix de la nouvelle, toutes les actus, titre et résumé corrigés à la main
     let te = null;
     dlg.addEventListener('change', (e) => {
       if (e.target.matches('[data-newspick]')) { newsSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-flashpick]')) { flashSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-newsall]')) { newsAll = e.target.checked; render(dlg); }
+      if (e.target.matches('[data-recap]')) { recapMode = e.target.checked; render(dlg); }
+      if (e.target.matches('[data-roundpick]')) { roundSel = Number(e.target.value); render(dlg); }
       if (e.target.matches('[data-linkcomment]')) { linkComment = e.target.checked; sync(); render(dlg); }
     });
     dlg.addEventListener('input', (e) => {

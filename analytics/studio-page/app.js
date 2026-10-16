@@ -4,7 +4,7 @@
 // Paddock Live après confirmation, ou partage vers les autres applis (X, TikTok…) depuis le téléphone.
 import { clusterNews } from '/shared/news.js';
 import { feedItems, decodeBody } from '/shared/news-collect.js';
-import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, OTHER_SERIES } from '/shared/social-news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { builtinNomination } from '/shared/tyres.js';
@@ -12,7 +12,12 @@ import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/share
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
 import { slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
-import { followCaptions } from '/shared/social-follow.js';
+import { followCaptions, questionCaptions } from '/shared/social-follow.js';
+import { weekendData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
+import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
+import { summarize } from '/shared/season-data.js';
+import { parseRaceLaps } from '/shared/race-laps.js';
+import { makeAnimation } from '/shared/social-video.js';
 import { extractArticle } from '/shared/article.js';
 import { merge } from '/shared/merge.js';
 import { gpNameFr } from '/shared/summary.js';
@@ -29,7 +34,7 @@ const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'Tim
 let key = null;
 try { key = localStorage.getItem(KEY) || sessionStorage.getItem(KEY); } catch { /* stockage bloqué */ }
 let me = null;
-const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true };
+const state = { tab: 'news', fmt: 'ig', noSpoiler: true, photos: true, all: false, linkComment: true, follow: true, question: true, stype: 'weekend', round: null };
 let news = null;        // nouvelles lues (toutes sources)
 let sessions = null;    // séances de la saison
 let lastDrivers = {};   // liste des pilotes de la dernière séance lue (photos des news)
@@ -125,7 +130,7 @@ async function assets(d) {
   await Promise.all(['800 40px "Saira Condensed"', '700 40px "Saira Condensed"', '600 30px "Titillium Web"', '400 30px "Titillium Web"', '700 30px "JetBrains Mono"'].map((f) => document.fonts.load(f).catch(() => {})));
   const photos = {};
   if (state.photos) await Promise.all((d.rows || []).slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
-  const iso = FLAG_ISO[String(d.country || '').toUpperCase()];
+  const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
   return { photos, flag: iso ? await loadImage(`https://flagcdn.com/w160/${iso}.png`) : null, signature: SIG };
 }
 
@@ -152,12 +157,13 @@ async function newsTab(body) {
   const posted = list.map((it) => postedEntry(it, history));
   const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
   body.innerHTML = `<div id="alerts" class="alerts"></div>
-    <div class="row"><label class="check"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}> Toutes les actus (48 h)</label><span class="spacer"></span><button id="reload">Actualiser</button></div>
+    <div class="row"><label class="check"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}> Toutes les actus (48 h)</label><span class="spacer"></span><button id="recap">Récap de la semaine</button><button id="reload">Actualiser</button></div>
     ${list.length ? '' : '<p class="muted">Aucune grosse news ces dernières 48 heures.</p>'}
     <div class="list">${list.map((it, i) => { const k = newsKind(it); return `<button class="card" data-i="${i}"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${posted[i] ? ' <span class="badge" style="background:#8E97A6">PUBLIÉE ✓</span>' : ''}
       <div class="t">${esc(titles[i] || it.title)}</div><div class="small muted">${esc(it.srcName)} · il y a ${ago(it.t)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>`; }).join('')}</div>`;
   $('#all').onchange = (e) => { state.all = e.target.checked; newsTab(body); };
   $('#reload').onclick = () => { news = null; newsTab(body); };
+  $('#recap').onclick = () => recapEditor().catch((err) => alert(err.message));
   body.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => newsEditor(list[Number(b.dataset.i)], posted[Number(b.dataset.i)]); });
   alertsBlock($('#alerts'));
 }
@@ -436,12 +442,16 @@ function editor({ back, head, data, caps, bind, record }) {
     ${head}
     <label class="check"><input type="checkbox" id="photos" ${state.photos ? 'checked' : ''}> Photos des pilotes</label>
     <label class="check"><input type="checkbox" id="follow" ${state.follow ? 'checked' : ''}> Image « Abonnez-vous » à la fin des carrousels (et une ligne dans les textes)</label>
+    <label class="check"><input type="checkbox" id="question" ${state.question ? 'checked' : ''}> Question en fin de texte (pour faire réagir en commentaire)</label>
     <div id="main"></div>`;
   // changed : données modifiées (titre d'une news, texte sans spoiler) -> textes régénérés
   const redraw = async (changed = false) => {
     if (changed) edited = {};
     const d = data();
-    const c = { ...(state.follow ? followCaptions(caps(), d, SIG) : caps()), ...edited };
+    let base = caps();
+    if (state.question) base = questionCaptions(base, d, SIG);
+    if (state.follow) base = followCaptions(base, d, SIG);
+    const c = { ...base, ...edited };
     const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow });
     const main = $('#main');
     main.innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<canvas data-slide="${sl}" title="${esc(slideName(sl))}"></canvas>`).join('')}</div>
@@ -469,6 +479,7 @@ function editor({ back, head, data, caps, bind, record }) {
   app.querySelectorAll('[data-fmt]').forEach((b) => { b.onclick = () => { state.fmt = b.dataset.fmt; app.querySelectorAll('[data-fmt]').forEach((x) => x.classList.toggle('on', x === b)); redraw(); }; });
   $('#photos').onchange = (e) => { state.photos = e.target.checked; redraw(); };
   $('#follow').onchange = (e) => { state.follow = e.target.checked; redraw(true); };
+  $('#question').onchange = (e) => { state.question = e.target.checked; redraw(true); };
   bind(redraw);
   redraw();
 }
@@ -549,6 +560,143 @@ async function publishAll(d, o, record = null) {
   go.disabled = false;
 }
 
+// ---------- Récap de la semaine (News) ----------
+async function recapEditor() {
+  news ||= await loadNews();
+  const f1 = (l) => l.filter((it) => !OTHER_SERIES.test(`${it.title} ${it.summary || ''}`));
+  let list = f1(bigNews(news, { hours: 7 * 24 })).slice(0, 5);
+  if (list.length < 3) list = f1(bigNews(news, { hours: 7 * 24, all: true })).slice(0, 5);
+  if (!list.length) throw new Error('Pas assez d\'actus ces 7 derniers jours');
+  const fr = await toFrench(list.flatMap((it) => [{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]));
+  const drivers = await latestDrivers();
+  const d = recapData(list.map((it, i) => newsPost(it, { title: fr[2 * i] ?? it.title, summary: fr[2 * i + 1] ?? it.summary, driverList: drivers, sourceName: it.srcName })));
+  editor({
+    back: () => home(),
+    head: `<p class="note">Les ${d.items.length} plus grosses news des 7 derniers jours, titres et résumés traduits automatiquement : relisez les visuels avant de publier.</p>`,
+    data: () => d, caps: () => seasonCaptions(d, SIG), bind: () => {},
+    record: () => ({ key: `recap:${d.date}`, kind: 'recap', title: `La semaine en F1 · ${d.date}` }),
+  });
+}
+
+// ---------- Saison : programme, notes, duels, course tour par tour (API publique Jolpica) ----------
+const JOLPICA = 'https://api.jolpi.ca/ergast/f1';
+let jolpicaAt = 0;
+async function jolpica(pathname) {
+  const out = [];
+  for (let offset = 0, total = 1; offset < total; offset += 100) {
+    let j = null;
+    for (let attempt = 0; attempt < 3 && !j; attempt++) {
+      const wait = jolpicaAt + 300 * (attempt + 1) - Date.now();   // 4 demandes par seconde au plus
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      jolpicaAt = Date.now();
+      const r = await fetch(`${JOLPICA}/${pathname}.json?limit=100&offset=${offset}`).catch(() => null);
+      if (r?.ok) j = await r.json();
+      else if (r && r.status !== 429 && r.status < 500) throw new Error(`Résultats indisponibles (erreur ${r.status})`);
+    }
+    if (!j) throw new Error('Serveur des résultats (Jolpica) injoignable, réessayez dans un instant');
+    total = Number(j.MRData?.total) || 0;
+    out.push(j.MRData);
+    if (!total) break;
+  }
+  return out;
+}
+// Gardées sur le téléphone (saison : 30 min ; tours d'une course terminée : toujours)
+const seasonMemo = new Map();
+const memoOf = (k, fn, ttl = Infinity) => {
+  if (!seasonMemo.has(k)) {
+    let hit = null;
+    try { hit = JSON.parse(localStorage.getItem(`studio.${k}`) || 'null'); } catch { /* stockage indisponible */ }
+    seasonMemo.set(k, hit && Date.now() - hit.at < ttl ? Promise.resolve(hit.v) : fn().then((v) => {
+      try { localStorage.setItem(`studio.${k}`, JSON.stringify({ at: Date.now(), v })); } catch { /* stockage plein */ }
+      return v;
+    }).catch((err) => { seasonMemo.delete(k); throw err; }));
+  }
+  return seasonMemo.get(k);
+};
+const seasonOf = (year) => memoOf(`s${year}`, async () => {
+  const races = (pages) => pages.flatMap((m) => m?.RaceTable?.Races || []);
+  const [schedule, ds, cs, results, quali, sprint] = [
+    races(await jolpica(`${year}`)), await jolpica(`${year}/driverstandings`), await jolpica(`${year}/constructorstandings`),
+    races(await jolpica(`${year}/results`)), races(await jolpica(`${year}/qualifying`)), races(await jolpica(`${year}/sprint`)),
+  ];
+  return summarize({ schedule, driverStandings: ds[0]?.StandingsTable?.StandingsLists?.[0]?.DriverStandings, constructorStandings: cs[0]?.StandingsTable?.StandingsLists?.[0]?.ConstructorStandings, results, quali, sprint });
+}, 30 * 60e3);
+const lapsOf = (year, round) => memoOf(`l${year}-${round}`, async () => {
+  const pages = (await jolpica(`${year}/${round}/laps`)).flatMap((m) => m?.RaceTable?.Races || []);
+  const res = (await jolpica(`${year}/${round}/results`)).flatMap((m) => m?.RaceTable?.Races || []).flatMap((r) => r.Results || []);
+  return parseRaceLaps(pages, res);
+});
+async function forecastOf(lat, lon) {
+  const q = new URLSearchParams({ latitude: Number(lat).toFixed(4), longitude: Number(lon).toFixed(4), daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: 'auto', forecast_days: '16' });
+  const j = await fetch(`https://api.open-meteo.com/v1/forecast?${q}`).then((r) => r.json()).catch(() => null);
+  const d = j?.daily || {};
+  return (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null })).filter((x) => x.tmax !== null);
+}
+const STYPES = [['weekend', 'Programme'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['racelaps', 'Tour par tour']];
+async function seasonTab(body) {
+  body.innerHTML = '<p class="muted">Lecture de la saison (jusqu\'à une minute la première fois)…</p>';
+  const year = new Date().getUTCFullYear();
+  const data = await seasonOf(year);
+  const upcoming = state.stype === 'weekend';
+  const races = upcoming ? data.races : data.races.filter((r) => r.results.length);
+  const def = upcoming ? (races.find((r) => Date.parse(r.date) > Date.now() - 12 * 3600e3) || races.at(-1)) : races.at(-1);
+  const race = races.find((r) => r.round === state.round) || def;
+  body.innerHTML = `<div class="seg" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>
+    <div class="list">${[...races].reverse().map((r) => `<button class="card" data-r="${r.round}"><div class="t">${esc(r.name)}</div><div class="small muted">Manche ${r.round} · ${esc(new Date(r.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }))}${r === race ? ' · par défaut' : ''}</div></button>`).join('')}</div>`;
+  body.querySelectorAll('[data-st]').forEach((b) => { b.onclick = () => { state.stype = b.dataset.st; state.round = null; seasonTab(body); }; });
+  body.querySelectorAll('[data-r]').forEach((b) => { b.onclick = () => { state.round = Number(b.dataset.r); seasonEditor(year, data, races.find((r) => r.round === state.round)).catch((err) => alert(err.message)); }; });
+}
+async function seasonEditor(year, data, race) {
+  const live = Object.fromEntries(Object.values(await latestDrivers()).filter((x) => x?.Tla && x.TeamColour).map((x) => [x.Tla, `#${String(x.TeamColour).replace('#', '')}`]));
+  let d;
+  let note = '';
+  if (state.stype === 'weekend') {
+    const fc = Number.isFinite(race.lat) ? await forecastOf(race.lat, race.lon) : [];
+    d = weekendData(race, { year, tyres: builtinNomination(year, { name: race.name, location: race.locality, country: race.country }), forecast: fc });
+    if (!d.forecast.length) note = 'Météo prévue disponible environ 2 semaines avant le week-end.';
+  } else if (state.stype === 'ratings') {
+    const laps = await lapsOf(year, race.round).catch(() => null);
+    d = ratingsData(race, { year, laps, live });
+    note = `Note sur 10 calculée par Paddock Live : résultat, ${d.withPace ? 'rythme en course, ' : ''}places gagnées et duel avec le coéquipier.`;
+  } else if (state.stype === 'teamduels') {
+    d = teamDuelsData(data, { year, upTo: race.round, live });
+  } else {
+    const laps = await lapsOf(year, race.round);
+    if (!laps.total) throw new Error('Tours de cette course pas encore publiés');
+    d = raceLapsData(race, laps, { year, live });
+  }
+  const video = state.stype === 'racelaps';
+  let clip = null;
+  editor({
+    back: () => home(),
+    head: `<p class="small muted">${esc(d.gp)} · manche ${race.round}</p>${note ? `<p class="note">${esc(note)}</p>` : ''}
+      ${video ? `<div class="row"><button id="mkvid">Créer la vidéo animée (${Math.round(raceVideoTiming(d).duration)} s)</button><button id="sharevid" disabled>Partager la vidéo</button></div>
+        <p class="small muted" id="vidst">Vidéo verticale pour TikTok, Reels ou une story : le classement évolue tour par tour. Garder l'écran allumé pendant l'enregistrement.</p>
+        <video id="vid" controls playsinline hidden style="width:100%;border-radius:12px"></video>` : ''}`,
+    data: () => d, caps: () => seasonCaptions(d, SIG),
+    record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${STYPES.find(([k]) => k === state.stype)[1]} · ${d.gp}` }),
+    bind: () => {
+      if (!video) return;
+      $('#mkvid').onclick = async () => {
+        $('#mkvid').disabled = true;
+        try {
+          const o = await assets(d);
+          clip = await makeAnimation((ctx, t) => raceFrame(ctx, 1080, 1920, d, o, t), raceVideoTiming(d).duration, { music: 'gen', onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+          $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
+          $('#sharevid').disabled = false;
+          $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)`;
+        } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
+      };
+      $('#sharevid').onclick = async () => {
+        if (!clip) return;
+        const file = new File([clip.blob], `course-${race.round}.${clip.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: clip.mime });
+        if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); } catch { /* annulé */ } return; }
+        const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+      };
+    },
+  });
+}
+
 // ---------- Statistiques des posts ----------
 const fmtN = (v) => (v == null ? '—' : Number(v).toLocaleString('fr-FR'));
 const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', "J'aime"], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
@@ -566,12 +714,12 @@ function home() {
   const acc = [me.instagram && `Instagram ${me.instagram}`, me.facebook && `Facebook ${me.facebook}`, me.threads && `Threads ${me.threads}`, me.bluesky && `Bluesky ${me.bluesky}`].filter(Boolean).join(' · ');
   app.innerHTML = `<div class="top"><h1>Paddock <b>Studio</b></h1><span class="spacer"></span><button id="out">Quitter</button></div>
     <p class="small muted">${esc(acc || 'Aucun compte : activez la page depuis l\'appli (Posts → Publier… → Comptes…)')}</p>
-    <div class="seg"><button data-tab="news" class="${state.tab === 'news' ? 'on' : ''}">News</button><button data-tab="sessions" class="${state.tab === 'sessions' ? 'on' : ''}">Séances</button><button data-tab="stats" class="${state.tab === 'stats' ? 'on' : ''}">Stats</button></div>
+    <div class="seg"><button data-tab="news" class="${state.tab === 'news' ? 'on' : ''}">News</button><button data-tab="sessions" class="${state.tab === 'sessions' ? 'on' : ''}">Séances</button><button data-tab="season" class="${state.tab === 'season' ? 'on' : ''}">Saison</button><button data-tab="stats" class="${state.tab === 'stats' ? 'on' : ''}">Stats</button></div>
     <div id="body"></div>`;
   $('#out').onclick = logout;
   app.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { state.tab = b.dataset.tab; home(); }; });
   const body = $('#body');
-  (state.tab === 'news' ? newsTab(body) : state.tab === 'stats' ? statsTab(body) : sessionsTab(body)).catch((err) => { body.innerHTML = `<p class="err">${esc(err.message)}</p>`; });
+  (state.tab === 'news' ? newsTab(body) : state.tab === 'stats' ? statsTab(body) : state.tab === 'season' ? seasonTab(body) : sessionsTab(body)).catch((err) => { body.innerHTML = `<p class="err">${esc(err.message)}</p>`; });
 }
 
 const startAlert = new URLSearchParams(location.search).get('alert');

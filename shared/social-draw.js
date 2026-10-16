@@ -4,6 +4,7 @@
 
 import { teammateDuels, FLASH_KINDS, GRID_SOURCE } from './social-more.js';
 import { followReason } from './social-follow.js';
+import { horaires, infos, editions, topflop, notes, equipes, positions, recapCover, recapItem } from './social-draw-season.js';
 
 export const FORMATS = {
   ig: { w: 1080, h: 1350, name: 'instagram' },
@@ -11,11 +12,11 @@ export const FORMATS = {
   x: { w: 1600, h: 900, name: 'x' },
 };
 
-const C = { bg: '#0b0d12', bg2: '#151a24', panel: 'rgba(255,255,255,0.045)', line: 'rgba(255,255,255,0.10)', text: '#f3f5f9', muted: '#9aa3b2', red: '#e10600', gold: '#e8c35a', silver: '#c7ccd6', bronze: '#d08a4f', green: '#3ddc84' };
-const TITLE = '"Saira Condensed", "Titillium Web", sans-serif';
-const BODY = '"Titillium Web", sans-serif';
-const MONO = '"JetBrains Mono", monospace';
-const MEDAL = [C.gold, C.silver, C.bronze];
+export const C = { bg: '#0b0d12', bg2: '#151a24', panel: 'rgba(255,255,255,0.045)', line: 'rgba(255,255,255,0.10)', text: '#f3f5f9', muted: '#9aa3b2', red: '#e10600', gold: '#e8c35a', silver: '#c7ccd6', bronze: '#d08a4f', green: '#3ddc84' };
+export const TITLE = '"Saira Condensed", "Titillium Web", sans-serif';
+export const BODY = '"Titillium Web", sans-serif';
+export const MONO = '"JetBrains Mono", monospace';
+export const MEDAL = [C.gold, C.silver, C.bronze];
 
 // Diapositives selon la séance, après une couverture « Résultats » (anti-spoiler : le vainqueur
 // n'est pas dévoilé dès la première image, ni dans l'aperçu du réseau). follow : dernière image
@@ -29,6 +30,12 @@ function baseSlides(d, fmt) {
   if (d.post === 'prerace') return ['couverture', 'grille', ...(d.weather || d.tyres ? ['meteo'] : [])];
   if (d.post === 'champ') return ['couverture', 'champpilotes', 'champecuries'];
   if (d.post === 'flash') return ['flash'];
+  if (d.post === 'weekend') return ['couverture', 'horaires', ...(d.tyres || d.forecast?.length ? ['infos'] : [])];
+  if (d.post === 'records') return d.facts.length ? ['couverture', 'records', ...(d.editions.length >= 2 ? ['editions'] : [])] : [];
+  if (d.post === 'ratings') return d.rows.length ? ['couverture', 'topflop', 'notes'] : [];
+  if (d.post === 'teamduels') return d.rows.length ? ['couverture', ...Array.from({ length: Math.ceil(d.rows.length / 5) }, (_, i) => `equipes-${i + 1}`)] : [];
+  if (d.post === 'racelaps') return d.total ? ['couverture', 'positions'] : [];
+  if (d.post === 'recap') return d.items.length ? ['recapcover', ...d.items.map((_, i) => `recap-${i + 1}`)].slice(0, fmt === 'x' ? 4 : undefined) : [];
   if (!d.rows.length) return [];
   let list = ['meilleurtemps', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
   const duels = teammateDuels(d).length >= 3 ? ['duels'] : [];
@@ -47,20 +54,20 @@ export function pointPages(points, fmt = 'ig') {
   for (let k = 0; k < n; k++) { const take = Math.ceil((list.length - i) / (n - k)); pages.push(list.slice(i, i + take)); i += take; }
   return pages;
 }
-export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', essentiel: "L'essentiel" };
+export const SLIDE_NAMES = { grille: 'Grille de départ', meteo: 'Météo et pneus', champpilotes: 'Championnat pilotes', champecuries: 'Championnat constructeurs', flash: 'Flash', duels: 'Duels entre coéquipiers', news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat', abonnement: 'Abonnez-vous', essentiel: "L'essentiel", horaires: 'Horaires', infos: 'Pneus et météo', records: 'Records', editions: 'Éditions précédentes', topflop: 'Tops et flops', notes: 'Toutes les notes', equipes: 'Duels par écurie', positions: 'Positions tour par tour', recapcover: 'La semaine', recap: 'Info' };
 export const slideName = (s) => SLIDE_NAMES[s] || SLIDE_NAMES[String(s).replace(/-\d+$/, '')] || s;
 
 // ---------- Outils de dessin ----------
-function rr(ctx, x, y, w, h, r) {
+export function rr(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h);
 }
-function fit(ctx, text, max, size, weight, family) {
+export function fit(ctx, text, max, size, weight, family) {
   let s = size;
   do { ctx.font = `${weight} ${s}px ${family}`; s -= 2; } while (ctx.measureText(text).width > max && s > 10);
   return s + 2;
 }
-function txt(ctx, text, x, y, { size = 32, weight = 400, family = BODY, color = C.text, align = 'left', max = 0, base = 'alphabetic', spacing = 0 } = {}) {
+export function txt(ctx, text, x, y, { size = 32, weight = 400, family = BODY, color = C.text, align = 'left', max = 0, base = 'alphabetic', spacing = 0 } = {}) {
   const s = max ? fit(ctx, text, max, size, weight, family) : size;
   ctx.font = `${weight} ${s}px ${family}`;
   ctx.fillStyle = color;
@@ -71,7 +78,7 @@ function txt(ctx, text, x, y, { size = 32, weight = 400, family = BODY, color = 
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
   return s;
 }
-function wrap(ctx, text, x, y, maxW, lineH, maxLines, style) {
+export function wrap(ctx, text, x, y, maxW, lineH, maxLines, style) {
   ctx.font = `${style.weight || 400} ${style.size}px ${style.family || BODY}`;
   const words = String(text).split(/\s+/);
   let line = '';
@@ -88,14 +95,14 @@ function wrap(ctx, text, x, y, maxW, lineH, maxLines, style) {
   if (line) { txt(ctx, line, x, y + n * lineH, style); n++; }
   return n;
 }
-const alpha = (hex, a) => {
+export const alpha = (hex, a) => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
   if (!m) return `rgba(139,149,168,${a})`;
   const v = parseInt(m[1], 16);
   return `rgba(${v >> 16},${(v >> 8) & 255},${v & 255},${a})`;
 };
 // Couleur d'écurie trop sombre sur le fond : éclaircie
-function vivid(hex) {
+export function vivid(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
   if (!m) return '#8b95a8';
   const v = parseInt(m[1], 16);
@@ -105,7 +112,7 @@ function vivid(hex) {
   return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
 }
 
-function background(ctx, W, H, accent) {
+export function background(ctx, W, H, accent) {
   const g = ctx.createLinearGradient(0, 0, W * 0.4, H);
   g.addColorStop(0, C.bg2);
   g.addColorStop(1, C.bg);
@@ -127,7 +134,7 @@ function background(ctx, W, H, accent) {
 }
 
 // En-tête : drapeau, Grand Prix, séance et date ; pied : signature
-function frame(ctx, W, H, d, o, title) {
+export function frame(ctx, W, H, d, o, title) {
   const pad = Math.round(W * 0.055);
   const top = Math.round(Math.min(W, H) * 0.06);
   ctx.fillStyle = C.red;
@@ -154,7 +161,7 @@ function frame(ctx, W, H, d, o, title) {
 }
 
 // Photo détourée posée en bas de la zone ; fade : bas fondu dans le décor
-function photo(ctx, img, x, y, w, h, color, fade = 0) {
+export function photo(ctx, img, x, y, w, h, color, fade = 0) {
   if (!img) {
     rr(ctx, x, y, w, h, w * 0.06); ctx.fillStyle = alpha(color, 0.25); ctx.fill();
     return;
@@ -174,7 +181,7 @@ function photo(ctx, img, x, y, w, h, color, fade = 0) {
   ctx.drawImage(off, dx, dy);
 }
 
-function circlePhoto(ctx, img, cx, cy, r, color, label) {
+export function circlePhoto(ctx, img, cx, cy, r, color, label) {
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fillStyle = alpha(color, 0.35); ctx.fill();
@@ -307,9 +314,9 @@ function classement(ctx, W, H, d, o) {
   });
 }
 
-function faits(ctx, W, H, d, o) {
-  background(ctx, W, H, d.rows[0].color);
-  const f = frame(ctx, W, H, d, o, 'Faits marquants');
+export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
+  background(ctx, W, H, d.facts[0]?.color || d.rows[0]?.color);
+  const f = frame(ctx, W, H, d, o, title);
   const land = W > H;
   const cols = land ? 3 : 2;
   const items = d.facts.slice(0, land ? 6 : 6);
@@ -405,11 +412,14 @@ function cover(ctx, W, H, d, o, next, fmt) {
     rr(ctx, pad, y, fw, fh, 8); ctx.save(); ctx.clip(); ctx.drawImage(o.flag, pad, y, fw, fh); ctx.restore();
     y += fh + 30 * u;
   }
-  const word = d.post === 'prerace' ? 'AVANT-COURSE' : d.post === 'champ' ? 'CHAMPIONNAT' : 'RÉSULTATS';
+  const word = { prerace: 'AVANT-COURSE', champ: 'CHAMPIONNAT', weekend: 'PROGRAMME', records: 'LE SAVIEZ-VOUS', ratings: 'LES NOTES', teamduels: 'LES DUELS', racelaps: 'LA COURSE' }[d.post] || 'RÉSULTATS';
   txt(ctx, word, pad, y + 150 * u, { size: Math.round(190 * u), weight: 800, family: TITLE, max: colW, spacing: 2 });
   y += 190 * u;
   // Séance dans une étiquette rouge
-  const tag = (d.post === 'prerace' ? (d.sprint ? 'Sprint' : 'Course') : d.post === 'champ' ? (d.final ? 'Après la course' : 'En direct') : d.kind === 'race' && !d.sprint ? 'Course' : d.label).toUpperCase();
+  const tag = (d.post === 'prerace' ? (d.sprint ? 'Sprint' : 'Course') : d.post === 'champ' ? (d.final ? 'Après la course' : 'En direct')
+    : d.post === 'weekend' ? (d.sprint ? 'Week-end sprint' : `Manche ${d.round || ''}`) : d.post === 'records' ? 'Records du circuit'
+      : d.post === 'ratings' ? 'Après la course' : d.post === 'teamduels' ? `Après ${d.after} course${d.after > 1 ? 's' : ''}` : d.post === 'racelaps' ? 'Tour par tour'
+        : d.kind === 'race' && !d.sprint ? 'Course' : d.label).toUpperCase();
   ctx.font = `700 ${Math.round(36 * u)}px ${TITLE}`;
   const tw = ctx.measureText(tag).width + 6 * tag.length * u;
   rr(ctx, pad, y, tw + 48 * u, 62 * u, 8 * u); ctx.fillStyle = C.red; ctx.fill();
@@ -457,7 +467,7 @@ function cover(ctx, W, H, d, o, next, fmt) {
 
 // ---------- News (transfert, pénalité, annonce…) ----------
 // Lignes d'un texte coupé à la largeur, au plus grand corps qui tient en maxLines lignes
-function fitLines(ctx, text, maxW, sizes, maxLines, family, weight) {
+export function fitLines(ctx, text, maxW, sizes, maxLines, family, weight) {
   for (const size of sizes) {
     ctx.font = `${weight} ${size}px ${family}`;
     const out = [];
@@ -474,14 +484,14 @@ function fitLines(ctx, text, maxW, sizes, maxLines, family, weight) {
   }
   return { size: sizes[0], lines: [] };
 }
-const lightColor = (hex) => {
+export const lightColor = (hex) => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
   if (!m) return false;
   const v = parseInt(m[1], 16);
   return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255) > 150;
 };
 
-function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
+export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   background(ctx, W, H, d.color);
   const land = W > H;
   const u = Math.min(W, H) / 1080;
@@ -860,6 +870,16 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   // X : 4 images au plus par post, le sommaire n'annonce que celles publiées
   if (slide === 'news') newsSlide(ctx, w, h, d, o, fmt);
   else if (slide === 'abonnement') follow(ctx, w, h, d, o);
+  else if (slide === 'horaires') horaires(ctx, w, h, d, o);
+  else if (slide === 'infos') infos(ctx, w, h, d, o);
+  else if (slide === 'records') faits(ctx, w, h, d, o, 'Le saviez-vous ?');
+  else if (slide === 'editions') editions(ctx, w, h, d, o);
+  else if (slide === 'topflop') topflop(ctx, w, h, d, o);
+  else if (slide === 'notes') notes(ctx, w, h, d, o);
+  else if (/^equipes-\d+$/.test(slide)) equipes(ctx, w, h, d, o, Number(slide.slice(8)));
+  else if (slide === 'positions') positions(ctx, w, h, d, o);
+  else if (slide === 'recapcover') recapCover(ctx, w, h, d, o);
+  else if (/^recap-\d+$/.test(slide)) recapItem(ctx, w, h, d, o, Number(slide.slice(6)), fmt);
   else if (/^essentiel-\d+$/.test(slide)) essentiel(ctx, w, h, d, o, Number(slide.slice(10)), fmt);
   else if (slide === 'grille') grille(ctx, w, h, d, o);
   else if (slide === 'meteo') meteo(ctx, w, h, d, o);

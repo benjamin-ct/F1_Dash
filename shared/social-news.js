@@ -73,6 +73,9 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
     .sort((a, b) => b.score - a.score || b.t - a.t);
 }
 
+// Autres championnats (sources de la FIA) : écartés des sélections automatiques (récap)
+export const OTHER_SERIES = /formula e\b|formule e\b|\bwec\b|\bwrc\b|rally|rallye|karting|\bf[234]\b|formula [234]\b|world cup|coupe du monde|macau|macao|cross-country|\bgt\b|endurance|extreme h|hill ?climb/i;
+
 // Résumé court : deux phrases au plus, 280 caractères
 export function shortSummary(text, max = 280) {
   const s = String(text || '').replace(/\s+/g, ' ').trim();
