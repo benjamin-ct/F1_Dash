@@ -1,0 +1,205 @@
+// Studio : posts de la saison (Race Week, programme, records, notes, duels, course tour par tour),
+// d'après l'API publique Jolpica, les archives de la F1 et la météo. Chargé à l'ouverture de l'onglet.
+import { builtinNomination } from '/shared/tyres.js';
+import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, seasonCaptions } from '/shared/social-season.js';
+import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
+import { summarize } from '/shared/season-data.js';
+import { parseRaceLaps } from '/shared/race-laps.js';
+import { circuitInfo } from '/shared/circuits-info.js';
+import { editionOf, recordsOf, recordYears } from '/shared/circuit-records.js';
+import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
+import { makeAnimation } from '/shared/social-video.js';
+import { $, $$, esc, api, icon, store, skeleton, toast, state, session, SIG } from './ui.js';
+import { latestDrivers } from './data.js';
+import { editor, assets } from './editor.js';
+
+const JOLPICA = 'https://api.jolpi.ca/ergast/f1';
+// 4 demandes par seconde au plus : chaque demande réserve son créneau avant d'attendre (demandes
+// lancées en parallèle comprises)
+let nextSlot = 0;
+async function slot(gap) {
+  const at = Math.max(Date.now(), nextSlot);
+  nextSlot = at + gap;
+  if (at > Date.now()) await new Promise((r) => setTimeout(r, at - Date.now()));
+}
+async function jolpica(pathname) {
+  const out = [];
+  for (let offset = 0, total = 1; offset < total; offset += 100) {
+    let j = null;
+    for (let attempt = 0; attempt < 3 && !j; attempt++) {
+      await slot(300 * (attempt + 1));
+      const r = await fetch(`${JOLPICA}/${pathname}.json?limit=100&offset=${offset}`).catch(() => null);
+      if (r?.ok) j = await r.json();
+      else if (r && r.status !== 429 && r.status < 500) throw new Error(`Résultats indisponibles (erreur ${r.status})`);
+    }
+    if (!j) throw new Error('Serveur des résultats (Jolpica) injoignable, réessayez dans un instant');
+    total = Number(j.MRData?.total) || 0;
+    out.push(j.MRData);
+    if (!total) break;
+  }
+  return out;
+}
+// Gardées sur le téléphone (saison : 30 min ; tours d'une course terminée : toujours)
+const seasonMemo = new Map();
+const memoOf = (k, fn, ttl = Infinity) => {
+  if (!seasonMemo.has(k)) {
+    const hit = store.get(k, ttl);
+    seasonMemo.set(k, hit ? Promise.resolve(hit.v) : fn().then((v) => { store.set(k, v); return v; }).catch((err) => { seasonMemo.delete(k); throw err; }));
+  }
+  return seasonMemo.get(k);
+};
+const seasonOf = (year) => memoOf(`s3-${year}`, async () => {
+  const races = (pages) => pages.flatMap((m) => m?.RaceTable?.Races || []);
+  // Calendrier et classements ensemble, puis les résultats (4 demandes par seconde au plus)
+  const [schedule, ds, cs] = await Promise.all([jolpica(`${year}`).then(races), jolpica(`${year}/driverstandings`), jolpica(`${year}/constructorstandings`)]);
+  const [results, quali, sprint] = await Promise.all([jolpica(`${year}/results`).then(races), jolpica(`${year}/qualifying`).then(races), jolpica(`${year}/sprint`).then(races)]);
+  return summarize({ schedule, driverStandings: ds[0]?.StandingsTable?.StandingsLists?.[0]?.DriverStandings, constructorStandings: cs[0]?.StandingsTable?.StandingsLists?.[0]?.ConstructorStandings, results, quali, sprint });
+}, 30 * 60e3);
+// Records du circuit : éditions précédentes lues dans les archives de la F1 (gardées sur le
+// téléphone, définitives ; une archive pas encore publiée sera relue la fois suivante)
+const readArchive = async (p) => JSON.parse((await (await api(`archive?p=${encodeURIComponent(p)}`, { raw: true })).text()).replace(/^﻿/, ''));
+async function recordsFor(year, key) {
+  let failed = null;
+  const editions = await Promise.all(recordYears(year).map((y) => memoOf(`r${key}-${y}`, async () => {
+    const e = await editionOf(y, key, readArchive);
+    if (e?.pending) throw new Error('Archive pas encore publiée');
+    return e;
+  }).catch((err) => { failed ||= err; return null; })));
+  const rec = recordsOf(key, editions);
+  if (!rec.editions.length && failed) throw new Error(session.me.f1tv ? 'Archives de la F1 indisponibles pour le moment' : 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli, puis réactivez la page');
+  return rec;
+}
+const lapsOf = (year, round) => memoOf(`l2${year}-${round}`, async () => {
+  const [pages, res, pits] = await Promise.all([
+    jolpica(`${year}/${round}/laps`).then((l) => l.flatMap((m) => m?.RaceTable?.Races || [])),
+    jolpica(`${year}/${round}/results`).then((l) => l.flatMap((m) => m?.RaceTable?.Races || []).flatMap((r) => r.Results || [])),
+    jolpica(`${year}/${round}/pitstops`).then((l) => l.flatMap((m) => m?.RaceTable?.Races || [])).catch(() => []),
+  ]);
+  return parseRaceLaps(pages, res, pits);
+});
+// Tracé du circuit (API MultiViewer) et direction de course (archives de la F1 : safety car, VSC, drapeaux)
+const trackOf = (year, key) => memoOf(`c${key}-${year}`, async () => {
+  for (const y of [year, year - 1]) {
+    const r = await fetch(`https://api.multiviewer.app/api/v1/circuits/${key}/${y}`).catch(() => null);
+    if (r?.ok) return r.json();
+  }
+  return null;
+});
+const raceControlOf = (year, race) => memoOf(`rc${year}-${race.round}`, async () => {
+  const p = raceSessionPath(await readArchive(`${year}/Index.json`), { name: race.name, circuitKey: circuitInfo(race.circuitId)?.key });
+  if (!p) throw new Error('Course introuvable dans les archives');
+  return parseRaceControl(await readArchive(`${p}RaceControlMessages.json`));
+});
+async function forecastOf(lat, lon) {
+  const q = new URLSearchParams({ latitude: Number(lat).toFixed(4), longitude: Number(lon).toFixed(4), daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: 'auto', forecast_days: '16' });
+  const j = await fetch(`https://api.open-meteo.com/v1/forecast?${q}`).then((r) => r.json()).catch(() => null);
+  const d = j?.daily || {};
+  return (d.time || []).map((date, i) => ({ date, tmax: d.temperature_2m_max?.[i] ?? null, tmin: d.temperature_2m_min?.[i] ?? null, rain: d.precipitation_probability_max?.[i] ?? null })).filter((x) => x.tmax !== null);
+}
+
+const STYPES = [['raceweek', 'Race Week'], ['weekend', 'Programme'], ['records', 'Le saviez-vous'], ['ratings', 'Notes'], ['teamduels', 'Duels'], ['racelaps', 'Tour par tour']];
+const dateFr = (d) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+// Grands Prix : le prochain (ou la dernière course) en tête et mis en avant, puis les suivants dans
+// l'ordre du calendrier, et les courses passées de la plus récente à la plus ancienne
+function raceList(races, def, upcoming) {
+  const row = (r) => `<button class="row-item" data-r="${r.round}"><span class="num">${r.round}</span><span class="grow"><b>${esc(r.name)}</b><small>${esc(dateFr(r.date))}</small></span>${icon('next')}</button>`;
+  const later = races.filter((r) => r.round > def.round);
+  const before = races.filter((r) => r.round < def.round).reverse();
+  return `<button class="card hero" data-r="${def.round}"><span class="eyebrow">${upcoming ? 'Prochain Grand Prix' : 'Dernière course'}</span><div class="t">${esc(def.name)}</div><div class="meta">Manche ${def.round} · ${esc(dateFr(def.date))}</div>${icon('next', 'go')}</button>
+    ${upcoming && later.length ? `<h3 class="section">Ensuite</h3><div class="group">${later.map(row).join('')}</div>` : ''}
+    ${before.length ? `<h3 class="section">${upcoming ? 'Déjà courus' : 'Courses précédentes'}</h3><div class="group">${before.map(row).join('')}</div>` : ''}`;
+}
+
+export async function seasonTab(body, back) {
+  const year = new Date().getUTCFullYear();
+  const bar = `<div class="chips" id="stypes">${STYPES.map(([k, v]) => `<button data-st="${k}" class="${state.stype === k ? 'on' : ''}">${v}</button>`).join('')}</div>`;
+  body.innerHTML = `${bar}${skeleton(5)}<p class="hint center">Lecture de la saison (jusqu'à une minute la première fois)…</p>`;
+  const data = await seasonOf(year);
+  if (!body.isConnected) return;
+  const upcoming = ['raceweek', 'weekend', 'records'].includes(state.stype);
+  const races = upcoming ? data.races : data.races.filter((r) => r.results.length);
+  const def = upcoming ? (races.find((r) => Date.parse(r.date) > Date.now() - 12 * 3600e3) || races.at(-1)) : races.at(-1);
+  body.innerHTML = `${bar}${def ? raceList(races, def, upcoming) : '<p class="hint">Aucune course terminée pour le moment.</p>'}`;
+  // Type choisi visible dans la barre (qui défile sur téléphone)
+  const on = $('#stypes .on');
+  if (on) $('#stypes').scrollLeft = on.offsetLeft - ($('#stypes').clientWidth - on.offsetWidth) / 2;
+  $$('[data-st]', body).forEach((b) => { b.onclick = () => { state.stype = b.dataset.st; state.round = null; seasonTab(body, back); }; });
+  $$('[data-r]', body).forEach((b) => {
+    b.onclick = async () => {
+      state.round = Number(b.dataset.r);
+      b.classList.add('busy');
+      try { await seasonEditor(year, data, races.find((r) => r.round === state.round), back); } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); }
+    };
+  });
+}
+
+async function seasonEditor(year, data, race, back) {
+  const live = Object.fromEntries(Object.values(await latestDrivers()).filter((x) => x?.Tla && x.TeamColour).map((x) => [x.Tla, `#${String(x.TeamColour).replace('#', '')}`]));
+  let d;
+  let note = '';
+  if (state.stype === 'raceweek') {
+    const info = circuitInfo(race.circuitId);
+    const [fc, track, winners] = await Promise.all([
+      Number.isFinite(race.lat) ? forecastOf(race.lat, race.lon) : [],
+      info ? trackOf(year, info.key).catch(() => null) : null,
+      memoOf(`w${year - 1}`, async () => (await jolpica(`${year - 1}/results/1`)).flatMap((m) => m?.RaceTable?.Races || [])).catch(() => []),
+    ]);
+    const w = winners.find((r) => r.Circuit?.circuitId === race.circuitId || r.raceName === race.name)?.Results?.[0];
+    const prev = w ? { name: `${w.Driver?.givenName || ''} ${w.Driver?.familyName || ''}`.trim(), team: w.Constructor?.name || '', teamId: w.Constructor?.constructorId || '', laps: Number(w.laps) || null } : null;
+    d = raceWeekData(race, { year, rounds: data.races.length, tyres: builtinNomination(year, { name: race.name, location: race.locality, country: race.country }), forecast: fc, track, prev });
+    if (!track) note = 'Tracé du circuit indisponible pour ce Grand Prix : visuel sans le circuit.';
+  } else if (state.stype === 'weekend') {
+    const fc = Number.isFinite(race.lat) ? await forecastOf(race.lat, race.lon) : [];
+    d = weekendData(race, { year, tyres: builtinNomination(year, { name: race.name, location: race.locality, country: race.country }), forecast: fc });
+    if (!d.forecast.length) note = 'Météo prévue disponible environ 2 semaines avant le week-end.';
+  } else if (state.stype === 'records') {
+    const key = circuitInfo(race.circuitId)?.key;
+    if (!key) throw new Error('Circuit inconnu : records indisponibles pour ce Grand Prix');
+    d = recordsData(race, await recordsFor(year, key), { year, names: Object.fromEntries((data.drivers || []).map((x) => [x.code, x.name])) });
+    if (!d.facts.length) throw new Error('Pas encore de records connus pour ce circuit (archives de la F1 depuis 2018).');
+  } else if (state.stype === 'ratings') {
+    const laps = await lapsOf(year, race.round).catch(() => null);
+    d = ratingsData(race, { year, laps, live });
+    note = `Note sur 10 calculée par Paddock Live : résultat, ${d.withPace ? 'rythme en course, ' : ''}places gagnées et duel avec le coéquipier.`;
+  } else if (state.stype === 'teamduels') {
+    d = teamDuelsData(data, { year, upTo: race.round, live });
+  } else {
+    const [laps, rcm] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null)]);
+    if (!laps.total) throw new Error('Tours de cette course pas encore publiés');
+    d = raceLapsData(race, laps, { year, live, rcm: rcm?.length ? rcm : null });
+    if (d.story.estimated) note = 'Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.';
+  }
+  const video = state.stype === 'racelaps';
+  const typeName = STYPES.find(([k]) => k === state.stype)[1];
+  let clip = null;
+  editor({
+    back,
+    title: typeName,
+    subtitle: `${d.gp} · manche ${race.round}`,
+    head: `${note ? `<p class="hint">${esc(note)}</p>` : ''}
+      ${video ? `<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+        <p class="hint" id="vidst">Vidéo verticale pour TikTok, Reels ou une story : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts. Garder l'écran allumé pendant l'enregistrement.</p>
+        <video id="vid" controls playsinline hidden></video>` : ''}`,
+    data: () => d, caps: () => seasonCaptions(d, SIG),
+    record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${typeName} · ${d.gp}` }),
+    bind: () => {
+      if (!video) return;
+      $('#mkvid').onclick = async () => {
+        $('#mkvid').disabled = true;
+        try {
+          const o = await assets(d);
+          clip = await makeAnimation((ctx, t) => raceFrame(ctx, 1080, 1920, d, o, t), raceVideoTiming(d).duration, { music: 'gen', onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+          $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
+          $('#sharevid').disabled = false;
+          $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)`;
+        } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
+      };
+      $('#sharevid').onclick = async () => {
+        if (!clip) return;
+        const file = new File([clip.blob], `course-${race.round}.${clip.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: clip.mime });
+        if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); } catch { /* annulé */ } return; }
+        const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+      };
+    },
+  });
+}

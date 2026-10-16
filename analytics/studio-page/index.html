@@ -4,16 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#07080A">
+<meta name="theme-color" content="#0b0c0f" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f4f1" media="(prefers-color-scheme: light)">
 <title>Studio</title>
 <link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon-512.png">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Studio">
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-<main id="app"><p class="muted center">Chargement…</p></main>
+<div id="app" class="boot">Chargement…</div>
 <script type="module" src="./app.js"></script>
 </body>
 </html>
