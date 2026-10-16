@@ -8,7 +8,7 @@ import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
-import { FORMATS, slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
+import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
@@ -33,6 +33,7 @@ let seasonType = SEASON_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).season
 let roundSel = null;   // manche choisie (posts de saison)
 let recapMode = false; // news : récap de la semaine
 let curPost = null;    // post affiché et ses visuels (vidéo animée de la course)
+let skipSlides = { key: '', set: new Set() };   // images écartées du post affiché (toutes publiées par défaut)
 let linkComment = storageGet(OPT_KEY, {}).linkComment !== false;   // news : lien de l'article en premier commentaire
 let follow = storageGet(OPT_KEY, {}).follow !== false;   // image « Abonnez-vous » et ligne dans les textes
 const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
@@ -204,12 +205,17 @@ async function seasonSource(sig) {
     d = teamDuelsData(data, { year, upTo: race.round, live });
     extra = msg(t('Bilan de la saison jusqu\'à la manche choisie : qui devance l\'autre en qualifications et en course.'));
   } else {
-    const laps = await lapsOf().catch((err) => ({ error: err.message }));
+    // Tours et direction de course (safety car, VSC, drapeaux) pour la vidéo
+    const [laps, rc] = await Promise.all([
+      lapsOf().catch((err) => ({ error: err.message })),
+      cached(`rc|${year}|${race.round}`, () => jget(`/api/social/racecontrol?year=${year}&round=${race.round}`, 60000), 3600e3).catch(() => null),
+    ]);
     if (laps.error || !laps.total) return { head: head + msg(laps.error || t('Tours de cette course pas encore publiés.'), true) };
-    d = raceLapsData(race, laps, { year, live });
+    d = raceLapsData(race, laps, { year, live, rcm: rc?.messages?.length ? rc.messages : null });
     const sec = Math.round(raceVideoTiming(d).duration);
     extra = `<div class="row posts-news-bar"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo animée')}</button>
-      <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels) de {} s : le classement évolue tour par tour.', sec))}</span></div>
+      <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels) de {} s : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts.', sec))}</span></div>
+      ${d.story.estimated ? msg(t('Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.')) : ''}
       <video class="posts-vid" data-rv controls playsinline hidden></video>`;
   }
   const label = SEASON_TYPES.find(([k]) => k === seasonType)[1];
@@ -379,12 +385,18 @@ async function render(dlg, keepHead = false) {
     if (!r.d) { body.innerHTML = r.head; return; }
     ({ d, caps, head, record } = r);
   }
-  const slides = slidesFor(d, { fmt, follow });
+  const slides = slidesFor(d, { fmt, follow, question: withQuestion });
+  // Images écartées : propres à chaque post (remises à zéro quand on en change)
+  const postKey = record?.key || `${mode}|${d.gp}|${d.post || d.kind || ''}|${d.title || ''}`;
+  if (skipSlides.key !== postKey) skipSlides = { key: postKey, set: new Set() };
+  const skip = skipSlides.set;
+  const chosenOf = (list) => chosenSlides(list, [...skip]);
   if (withQuestion) caps = questionCaptions(caps, d, sig);
   if (follow) caps = followCaptions(caps, d, sig);
   if (!slides.length || (!d.rows?.length && !d.post && !d.news)) { body.innerHTML = `${mode !== 'news' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
-  const main = `<div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item"><canvas data-slide="${s}"></canvas>
-      <figcaption><span>${i + 1}. ${esc(t(slideName(s)))}</span>
+  const main = `<p class="small muted">${icon('info')} ${t('Toutes les images sont publiées : décochez celles à laisser de côté (sommaire, nombre de points et numéros suivent).')}</p>
+    <div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item" data-fig="${i}"><canvas data-slide="${s}"></canvas>
+      <figcaption><span><label class="posts-pick"><input type="checkbox" data-pick="${s}" ${skip.has(s) ? '' : 'checked'}> <b data-num></b> ${esc(t(slideName(s)))}</label></span>
         <button class="btn small" data-copy="${i}" title="${t('Copier l\'image, à coller dans le réseau social')}">${icon('doc')} ${t('Copier')}</button>
         <button class="btn small" data-save="${i}">${icon('save')} ${t('Enregistrer')}</button></figcaption></figure>`).join('')}</div>
     <div class="posts-caps">
@@ -402,9 +414,32 @@ async function render(dlg, keepHead = false) {
   if (id !== renderId) return;   // format ou réglage changé entre-temps
   curPost = { d, o };
   // Publication : visuels de n'importe quel format, dessinés à part
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => slidesFor(d, { fmt: f, follow }).map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)), videoMaker: d.post === 'racelaps' ? raceVideoMaker(d, o) : null });
-  const canvases = [...body.querySelectorAll('canvas')];
-  for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
+  // Publication : images gardées, de n'importe quel format, dessinées à part
+  const drawChosen = (f) => { const list = chosenOf(slidesFor(d, { fmt: f, follow, question: withQuestion })); return list.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, { ...o, slides: list })); };
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => drawChosen(f), videoMaker: d.post === 'racelaps' ? raceVideoMaker(d, o) : null });
+  const allCanvases = [...body.querySelectorAll('canvas')];
+  let canvases = [];
+  // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
+  const paint = () => {
+    const list = chosenOf(slides);
+    canvases = allCanvases.filter((c) => list.includes(c.dataset.slide));
+    for (const c of allCanvases) {
+      const on = list.includes(c.dataset.slide);
+      drawSlide(c, c.dataset.slide, fmt, d, { ...o, slides: list });
+      const fig = c.closest('.posts-item');
+      fig.classList.toggle('off', !on);
+      $('[data-num]', fig).textContent = on ? `${list.indexOf(c.dataset.slide) + 1}.` : '—';
+    }
+  };
+  paint();
+  body.querySelectorAll('[data-pick]').forEach((cb) => {
+    cb.onchange = () => {
+      if (cb.checked) skip.delete(cb.dataset.pick); else skip.add(cb.dataset.pick);
+      // Une image au moins reste publiée
+      if (!chosenOf(slides).some((s) => !skip.has(s))) { skip.delete(cb.dataset.pick); cb.checked = true; toast(t('Gardez au moins une image'), 2500, 'warning'); }
+      paint();
+    };
+  });
   const count = $('[data-count]', body);
   const area = $('.posts-cap', body);
   const upd = () => { if (count) count.textContent = t('{} / 280 caractères', xLength(area.value)); };
@@ -413,8 +448,8 @@ async function render(dlg, keepHead = false) {
     const b = e.target.closest('button');
     if (!b) return;
     try {
-      if (b.dataset.copy !== undefined) { await copyImage(canvases[Number(b.dataset.copy)]); toast(t('Image copiée'), 2000, 'check'); }
-      if (b.dataset.save !== undefined) { const r = await saveImages(d, [canvases[Number(b.dataset.save)]]); toast(t('Image enregistrée dans {}', r.dir), 4000, 'check'); }
+      if (b.dataset.copy !== undefined) { await copyImage(allCanvases[Number(b.dataset.copy)]); toast(t('Image copiée'), 2000, 'check'); }
+      if (b.dataset.save !== undefined) { const r = await saveImages(d, [allCanvases[Number(b.dataset.save)]]); toast(t('Image enregistrée dans {}', r.dir), 4000, 'check'); }
       if (b.dataset.cap !== undefined) { await navigator.clipboard.writeText(area.value); toast(t('Texte copié'), 2000, 'check'); }
       if (b.dataset.copycomment !== undefined) { await navigator.clipboard.writeText(caps.comment); toast(t('Commentaire copié : publiez-le en réponse à votre post'), 3500, 'check'); }
       // Publication sans accès payant : page officielle du réseau préremplie, première image copiée
@@ -457,10 +492,23 @@ async function openStats() {
     const f = Object.entries(r.followers || {});
     body.innerHTML = `${f.length ? `<div class="posts-stats-fol">${f.map(([n, v]) => `<div><b>${fmtN(v)}</b><span class="small muted">${t('abonnés')} ${NET_NAMES[n] || n}</span></div>`).join('')}</div>` : ''}
       ${(r.posts || []).length ? (r.posts || []).map((p) => `<div class="posts-stats-post">
-        <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span></div>
+        <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span>
+          <button class="btn small" data-statsremove="${esc(p.key)}" title="${t('Post supprimé sur les réseaux : le retirer des statistiques')}">${t('Retirer')}</button></div>
         ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s && !s.error ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${t(l)} <b>${fmtN(s[k])}</b>`).join(' · ') : s?.error ? `${t('statistiques indisponibles')} <span class="muted">(${esc(s.error)})</span>` : t('statistiques indisponibles'); return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${NET_NAMES[n] || n}</a>` : NET_NAMES[n] || n} : ${vals}</div>`; }).join('')}
       </div>`).join('') : `<p class="muted">${t('Aucun post publié depuis Paddock Live pour le moment.')}</p>`}
       <p class="small muted">${icon('info')} ${t("Statistiques lues chez chaque réseau (X : lecture payante, non utilisée). Pour les vues et la portée, autorisations instagram_manage_insights, read_insights et threads_manage_insights du jeton.")}</p>`;
+    body.querySelectorAll('[data-statsremove]').forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm(t('Retirer ce post des statistiques ? (À faire si vous l\'avez supprimé sur les réseaux ; rien n\'est supprimé chez eux.)'))) return;
+        b.disabled = true;
+        try {
+          const r = await fetch('/api/social/history/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: b.dataset.statsremove }) });
+          if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Erreur ${r.status}`);
+          histCache = null;
+          b.closest('.posts-stats-post').remove();
+        } catch (err) { b.disabled = false; toast(err.message, 4000, 'warning'); }
+      };
+    });
   } catch (err) { body.innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
 }
 
@@ -475,7 +523,7 @@ async function detailedSummary(dlg, btn) {
   try {
     const r = await fetch('/api/social/summary', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link: it.link }) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok || !Array.isArray(j.points)) throw new Error(j.error || t('Résumé indisponible pour le moment'));
+    if (!r.ok || !Array.isArray(j.points)) throw new Error(j.error ? t(j.error) : t('Résumé indisponible pour le moment'));
     edits.set(id, { title: $('[data-ntitle]', dlg).value, summary: $('[data-nsum]', dlg).value, points: j.points.join('\n') });
     if (newsSel === id) render(dlg);
     toast(t('{} points clés : relisez-les avant de publier', j.points.length), 3500, 'check');
@@ -497,7 +545,7 @@ function open() {
         <div class="posts-seg" role="tablist">${Object.entries({ ig: 'Instagram / Facebook', story: 'Story / TikTok', x: 'X / Threads / Bluesky' }).map(([k, v]) => `<button class="posts-fmt" data-fmt="${k}">${v}</button>`).join('')}</div>
         <label class="toggle small"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
         <label class="toggle small" title="${t("Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
-        <label class="toggle small" title="${t('Une question adaptée au post en fin de texte, pour faire réagir en commentaire')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>
+        <label class="toggle small" title="${t('Une question adaptée au post en fin de texte et en avant-dernière image des carrousels, pour faire réagir en commentaire')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>
         <label class="toggle small" title="${t("Dernière image des carrousels et une ligne dans les textes pour inviter à s'abonner au compte (X et Bluesky : dans le texte seulement)")}"><input type="checkbox" data-follow> ${t('Image « Abonnez-vous »')}</label>
         <label class="small muted">${t('Signature')} <input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
         <span class="spacer"></span>

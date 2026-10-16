@@ -38,6 +38,17 @@ export function addEntry(list, entry) {
 
 export const mergeHistory = (...lists) => lists.flat().filter(Boolean).reduce((acc, e) => addEntry(acc, e), []);
 
+// Posts retirés par le créateur (supprimés sur les réseaux) : leurs clés sont gardées pour que
+// l'appli et la page web ne se les renvoient pas l'une à l'autre
+export const REMOVED_MAX = 500;
+export const cleanKey = (k) => (typeof k === 'string' && k.trim() ? k.trim().slice(0, 80) : null);
+export function removeEntry(list, removed, key) {
+  const k = cleanKey(key);
+  if (!k) return { items: list || [], removed: removed || [] };
+  return { items: (list || []).filter((e) => e?.key !== k), removed: [k, ...(removed || []).filter((x) => x !== k)].slice(0, REMOVED_MAX) };
+}
+export const withoutRemoved = (list, removed = []) => (list || []).filter((e) => e && !removed.includes(e.key));
+
 // Nouvelle déjà publiée : même lien, ou même sujet (noms propres, type) dans les 3 jours
 export function postedEntry(item, history = []) {
   return history.find((e) => e.kind === 'news' && (

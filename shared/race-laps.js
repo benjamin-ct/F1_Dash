@@ -8,8 +8,14 @@ const lapTime = (t) => {
 };
 
 // lapPages : courses renvoyées par /{année}/{manche}/laps (une par page) ; results : résultats bruts
-// de la manche (Jolpica « Results » : Driver, Constructor, grid, position, status)
-export function parseRaceLaps(lapPages, results) {
+// de la manche (Jolpica « Results » : Driver, Constructor, grid, position, status) ; pitPages :
+// courses renvoyées par /{année}/{manche}/pitstops (facultatif : tours des arrêts au stand)
+export function parseRaceLaps(lapPages, results, pitPages = []) {
+  const stops = new Map();
+  for (const r of pitPages || []) for (const p of r?.PitStops || []) {
+    const n = Number(p.lap);
+    if (n) stops.set(p.driverId, [...(stops.get(p.driverId) || []), n]);
+  }
   const laps = new Map();
   for (const r of lapPages || []) for (const l of r?.Laps || []) {
     const n = Number(l.number);
@@ -32,7 +38,7 @@ export function parseRaceLaps(lapPages, results) {
       code: x.Driver?.code || String(x.Driver?.familyName || '').slice(0, 3).toUpperCase(),
       first: x.Driver?.givenName || '', last: x.Driver?.familyName || '', team: x.Constructor?.name || '', teamId: x.Constructor?.constructorId || '',
       grid: Number(x.grid) || null, finish: Number(x.position) || null, classified: /^\d+$/.test(x.positionText || ''),
-      status: x.status || '', laps: done, pos, times,
+      status: x.status || '', laps: done, pos, times, pits: [...new Set(stops.get(id) || [])].sort((a, b) => a - b),
     };
   });
   return { total, drivers };

@@ -60,6 +60,10 @@ test("news en plusieurs images : points clés répartis, légendes avec l'essent
   assert.deepEqual(slidesFor(d), ['news', 'essentiel-1', 'essentiel-2']);
   assert.deepEqual(slidesFor(d, { fmt: 'ig', follow: true }), ['news', 'essentiel-1', 'essentiel-2', 'abonnement']);
   assert.deepEqual(slidesFor(d, { fmt: 'story', follow: true }), ['news', 'essentiel-1', 'abonnement']);
+  // Question en avant-dernière image des carrousels (pas sur X : 4 images au plus)
+  assert.deepEqual(slidesFor(d, { fmt: 'ig', follow: true, question: true }), ['news', 'essentiel-1', 'essentiel-2', 'question', 'abonnement']);
+  assert.deepEqual(slidesFor(d, { fmt: 'ig', question: true }).at(-1), 'question');
+  assert.deepEqual(slidesFor(d, { fmt: 'x', follow: true, question: true }), slidesFor(d, { fmt: 'x' }));
   assert.ok(slidesFor(d, { fmt: 'x', follow: true }).length <= 4);
   const c = newsCaptions(d, '@moi');
   assert.match(c.instagram, /L'essentiel :\n– Ferrari prolonge Hamilton de deux saisons\.\n– Le Britannique/);
@@ -68,4 +72,30 @@ test("news en plusieurs images : points clés répartis, légendes avec l'essent
   // Instagram : 2 200 caractères au plus, les points restent sur les images
   const long = newsPost(item, { title: 'T', summary: 'S', points: Array(6).fill('x'.repeat(250)) });
   assert.ok(newsCaptions(long, '@moi').instagram.length <= 2200);
+});
+
+test('images choisies : écartées du post, sommaire et numéros des points suivent', async () => {
+  const { chosenSlides, drawSlide } = await import('../shared/social-draw.js');
+  const { newsPost } = await import('../shared/social-news.js');
+  assert.deepEqual(chosenSlides(['news', 'essentiel-1', 'essentiel-2', 'abonnement'], ['essentiel-1']), ['news', 'essentiel-2', 'abonnement']);
+  assert.deepEqual(chosenSlides(['a', 'b'], ['a', 'b']), ['a']);   // une image au moins
+  // Faux canvas : textes écrits relevés
+  const texts = [];
+  const ctx = new Proxy({}, {
+    get: (o, k) => (k in o ? o[k] : k === 'measureText' ? (s) => ({ width: String(s).length * 10 }) : k === 'fillText' ? (s) => texts.push(String(s))
+      : ['createLinearGradient', 'createRadialGradient'].includes(k) ? () => ({ addColorStop() {} }) : () => {}),
+    set: (o, k, v) => { o[k] = v; return true; },
+  });
+  const canvas = { getContext: () => ctx };
+  const d = newsPost({ id: 'a', title: 'Hamilton signs new Ferrari deal', summary: 'Résumé.', tags: [], src: 'f1', t: Date.UTC(2026, 9, 14), link: 'https://x.test', lang: 'fr', sources: 3 }, { sourceName: 'Formula 1' });
+  d.points = ['Premier point clé assez long pour la diapo.', 'Deuxième point clé assez long pour la diapo.', 'Troisième point clé assez long pour la diapo.', 'Quatrième point clé assez long pour la diapo.', 'Cinquième point clé assez long pour la diapo.'];
+  const list = ['news', 'essentiel-2'];   // 1re image de points écartée (3 points)
+  drawSlide(canvas, 'news', 'ig', d, { slides: list });
+  assert.ok(texts.some((x) => /EN 2 POINTS/.test(x)), texts.join(' | '));
+  texts.length = 0;
+  drawSlide(canvas, 'essentiel-2', 'ig', d, { slides: list });
+  assert.ok(texts.includes('01') && texts.includes('02') && !texts.includes('04'));
+  texts.length = 0;
+  drawSlide(canvas, 'essentiel-2', 'ig', d, {});   // sans choix : numéros d'origine
+  assert.ok(texts.includes('04') && texts.includes('05'));
 });

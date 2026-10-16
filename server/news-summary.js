@@ -29,7 +29,7 @@ export function createNewsSummarizer({ articles, url = SUMMARY_URL, post = postJ
     }
     const r = await post(url, { title: a.title || '', text });
     if (r.status === 429) { const e = new Error('Plafond du jour atteint, réessayez demain'); e.status = 429; throw e; }
-    if (!Array.isArray(r.json?.points)) { const e = new Error('Résumé indisponible pour le moment'); e.status = 502; throw e; }
+    if (!Array.isArray(r.json?.points)) { const e = new Error(r.json?.error || 'Résumé indisponible pour le moment'); e.status = 502; throw e; }
     memo.set(link, r.json.points);
     if (memo.size > 100) memo.delete(memo.keys().next().value);
     return r.json.points;

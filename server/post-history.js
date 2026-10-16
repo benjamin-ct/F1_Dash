@@ -1,21 +1,35 @@
 // Journal des publications sur cet ordinateur (config.json), complété par celui de la page web du
 // créateur quand elle est activée (publications faites depuis le téléphone).
 import { getConfig, saveConfig } from './config.js';
-import { addEntry, mergeHistory } from '../shared/post-history.js';
+import { addEntry, mergeHistory, removeEntry, withoutRemoved, cleanKey, REMOVED_MAX } from '../shared/post-history.js';
 import { studioCall } from './studio-sync.js';
 import { postStats } from '../shared/post-stats.js';
 
+// Posts retirés ici ou sur la page web : enlevés des deux journaux
 export async function postHistory({ fetchFn } = {}) {
-  const local = getConfig().postsHistory || [];
   const remote = await studioCall('history', { fetchFn });
-  return mergeHistory(local, remote?.items || []);
+  const removed = [...new Set([...(getConfig().postsRemoved || []), ...(remote?.removed || [])])].slice(0, REMOVED_MAX);
+  const local = getConfig().postsHistory || [];
+  const kept = withoutRemoved(local, removed);
+  if (kept.length !== local.length || removed.length !== (getConfig().postsRemoved || []).length) saveConfig({ postsHistory: kept, postsRemoved: removed });
+  return withoutRemoved(mergeHistory(kept, remote?.items || []), removed);
 }
 
 export async function recordPost(entry, { fetchFn } = {}) {
   const list = addEntry(getConfig().postsHistory || [], entry);
-  saveConfig({ postsHistory: list });
+  const k = cleanKey(entry?.key);
+  saveConfig({ postsHistory: list, postsRemoved: (getConfig().postsRemoved || []).filter((x) => x !== k) });
   await studioCall('history', { body: { entry }, fetchFn });
   return list;
+}
+
+// Post supprimé sur les réseaux : retiré du journal et des statistiques (ici et sur la page web)
+export async function removePost(key, { fetchFn } = {}) {
+  if (!cleanKey(key)) throw new Error('Post inconnu');
+  const r = removeEntry(getConfig().postsHistory || [], getConfig().postsRemoved || [], key);
+  saveConfig({ postsHistory: r.items, postsRemoved: r.removed });
+  await studioCall('history/remove', { body: { key }, fetchFn });
+  return r.items;
 }
 
 // Statistiques des posts avec les comptes de cet ordinateur

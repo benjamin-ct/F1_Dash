@@ -68,7 +68,27 @@ test('résumé détaillé : une fois par article, plafond du jour, nouvel essai 
   assert.deepEqual(await summarizeArticle(g.env, req, '2026-10-16'), { limited: true });
   assert.equal(g.calls.length, 0);
   const h = fakeEnv({ replies: ['x', 'y'] });
-  assert.deepEqual(await summarizeArticle(h.env, req, '2026-10-16'), { points: null });
+  assert.deepEqual(await summarizeArticle(h.env, req, '2026-10-16'), { points: null, error: "Réponse de l'IA inutilisable pour cet article, réessayez" });
+});
+
+test('résumé détaillé : réponse JSON déjà décodée par Workers AI (tableau ou objet), raison des échecs', async () => {
+  const req = cleanSummaryRequest({ title: 'Hamilton extends Ferrari deal', text: ARTICLE });
+  // Workers AI renvoie un tableau (et non du texte) quand la réponse du modèle est du JSON valide
+  const f = fakeEnv({ replies: [POINTS] });
+  assert.deepEqual(await summarizeArticle(f.env, req, '2026-10-16'), { points: POINTS });
+  assert.equal(f.calls.length, 1);
+  assert.deepEqual(parsePoints({ points: POINTS }, ARTICLE), POINTS);
+  // Points recopiés de l'article : raison donnée
+  const why = {};
+  const copied = ARTICLE.split(/(?<=\.)\s+/).filter((x) => x.split(' ').length > 12).slice(0, 3);
+  if (copied.length >= 2) {
+    assert.equal(parsePoints(copied, ARTICLE, why), null);
+    assert.equal(why.reason, 'copy');
+  }
+  // Service d'IA en panne
+  const g = fakeEnv({});
+  g.env.AI.run = async () => { throw new Error('down'); };
+  assert.match((await summarizeArticle(g.env, req, '2026-10-16')).error, /n'a pas répondu/);
 });
 
 test("résumé détaillé dans l'appli : article lu en mode lecture, points demandés au serveur", async () => {

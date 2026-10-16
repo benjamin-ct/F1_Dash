@@ -38,8 +38,12 @@ label.check { display: flex; gap: 8px; align-items: center; color: var(--text); 
 .card .t { font-weight: 700; font-size: 15px; margin: 4px 0 2px; }
 .badge { display: inline-block; font: 700 11px 'Saira Condensed', sans-serif; letter-spacing: 1.5px; padding: 2px 8px; border-radius: 5px; color: #0b0d12; }
 .slides { display: flex; gap: 10px; overflow-x: auto; padding: 4px 0 8px; scroll-snap-type: x mandatory; }
-.slides canvas { flex: 0 0 auto; width: min(78vw, 300px); height: auto; border-radius: 8px; border: 1px solid var(--border); scroll-snap-align: start; }
-.slides.x canvas { width: min(88vw, 420px); }
+.slides .sl { flex: 0 0 auto; margin: 0; width: min(78vw, 300px); scroll-snap-align: start; }
+.slides.x .sl { width: min(88vw, 420px); }
+.slides canvas { display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border); }
+.slides .sl label.check { margin: 6px 0 0; }
+.slides .sl.off canvas { opacity: 0.3; filter: grayscale(1); }
+.slides .sl.off label { color: var(--muted); text-decoration: line-through; }
 .nets label.check { justify-content: flex-start; }
 .st { font-size: 13px; margin-left: auto; }
 .st.ok { color: var(--ok); }

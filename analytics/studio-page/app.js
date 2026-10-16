@@ -11,7 +11,7 @@ import { builtinNomination } from '/shared/tyres.js';
 import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/shared/fia-list.js';
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
-import { slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
+import { slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
@@ -19,6 +19,7 @@ import { summarize } from '/shared/season-data.js';
 import { parseRaceLaps } from '/shared/race-laps.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { editionOf, recordsOf, recordYears } from '/shared/circuit-records.js';
+import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
 import { makeAnimation } from '/shared/social-video.js';
 import { extractArticle } from '/shared/article.js';
 import { merge } from '/shared/merge.js';
@@ -438,13 +439,14 @@ async function sessionEditor(s, btn) {
 // ---------- Éditeur : visuels, textes, publication, partage ----------
 function editor({ back, head, data, caps, bind, record }) {
   let canvases = [];
-  let edited = {};   // textes retouchés à la main : gardés en changeant de format
+  let edited = {};
+  state.skip = new Set();   // images écartées de ce post (toutes publiées par défaut)   // textes retouchés à la main : gardés en changeant de format
   app.innerHTML = `<div class="top"><button id="back">← Retour</button><span class="spacer"></span>
       <div class="seg">${[['ig', 'Instagram'], ['story', 'Story'], ['x', 'X']].map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
     ${head}
     <label class="check"><input type="checkbox" id="photos" ${state.photos ? 'checked' : ''}> Photos des pilotes</label>
     <label class="check"><input type="checkbox" id="follow" ${state.follow ? 'checked' : ''}> Image « Abonnez-vous » à la fin des carrousels (et une ligne dans les textes)</label>
-    <label class="check"><input type="checkbox" id="question" ${state.question ? 'checked' : ''}> Question en fin de texte (pour faire réagir en commentaire)</label>
+    <label class="check"><input type="checkbox" id="question" ${state.question ? 'checked' : ''}> Question en fin de texte et en image avant la fin du carrousel (pour faire réagir en commentaire)</label>
     <div id="main"></div>`;
   // changed : données modifiées (titre d'une news, texte sans spoiler) -> textes régénérés
   const redraw = async (changed = false) => {
@@ -454,9 +456,10 @@ function editor({ back, head, data, caps, bind, record }) {
     if (state.question) base = questionCaptions(base, d, SIG);
     if (state.follow) base = followCaptions(base, d, SIG);
     const c = { ...base, ...edited };
-    const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow });
+    const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     const main = $('#main');
-    main.innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<canvas data-slide="${sl}" title="${esc(slideName(sl))}"></canvas>`).join('')}</div>
+    main.innerHTML = `<p class="small muted">Toutes les images sont publiées : décochez celles à laisser de côté (sommaire, nombre de points et numéros suivent).</p>
+      <div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))}"></canvas><label class="check small"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}> <b data-num></b> ${esc(slideName(sl))}</label></figure>`).join('')}</div>
       <label>${c.facebook ? 'Légende Instagram' : 'Légende Instagram / Facebook'}</label><textarea id="cap-instagram" rows="8">${esc(c.instagram)}</textarea>
       ${c.facebook ? `<label>Texte Facebook (avec le lien de l'article)</label><textarea id="cap-facebook" rows="8">${esc(c.facebook)}</textarea>` : ''}
       <label>Texte Threads (500 caractères max.)</label><textarea id="cap-threads" rows="4" maxlength="500">${esc(c.threads)}</textarea>
@@ -471,8 +474,26 @@ function editor({ back, head, data, caps, bind, record }) {
       <div id="schedbox" hidden></div><div id="schedlist"></div>`;
     for (const k of ['instagram', 'facebook', 'threads', 'x', 'bsky', 'comment'].filter((x) => $(`#cap-${x}`))) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
     const o = await assets(d);
-    canvases = [...main.querySelectorAll('canvas')];
-    for (const cv of canvases) drawSlide(cv, cv.dataset.slide, state.fmt, d, o);
+    const all = [...main.querySelectorAll('canvas')];
+    // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
+    const paint = () => {
+      const list = chosenSlides(slides, [...state.skip]);
+      canvases = all.filter((cv) => list.includes(cv.dataset.slide));
+      for (const cv of all) {
+        const on = list.includes(cv.dataset.slide);
+        drawSlide(cv, cv.dataset.slide, state.fmt, d, { ...o, slides: list });
+        cv.closest('.sl').classList.toggle('off', !on);
+        cv.closest('.sl').querySelector('[data-num]').textContent = on ? `${list.indexOf(cv.dataset.slide) + 1}.` : '—';
+      }
+    };
+    paint();
+    main.querySelectorAll('[data-pick]').forEach((cb) => {
+      cb.onchange = () => {
+        if (cb.checked) state.skip.delete(cb.dataset.pick); else state.skip.add(cb.dataset.pick);
+        if (!chosenSlides(slides, [...state.skip]).some((s) => !state.skip.has(s))) { state.skip.delete(cb.dataset.pick); cb.checked = true; alert('Gardez au moins une image'); }
+        paint();
+      };
+    });
     $('#go').onclick = () => publishAll(d, o, record?.());
     $('#plan').onclick = () => schedulePanel(d, o, record?.());
     schedList($('#schedlist'));
@@ -522,7 +543,11 @@ async function fitJpeg(cv, max) {
 }
 // Visuels : format Instagram (Instagram, Facebook, Threads) ; Bluesky : 4 au format X, moins de 1 Mo
 async function postImages(d, o, nets, maxIg = Infinity) {
-  const draw = (fmt, max, n = 99) => Promise.all(slidesFor(d, { fmt, follow: state.follow }).slice(0, n).map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, o), max)));
+  // Images gardées seulement (sommaire et numéros suivent)
+  const draw = (fmt, max, n = 99) => {
+    const list = chosenSlides(slidesFor(d, { fmt, follow: state.follow, question: state.question }), [...(state.skip || [])]).slice(0, n);
+    return Promise.all(list.map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max)));
+  };
   return { ig: nets.some((n) => n !== 'bluesky') ? await draw('ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
 
@@ -721,10 +746,24 @@ async function recordsFor(year, key) {
   if (!rec.editions.length && failed) throw new Error(me.f1tv ? 'Archives de la F1 indisponibles pour le moment' : 'Archives réservées aux abonnés F1 TV : connectez F1 TV dans l\'appli, puis réactivez la page');
   return rec;
 }
-const lapsOf = (year, round) => memoOf(`l${year}-${round}`, async () => {
+const lapsOf = (year, round) => memoOf(`l2${year}-${round}`, async () => {
   const pages = (await jolpica(`${year}/${round}/laps`)).flatMap((m) => m?.RaceTable?.Races || []);
   const res = (await jolpica(`${year}/${round}/results`)).flatMap((m) => m?.RaceTable?.Races || []).flatMap((r) => r.Results || []);
-  return parseRaceLaps(pages, res);
+  const pits = (await jolpica(`${year}/${round}/pitstops`).catch(() => [])).flatMap((m) => m?.RaceTable?.Races || []);
+  return parseRaceLaps(pages, res, pits);
+});
+// Tracé du circuit (API MultiViewer) et direction de course (archives de la F1 : safety car, VSC, drapeaux)
+const trackOf = (year, key) => memoOf(`c${key}-${year}`, async () => {
+  for (const y of [year, year - 1]) {
+    const r = await fetch(`https://api.multiviewer.app/api/v1/circuits/${key}/${y}`).catch(() => null);
+    if (r?.ok) return r.json();
+  }
+  return null;
+});
+const raceControlOf = (year, race) => memoOf(`rc${year}-${race.round}`, async () => {
+  const p = raceSessionPath(await readArchive(`${year}/Index.json`), { name: race.name, circuitKey: circuitInfo(race.circuitId)?.key });
+  if (!p) throw new Error('Course introuvable dans les archives');
+  return parseRaceControl(await readArchive(`${p}RaceControlMessages.json`));
 });
 async function forecastOf(lat, lon) {
   const q = new URLSearchParams({ latitude: Number(lat).toFixed(4), longitude: Number(lon).toFixed(4), daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max', timezone: 'auto', forecast_days: '16' });
@@ -764,16 +803,9 @@ async function seasonEditor(year, data, race) {
   let note = '';
   if (state.stype === 'raceweek') {
     const info = circuitInfo(race.circuitId);
-    const trackOf = async () => {
-      for (const y of [year, year - 1]) {
-        const r = await fetch(`https://api.multiviewer.app/api/v1/circuits/${info.key}/${y}`).catch(() => null);
-        if (r?.ok) return r.json();
-      }
-      return null;
-    };
     const [fc, track, winners] = await Promise.all([
       Number.isFinite(race.lat) ? forecastOf(race.lat, race.lon) : [],
-      info ? memoOf(`c${info.key}-${year}`, trackOf).catch(() => null) : null,
+      info ? trackOf(year, info.key).catch(() => null) : null,
       memoOf(`w${year - 1}`, async () => (await jolpica(`${year - 1}/results/1`)).flatMap((m) => m?.RaceTable?.Races || [])).catch(() => []),
     ]);
     const w = winners.find((r) => r.Circuit?.circuitId === race.circuitId || r.raceName === race.name)?.Results?.[0];
@@ -796,9 +828,10 @@ async function seasonEditor(year, data, race) {
   } else if (state.stype === 'teamduels') {
     d = teamDuelsData(data, { year, upTo: race.round, live });
   } else {
-    const laps = await lapsOf(year, race.round);
+    const [laps, rcm] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null)]);
     if (!laps.total) throw new Error('Tours de cette course pas encore publiés');
-    d = raceLapsData(race, laps, { year, live });
+    d = raceLapsData(race, laps, { year, live, rcm: rcm?.length ? rcm : null });
+    if (d.story.estimated) note = 'Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.';
   }
   const video = state.stype === 'racelaps';
   let clip = null;
@@ -806,7 +839,7 @@ async function seasonEditor(year, data, race) {
     back: () => home(),
     head: `<p class="small muted">${esc(d.gp)} · manche ${race.round}</p>${note ? `<p class="note">${esc(note)}</p>` : ''}
       ${video ? `<div class="row"><button id="mkvid">Créer la vidéo animée (${Math.round(raceVideoTiming(d).duration)} s)</button><button id="sharevid" disabled>Partager la vidéo</button></div>
-        <p class="small muted" id="vidst">Vidéo verticale pour TikTok, Reels ou une story : le classement évolue tour par tour. Garder l'écran allumé pendant l'enregistrement.</p>
+        <p class="small muted" id="vidst">Vidéo verticale pour TikTok, Reels ou une story : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts. Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden style="width:100%;border-radius:12px"></video>` : ''}`,
     data: () => d, caps: () => seasonCaptions(d, SIG),
     record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${STYPES.find(([k]) => k === state.stype)[1]} · ${d.gp}` }),
@@ -840,9 +873,17 @@ async function statsTab(body) {
   const r = await api('stats');
   const f = Object.entries(r.followers || {});
   body.innerHTML = `<div id="schedlist"></div>${f.length ? `<div class="row" style="margin-top:12px">${f.map(([n, v]) => `<div class="card" style="width:auto;cursor:default"><div class="t">${fmtN(v)}</div><div class="small muted">abonnés ${esc(NET_NAMES[n] || n)}</div></div>`).join('')}</div>` : ''}
-    <div class="list">${(r.posts || []).map((p) => `<div class="card" style="cursor:default"><div class="t">${esc(p.title || 'Post')}</div><div class="small muted">${esc(new Date(p.at).toLocaleString('fr-FR'))}</div>
+    <div class="list">${(r.posts || []).map((p) => `<div class="card" style="cursor:default"><div class="row"><div class="t">${esc(p.title || 'Post')}</div><span class="spacer"></span><button data-statsremove="${esc(p.key)}">Retirer</button></div><div class="small muted">${esc(new Date(p.at).toLocaleString('fr-FR'))}</div>
       ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s && !s.error ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${l} <b>${fmtN(s[k])}</b>`).join(' · ') : s?.error ? `statistiques indisponibles <span class="muted">(${esc(s.error)})</span>` : 'statistiques indisponibles'; return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--text)">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n)} : ${vals}</div>`; }).join('')}</div>`).join('') || '<p class="muted">Aucun post publié pour le moment.</p>'}</div>`;
   schedList($('#schedlist'));
+  // Post supprimé sur les réseaux : retiré des statistiques (ici et dans l'appli)
+  body.querySelectorAll('[data-statsremove]').forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm('Retirer ce post des statistiques ?\n\nÀ faire si vous l\'avez supprimé sur les réseaux : rien n\'est supprimé chez eux.')) return;
+      b.disabled = true;
+      try { await api('history/remove', { method: 'POST', body: JSON.stringify({ key: b.dataset.statsremove }) }); b.closest('.card').remove(); } catch (err) { b.disabled = false; alert(err.message); }
+    };
+  });
 }
 
 // ---------- Accueil ----------

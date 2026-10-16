@@ -205,3 +205,56 @@ test('records du circuit : éditions lues dans les archives (commun à l\'appli 
   assert.equal(rec.bestPole.year, 2025);
   assert.equal(rec.bestRaceLap.time, 80.901);
 });
+
+test('vidéo de course : safety car, VSC, drapeaux et moments forts (direction de course ou estimation)', async () => {
+  const { parseRaceControl, raceStory, raceSessionPath } = await import('../shared/race-story.js');
+  // 10 tours, 3 pilotes ; VER abandonne au tour 7
+  const mk = (code, pos, times, extra = {}) => ({ code, first: code, last: code, team: '', pos, times, grid: pos[0], finish: pos.at(-1), classified: true, laps: times.filter(Boolean).length, pits: [], ...extra });
+  const base = [90, 90, 90, 120, 121, 90, 90, 90, 90, 89];
+  const laps = { total: 10, drivers: [
+    mk('RUS', [1, 1, 1, 1, 1, 2, 2, 2, 1, 1], base.map((t, i) => (i === 9 ? 88.5 : t))),
+    mk('LEC', [2, 2, 2, 2, 2, 1, 1, 1, 2, 2], base.map((t) => t + 0.2), { pits: [4] }),
+    mk('VER', [3, 3, 3, 3, 3, 3, null, null, null, null], [...base.slice(0, 6), null, null, null, null], { classified: false, finish: null }),
+  ] };
+  const rcm = parseRaceControl({ Messages: {
+    0: { Utc: '2026-01-01T10:00:00', Lap: 1, Category: 'Flag', Flag: 'GREEN', Scope: 'Track', Message: 'GREEN LIGHT - PIT EXIT OPEN' },
+    1: { Utc: '2026-01-01T10:10:00', Lap: 4, Category: 'SafetyCar', Status: 'DEPLOYED', Mode: 'SAFETY CAR', Message: 'SAFETY CAR DEPLOYED' },
+    2: { Utc: '2026-01-01T10:14:00', Lap: 5, Category: 'SafetyCar', Status: 'IN THIS LAP', Mode: 'SAFETY CAR', Message: 'SAFETY CAR IN THIS LAP' },
+    3: { Utc: '2026-01-01T10:20:00', Lap: 8, Category: 'SafetyCar', Status: 'DEPLOYED', Mode: 'VIRTUAL SAFETY CAR', Message: 'VIRTUAL SAFETY CAR DEPLOYED' },
+    4: { Utc: '2026-01-01T10:21:00', Lap: 8, Category: 'SafetyCar', Status: 'ENDING', Mode: 'VIRTUAL SAFETY CAR', Message: 'VIRTUAL SAFETY CAR ENDING' },
+    5: { Utc: '2026-01-01T10:30:00', Lap: 10, Category: 'Flag', Flag: 'CHEQUERED', Scope: 'Track', Message: 'CHEQUERED FLAG' },
+    6: { Utc: '2026-01-01T10:31:00', Lap: 10, Category: 'Flag', Flag: 'DOUBLE YELLOW', Scope: 'Sector', Message: 'DOUBLE YELLOW IN TRACK SECTOR 3' },
+    7: { Utc: '2026-01-01T10:40:00', Lap: 10, Category: 'Other', Message: 'FIA STEWARDS: 5 SECOND TIME PENALTY FOR CAR 16 (LEC) - CAUSING A COLLISION' },
+  } });
+  assert.equal(rcm.length, 8);
+  const s = raceStory(laps, rcm);
+  assert.equal(s.estimated, false);
+  // « CHEQUERED FLAG » n'est pas un drapeau rouge ; drapeaux d'après l'arrivée ignorés
+  assert.deepEqual(s.status, ['green', 'green', 'green', 'sc', 'sc', 'green', 'green', 'vsc', 'green', 'green']);
+  // Même tour : direction de course d'abord (dans l'ordre des messages), puis leader, abandons, meilleur tour
+  assert.deepEqual(s.events.map((e) => `${e.lap}:${e.kind}${e.code ? `:${e.code}` : ''}`), ['4:sc', '6:restart', '6:lead:LEC', '7:out:VER', '8:vsc', '8:restart', '9:lead:RUS', '10:penalty:LEC', '10:fastest:RUS']);
+  assert.deepEqual(s.counts, { sc: 1, vsc: 1, red: 0, neutral: 0, lead: 2 });
+  assert.equal(s.events.find((e) => e.kind === 'penalty').text, '5 S');
+  assert.deepEqual(s.best, { time: 88.5, lap: 10, code: 'RUS' });
+  // Sans direction de course : tours lents de tout le peloton = neutralisation estimée
+  const e = raceStory(laps, null);
+  assert.equal(e.estimated, true);
+  assert.deepEqual(e.status.slice(2, 6), ['green', 'neutral', 'neutral', 'green']);
+  assert.ok(e.events.some((x) => x.kind === 'neutral' && x.lap === 4) && e.events.some((x) => x.kind === 'restart' && x.lap === 6));
+  // Course retrouvée dans l'Index des archives (nom, sinon circuit)
+  const idx = { Meetings: [{ Name: 'Italian Grand Prix', Circuit: { Key: 39 }, Sessions: [{ Name: 'Sprint', Type: 'Race', Path: 'x/sprint/' }, { Name: 'Race', Type: 'Race', Path: 'x/race/' }] }] };
+  assert.equal(raceSessionPath(idx, { name: 'Italian Grand Prix' }), 'x/race/');
+  assert.equal(raceSessionPath(idx, { name: 'GP', circuitKey: 39 }), 'x/race/');
+  assert.equal(raceSessionPath(idx, { name: 'GP', circuitKey: 1 }), null);
+  // Arrêts au stand lus dans l'API publique
+  const T = (id, position, time) => ({ driverId: id, position: String(position), time });
+  const pl = parseRaceLaps([{ Laps: [{ number: '1', Timings: [T('max', 1, '1:40.0')] }] }], [{ Driver: { driverId: 'max', code: 'VER' }, Constructor: {}, grid: '1', position: '1', positionText: '1' }], [{ PitStops: [{ driverId: 'max', lap: '1' }, { driverId: 'max', lap: '1' }] }]);
+  assert.deepEqual(pl.drivers[0].pits, [1]);
+  // Données de la vidéo : déroulé ; timing plus lent sur les neutralisations
+  const d = raceLapsData(R1, { ...laps, drivers: laps.drivers.map((x) => ({ ...x, teamId: '' })) }, { year: 2026, rcm });
+  assert.equal(d.story.counts.sc, 1);
+  const { raceVideoTiming } = await import('../shared/social-draw-season.js');
+  const tm = raceVideoTiming(d);
+  assert.ok(tm.w[3] > tm.w[1]);
+  assert.ok(tm.banners.length >= 4 && tm.duration > 25 && tm.duration < 55);
+});
