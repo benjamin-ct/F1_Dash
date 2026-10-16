@@ -1890,6 +1890,8 @@ export default {
   "Résumé détaillé": "Detailed summary",
   "Lecture de l'article et résumé…": "Reading the article and summarising…",
   "Résumé indisponible pour le moment": "Summary unavailable for now",
+  "Toutes les images sont publiées : décochez celles à laisser de côté (sommaire, nombre de points et numéros suivent).": "All images are published: untick the ones to leave out (summary, number of points and numbering follow).",
+  "Gardez au moins une image": "Keep at least one image",
   "Post supprimé sur les réseaux : le retirer des statistiques": "Post deleted on the networks: remove it from the statistics",
   "Retirer ce post des statistiques ? (À faire si vous l'avez supprimé sur les réseaux ; rien n'est supprimé chez eux.)": "Remove this post from the statistics? (Do it if you deleted it on the networks; nothing is deleted there.)",
   "Le service d'IA n'a pas répondu, réessayez dans quelques minutes": "The AI service did not respond, try again in a few minutes",

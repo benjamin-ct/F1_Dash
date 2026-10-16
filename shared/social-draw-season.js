@@ -298,8 +298,10 @@ export function recapCover(ctx, W, H, d, o) {
   const lw = land ? W - lx - pad : W - pad * 2;
   let ly = land ? H * 0.24 : y;
   const end = H - Math.round(Math.min(W, H) * 0.12);
-  const each = (end - ly) / Math.max(1, d.items.length);
-  d.items.forEach((it, i) => {
+  // Infos gardées dans le carrousel (images écartées : retirées du sommaire)
+  const kept = o.slides ? o.slides.filter((s) => /^recap-\d+$/.test(s)).map((s) => d.items[Number(s.slice(6)) - 1]).filter(Boolean) : d.items;
+  const each = (end - ly) / Math.max(1, kept.length);
+  kept.forEach((it, i) => {
     txt(ctx, String(i + 1).padStart(2, '0'), lx, ly + 40 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, color: C.red });
     txt(ctx, it.badge.label, lx + 80 * u, ly + 22 * u, { size: Math.round(20 * u), weight: 700, family: TITLE, color: it.badge.color, spacing: 3 });
     const t = fitLines(ctx, it.title.toUpperCase(), lw - 80 * u, [Math.round(32 * u), Math.round(28 * u)], each > 120 * u ? 2 : 1, TITLE, 800);
@@ -309,14 +311,15 @@ export function recapCover(ctx, W, H, d, o) {
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   ctx.fillStyle = C.line; ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
   txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, spacing: 1 });
-  txt(ctx, `${d.items.length} INFOS À RETENIR`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.022), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
+  txt(ctx, `${kept.length} INFO${kept.length > 1 ? 'S' : ''} À RETENIR`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.022), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }
 export function recapItem(ctx, W, H, d, o, i, fmt) {
   const it = d.items[i - 1];
   if (!it) return;
-  newsSlide(ctx, W, H, it, o, fmt);
+  newsSlide(ctx, W, H, it, { ...o, slides: null }, fmt);
   const u = Math.min(W, H) / 1080;
-  txt(ctx, `${i} / ${d.items.length}`, W - Math.round(W * 0.055), Math.round(Math.min(W, H) * 0.06) + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
+  const kept = o.slides ? o.slides.filter((s) => /^recap-\d+$/.test(s)) : d.items.map((_, k) => `recap-${k + 1}`);
+  txt(ctx, `${Math.max(1, kept.indexOf(`recap-${i}`) + 1)} / ${kept.length}`, W - Math.round(W * 0.055), Math.round(Math.min(W, H) * 0.06) + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
 }
 
 // ---------- Vidéo animée de la course (images successives) ----------

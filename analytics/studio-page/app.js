@@ -11,7 +11,7 @@ import { builtinNomination } from '/shared/tyres.js';
 import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/shared/fia-list.js';
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
-import { slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
+import { slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
@@ -439,7 +439,8 @@ async function sessionEditor(s, btn) {
 // ---------- Éditeur : visuels, textes, publication, partage ----------
 function editor({ back, head, data, caps, bind, record }) {
   let canvases = [];
-  let edited = {};   // textes retouchés à la main : gardés en changeant de format
+  let edited = {};
+  state.skip = new Set();   // images écartées de ce post (toutes publiées par défaut)   // textes retouchés à la main : gardés en changeant de format
   app.innerHTML = `<div class="top"><button id="back">← Retour</button><span class="spacer"></span>
       <div class="seg">${[['ig', 'Instagram'], ['story', 'Story'], ['x', 'X']].map(([k, v]) => `<button data-fmt="${k}" class="${state.fmt === k ? 'on' : ''}">${v}</button>`).join('')}</div></div>
     ${head}
@@ -457,7 +458,8 @@ function editor({ back, head, data, caps, bind, record }) {
     const c = { ...base, ...edited };
     const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     const main = $('#main');
-    main.innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<canvas data-slide="${sl}" title="${esc(slideName(sl))}"></canvas>`).join('')}</div>
+    main.innerHTML = `<p class="small muted">Toutes les images sont publiées : décochez celles à laisser de côté (sommaire, nombre de points et numéros suivent).</p>
+      <div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))}"></canvas><label class="check small"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}> <b data-num></b> ${esc(slideName(sl))}</label></figure>`).join('')}</div>
       <label>${c.facebook ? 'Légende Instagram' : 'Légende Instagram / Facebook'}</label><textarea id="cap-instagram" rows="8">${esc(c.instagram)}</textarea>
       ${c.facebook ? `<label>Texte Facebook (avec le lien de l'article)</label><textarea id="cap-facebook" rows="8">${esc(c.facebook)}</textarea>` : ''}
       <label>Texte Threads (500 caractères max.)</label><textarea id="cap-threads" rows="4" maxlength="500">${esc(c.threads)}</textarea>
@@ -472,8 +474,26 @@ function editor({ back, head, data, caps, bind, record }) {
       <div id="schedbox" hidden></div><div id="schedlist"></div>`;
     for (const k of ['instagram', 'facebook', 'threads', 'x', 'bsky', 'comment'].filter((x) => $(`#cap-${x}`))) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
     const o = await assets(d);
-    canvases = [...main.querySelectorAll('canvas')];
-    for (const cv of canvases) drawSlide(cv, cv.dataset.slide, state.fmt, d, o);
+    const all = [...main.querySelectorAll('canvas')];
+    // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
+    const paint = () => {
+      const list = chosenSlides(slides, [...state.skip]);
+      canvases = all.filter((cv) => list.includes(cv.dataset.slide));
+      for (const cv of all) {
+        const on = list.includes(cv.dataset.slide);
+        drawSlide(cv, cv.dataset.slide, state.fmt, d, { ...o, slides: list });
+        cv.closest('.sl').classList.toggle('off', !on);
+        cv.closest('.sl').querySelector('[data-num]').textContent = on ? `${list.indexOf(cv.dataset.slide) + 1}.` : '—';
+      }
+    };
+    paint();
+    main.querySelectorAll('[data-pick]').forEach((cb) => {
+      cb.onchange = () => {
+        if (cb.checked) state.skip.delete(cb.dataset.pick); else state.skip.add(cb.dataset.pick);
+        if (!chosenSlides(slides, [...state.skip]).some((s) => !state.skip.has(s))) { state.skip.delete(cb.dataset.pick); cb.checked = true; alert('Gardez au moins une image'); }
+        paint();
+      };
+    });
     $('#go').onclick = () => publishAll(d, o, record?.());
     $('#plan').onclick = () => schedulePanel(d, o, record?.());
     schedList($('#schedlist'));
@@ -523,7 +543,11 @@ async function fitJpeg(cv, max) {
 }
 // Visuels : format Instagram (Instagram, Facebook, Threads) ; Bluesky : 4 au format X, moins de 1 Mo
 async function postImages(d, o, nets, maxIg = Infinity) {
-  const draw = (fmt, max, n = 99) => Promise.all(slidesFor(d, { fmt, follow: state.follow, question: state.question }).slice(0, n).map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, o), max)));
+  // Images gardées seulement (sommaire et numéros suivent)
+  const draw = (fmt, max, n = 99) => {
+    const list = chosenSlides(slidesFor(d, { fmt, follow: state.follow, question: state.question }), [...(state.skip || [])]).slice(0, n);
+    return Promise.all(list.map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max)));
+  };
   return { ig: nets.some((n) => n !== 'bluesky') ? await draw('ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
 

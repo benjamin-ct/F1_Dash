@@ -8,7 +8,7 @@ import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
-import { FORMATS, slidesFor, drawSlide, slideName } from '/shared/social-draw.js';
+import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
@@ -33,6 +33,7 @@ let seasonType = SEASON_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).season
 let roundSel = null;   // manche choisie (posts de saison)
 let recapMode = false; // news : récap de la semaine
 let curPost = null;    // post affiché et ses visuels (vidéo animée de la course)
+let skipSlides = { key: '', set: new Set() };   // images écartées du post affiché (toutes publiées par défaut)
 let linkComment = storageGet(OPT_KEY, {}).linkComment !== false;   // news : lien de l'article en premier commentaire
 let follow = storageGet(OPT_KEY, {}).follow !== false;   // image « Abonnez-vous » et ligne dans les textes
 const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
@@ -385,11 +386,17 @@ async function render(dlg, keepHead = false) {
     ({ d, caps, head, record } = r);
   }
   const slides = slidesFor(d, { fmt, follow, question: withQuestion });
+  // Images écartées : propres à chaque post (remises à zéro quand on en change)
+  const postKey = record?.key || `${mode}|${d.gp}|${d.post || d.kind || ''}|${d.title || ''}`;
+  if (skipSlides.key !== postKey) skipSlides = { key: postKey, set: new Set() };
+  const skip = skipSlides.set;
+  const chosenOf = (list) => chosenSlides(list, [...skip]);
   if (withQuestion) caps = questionCaptions(caps, d, sig);
   if (follow) caps = followCaptions(caps, d, sig);
   if (!slides.length || (!d.rows?.length && !d.post && !d.news)) { body.innerHTML = `${mode !== 'news' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
-  const main = `<div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item"><canvas data-slide="${s}"></canvas>
-      <figcaption><span>${i + 1}. ${esc(t(slideName(s)))}</span>
+  const main = `<p class="small muted">${icon('info')} ${t('Toutes les images sont publiées : décochez celles à laisser de côté (sommaire, nombre de points et numéros suivent).')}</p>
+    <div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item" data-fig="${i}"><canvas data-slide="${s}"></canvas>
+      <figcaption><span><label class="posts-pick"><input type="checkbox" data-pick="${s}" ${skip.has(s) ? '' : 'checked'}> <b data-num></b> ${esc(t(slideName(s)))}</label></span>
         <button class="btn small" data-copy="${i}" title="${t('Copier l\'image, à coller dans le réseau social')}">${icon('doc')} ${t('Copier')}</button>
         <button class="btn small" data-save="${i}">${icon('save')} ${t('Enregistrer')}</button></figcaption></figure>`).join('')}</div>
     <div class="posts-caps">
@@ -407,9 +414,32 @@ async function render(dlg, keepHead = false) {
   if (id !== renderId) return;   // format ou réglage changé entre-temps
   curPost = { d, o };
   // Publication : visuels de n'importe quel format, dessinés à part
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => slidesFor(d, { fmt: f, follow, question: withQuestion }).map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)), videoMaker: d.post === 'racelaps' ? raceVideoMaker(d, o) : null });
-  const canvases = [...body.querySelectorAll('canvas')];
-  for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
+  // Publication : images gardées, de n'importe quel format, dessinées à part
+  const drawChosen = (f) => { const list = chosenOf(slidesFor(d, { fmt: f, follow, question: withQuestion })); return list.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, { ...o, slides: list })); };
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => drawChosen(f), videoMaker: d.post === 'racelaps' ? raceVideoMaker(d, o) : null });
+  const allCanvases = [...body.querySelectorAll('canvas')];
+  let canvases = [];
+  // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
+  const paint = () => {
+    const list = chosenOf(slides);
+    canvases = allCanvases.filter((c) => list.includes(c.dataset.slide));
+    for (const c of allCanvases) {
+      const on = list.includes(c.dataset.slide);
+      drawSlide(c, c.dataset.slide, fmt, d, { ...o, slides: list });
+      const fig = c.closest('.posts-item');
+      fig.classList.toggle('off', !on);
+      $('[data-num]', fig).textContent = on ? `${list.indexOf(c.dataset.slide) + 1}.` : '—';
+    }
+  };
+  paint();
+  body.querySelectorAll('[data-pick]').forEach((cb) => {
+    cb.onchange = () => {
+      if (cb.checked) skip.delete(cb.dataset.pick); else skip.add(cb.dataset.pick);
+      // Une image au moins reste publiée
+      if (!chosenOf(slides).some((s) => !skip.has(s))) { skip.delete(cb.dataset.pick); cb.checked = true; toast(t('Gardez au moins une image'), 2500, 'warning'); }
+      paint();
+    };
+  });
   const count = $('[data-count]', body);
   const area = $('.posts-cap', body);
   const upd = () => { if (count) count.textContent = t('{} / 280 caractères', xLength(area.value)); };
@@ -418,8 +448,8 @@ async function render(dlg, keepHead = false) {
     const b = e.target.closest('button');
     if (!b) return;
     try {
-      if (b.dataset.copy !== undefined) { await copyImage(canvases[Number(b.dataset.copy)]); toast(t('Image copiée'), 2000, 'check'); }
-      if (b.dataset.save !== undefined) { const r = await saveImages(d, [canvases[Number(b.dataset.save)]]); toast(t('Image enregistrée dans {}', r.dir), 4000, 'check'); }
+      if (b.dataset.copy !== undefined) { await copyImage(allCanvases[Number(b.dataset.copy)]); toast(t('Image copiée'), 2000, 'check'); }
+      if (b.dataset.save !== undefined) { const r = await saveImages(d, [allCanvases[Number(b.dataset.save)]]); toast(t('Image enregistrée dans {}', r.dir), 4000, 'check'); }
       if (b.dataset.cap !== undefined) { await navigator.clipboard.writeText(area.value); toast(t('Texte copié'), 2000, 'check'); }
       if (b.dataset.copycomment !== undefined) { await navigator.clipboard.writeText(caps.comment); toast(t('Commentaire copié : publiez-le en réponse à votre post'), 3500, 'check'); }
       // Publication sans accès payant : page officielle du réseau préremplie, première image copiée

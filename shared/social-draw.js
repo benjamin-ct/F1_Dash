@@ -46,6 +46,16 @@ function baseSlides(d, fmt) {
   else if (d.kind === 'quali') list = ['pole', 'podium', 'classement', ...duels, ...(d.facts.length ? ['faits'] : [])];
   return ['couverture', ...list];
 }
+// Images choisies par le créateur : toutes, sauf celles écartées (une au moins reste). Passées aux
+// dessins (o.slides) : sommaire de la couverture, nombre et numéros des points, récap renumérotés.
+export function chosenSlides(list, skip = []) {
+  const s = new Set(skip);
+  const out = list.filter((x) => !s.has(x));
+  return out.length ? out : list.slice(0, 1);
+}
+// Pages de points (essentiel-N) gardées : leurs numéros, dans l'ordre
+const keptPages = (o, prefix, all) => (o.slides ? o.slides.filter((s) => s.startsWith(`${prefix}-`)).map((s) => Number(s.slice(prefix.length + 1))) : all);
+
 // Points clés d'une news répartis en images de taille égale (3 au plus par image, 5 en story)
 export function pointPages(points, fmt = 'ig') {
   const list = (points || []).filter(Boolean);
@@ -433,8 +443,8 @@ function cover(ctx, W, H, d, o, next, fmt) {
   const info = [d.date, d.circuit, d.kind === 'race' && d.laps ? `${d.laps} tours` : ''].filter(Boolean).join('  ·  ').toUpperCase();
   if (info) txt(ctx, info, pad, y, { size: Math.round(30 * u), weight: 600, family: TITLE, color: C.muted, max: colW, spacing: 2 });
 
-  // Sommaire des images suivantes
-  const items = next.map((s, i) => [String(i + 2).padStart(2, '0'), SLIDE_NAMES[s] || s]);
+  // Sommaire des images suivantes (numéro = place dans le carrousel publié)
+  const items = next.map((s, i) => [String((o.slides ? o.slides.indexOf(s) : i + 1) + 1).padStart(2, '0'), slideName(s)]);
   const sx = land ? W * 0.62 : pad;
   const end = H - Math.round(Math.min(W, H) * 0.13);   // au-dessus du pied
   let sy = land ? H * 0.3 : tall ? y + 120 * u : Math.max(y + 80 * u, end - items.length * 52 * u - 40 * u);
@@ -507,8 +517,9 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   txt(ctx, d.date.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   const bottom = fy - Math.round(Math.min(W, H) * 0.07);
-  // Résumé détaillé dans les images suivantes : invitation à faire défiler
-  const more = d.points?.filter(Boolean).length;
+  // Résumé détaillé dans les images suivantes (celles gardées) : invitation à faire défiler
+  const pagesAll = pointPages(d.points, fmt);
+  const more = keptPages(o, 'essentiel', pagesAll.map((_, i) => i + 1)).reduce((n, k) => n + (pagesAll[k - 1]?.length || 0), 0);
   if (more && fmt !== 'x') {
     const ax = W - pad;
     const ay = top + 38 * u;
@@ -862,7 +873,8 @@ function follow(ctx, W, H, d, o) {
 function essentiel(ctx, W, H, d, o, page, fmt) {
   const pages = pointPages(d.points, fmt);
   const pts = pages[page - 1] || [];
-  const first = pages.slice(0, page - 1).reduce((n, p) => n + p.length, 0);
+  // Numéros suivis d'une image gardée à l'autre (images écartées : leurs points ne comptent pas)
+  const first = keptPages(o, 'essentiel', pages.map((_, i) => i + 1)).filter((k) => k < page).reduce((n, k) => n + (pages[k - 1]?.length || 0), 0);
   background(ctx, W, H, d.color);
   const land = W > H;
   const u = Math.min(W, H) / 1080;
@@ -938,7 +950,7 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   else if (slide === 'champecuries') standings(ctx, w, h, d, o, 'Constructeurs', d.champ.teams.map((r) => ({ ...r, label: r.name.toUpperCase() })));
   else if (slide === 'duels') duels(ctx, w, h, d, o);
   else if (slide === 'flash') flash(ctx, w, h, d, o);
-  else if (slide === 'couverture') cover(ctx, w, h, d, o, slidesFor(d).slice(1, fmt === 'x' ? 4 : undefined), fmt);
+  else if (slide === 'couverture') cover(ctx, w, h, d, o, (o.slides ? o.slides.filter((s) => s !== 'couverture' && s !== 'abonnement' && s !== 'question') : slidesFor(d).slice(1)).slice(0, fmt === 'x' ? 3 : undefined), fmt);
   else if (slide === 'vainqueur') hero(ctx, w, h, d, o, 'VAINQUEUR');
   else if (slide === 'pole') hero(ctx, w, h, d, o, 'POLE POSITION');
   else if (slide === 'meilleurtemps') hero(ctx, w, h, d, o, 'MEILLEUR TEMPS');
