@@ -61,3 +61,7 @@ h3 { font-size: 15px; margin: 18px 0 0; }
 #schedbox { margin-top: 12px; }
 #schedbox .row input { flex: 1; min-width: 0; width: auto; }
 #schedlist a { color: var(--ok); }
+/* Types de posts de la Saison : sous les onglets, une seule ligne qui défile au doigt */
+#stypes { display: flex; max-width: 100%; margin-top: 12px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+#stypes::-webkit-scrollbar { display: none; }
+#stypes button { flex: none; white-space: nowrap; }
