@@ -257,6 +257,42 @@ function schedulePanel(d, o, record = null) {
 }
 
 // Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
+// Envoi d'un post au serveur (réponse en continu : avancement, puis résultat ou erreur)
+export async function sendPost(network, text, blobs, comment = '') {
+  const form = new FormData();
+  form.append('network', network);
+  form.append('text', text);
+  blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
+  if (comment) form.append('comment', comment);
+  const res = await api('publish', { method: 'POST', body: form, raw: true });
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  let result = null;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const msg = JSON.parse(buf.slice(0, nl) || '{}');
+      buf = buf.slice(nl + 1);
+      if (msg.error) throw new Error(msg.error);
+      if (msg.done) result = msg;
+    }
+  }
+  if (!result) throw new Error('Réponse interrompue : vérifiez sur le réseau avant de réessayer');
+  return result;
+}
+
+// Page plein écran avec retour (bouton, geste retour de Safari, glissement depuis le bord)
+export function enterPage(back) {
+  scrollTo(0, 0);
+  if (!history.state?.editor) history.pushState({ editor: 1 }, '');
+  leave = back;
+}
+export { goBack };
+
 async function publishAll(d, o, record = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
@@ -273,29 +309,7 @@ async function publishAll(d, o, record = null) {
     const tick = setInterval(() => { st.textContent = `Envoi… ${Math.round((Date.now() - t0) / 1000)} s`; }, 1000);
     st.textContent = 'Envoi…';
     try {
-      const form = new FormData();
-      form.append('network', n);
-      form.append('text', textOf(n));
-      (n === 'bluesky' ? bsky : blobs).forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
-      if (commentOf(n)) form.append('comment', commentOf(n));
-      const res = await api('publish', { method: 'POST', body: form, raw: true });
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = '';
-      let result = null;
-      for (;;) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let nl;
-        while ((nl = buf.indexOf('\n')) >= 0) {
-          const msg = JSON.parse(buf.slice(0, nl) || '{}');
-          buf = buf.slice(nl + 1);
-          if (msg.error) throw new Error(msg.error);
-          if (msg.done) result = msg;
-        }
-      }
-      if (!result) throw new Error('Réponse interrompue : vérifiez sur le réseau avant de réessayer');
+      const result = await sendPost(n, textOf(n), n === 'bluesky' ? bsky : blobs, commentOf(n));
       ok++;
       st.className = 'st ok';
       if (record) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});

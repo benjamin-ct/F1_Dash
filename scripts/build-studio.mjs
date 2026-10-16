@@ -74,6 +74,8 @@ fs.writeFileSync(path.join(OUT, 'stats-refresh.js'), `${ptr}\npullToRefresh(() =
 // Conditions d'utilisation et politique de confidentialité (/legal/terms, /legal/privacy), demandées
 // par TikTok pour l'app de publication en brouillon
 copy(path.join(ROOT, 'analytics', 'legal'), path.join(OUT, 'legal'));
+// Kit de lancement des comptes (visuels et vidéos des posts de lancement, page du Studio)
+for (const acc of ['benjy', 'paddocklive']) copy(path.join(ROOT, 'analytics', 'launch-kit', acc), path.join(OUT, 'kit', acc));
 // Site de l'appli pour le lancement (/site/, racine d'un nom de domaine à soi), avec ses images
 copy(path.join(ROOT, 'analytics', 'launch'), path.join(OUT, 'site'), (f) => f !== 'img');
 copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'));
@@ -102,6 +104,9 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   Cache-Control: public, max-age=3600
 /site/img/*
   Cache-Control: public, max-age=86400
+/kit/*
+  Cache-Control: public, max-age=86400
+  X-Robots-Tag: noindex, nofollow
 `);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
 console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices`);
