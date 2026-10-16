@@ -25,6 +25,9 @@ fs.writeFileSync(path.join(OUT, 'stats.webmanifest'), JSON.stringify({
   name: 'Statistiques · Paddock Live', short_name: 'Statistiques', start_url: '/stats', scope: '/', display: 'standalone',
   background_color: '#07080A', theme_color: '#07080A', lang: 'fr', icons: [{ src: '/stats-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }],
 }, null, 2));
+// « Tirer pour actualiser » de la page des statistiques : script classique tiré du module partagé
+const ptr = fs.readFileSync(path.join(ROOT, 'shared', 'pull-refresh.js'), 'utf8').replace(/^export function/m, 'function');
+fs.writeFileSync(path.join(OUT, 'stats-refresh.js'), `${ptr}\npullToRefresh(() => { location.reload(); return new Promise(() => {}); });\n`);
 copy(path.join(ROOT, 'shared'), path.join(OUT, 'shared'), (f) => f.endsWith('.js'));
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps

@@ -269,12 +269,17 @@ test('statistiques : détail des erreurs nettoyé, envoyé, regroupé sur la pag
   assert.equal(s.errors.filter((e) => e.place === 'news.js:12').length, 1);
 });
 
-test('statistiques : tirer vers le bas recharge la page (fonction recopiée dans le script, avant le reste)', async () => {
+test('statistiques : tirer vers le bas dans un script à part (jamais recopié dans le script de la page)', async () => {
   const { dashboardPage } = await import('../analytics/page.js');
   const html = dashboardPage({ since: '2026-09-01', until: '2026-10-01', series: { active: [] }, features: [] }, { nonce: 'n' });
-  const script = html.slice(html.indexOf('<script nonce="n">'));
-  assert.ok(script.indexOf('function pullToRefresh(') > 0);
-  assert.ok(script.indexOf('pullToRefresh(() => { location.reload()') < script.indexOf('const D = JSON.parse'));
-  assert.ok(!/\bexport function\b|<\/script>[\s\S]*<\/script>/.test(script));
+  assert.match(html, /<script nonce="n" src="\/stats-refresh.js" defer><\/script>/);
+  assert.ok(!html.includes('function pullToRefresh'));
   assert.match(html, /<link rel="apple-touch-icon" href="\/apple-touch-icon.png">/);
+  // Fichier généré : script classique (sans export) qui lance le geste
+  const { execFileSync } = await import('node:child_process');
+  execFileSync(process.execPath, [new URL('../scripts/build-studio.mjs', import.meta.url).pathname], { stdio: 'pipe' });
+  const js = (await import('node:fs')).readFileSync(new URL('../analytics/site/stats-refresh.js', import.meta.url), 'utf8');
+  assert.ok(js.startsWith('//') && !/\bexport\b|__name/.test(js));
+  assert.match(js, /\npullToRefresh\(\(\) => \{ location\.reload\(\)/);
+  new Function(js);   // syntaxe valide
 });
