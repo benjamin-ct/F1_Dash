@@ -20,7 +20,7 @@ export function gapFr(v) {
   return /^\+?\d/.test(s) ? `+${dec(s.replace('+', ''))} s` : s;
 }
 
-const hashtag = (s) => `#${String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '')}`;
+export const hashtag = (s) => `#${String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '')}`;
 
 export function postData(state) {
   const kind = sessionKindOf(state);
@@ -133,7 +133,7 @@ const TEAM_TAGS = [
   [/mclaren/i, 'McLaren'], [/mercedes/i, 'MercedesAMGF1'], [/aston/i, 'AstonMartinF1'], [/williams/i, 'WilliamsRacing'],
   [/alpine/i, 'AlpineF1Team'], [/haas/i, 'HaasF1'], [/audi|sauber|kick/i, 'AudiF1'], [/cadillac/i, 'CadillacF1'],
 ];
-const teamTag = (team) => hashtag(TEAM_TAGS.find(([re]) => re.test(team || ''))?.[1] || team);
+export const teamTag = (team) => hashtag(TEAM_TAGS.find(([re]) => re.test(team || ''))?.[1] || team);
 
 export function hashtags(d, { spoiler = true } = {}) {
   const [p1, p2, p3] = d.rows;

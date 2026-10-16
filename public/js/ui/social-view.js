@@ -9,6 +9,7 @@ import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions } from '/shared/social.js';
 import { FORMATS, slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
+import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
 import { openPublish } from './social-publish-view.js';
 
 const SIG_KEY = 'paddock.postSignature';
@@ -17,6 +18,7 @@ let enabled = false;
 let fmt = storageGet(OPT_KEY, {}).fmt || 'ig';
 let withPhotos = storageGet(OPT_KEY, {}).photos !== false;
 let noSpoiler = storageGet(OPT_KEY, {}).noSpoiler !== false;   // texte sans le vainqueur au début
+let mode = storageGet(OPT_KEY, {}).mode === 'news' ? 'news' : 'session';   // posts de la séance ou d'une grosse news
 const imgCache = new Map();
 
 function loadImage(src, cors = false) {
@@ -52,7 +54,60 @@ async function assets(d) {
   return { photos, flag };
 }
 
-const folderOf = (d) => `${d.year || ''} ${d.gpEn.replace(/ Grand Prix$/i, '') || 'Grand Prix'} - ${d.label}`.trim();
+const folderOf = (d) => (d.news ? `Actu ${d.date} - ${d.title.slice(0, 50)}`
+  : `${d.year || ''} ${d.gpEn.replace(/ Grand Prix$/i, '') || 'Grand Prix'} - ${d.label}`.trim());
+
+// ---------- Grosses news de l'Actu ----------
+let newsAll = false;   // toutes les actus des 48 dernières heures, pas seulement les grosses
+let newsSel = null;
+let newsCache = null;
+const frCache = new Map();
+const edits = new Map();   // id -> { title, summary } corrigés à la main
+
+async function newsList() {
+  if (!newsCache || Date.now() - newsCache.at > 60e3) {
+    const r = await fetch('/api/news').then((x) => x.json());
+    newsCache = { items: r.items || [], sources: r.sources || [], at: Date.now() };
+  }
+  return newsCache;
+}
+
+// Textes en français (traduction en ligne de l'appli, gardée en mémoire) ; null si indisponible
+async function toFrench(list) {
+  const todo = list.filter((x) => x.text && x.from !== 'fr' && !frCache.has(`${x.from}|${x.text}`));
+  if (todo.length) {
+    const res = await fetch('/api/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: 'fr', items: todo.map((x) => ({ text: x.text, from: x.from })) }) })
+      .then((r) => r.json()).catch(() => ({}));
+    todo.forEach((x, i) => { if (res.out?.[i]) frCache.set(`${x.from}|${x.text}`, res.out[i]); });
+  }
+  return list.map((x) => (!x.text || x.from === 'fr' ? x.text : frCache.get(`${x.from}|${x.text}`) ?? null));
+}
+
+const ago = (ts) => { const m = Math.round((Date.now() - ts) / 60e3); return m < 60 ? `${m} min` : `${Math.round(m / 60)} h`; };
+
+async function newsSource(sig) {
+  const data = await newsList();
+  const list = bigNews(data.items, { all: newsAll }).slice(0, 40);
+  const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
+  const bar = (sel) => `<div class="row posts-news-bar">
+      <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
+      <label class="toggle small"><input type="checkbox" data-newsall ${newsAll ? 'checked' : ''}> ${t('Toutes les actus')}</label>
+      ${sel?.link ? `<a class="btn small" href="${esc(sel.link)}" target="_blank" rel="noopener">${icon('external')} ${t("Lire l'article")}</a>` : ''}</div>`;
+  if (!list.length) return { head: `${bar(null)}<p class="muted">${t('Aucune grosse news ces dernières 48 heures : cochez « Toutes les actus » pour en choisir une autre.')}</p>` };
+  const it = list.find((x) => x.id === newsSel) || list[0];
+  newsSel = it.id;
+  const [title, summary] = edits.get(it.id) ? [edits.get(it.id).title, edits.get(it.id).summary]
+    : await toFrench([{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]);
+  const failed = title === null || summary === null;
+  const d = newsPost(it, { title: title ?? it.title, summary: summary ?? it.summary, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src });
+  const head = `${bar(it)}
+    <div class="posts-news-edit">
+      <label class="small muted">${t('Titre')}<input type="text" data-ntitle maxlength="160" value="${esc(d.title)}"></label>
+      <label class="small muted">${t('Résumé')}<textarea data-nsum rows="3" maxlength="400">${esc(d.summary)}</textarea></label>
+      <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
+    </div>`;
+  return { d, caps: newsCaptions(d, sig), head };
+}
 const fileOf = (i, slide) => `${FORMATS[fmt].name}-${i + 1}-${slide}`;
 
 async function saveImages(d, canvases) {
@@ -81,18 +136,28 @@ async function copyImage(canvas) {
 }
 
 let renderId = 0;
-async function render(dlg) {
+const renderNewsOnly = (dlg) => render(dlg, true);
+async function render(dlg, keepHead = false) {
   const id = ++renderId;
   dlg.dataset.ready = '';
   dlg.publish = null;
-  const d = postData(store.state);
-  const slides = slidesFor(d);
   const sig = storageGet(SIG_KEY, '@BenjyPaddock');
-  const caps = captions(d, sig, { spoiler: !noSpoiler });
   const body = $('.posts-body', dlg);
+  let d; let caps; let head = '';
+  if (mode === 'news') {
+    let r;
+    try { r = await newsSource(sig); } catch (err) { r = { head: `<p class="muted">${esc(err.message)}</p>` }; }
+    if (id !== renderId) return;
+    if (!r.d) { body.innerHTML = r.head; return; }
+    ({ d, caps, head } = r);
+  } else {
+    d = postData(store.state);
+    caps = captions(d, sig, { spoiler: !noSpoiler });
+    if (!d.final) head = `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`;
+  }
+  const slides = slidesFor(d);
   if (!slides.length) { body.innerHTML = `<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
-  body.innerHTML = `${d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`}
-    <div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item"><canvas data-slide="${s}"></canvas>
+  const main = `<div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item"><canvas data-slide="${s}"></canvas>
       <figcaption><span>${i + 1}. ${esc(t(SLIDE_NAMES[s]))}</span>
         <button class="btn small" data-copy="${i}" title="${t('Copier l\'image, à coller dans le réseau social')}">${icon('doc')} ${t('Copier')}</button>
         <button class="btn small" data-save="${i}">${icon('save')} ${t('Enregistrer')}</button></figcaption></figure>`).join('')}</div>
@@ -103,6 +168,9 @@ async function render(dlg) {
         <span class="small muted">${t('Publier gratuitement :')}</span>${Object.entries(INTENTS).map(([k, v]) => `<button class="btn small btn-accent" data-intent="${k}" title="${t("Ouvre la page de {} pour écrire un post, avec ce texte, et copie la première image : collez-la puis publiez. Gratuit, sans clés d'accès.", v.name)}">${icon('external')} ${v.name}</button>`).join('')}` : ''}</div>
       ${fmt === 'x' ? `<p class="small muted posts-xhelp" hidden>${icon('info')} ${t("Fenêtre ouverte avec le texte : collez l'image avec Ctrl+V (Cmd+V sur Mac), puis publiez. Pour d'autres images, cliquez sur « Copier » sous chacune et collez-les aussi.")}</p>` : ''}`}
     </div>`;
+  // Titre ou résumé d'une news en cours de saisie : seuls les visuels et les textes sont redessinés
+  if (keepHead && $('.posts-main', body)) $('.posts-main', body).innerHTML = main;
+  else body.innerHTML = `<div class="posts-head">${head}</div><div class="posts-main">${main}</div>`;
   const o = { ...(await assets(d)), signature: sig };
   if (id !== renderId) return;   // format ou réglage changé entre-temps
   // Publication : visuels de n'importe quel format, dessinés à part
@@ -147,6 +215,7 @@ function open() {
     dlg.className = 'modal posts-dlg';
     dlg.innerHTML = `<div class="sum-head"><b>${icon('megaphone')} ${t('Posts pour les réseaux sociaux')}</b><button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button></div>
       <div class="posts-bar">
+        <div class="posts-seg" role="tablist">${[['session', 'Séance'], ['news', 'News']].map(([k, v]) => `<button class="posts-fmt" data-mode="${k}">${t(v)}</button>`).join('')}</div>
         <div class="posts-seg" role="tablist">${Object.entries({ ig: 'Instagram / Facebook', story: 'Story / TikTok', x: 'X / Threads / Bluesky' }).map(([k, v]) => `<button class="posts-fmt" data-fmt="${k}">${v}</button>`).join('')}</div>
         <label class="toggle small"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
         <label class="toggle small" title="${t("Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
@@ -161,11 +230,15 @@ function open() {
     const sync = () => {
       for (const b of dlg.querySelectorAll('[data-fmt]')) b.classList.toggle('active', b.dataset.fmt === fmt);
       $('[data-photos]', dlg).checked = withPhotos;
+      for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('active', b.dataset.mode === mode);
       $('[data-nospoil]', dlg).checked = noSpoiler;
-      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler });
+      $('[data-nospoil]', dlg).closest('label').hidden = mode === 'news';
+      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode });
     };
     dlg.addEventListener('click', async (e) => {
       if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
+      const m = e.target.closest('[data-mode]')?.dataset.mode;
+      if (m && m !== mode) { mode = m; sync(); render(dlg); }
       const f = e.target.closest('[data-fmt]')?.dataset.fmt;
       if (f && f !== fmt) { fmt = f; sync(); render(dlg); }
       if (e.target.closest('[data-all]')) { try { await dlg.onSaveAll?.(); } catch (err) { toast(err.message, 5000, 'warning'); } }
@@ -174,6 +247,18 @@ function open() {
     });
     $('[data-photos]', dlg).addEventListener('change', (e) => { withPhotos = e.target.checked; sync(); render(dlg); });
     $('[data-nospoil]', dlg).addEventListener('change', (e) => { noSpoiler = e.target.checked; sync(); render(dlg); });
+    // News : choix de la nouvelle, toutes les actus, titre et résumé corrigés à la main
+    let te = null;
+    dlg.addEventListener('change', (e) => {
+      if (e.target.matches('[data-newspick]')) { newsSel = e.target.value; render(dlg); }
+      if (e.target.matches('[data-newsall]')) { newsAll = e.target.checked; render(dlg); }
+    });
+    dlg.addEventListener('input', (e) => {
+      if (!e.target.matches('[data-ntitle], [data-nsum]') || !newsSel) return;
+      edits.set(newsSel, { title: $('[data-ntitle]', dlg).value, summary: $('[data-nsum]', dlg).value });
+      clearTimeout(te);
+      te = setTimeout(() => renderNewsOnly(dlg), 450);
+    });
     const sig = $('.posts-sig', dlg);
     sig.value = storageGet(SIG_KEY, '@BenjyPaddock');
     let tm = null;

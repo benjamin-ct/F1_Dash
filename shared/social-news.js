@@ -1,0 +1,150 @@
+// Posts « news » pour les réseaux sociaux (mode créateur) : grosses nouvelles de la F1 (transferts,
+// pénalités, annonces officielles, accidents…) repérées dans l'Actu, mises en forme avec nos propres
+// visuels (jamais les photos ni le texte des articles : titre et court résumé traduits, source citée).
+// Code pur, partagé par l'appli et la page web du créateur.
+import { NEWS_DRIVERS, NEWS_TEAMS, fold, newsSimilarity } from './news.js';
+import { hashtag, teamTag, BRAND_TAG } from './social.js';
+
+// Type de nouvelle, d'après le titre et le résumé (toutes langues des sources, sans accents)
+const KINDS = [
+  ['penalite', 'PÉNALITÉ', '#f5a524', /penalt|penalit|sanction|grid drop|disqualif|squalific|descalific|reprimand|avertissement|strafe|stewards|commissaires/],
+  ['transfert', 'TRANSFERT', '#3ddc84', /\bsigns?\b|signed|signe |s'engage|engage avec|rejoindra|remplacera|contract|contrat|contratto|contrato|vertrag|joins|rejoint|\bdeal\b|accord |agreement|replace|remplace|\bseat\b|baquet|line-?up/],
+  ['depart', 'DÉPART', '#c792ea', /retire|retraite|ritiro|leaves|quitte|quits|sacked|fired|limoge|licenzia|despedido|resign|demission|entlassen|steps down/],
+  ['accident', 'ACCIDENT', '#ff5252', /crash|accident|incidente|unfall|injur|blesse|infortun|verletz|hospital|hopital/],
+  ['officiel', 'OFFICIEL', '#e10600', /official|officiel|ufficiale|oficial|offiziell|confirm|announce|annonce|annuncia|anuncia|statement|communique/],
+];
+export function newsKind(item) {
+  const t = fold(`${item.title} ${item.summary || ''}`.slice(0, 500));
+  const k = KINDS.find(([, , , re]) => re.test(t));
+  if (k) return { key: k[0], label: k[1], color: k[2] };
+  return item.cat === 'official' ? { key: 'officiel', label: 'OFFICIEL', color: '#e10600' } : { key: 'actu', label: 'ACTU F1', color: '#e10600' };
+}
+
+// Noms propres d'un titre (mots à majuscule, sans accents), hors écuries et mots courants : deux
+// titres qui citent la même personne pour le même type de nouvelle parlent du même sujet, même
+// dans deux langues différentes
+const COMMON = new Set(['formula', 'formule', 'formel', 'grand', 'prix', 'official', 'breaking', 'the', 'les', 'des', 'una', 'der', 'die', 'and', 'with', 'pour', 'avec', 'f1']);
+const TEAM_WORDS = new Set(NEWS_TEAMS.flatMap(([, , n]) => n.flatMap((x) => fold(x).split(' '))));
+function names(title) {
+  const out = new Set();
+  for (const m of String(title).matchAll(/(?:^|[\s'"«(])(\p{Lu}[\p{L}-]{3,})/gu)) {
+    const w = fold(m[1]).replace(/[^a-z-]/g, '');
+    if (w.length >= 4 && !COMMON.has(w) && !TEAM_WORDS.has(w)) out.add(w);
+  }
+  return out;
+}
+// Types incompatibles seulement s'ils sont tous deux précis (pénalité et transfert d'un même pilote)
+const GENERIC = new Set(['actu', 'officiel']);
+const kindsMatch = (a, b) => { const x = newsKind(a).key; const y = newsKind(b).key; return x === y || GENERIC.has(x) || GENERIC.has(y); };
+const sameStory = (a, b) => kindsMatch(a, b) && Math.abs(a.t - b.t) < 30 * 3600e3
+  && ([...a._names].some((w) => b._names.has(w)) || newsSimilarity(a, b) >= 0.3);
+
+// Grosses nouvelles des dernières heures : importantes (alerte), ou reprises par plusieurs médias.
+// Une seule par sujet. Vidéos et publications exclues.
+export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {}) {
+  const score = (it) => (it.imp || 0) * 2 + Math.min(it.sources || 1, 5) + (it.cat === 'official' ? 1 : 0);
+  const keep = (it) => it.kind !== 'video' && it.kind !== 'post' && it.t >= now - hours * 3600e3
+    && (all || (it.imp || 0) >= 2 || ((it.sources || 1) >= 3 && (it.imp || 0) >= 1));
+  // Article retenu pour un sujet : officiel, puis le plus repris (l'annonce elle-même plutôt que les
+  // analyses qui suivent), en français ou en anglais (mieux traduit), puis le premier paru
+  const lang = (it) => (it.lang === 'fr' ? 0 : it.lang === 'en' ? 1 : 2);
+  const better = (a, b) => ((a.cat === 'official') !== (b.cat === 'official') ? a.cat === 'official'
+    : (a.sources || 1) !== (b.sources || 1) ? (a.sources || 1) > (b.sources || 1) : lang(a) !== lang(b) ? lang(a) < lang(b) : a.t < b.t);
+  const best = new Map();
+  for (const it of items.filter(keep)) {
+    const k = it.cluster || it.id;
+    const cur = best.get(k);
+    if (!cur || better(it, cur)) best.set(k, it);
+  }
+  // Sujets séparés par l'Actu mais identiques (même personne, autre langue…) : réunis
+  const list = [...best.values()].map((it) => ({ ...it, _names: names(it.title), sources: it.sources || 1 }))
+    .sort((a, b) => score(b) - score(a) || b.t - a.t);
+  const out = [];
+  for (const it of list) {
+    const twin = out.find((o) => sameStory(o.item, it));
+    if (!twin) { out.push({ item: it, total: it.sources, imp: it.imp || 0 }); continue; }
+    twin.total += it.sources;
+    twin.imp = Math.max(twin.imp, it.imp || 0);
+    if (better(it, twin.item)) twin.item = it;
+  }
+  return out.map(({ item: { _names, _tok, ...it }, total, imp }) => ({ ...it, imp, sources: total, score: score({ ...it, imp, sources: total }) }))
+    .sort((a, b) => b.score - a.score || b.t - a.t);
+}
+
+// Résumé court : deux phrases au plus, 280 caractères
+export function shortSummary(text, max = 280) {
+  const s = String(text || '').replace(/\s+/g, ' ').trim();
+  if (s.length <= max) return s;
+  const parts = s.match(/[^.!?…]+[.!?…]+["»”’)]*\s*/g) || [];
+  let out = '';
+  for (const p of parts.slice(0, 2)) { if ((out + p).length > max) break; out += p; }
+  return (out.trim() || `${s.slice(0, max - 1).replace(/\s+\S*$/, '')}…`);
+}
+
+const TEAM_COLORS = {
+  ferrari: '#E80020', mercedes: '#27F4D2', mclaren: '#FF8000', redbull: '#3671C6', rb: '#6692FF', aston: '#229971',
+  williams: '#64C4FF', alpine: '#0093CC', haas: '#B6BABD', audi: '#F50537', cadillac: '#C9A86A', fia: '#2b5fd9',
+};
+const cap = (s) => String(s).replace(/(^|[\s-])\p{L}/gu, (m) => m.toUpperCase());
+
+// Pilotes et écuries cités, avec photo et couleur quand la liste des pilotes de la séance les donne
+function people(tags = [], driverList = {}) {
+  const byTla = new Map(Object.entries(driverList || {}).filter(([, d]) => d?.Tla).map(([num, d]) => [d.Tla, { num, ...d }]));
+  const drivers = [];
+  const teams = [];
+  for (const k of tags) {
+    const drv = NEWS_DRIVERS.find(([t]) => t === k);
+    if (drv) {
+      const d = byTla.get(k);
+      drivers.push({
+        tla: k, num: d?.num || k, first: d?.FirstName || '', last: d?.LastName || cap(drv[1][0]), team: d?.TeamName || '',
+        color: d?.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: d?.HeadshotUrl || null,
+      });
+      continue;
+    }
+    const tm = NEWS_TEAMS.find(([t]) => t === k);
+    if (tm) teams.push({ key: k, name: tm[1], color: TEAM_COLORS[k] || '#8b95a8' });
+  }
+  // Couleur d'écurie déduite pour un pilote sans liste (sa seule écurie citée)
+  for (const d of drivers) if (d.color === '#8b95a8' && teams.length === 1 && teams[0].key !== 'fia') { d.color = teams[0].color; d.team ||= teams[0].name; }
+  return { drivers: drivers.slice(0, 3), teams: teams.slice(0, 3) };
+}
+
+// Nouvelle (de l'Actu) -> données du post. title / summary : textes en français (traduits si besoin).
+export function newsPost(item, { title, summary, driverList = {}, sourceName = '' } = {}) {
+  const kind = newsKind(item);
+  const { drivers, teams } = people(item.tags, driverList);
+  const main = drivers[0]?.color || teams.find((t) => t.key !== 'fia')?.color || kind.color;
+  const when = new Date(item.t || Date.now());
+  return {
+    kind: 'news', final: true, news: true,
+    badge: kind, title: String(title || item.title || '').trim(), summary: shortSummary(summary ?? item.summary),
+    source: sourceName || item.srcName || item.src || '', sources: item.sources || 1, link: item.link || '',
+    date: when.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+    year: when.getFullYear(), drivers, teams, color: main, rows: drivers,
+  };
+}
+
+// Légendes prêtes à copier (Instagram / Facebook, X, Threads, story)
+export function newsCaptions(nd, signature = '') {
+  const sig = signature ? `\n\n${signature}` : '';
+  const src = nd.source ? `Source : ${nd.source}${nd.sources > 1 ? ` (repris par ${nd.sources - 1} autre${nd.sources > 2 ? 's' : ''} média${nd.sources > 2 ? 's' : ''})` : ''}` : '';
+  const people = [
+    ...nd.drivers.map((d) => hashtag(`${d.first}${d.last}`)),
+    ...nd.drivers.map((d) => d.team).filter(Boolean).map(teamTag),
+    ...nd.teams.filter((t) => t.key !== 'fia').map((t) => teamTag(t.name)),
+    ...(nd.teams.some((t) => t.key === 'fia') ? ['#FIA'] : []),
+  ];
+  const seen = new Set();
+  const tags = [BRAND_TAG, '#F1', '#Formula1', '#F1News', '#Formule1', ...people, nd.year ? `#F1${nd.year}` : '']
+    .filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
+  const head = `${nd.badge.label} | ${nd.title}`;
+  const instagram = `${head}\n\n${nd.summary}${src ? `\n\n${src}` : ''}${sig}\n\n${tags.join(' ')}`;
+  const xt = [BRAND_TAG, '#F1', ...people.slice(0, 2)];
+  let x = `${head}${src ? `\n\n${src}` : ''}\n\n${xt.join(' ')}`;
+  while (x.length > 280 && xt.length > 1) { xt.pop(); x = `${head}${src ? `\n\n${src}` : ''}\n\n${xt.join(' ')}`; }
+  if (x.length > 280) x = `${head.slice(0, 270 - xt[0].length)}… ${xt[0]}`;
+  let threads = `${head}\n\n${nd.summary}${src ? `\n\n${src}` : ''}${sig}\n\n#F1 ${BRAND_TAG}`;
+  if (threads.length > 500) threads = `${head}${src ? `\n\n${src}` : ''}\n\n#F1 ${BRAND_TAG}`.slice(0, 500);
+  return { instagram, x, threads, story: head };
+}

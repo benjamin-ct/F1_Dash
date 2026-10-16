@@ -17,13 +17,14 @@ const MEDAL = [C.gold, C.silver, C.bronze];
 // Diapositives selon la séance, après une couverture « Résultats » (anti-spoiler : le vainqueur
 // n'est pas dévoilé dès la première image, ni dans l'aperçu du réseau)
 export function slidesFor(d) {
+  if (d.news) return ['news'];
   if (!d.rows.length) return [];
   let list = ['meilleurtemps', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
   if (d.kind === 'race') list = ['vainqueur', 'podium', 'classement', 'faits', ...(d.champ ? ['championnat'] : [])];
   else if (d.kind === 'quali') list = ['pole', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
   return ['couverture', ...list];
 }
-export const SLIDE_NAMES = { couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat' };
+export const SLIDE_NAMES = { news: 'News', couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', meilleurtemps: 'Meilleur temps', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat' };
 
 // ---------- Outils de dessin ----------
 function rr(ctx, x, y, w, h, r) {
@@ -429,6 +430,115 @@ function cover(ctx, W, H, d, o, next, fmt) {
   txt(ctx, swipe, ax - 52 * u, fy, { size: Math.round(Math.min(W, H) * 0.024), weight: 700, family: TITLE, color: d.final ? C.text : C.gold, align: 'right', spacing: 2 });
 }
 
+// ---------- News (transfert, pénalité, annonce…) ----------
+// Lignes d'un texte coupé à la largeur, au plus grand corps qui tient en maxLines lignes
+function fitLines(ctx, text, maxW, sizes, maxLines, family, weight) {
+  for (const size of sizes) {
+    ctx.font = `${weight} ${size}px ${family}`;
+    const out = [];
+    let line = '';
+    for (const w of String(text).split(/\s+/)) {
+      const t = line ? `${line} ${w}` : w;
+      if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t;
+    }
+    if (line) out.push(line);
+    if (out.length <= maxLines || size === sizes[sizes.length - 1]) {
+      if (out.length > maxLines) { out.length = maxLines; out[maxLines - 1] = `${out[maxLines - 1].replace(/\s+\S*$/, '')}…`; }
+      return { size, lines: out };
+    }
+  }
+  return { size: sizes[0], lines: [] };
+}
+const lightColor = (hex) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return false;
+  const v = parseInt(m[1], 16);
+  return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255) > 150;
+};
+
+function newsSlide(ctx, W, H, d, o) {
+  background(ctx, W, H, d.color);
+  const land = W > H;
+  const u = Math.min(W, H) / 1080;
+  const pad = Math.round(W * 0.055);
+  const top = Math.round(Math.min(W, H) * 0.06);
+  // En-tête : Actu F1 et date
+  ctx.fillStyle = C.red;
+  ctx.fillRect(pad, top, 10, Math.round(64 * u));
+  txt(ctx, 'ACTU F1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
+  txt(ctx, d.date.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
+  const fy = H - Math.round(Math.min(W, H) * 0.045);
+  const bottom = fy - Math.round(Math.min(W, H) * 0.07);
+
+  // Photos des pilotes cités : une grande, ou une rangée de ronds
+  const withPhoto = d.drivers.filter((p) => o.photos?.[p.num]);
+  const x = pad;
+  let colW = W - pad * 2;
+  let areaTop = top + 110 * u;
+  let centered = false;
+  if (land) {
+    colW = W * 0.54;
+    if (withPhoto.length === 1) photo(ctx, o.photos[withPhoto[0].num], W * 0.6, top + 40 * u, W * 0.36, bottom - top - 20 * u, withPhoto[0].color, 0.25);
+    else if (d.drivers.length) d.drivers.forEach((p, i) => circlePhoto(ctx, o.photos?.[p.num], W * 0.79, top + (130 + i * 230) * u + (3 - d.drivers.length) * 115 * u, 100 * u, p.color, p.tla));
+    centered = true;
+  } else if (withPhoto.length === 1) {
+    const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);
+    photo(ctx, o.photos[withPhoto[0].num], W * 0.18, areaTop, W * 0.64, ph, withPhoto[0].color, 0.3);
+    areaTop += ph + 30 * u;
+  } else if (d.drivers.length) {
+    const r = Math.round(100 * u);
+    d.drivers.forEach((p, i) => circlePhoto(ctx, o.photos?.[p.num], pad + r + i * (r * 2 + 40 * u), areaTop + r + 10 * u, r, p.color, p.tla));
+    areaTop += r * 2 + 60 * u;
+  } else centered = true;
+
+  // Mise en page du texte : le plus grand titre qui laisse au moins 2 lignes de résumé
+  const sumSize = Math.round((land ? 30 : 34) * u);
+  const sumLh = Math.round(sumSize * 1.38);
+  const sumAll = d.summary ? fitLines(ctx, d.summary, colW, [sumSize], 99, BODY, 400).lines : [];
+  const maxSum = H > 1600 ? 9 : land ? 5 : 6;
+  const fixed = (58 + 40 + 34 + 30) * u;
+  const avail = bottom - areaTop;
+  const maxTitle = land ? 4 : H > 1600 ? 6 : 5;
+  let pick = null;
+  for (const size of [104, 96, 88, 80, 72, 66, 60, 54, 48].map((v) => Math.round(v * u))) {
+    const t = fitLines(ctx, d.title.toUpperCase(), colW, [size], 99, TITLE, 800);
+    if (t.lines.length > maxTitle) continue;
+    const titleH = t.lines.length * Math.round(size * 0.98);
+    const sumN = Math.min(sumAll.length, maxSum, Math.floor((avail - fixed - titleH) / sumLh));
+    pick = { size, lines: t.lines, sumN: Math.max(0, sumN) };
+    if (sumN >= Math.min(2, sumAll.length)) break;
+  }
+  if (!pick) {
+    const size = Math.round(48 * u);
+    pick = { size, lines: fitLines(ctx, d.title.toUpperCase(), colW, [size], maxTitle, TITLE, 800).lines, sumN: 0 };
+  }
+  const lh = Math.round(pick.size * 0.98);
+  const blockH = fixed + pick.lines.length * lh + pick.sumN * sumLh;
+  let y = centered ? areaTop + Math.max(0, (avail - blockH) / 2.2) : areaTop;
+
+  // Étiquette du type de nouvelle
+  const tag = d.badge.label;
+  ctx.font = `700 ${Math.round(34 * u)}px ${TITLE}`;
+  const tw = ctx.measureText(tag).width + 6 * tag.length * u;
+  rr(ctx, x, y, tw + 44 * u, 58 * u, 8 * u); ctx.fillStyle = d.badge.color; ctx.fill();
+  txt(ctx, tag, x + 22 * u, y + 41 * u, { size: Math.round(34 * u), weight: 700, family: TITLE, color: lightColor(d.badge.color) ? C.bg : '#fff', spacing: 6 * u });
+  y += (58 + 40) * u;
+  pick.lines.forEach((l, i) => txt(ctx, l, x, y + pick.size * 0.82 + i * lh, { size: pick.size, weight: 800, family: TITLE }));
+  y += pick.lines.length * lh + 34 * u;
+  ctx.fillStyle = d.color ? vivid(d.color) : C.red;
+  ctx.fillRect(x, y - 10 * u, 90 * u, 6 * u);
+  y += 30 * u;
+  const sum = sumAll.slice(0, pick.sumN);
+  if (sum.length && sum.length < sumAll.length) sum[sum.length - 1] = `${sum[sum.length - 1].replace(/\s+\S*$/, '')}…`;
+  sum.forEach((l, i) => txt(ctx, l, x, y + sumSize * 0.8 + i * sumLh, { size: sumSize, weight: 400, color: C.text }));
+
+  // Pied : signature et source
+  ctx.fillStyle = C.line;
+  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
+  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, spacing: 1 });
+  if (d.source) txt(ctx, `SOURCE : ${d.source.toUpperCase()}`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.022), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2, max: W * 0.55 });
+}
+
 export function drawSlide(canvas, slide, fmt, d, o = {}) {
   const { w, h } = FORMATS[fmt];
   canvas.width = w;
@@ -436,7 +546,8 @@ export function drawSlide(canvas, slide, fmt, d, o = {}) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, h);
   // X : 4 images au plus par post, le sommaire n'annonce que celles publiées
-  if (slide === 'couverture') cover(ctx, w, h, d, o, slidesFor(d).slice(1, fmt === 'x' ? 4 : undefined), fmt);
+  if (slide === 'news') newsSlide(ctx, w, h, d, o);
+  else if (slide === 'couverture') cover(ctx, w, h, d, o, slidesFor(d).slice(1, fmt === 'x' ? 4 : undefined), fmt);
   else if (slide === 'vainqueur') hero(ctx, w, h, d, o, 'VAINQUEUR');
   else if (slide === 'pole') hero(ctx, w, h, d, o, 'POLE POSITION');
   else if (slide === 'meilleurtemps') hero(ctx, w, h, d, o, 'MEILLEUR TEMPS');
