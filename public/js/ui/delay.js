@@ -26,8 +26,13 @@ export function toast(msg, ms = 2500, ic = null) {
   const t = $('#toast');
   t.innerHTML = `${ic ? icon(ic) : ''}<span>${arrows(esc(msg))}</span>`;
   t.hidden = false;
+  // Au premier plan, même au-dessus d'une fenêtre ouverte (dialog modale) : réaffiché en dernier
+  if (t.showPopover) { try { if (t.matches(':popover-open')) t.hidePopover(); t.showPopover(); } catch { /* sans popover */ } }
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => { t.hidden = true; }, ms);
+  toast.timer = setTimeout(() => {
+    t.hidden = true;
+    try { t.hidePopover?.(); } catch { /* déjà masqué */ }
+  }, ms);
 }
 
 function renderPresets() {

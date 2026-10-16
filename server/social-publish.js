@@ -67,7 +67,16 @@ export async function saveAccount(net, b) {
   } else if (net === 'tiktok') {
     const clientKey = str(b.clientKey); const clientSecret = str(b.clientSecret);
     if (!clientKey || !clientSecret) throw new Error('Client key et client secret nécessaires');
-    save('tiktok', { ...(conf().tiktok || {}), clientKey, clientSecret });
+    // Vérification des clés : jeton de l'app (sans compte), refusé par TikTok si une clé est fausse
+    // (autre réponse, ou TikTok injoignable : clés gardées, la connexion dira si elles conviennent)
+    try {
+      await call(`${TIKTOK}/oauth/token/`, { method: 'POST', form: { client_key: clientKey, client_secret: clientSecret, grant_type: 'client_credentials' } });
+    } catch (err) {
+      if (/invalid_client|client.?(key|secret)|incorrect/i.test(err.message)) throw new Error(`Clés refusées par TikTok (${err.message}) : vérifiez le client key et le client secret`);
+    }
+    const prev = conf().tiktok || {};
+    // Autre app TikTok : l'ancienne connexion ne vaut plus
+    save('tiktok', prev.clientKey && prev.clientKey !== clientKey ? { clientKey, clientSecret } : { ...prev, clientKey, clientSecret });
   } else throw new Error('Réseau inconnu');
   return accountsInfo();
 }

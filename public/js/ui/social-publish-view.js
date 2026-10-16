@@ -82,7 +82,8 @@ const FIELDS = {
 };
 const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', bluesky: 'Bluesky', tiktok: 'TikTok' };
 
-async function accountsDialog(onChange) {
+// open : section gardée ouverte après un enregistrement (sinon tout se replie)
+async function accountsDialog(onChange, open = null) {
   let dlg = $('#socialAccDlg');
   if (!dlg) {
     dlg = document.createElement('dialog');
@@ -95,17 +96,18 @@ async function accountsDialog(onChange) {
   const status = (k) => {
     const a = k === 'meta' ? [info.facebook, info.instagram] : [info[k]];
     const on = a.filter((x) => x?.connected);
-    return on.length ? `<span class="posts-ok">${icon('check')} ${esc(on.map((x) => x.name).filter(Boolean).join(' · ') || t('Connecté'))}</span>` : `<span class="muted">${t('Non connecté')}</span>`;
+    if (on.length) return `<span class="posts-ok">${icon('check')} ${esc(on.map((x) => x.name).filter(Boolean).join(' · ') || t('Connecté'))}</span>`;
+    return k === 'tiktok' && info.tiktok.configured ? `<span class="muted">${t('Clés enregistrées, compte non connecté')}</span>` : `<span class="muted">${t('Non connecté')}</span>`;
   };
   const redirect = `http://127.0.0.1:${location.port || 80}/tiktok-callback/`;
   dlg.innerHTML = `<div class="sum-head"><b>${icon('lock')} ${t('Comptes des réseaux sociaux')}</b><button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button></div>
     <div class="posts-acc-body">
       <p class="small muted">${t(KEYS_NOTE)}</p>
-      ${Object.keys(FIELDS).map((k) => `<details class="posts-acc" data-net="${k}"><summary><b>${TITLES[k]}</b> ${status(k)}</summary>
+      ${Object.keys(FIELDS).map((k) => `<details class="posts-acc" data-net="${k}" ${k === open ? 'open' : ''}><summary><b>${TITLES[k]}</b> ${status(k)}</summary>
         <ol class="small">${HELP[k].map((h) => `<li>${esc(t(h, redirect))}</li>`).join('')}</ol>
         ${FIELDS[k].map(([f, l]) => `<label class="small">${esc(t(l))}<input type="password" data-f="${f}" autocomplete="off" spellcheck="false"></label>`).join('')}
         <div class="row"><button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>
-          ${k === 'tiktok' ? `<button class="btn small" data-tiktok ${info.tiktok.configured ? '' : 'disabled'}>${t('Se connecter à TikTok')}</button>` : ''}
+          ${k === 'tiktok' ? `<button class="btn small ${info.tiktok.configured && !info.tiktok.connected ? 'btn-accent' : ''}" data-tiktok ${info.tiktok.configured ? '' : 'disabled'}>${t('Se connecter à TikTok')}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}
       <details class="posts-acc" data-studio ${studio.enabled ? '' : 'open'}><summary><b>${t('Page web (téléphone)')}</b> ${studio.enabled ? `<span class="posts-ok">${icon('check')} ${t('Activée')}</span>` : `<span class="muted">${t('Désactivée')}</span>`}</summary>
         <p class="small">${t("Préparez et publiez les posts depuis votre téléphone, même ordinateur éteint : grosses news et séances, publication sur Instagram, Facebook et Threads après confirmation, partage vers les autres applis. Les comptes ci-dessus et la connexion F1 TV sont envoyés chiffrés au serveur Paddock Live.")}</p>
@@ -153,7 +155,7 @@ async function accountsDialog(onChange) {
         const body = { network };
         for (const i of box.querySelectorAll('[data-f]')) body[i.dataset.f] = i.value;
         await api('/api/social/accounts', body);
-        toast(t('Compte enregistré'), 2500, 'check');
+        toast(t(k === 'tiktok' ? 'Clés TikTok vérifiées : cliquez sur « Se connecter à TikTok »' : 'Compte enregistré'), k === 'tiktok' ? 6000 : 2500, 'check');
       } else if (btn.dataset.remove !== undefined) {
         await api('/api/social/accounts', { network, remove: true });
       } else if (btn.dataset.tiktok !== undefined) {
@@ -161,7 +163,7 @@ async function accountsDialog(onChange) {
         window.open(url, '_blank');
         toast(t('Connectez-vous dans le navigateur, puis revenez ici et rouvrez cette fenêtre'), 6000, 'external');
       }
-      accountsDialog(onChange);
+      accountsDialog(onChange, k);
     } catch (err) { toast(err.message, 6000, 'warning'); btn.disabled = false; }
   };
   if (!dlg.open) dlg.showModal();
