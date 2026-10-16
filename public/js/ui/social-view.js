@@ -10,6 +10,9 @@ import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
 import { FORMATS, slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
 import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
+import { builtinNomination } from '/shared/tyres.js';
+import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
+import { postedEntry } from '/shared/post-history.js';
 import { openPublish } from './social-publish-view.js';
 
 const SIG_KEY = 'paddock.postSignature';
@@ -19,7 +22,10 @@ let fmt = storageGet(OPT_KEY, {}).fmt || 'ig';
 let withPhotos = storageGet(OPT_KEY, {}).photos !== false;
 let noSpoiler = storageGet(OPT_KEY, {}).noSpoiler !== false;   // texte sans le vainqueur au début
 let mode = storageGet(OPT_KEY, {}).mode === 'news' ? 'news' : 'session';
-let linkComment = storageGet(OPT_KEY, {}).linkComment !== false;   // news : lien de l'article en premier commentaire   // posts de la séance ou d'une grosse news
+let linkComment = storageGet(OPT_KEY, {}).linkComment !== false;   // news : lien de l'article en premier commentaire
+const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
+let postType = POST_TYPES.some(([k]) => k === storageGet(OPT_KEY, {}).postType) ? storageGet(OPT_KEY, {}).postType : 'results';   // séance : type de post
+let flashSel = null;   // évènement choisi pour un post flash
 const imgCache = new Map();
 
 function loadImage(src, cors = false) {
@@ -55,8 +61,71 @@ async function assets(d) {
   return { photos, flag };
 }
 
+const POST_FOLDER = { prerace: 'Avant-course', champ: 'Championnat', flash: 'Flash' };
 const folderOf = (d) => (d.news ? `Actu ${d.date} - ${d.title.slice(0, 50)}`
-  : `${d.year || ''} ${d.gpEn.replace(/ Grand Prix$/i, '') || 'Grand Prix'} - ${d.label}`.trim());
+  : `${d.year || ''} ${d.gpEn.replace(/ Grand Prix$/i, '') || 'Grand Prix'} - ${d.label}${POST_FOLDER[d.post] ? ` - ${POST_FOLDER[d.post]}` : ''}${d.event ? ` ${d.event.id}` : ''}`.trim());
+
+// ---------- Posts de la séance : résultats, avant-course, championnat, flash ----------
+let tyresCache = null;
+async function nominations() {
+  const info = store.state.SessionInfo || {};
+  if (!info.Path) return null;
+  if (tyresCache?.path !== info.Path) {
+    const q = new URLSearchParams({ path: info.Path, until: Date.now(), name: info.Meeting?.Name || '', location: info.Meeting?.Location || '', country: info.Meeting?.Country?.Name || '', session: info.Name || '' });
+    const r = await fetch(`/api/tyres?${q}`, { signal: AbortSignal.timeout(6000) }).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+    tyresCache = { path: info.Path, n: r?.nominations || builtinNomination(Number(String(info.Path).slice(0, 4)), { name: info.Meeting?.Name, location: info.Meeting?.Location, country: info.Meeting?.Country?.Name }) };
+  }
+  return tyresCache.n;
+}
+
+// Grille officielle de la FIA (course ou sprint), relue toutes les 5 minutes (provisoire puis définitive)
+const gridCache = new Map();
+async function officialGrid(sprint) {
+  const info = store.state.SessionInfo || {};
+  const year = Number(String(info.Path || '').slice(0, 4)) || Number(String(info.StartDate || '').slice(0, 4));
+  if (!year || !info.Meeting?.Name) return { grid: null };
+  const key = `${year}|${info.Meeting.Name}|${sprint}`;
+  const hit = gridCache.get(key);
+  if (hit && Date.now() - hit.at < 5 * 60e3) return hit.r;
+  const q = new URLSearchParams({ year, name: info.Meeting.Name, country: info.Meeting.Country?.Name || '', location: info.Meeting.Location || '', sprint: sprint ? '1' : '0' });
+  const r = await fetch(`/api/social/grid?${q}`, { signal: AbortSignal.timeout(30000) }).then((x) => x.json()).catch((err) => ({ error: err.message }));
+  if (!r.error) gridCache.set(key, { r, at: Date.now() });
+  return r;
+}
+
+function sessionSource(sig) {
+  const types = `<div class="row posts-news-bar"><span class="small muted">${t('Type de post')}</span>
+    <div class="posts-seg" role="tablist">${POST_TYPES.map(([k, v]) => `<button class="posts-fmt ${k === postType ? 'active' : ''}" data-ptype="${k}">${t(v)}</button>`).join('')}</div></div>`;
+  const state = store.state;
+  if (postType === 'prerace') {
+    return Promise.all([nominations(), officialGrid(postData(state).sprint)]).then(([tyres, og]) => {
+      const d = preraceData(state, { tyres, grid: og.grid });
+      const note = d.gridSource === 'fia' ? t('Grille officielle de la FIA, pénalités comprises.')
+        : d.gridSource === 'fia-provisional' ? t('Grille provisoire de la FIA : la définitive peut encore changer (pénalités).')
+          : og.error ? t('Grille de la FIA indisponible ({}) : ordre des qualifications, sans les pénalités.', og.error)
+            : t('Grille pas encore publiée par la FIA : ordre des qualifications, sans les pénalités.');
+      const warn = `<p class="posts-warn small">${icon('info')} ${esc(note)}</p>`;
+      return { d, caps: moreCaptions(d, sig), head: types + warn, record: { key: `prerace:${folderOf(d)}`, kind: 'prerace', title: `${t('Avant-course')} · ${d.gp}` } };
+    });
+  }
+  if (postType === 'champ') {
+    const d = champData(state);
+    if (!d) return { head: `${types}<p class="muted">${t('Championnat disponible après une course ou un sprint : ouvrez la séance en direct ou en replay.')}</p>` };
+    return { d, caps: moreCaptions(d, sig), head: types, record: { key: `champ:${folderOf(d)}`, kind: 'champ', title: `${t('Championnat')} · ${d.gp}` } };
+  }
+  if (postType === 'flash') {
+    const evs = flashEvents(state);
+    if (!evs.length) return { head: `${types}<p class="muted">${t("Aucun fait marquant dans cette séance pour l'instant (drapeau rouge, voiture de sécurité, abandon, pénalité).")}</p>` };
+    const ev = evs.find((x) => x.id === flashSel) || evs[0];
+    flashSel = ev.id;
+    const d = flashData(state, ev);
+    const pick = `<div class="row posts-news-bar"><select class="posts-news-sel" data-flashpick>${evs.map((x) => `<option value="${esc(x.id)}" ${x === ev ? 'selected' : ''}>${esc(t(FLASH_KINDS[x.kind].label))} · ${esc(x.title)}${x.lap ? ` · ${esc(t('tour {}', x.lap))}` : ''}</option>`).join('')}</select></div>`;
+    return { d, caps: moreCaptions(d, sig), head: types + pick, record: { key: `flash:${folderOf(d)}`, kind: 'flash', title: `${ev.title} · ${d.gp}` } };
+  }
+  const d = postData(state);
+  const warn = d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`;
+  return { d, caps: captions(d, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };
+}
 
 // ---------- Grosses news de l'Actu ----------
 let newsAll = false;   // toutes les actus des 48 dernières heures, pas seulement les grosses
@@ -64,6 +133,16 @@ let newsSel = null;
 let newsCache = null;
 const frCache = new Map();
 const edits = new Map();   // id -> { title, summary } corrigés à la main
+
+let histCache = null;
+async function postHistory(force = false) {
+  if (force || !histCache || Date.now() - histCache.at > 60e3) {
+    const r = await fetch('/api/social/history').then((x) => x.json()).catch(() => ({}));
+    histCache = { items: r.items || [], at: Date.now() };
+  }
+  return histCache.items;
+}
+const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok' };
 
 async function newsList() {
   if (!newsCache || Date.now() - newsCache.at > 60e3) {
@@ -90,8 +169,10 @@ async function newsSource(sig) {
   const data = await newsList();
   const list = bigNews(data.items, { all: newsAll }).slice(0, 40);
   const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
+  const history = await postHistory();
+  const posted = list.map((it) => postedEntry(it, history));
   const bar = (sel) => `<div class="row posts-news-bar">
-      <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
+      <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${posted[i] ? `✓ ${esc(t('Publiée'))} · ` : ''}${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
       <label class="toggle small"><input type="checkbox" data-newsall ${newsAll ? 'checked' : ''}> ${t('Toutes les actus')}</label>
       ${sel?.link ? `<a class="btn small" href="${esc(sel.link)}" target="_blank" rel="noopener">${icon('external')} ${t("Lire l'article")}</a>` : ''}</div>`;
   if (!list.length) return { head: `${bar(null)}<p class="muted">${t('Aucune grosse news ces dernières 48 heures : cochez « Toutes les actus » pour en choisir une autre.')}</p>` };
@@ -101,14 +182,17 @@ async function newsSource(sig) {
     : await toFrench([{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]);
   const failed = title === null || summary === null;
   const d = newsPost(it, { title: title ?? it.title, summary: summary ?? it.summary, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src });
+  const done = posted[list.indexOf(it)];
   const head = `${bar(it)}
+    ${done ? `<p class="posts-warn small">${icon('check')} ${esc(t('Déjà publiée le {} sur {}', new Date(done.at).toLocaleString(), Object.keys(done.nets).map((n) => NET_NAMES[n] || n).join(', ')))}</p>` : ''}
     <div class="posts-news-edit">
       <label class="small muted">${t('Titre')}<input type="text" data-ntitle maxlength="160" value="${esc(d.title)}"></label>
       <label class="small muted">${t('Résumé')}<textarea data-nsum rows="3" maxlength="400">${esc(d.summary)}</textarea></label>
       <label class="toggle small" title="${t("Facebook, Threads et X : le lien de l'article est publié en premier commentaire plutôt que dans le texte (Instagram : pas de lien)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
     </div>`;
-  return { d, caps: newsCaptions(d, sig, { linkInComment: linkComment }), head };
+  const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
+  return { d, caps: newsCaptions(d, sig, { linkInComment: linkComment }), head, record };
 }
 const fileOf = (i, slide) => `${FORMATS[fmt].name}-${i + 1}-${slide}`;
 
@@ -145,20 +229,21 @@ async function render(dlg, keepHead = false) {
   dlg.publish = null;
   const sig = storageGet(SIG_KEY, '@BenjyPaddock');
   const body = $('.posts-body', dlg);
-  let d; let caps; let head = '';
+  let d; let caps; let head = ''; let record = null;
   if (mode === 'news') {
     let r;
     try { r = await newsSource(sig); } catch (err) { r = { head: `<p class="muted">${esc(err.message)}</p>` }; }
     if (id !== renderId) return;
     if (!r.d) { body.innerHTML = r.head; return; }
-    ({ d, caps, head } = r);
+    ({ d, caps, head, record } = r);
   } else {
-    d = postData(store.state);
-    caps = captions(d, sig, { spoiler: !noSpoiler });
-    if (!d.final) head = `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`;
+    const r = await sessionSource(sig);
+    if (id !== renderId) return;
+    if (!r.d) { body.innerHTML = r.head; return; }
+    ({ d, caps, head, record } = r);
   }
   const slides = slidesFor(d);
-  if (!slides.length) { body.innerHTML = `<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
+  if (!slides.length || (!d.rows.length && d.post !== 'flash')) { body.innerHTML = `${mode === 'session' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
   const main = `<div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item"><canvas data-slide="${s}"></canvas>
       <figcaption><span>${i + 1}. ${esc(t(SLIDE_NAMES[s]))}</span>
         <button class="btn small" data-copy="${i}" title="${t('Copier l\'image, à coller dans le réseau social')}">${icon('doc')} ${t('Copier')}</button>
@@ -177,7 +262,7 @@ async function render(dlg, keepHead = false) {
   const o = { ...(await assets(d)), signature: sig };
   if (id !== renderId) return;   // format ou réglage changé entre-temps
   // Publication : visuels de n'importe quel format, dessinés à part
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), render: async (f) => slides.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => slides.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
   const canvases = [...body.querySelectorAll('canvas')];
   for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
   const count = $('[data-count]', body);
@@ -211,6 +296,34 @@ async function render(dlg, keepHead = false) {
   dlg.dataset.ready = '1';
 }
 
+// ---------- Statistiques des posts publiés ----------
+const fmtN = (v) => (v == null ? '—' : Number(v).toLocaleString());
+const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', "J'aime"], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
+async function openStats() {
+  let dlg = $('#postsStatsDlg');
+  if (!dlg) {
+    dlg = document.createElement('dialog');
+    dlg.id = 'postsStatsDlg';
+    dlg.className = 'modal posts-pub-dlg';
+    document.body.appendChild(dlg);
+    dlg.addEventListener('click', (e) => { if (e.target === dlg || e.target.closest('[data-close]')) dlg.close(); });
+  }
+  dlg.innerHTML = `<div class="sum-head"><b>${icon('chart')} ${t('Statistiques des posts')}</b><button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button></div>
+    <div class="posts-pub-body"><p class="muted">${t('Lecture des statistiques…')}</p></div>`;
+  if (!dlg.open) dlg.showModal();
+  const body = $('.posts-pub-body', dlg);
+  try {
+    const r = await fetch('/api/social/stats').then((x) => x.json());
+    const f = Object.entries(r.followers || {});
+    body.innerHTML = `${f.length ? `<div class="posts-stats-fol">${f.map(([n, v]) => `<div><b>${fmtN(v)}</b><span class="small muted">${t('abonnés')} ${NET_NAMES[n] || n}</span></div>`).join('')}</div>` : ''}
+      ${(r.posts || []).length ? (r.posts || []).map((p) => `<div class="posts-stats-post">
+        <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span></div>
+        ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${t(l)} <b>${fmtN(s[k])}</b>`).join(' · ') : t('statistiques indisponibles'); return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${NET_NAMES[n] || n}</a>` : NET_NAMES[n] || n} : ${vals}</div>`; }).join('')}
+      </div>`).join('') : `<p class="muted">${t('Aucun post publié depuis Paddock Live pour le moment.')}</p>`}
+      <p class="small muted">${icon('info')} ${t("Statistiques lues chez chaque réseau (X : lecture payante, non utilisée). Pour les vues et la portée, autorisations instagram_manage_insights, read_insights et threads_manage_insights du jeton.")}</p>`;
+  } catch (err) { body.innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
+}
+
 function open() {
   let dlg = $('#postsDlg');
   if (!dlg) {
@@ -226,6 +339,7 @@ function open() {
         <label class="small muted">${t('Signature')} <input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
         <span class="spacer"></span>
         <button class="btn" data-open hidden>${icon('external')} ${t('Ouvrir le dossier')}</button>
+        <button class="btn" data-stats>${icon('chart')} ${t('Statistiques')}</button>
         <button class="btn" data-all>${icon('save')} ${t('Enregistrer toutes les images')}</button>
         <button class="btn btn-accent" data-publish>${icon('megaphone')} ${t('Publier…')}</button>
       </div>
@@ -236,15 +350,18 @@ function open() {
       $('[data-photos]', dlg).checked = withPhotos;
       for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('active', b.dataset.mode === mode);
       $('[data-nospoil]', dlg).checked = noSpoiler;
-      $('[data-nospoil]', dlg).closest('label').hidden = mode === 'news';
-      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment });
+      $('[data-nospoil]', dlg).closest('label').hidden = mode === 'news' || postType !== 'results';
+      storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment, postType });
     };
     dlg.addEventListener('click', async (e) => {
       if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
       const m = e.target.closest('[data-mode]')?.dataset.mode;
       if (m && m !== mode) { mode = m; sync(); render(dlg); }
+      const pt = e.target.closest('[data-ptype]')?.dataset.ptype;
+      if (pt && pt !== postType) { postType = pt; sync(); render(dlg); }
       const f = e.target.closest('[data-fmt]')?.dataset.fmt;
       if (f && f !== fmt) { fmt = f; sync(); render(dlg); }
+      if (e.target.closest('[data-stats]')) openStats();
       if (e.target.closest('[data-all]')) { try { await dlg.onSaveAll?.(); } catch (err) { toast(err.message, 5000, 'warning'); } }
       if (e.target.closest('[data-publish]')) { if (dlg.publish) dlg.publish(); else toast(t('Visuels en préparation, réessayez dans un instant'), 3000); }
       if (e.target.closest('[data-open]')) fetch('/api/posts/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: dlg.dataset.folder }) });
@@ -255,6 +372,7 @@ function open() {
     let te = null;
     dlg.addEventListener('change', (e) => {
       if (e.target.matches('[data-newspick]')) { newsSel = e.target.value; render(dlg); }
+      if (e.target.matches('[data-flashpick]')) { flashSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-newsall]')) { newsAll = e.target.checked; render(dlg); }
       if (e.target.matches('[data-linkcomment]')) { linkComment = e.target.checked; sync(); render(dlg); }
     });

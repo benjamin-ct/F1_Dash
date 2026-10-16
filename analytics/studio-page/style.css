@@ -48,3 +48,11 @@ label.check { display: flex; gap: 8px; align-items: center; color: var(--text); 
 .note { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--muted); margin: 10px 0; }
 .sticky { position: sticky; bottom: 0; background: linear-gradient(transparent, var(--bg) 30%); padding: 14px 0 4px; }
 hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
+#ptype { display: flex; flex-wrap: wrap; margin: 8px 0; }
+#ptype button { flex: 1; padding: 8px 4px; font-size: 14px; white-space: nowrap; }
+[hidden] { display: none !important; }
+.seg button:disabled { opacity: .4; }
+#flashpick { margin-bottom: 8px; }
+.alerts { margin: 4px 0 10px; }
+.alerts .row { gap: 8px; align-items: center; }
+.alerts .err:empty { display: none; }

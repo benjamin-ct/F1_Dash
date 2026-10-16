@@ -25,6 +25,12 @@ on:
       - 'shared/pits.js'
       - 'shared/merge.js'
       - 'shared/flags.js'
+      - 'shared/post-*.js'
+      - 'shared/bluesky-publish.js'
+      - 'shared/tyres.js'
+      - 'shared/news-collect.js'
+      - 'shared/fia-list.js'
+      - 'shared/fia-grid.js'
       - 'scripts/build-studio.mjs'
       - '.github/workflows/stats.yml'
 

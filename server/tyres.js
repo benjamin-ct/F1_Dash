@@ -6,39 +6,11 @@ import { getText, HttpError, withRetry } from './net.js';
 import { archiveJSON } from './archive.js';
 import { seasonIndex } from './replay.js';
 import { CACHE_DIR } from './circuits.js';
-import { dryAllocation } from '../shared/tyres.js';
+import { dryAllocation, builtinNomination } from '../shared/tyres.js';
+
+export { NOMINATIONS } from '../shared/tyres.js';
 
 const FEED = 'https://press.pirelli.com/feed/';
-
-// Composés choisis par Pirelli (dur, medium, tendre) pour 2026, d'après les communiqués de
-// Pirelli et les fiches « What tyres… » de formula1.com. Les Grands Prix suivants sont
-// complétés automatiquement à partir du flux de Pirelli.
-const PIRELLI_PRESS = 'https://press.pirelli.com/';
-const F1_TYRES = 'https://www.formula1.com/en/latest/article/';
-export const NOMINATIONS = {
-  2026: [
-    { re: /melbourne|australia/i, c: [3, 4, 5], src: `${PIRELLI_PRESS}complete-f1-tyre-range-for-the-first-three-grands-prix-of-2026/` },
-    { re: /shanghai|chin/i, c: [2, 3, 4], src: `${PIRELLI_PRESS}complete-f1-tyre-range-for-the-first-three-grands-prix-of-2026/` },
-    { re: /suzuka|japan/i, c: [1, 2, 3], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-japanese-grand-prix.4V0p1BrC3PbEiWNzsivaSr` },
-    { re: /miami/i, c: [3, 4, 5], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-miami-grand-prix.3IDiDRC753kNe02Qwia4V1` },
-    { re: /montr[ée]al|canad/i, c: [3, 4, 5], src: 'https://www.mercedesamgf1.com/news/what-are-the-tyre-options-for-the-2026-canadian-gp' },
-    { re: /monaco|monte carlo/i, c: [3, 4, 5], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-monaco-grand-prix.6RNlF5Skp9niWsEz6urQMr` },
-    { re: /barcelona|catalunya/i, c: [2, 3, 4], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-barcelona-catalunya-grand-prix.2wVnaPZmlQUuj9P72FrjuA` },
-    { re: /spielberg|austria/i, c: [3, 4, 5], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-austrian-grand-prix.2bhUStvp9xxGLpN2gvTeib` },
-    { re: /silverstone|british/i, c: [1, 2, 3], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-british-grand-prix.3qD9d5o8X4x3se0F7Zg5i1` },
-    { re: /spa-francorchamps|belgi/i, c: [2, 3, 4], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-belgian-grand-prix.5RaQVyMqM9Fl5ON3xTcVO0` },
-    { re: /budapest|hungar/i, c: [3, 4, 5], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-hungarian-grand-prix.RikSxOCPXMkPloK0RRmqQ` },
-    { re: /zandvoort|dutch|netherlands/i, c: [2, 3, 4], src: `${PIRELLI_PRESS}tyre-compounds-selected-for-zandvoort-monza-and-madrid/` },
-    { re: /monza|italian/i, c: [3, 4, 5], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-italian-grand-prix.7nOpWdCgvCBFDGlnODs0gk` },
-    { re: /madrid|madring|spanish/i, c: [2, 3, 4], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-spanish-grand-prix.2vlcVOBnZUFRCooVcqWG7n` },
-    { re: /baku|azerbaijan/i, c: [3, 4, 5], src: `${PIRELLI_PRESS}appointment-on-saturday-for-the-azerbaijan-grand-prix/` },
-    { re: /kuala lumpur|sepang|malaysia/i, c: [2, 3, 4], src: `${F1_TYRES}what-tyres-will-the-teams-and-drivers-have-for-the-2026-bahrain-grand-prix-in-malaysia.4vcrMxYY9DWg7PwyiNMrEV` },
-    { re: /singapore|marina bay/i, c: [3, 4, 5], src: `${PIRELLI_PRESS}spotlight-on-singapore/` },
-    { re: /austin|united states grand prix/i, c: [2, 3, 4], src: `${PIRELLI_PRESS}the-compound-selection-for-austin-mexico-city-and-so-paulo/` },
-    { re: /mexico/i, c: [3, 4, 5], src: `${PIRELLI_PRESS}the-compound-selection-for-austin-mexico-city-and-so-paulo/` },
-    { re: /s[ãa]o paulo|interlagos|brazil/i, c: [3, 4, 5], src: `${PIRELLI_PRESS}the-compound-selection-for-austin-mexico-city-and-so-paulo/` },
-  ],
-};
 
 function readCache(name) {
   try { return JSON.parse(fs.readFileSync(path.join(CACHE_DIR, name), 'utf8')); } catch { return null; }
@@ -143,9 +115,8 @@ const plain = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 export function nominationFor(year, m, found = []) {
   // Table intégrée (vérifiée), sinon annonce repérée dans le flux de Pirelli : une phrase qui
   // cite ce Grand Prix, publiée dans les quatre mois qui précèdent
-  const key = `${m.name} ${m.location} ${m.circuit || ''} ${m.country || ''}`;
-  const row = (NOMINATIONS[year] || []).find((r) => r.re.test(key));
-  if (row) return { hard: row.c[0], medium: row.c[1], soft: row.c[2], url: row.src };
+  const row = builtinNomination(year, m);
+  if (row) return row;
   const words = meetingWords(m);
   const hit = [...found].sort((a, b) => b.date - a.date).find((n) => {
     if (n.date && m.start && (n.date > m.start + 3 * 86400000 || n.date < m.start - 120 * 86400000)) return false;

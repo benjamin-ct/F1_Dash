@@ -9,17 +9,8 @@ const net = require('node:net');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
 
-// Dossier des données (réglages, jeton F1 TV, enregistrements, fenêtres). Migration unique : le
-// dossier de l'ancien nom de l'application (jusqu'à la v1.24) est renommé. À retirer en v1.26.
-{
-  const current = path.join(app.getPath('appData'), 'Paddock Live');
-  const old = path.join(app.getPath('appData'), 'F1 Dash');
-  let dir = current;
-  if (!fs.existsSync(current) && fs.existsSync(old)) {
-    try { fs.renameSync(old, current); } catch { dir = old; }   // dossier encore verrouillé : on réessaiera
-  }
-  app.setPath('userData', dir);
-}
+// Dossier des données (réglages, jeton F1 TV, enregistrements, fenêtres)
+app.setPath('userData', path.join(app.getPath('appData'), 'Paddock Live'));
 
 // Portables à deux cartes graphiques : la plus puissante, pour la transcription et la traduction
 // des radios en haute qualité (grands modèles qui tournent sur la carte graphique)

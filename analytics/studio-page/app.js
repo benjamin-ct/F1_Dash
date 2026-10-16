@@ -2,21 +2,26 @@
 // à portée (téléphone). Grosses news de la F1 et résultats des séances, mêmes visuels et mêmes textes
 // que dans l'appli (code partagé), publication sur Facebook, Instagram et Threads par le serveur
 // Paddock Live après confirmation, ou partage vers les autres applis (X, TikTok…) depuis le téléphone.
-import { parseFeed, newsTags, newsImportance, clusterNews } from '/shared/news.js';
+import { clusterNews } from '/shared/news.js';
+import { feedItems, decodeBody } from '/shared/news-collect.js';
 import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
 import { postData, captions } from '/shared/social.js';
+import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
+import { builtinNomination } from '/shared/tyres.js';
+import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/shared/fia-list.js';
+import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
 import { merge } from '/shared/merge.js';
 import { gpNameFr } from '/shared/summary.js';
 import { FLAG_ISO } from '/shared/flags.js';
+import { postedEntry } from '/shared/post-history.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const app = $('#app');
 const KEY = 'studio.key';
 const SIG = '@BenjyPaddock';
-const F1_ONLY = /formula 1|formula one|\bf1\b|grand prix|formule 1/i;
-const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'TimingAppData', 'TimingStats', 'RaceControlMessages', 'LapCount', 'ChampionshipPrediction'];
+const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'TimingAppData', 'TimingStats', 'RaceControlMessages', 'LapCount', 'ChampionshipPrediction', 'WeatherData'];
 
 let key = null;
 try { key = localStorage.getItem(KEY) || sessionStorage.getItem(KEY); } catch { /* stockage bloqué */ }
@@ -73,7 +78,7 @@ function login(error = '') {
     try {
       me = await api('me');
       try { ($('#keep').checked ? localStorage : sessionStorage).setItem(KEY, key); } catch { /* ignore */ }
-      home();
+      afterLogin();
     } catch (err) { login(err.message); }
   };
 }
@@ -88,13 +93,6 @@ async function mapLimit(list, n, fn) {
   return out;
 }
 const ago = (ts) => { const m = Math.max(1, Math.round((Date.now() - ts) / 60e3)); return m < 60 ? `${m} min` : m < 48 * 60 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} j`; };
-
-async function decodeBody(res) {
-  const buf = await res.arrayBuffer();
-  const head = new TextDecoder('latin1').decode(buf.slice(0, 200));
-  const label = ((res.headers.get('Content-Type') || '').match(/charset=([\w-]+)/i)?.[1] || head.match(/encoding=["']([\w-]+)["']/i)?.[1] || 'utf-8').toLowerCase();
-  try { return new TextDecoder(label).decode(buf); } catch { return new TextDecoder().decode(buf); }
-}
 
 // Textes en français (traduction partagée du serveur Paddock Live, gardée en mémoire)
 async function toFrench(list) {
@@ -133,17 +131,7 @@ async function loadNews() {
   const now = Date.now();
   const items = [];
   await mapLimit(me.sources, 6, async (s) => {
-    try {
-      const feed = parseFeed(await decodeBody(await api(`feed?id=${encodeURIComponent(s.id)}`, { raw: true })));
-      for (const raw of feed.items) {
-        if (s.filter === 'f1' && !F1_ONLY.test(`${raw.title} ${raw.summary}`)) continue;
-        const t = raw.t && raw.t <= now + 10 * 60e3 ? raw.t : now - 24 * 3600e3;
-        const it = { id: `${s.id}|${raw.link || raw.guid}`, src: s.id, srcName: s.name, title: String(raw.title || '').slice(0, 300), summary: raw.summary || '', link: raw.link, t, lang: s.lang, cat: s.cat, kind: 'article' };
-        it.tags = newsTags(`${it.title} ${it.summary}`);
-        it.imp = newsImportance(it, s.cat);
-        items.push(it);
-      }
-    } catch { /* source indisponible */ }
+    try { items.push(...feedItems(s, await decodeBody(await api(`feed?id=${encodeURIComponent(s.id)}`, { raw: true })), now)); } catch { /* source indisponible */ }
   });
   items.sort((a, b) => a.t - b.t);
   clusterNews(items);
@@ -157,14 +145,72 @@ async function newsTab(body) {
   body.innerHTML = '<p class="muted">Lecture des sources d\'actu…</p>';
   news ||= await loadNews();
   const list = bigNews(news, { all: state.all }).slice(0, 40);
+  const history = (await api('history').catch(() => ({}))).items || [];
+  const posted = list.map((it) => postedEntry(it, history));
   const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
-  body.innerHTML = `<div class="row"><label class="check"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}> Toutes les actus (48 h)</label><span class="spacer"></span><button id="reload">Actualiser</button></div>
+  body.innerHTML = `<div id="alerts" class="alerts"></div>
+    <div class="row"><label class="check"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}> Toutes les actus (48 h)</label><span class="spacer"></span><button id="reload">Actualiser</button></div>
     ${list.length ? '' : '<p class="muted">Aucune grosse news ces dernières 48 heures.</p>'}
-    <div class="list">${list.map((it, i) => { const k = newsKind(it); return `<button class="card" data-i="${i}"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>
+    <div class="list">${list.map((it, i) => { const k = newsKind(it); return `<button class="card" data-i="${i}"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${posted[i] ? ' <span class="badge" style="background:#8E97A6">PUBLIÉE ✓</span>' : ''}
       <div class="t">${esc(titles[i] || it.title)}</div><div class="small muted">${esc(it.srcName)} · il y a ${ago(it.t)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>`; }).join('')}</div>`;
   $('#all').onchange = (e) => { state.all = e.target.checked; newsTab(body); };
   $('#reload').onclick = () => { news = null; newsTab(body); };
-  body.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => newsEditor(list[Number(b.dataset.i)]); });
+  body.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => newsEditor(list[Number(b.dataset.i)], posted[Number(b.dataset.i)]); });
+  alertsBlock($('#alerts'));
+}
+
+// ---------- Alertes des grosses news sur ce téléphone (notifications) ----------
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const pushReady = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const keyBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), (c) => c.charCodeAt(0));
+
+async function currentSub() {
+  if (!pushReady()) return null;
+  const reg = await navigator.serviceWorker.getRegistration('/studio/');
+  return reg ? reg.pushManager.getSubscription() : null;
+}
+
+async function enableAlerts() {
+  if (await Notification.requestPermission() !== 'granted') throw new Error('Notifications refusées : autorisez-les pour cette page dans les réglages du téléphone');
+  const { key: server } = await api('push');
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  // Abonnement fait avec une autre clé du serveur : refait
+  const same = sub?.options?.applicationServerKey && btoa(String.fromCharCode(...new Uint8Array(sub.options.applicationServerKey))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') === server;
+  if (sub && !same) { await sub.unsubscribe(); sub = null; }
+  try {
+    sub ||= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(server) });
+  } catch (err) { throw new Error(`Abonnement refusé par le navigateur (${err.message}). Navigation privée : les notifications n'y fonctionnent pas.`); }
+  await api('push', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
+}
+
+async function alertsBlock(el) {
+  if (!el) return;
+  if (!pushReady()) {
+    el.innerHTML = `<p class="note small">${IOS && !installed() ? 'Alertes des grosses news : sur iPhone, ajoutez d\'abord cette page à l\'écran d\'accueil (bouton Partager → « Sur l\'écran d\'accueil »), puis ouvrez-la depuis l\'icône.' : 'Alertes indisponibles dans ce navigateur.'}</p>`;
+    return;
+  }
+  const sub = await currentSub().catch(() => null);
+  const on = !!sub && Notification.permission === 'granted';
+  el.innerHTML = `<div class="row small"><span>${on ? 'Alertes des grosses news actives sur ce téléphone' : 'Recevoir une alerte à chaque grosse news (transfert, pénalité, annonce officielle…)'}</span><span class="spacer"></span>
+    ${on ? '<button id="alerttest">Tester</button><button id="alertoff">Couper</button>' : '<button class="accent" id="alerton">Activer</button>'}</div><p class="small err" id="alerterr"></p>`;
+  const fail = (err) => { $('#alerterr').textContent = err.message; };
+  if ($('#alerton')) $('#alerton').onclick = () => enableAlerts().then(() => alertsBlock(el)).catch(fail);
+  if ($('#alerttest')) $('#alerttest').onclick = () => api('push/test', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).then(() => { $('#alerterr').textContent = 'Envoyée : elle arrive dans quelques secondes.'; }).catch(fail);
+  if ($('#alertoff')) $('#alertoff').onclick = async () => { try { await api('push/off', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); alertsBlock(el); } catch (err) { fail(err); } };
+}
+
+// Notification touchée : post de la news prêt à relire
+async function openAlert(id) {
+  if (!id) return;
+  try {
+    const it = ((await api('alerts')).items || []).find((a) => a.id === id);
+    if (!it) return;
+    const history = (await api('history').catch(() => ({}))).items || [];
+    state.tab = 'news';
+    newsEditor(it, postedEntry(it, history));
+  } catch { /* alerte introuvable : liste des news */ }
 }
 
 async function latestDrivers() {
@@ -177,7 +223,9 @@ async function latestDrivers() {
   return lastDrivers;
 }
 
-async function newsEditor(it) {
+const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok' };
+
+async function newsEditor(it, done = null) {
   const [title, summary] = await toFrench([{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]);
   const failed = title === null || summary === null;
   const make = async (t, s) => newsPost(it, { title: t, summary: s, driverList: await latestDrivers(), sourceName: it.srcName });
@@ -185,13 +233,15 @@ async function newsEditor(it) {
   editor({
     back: () => home(),
     head: `<span class="badge" style="background:${d.badge.color}">${esc(d.badge.label)}</span>
+      ${done ? `<p class="note">✓ Déjà publiée le ${esc(new Date(done.at).toLocaleString('fr-FR'))} sur ${esc(Object.keys(done.nets).map((n) => NET_NAMES[n] || n).join(', '))}</p>` : ''}
       <p class="small muted">${esc(it.srcName)} · il y a ${ago(it.t)} · <a class="muted" href="${esc(it.link)}" target="_blank" rel="noopener">lire l'article</a></p>
       <label>Titre</label><input type="text" id="ntitle" maxlength="160" value="${esc(d.title)}">
       <label>Résumé</label><textarea id="nsum" rows="4" maxlength="400">${esc(d.summary)}</textarea>
-      <label class="check"><input type="checkbox" id="linkcomment" ${state.linkComment ? 'checked' : ''}> Lien de l'article en premier commentaire (Facebook, Threads, X)</label>
+      <label class="check"><input type="checkbox" id="linkcomment" ${state.linkComment ? 'checked' : ''}> Lien de l'article en premier commentaire (Facebook, Threads, Bluesky, X)</label>
       <p class="note">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
     data: () => d,
     caps: () => newsCaptions(d, SIG, { linkInComment: state.linkComment }),
+    record: () => ({ key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) }),
     bind: (redraw) => {
       let tm = null;
       const upd = () => { clearTimeout(tm); tm = setTimeout(async () => { d = await make($('#ntitle').value, $('#nsum').value); redraw(true); }, 400); };
@@ -263,24 +313,92 @@ async function sessionsTab(body) {
   body.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => sessionEditor(list[Number(b.dataset.i)], b); });
 }
 
+// ---------- Grille de départ officielle (document de la FIA, lu dans le navigateur) ----------
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38';
+const fiaGet = (p) => api(`fia?p=${encodeURIComponent(p)}`, { raw: true });
+async function pdfItems(buf) {
+  const lib = await import(`${PDFJS}/pdf.min.mjs`);
+  lib.GlobalWorkerOptions.workerSrc = `${PDFJS}/pdf.worker.min.mjs`;
+  const pdf = await lib.getDocument({ data: new Uint8Array(buf), verbosity: 0 }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const tc = await (await pdf.getPage(i)).getTextContent();
+    pages.push(tc.items.filter((it) => it.str && it.str.trim()).map((it) => ({ x: it.transform[4], y: it.transform[5], s: it.str })));
+  }
+  return pages;
+}
+async function fiaGrid(year, meeting, sprint) {
+  const { bySeason, events } = parseSeasons(await (await fiaGet(CHAMPIONSHIP)).text());
+  const event = bySeason[year] && pickEvent(events, meeting);
+  if (!event) return null;
+  const doc = gridDocument(parseDocumentList(await (await fiaGet(`${bySeason[year]}/event/${encodeURIComponent(event)}`)).text()), { sprint });
+  if (!doc) return null;
+  const grid = parseStartingGrid(await pdfItems(await (await fiaGet(new URL(doc.url).pathname)).arrayBuffer()));
+  return grid && { ...grid, title: doc.title };
+}
+
+// Types de posts d'une séance : résultats, avant-course (grille, météo, pneus), championnat, flash
+const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
 async function sessionEditor(s, btn) {
   if (btn) btn.innerHTML += '<div class="small muted">Chargement de la séance…</div>';
   let st;
   try { st = await loadState(s.path); } catch (err) { if (btn) btn.innerHTML += `<div class="small err">${esc(err.message)}</div>`; return; }
   lastDrivers = st.DriverList || lastDrivers;
-  const d = postData(st);
+  const meet = st.SessionInfo?.Meeting || {};
+  const tyres = builtinNomination(Number(String(s.path).slice(0, 4)), { name: meet.Name, location: meet.Location, country: meet.Country?.Name });
+  const events = flashEvents(st);
+  const results = postData(st);
+  const champ = champData(st);
+  let type = 'results';
+  let ev = events[0] || null;
+  let grid;   // grille officielle de la FIA : undefined = pas encore lue
+  let gridNote = '';
+  const avail = (k) => k === 'results' || k === 'prerace' || (k === 'champ' && champ) || (k === 'flash' && ev);
+  const data = () => (type === 'prerace' ? preraceData(st, { tyres, grid }) : type === 'champ' ? champ : type === 'flash' ? flashData(st, ev) : results);
+  const typeName = () => POST_TYPES.find(([k]) => k === type)[1];
+  const loadGrid = async (redraw) => {
+    if (grid !== undefined) return;
+    grid = null;
+    $('#gridnote').textContent = 'Lecture de la grille officielle de la FIA…';
+    try {
+      grid = await fiaGrid(Number(String(s.path).slice(0, 4)), { name: meet.Name, country: meet.Country?.Name, location: meet.Location }, results.sprint);
+      gridNote = !grid ? 'Grille pas encore publiée par la FIA : ordre des qualifications, sans les pénalités.'
+        : grid.final ? 'Grille officielle de la FIA, pénalités comprises.' : 'Grille provisoire de la FIA : la définitive peut encore changer.';
+    } catch (err) { gridNote = `Grille de la FIA indisponible (${err.message}) : ordre des qualifications, sans les pénalités.`; }
+    if ($('#gridnote')) $('#gridnote').textContent = type === 'prerace' ? gridNote : '';
+    if (type === 'prerace') redraw(true);
+  };
   editor({
     back: () => home(),
-    head: `<div class="t" style="font-weight:700">${esc(SESSION_FR(s.name))} · ${esc(d.gp)}</div>
-      <label class="check"><input type="checkbox" id="nospoil" ${state.noSpoiler ? 'checked' : ''}> Texte sans spoiler (vainqueur absent du début du texte)</label>`,
-    data: () => d,
-    caps: () => captions(d, SIG, { spoiler: !state.noSpoiler }),
-    bind: (redraw) => { $('#nospoil').onchange = (e) => { state.noSpoiler = e.target.checked; redraw(true); }; },
+    head: `<div class="t" style="font-weight:700">${esc(SESSION_FR(s.name))} · ${esc(results.gp)}</div>
+      <div class="seg" id="ptype">${POST_TYPES.map(([k, v]) => `<button data-ptype="${k}" class="${k === type ? 'on' : ''}" ${avail(k) ? '' : 'disabled'}>${v}</button>`).join('')}</div>
+      <p class="small note" id="gridnote" hidden></p>
+      <select id="flashpick" hidden>${events.map((x, i) => `<option value="${i}">${esc(FLASH_KINDS[x.kind].label)} · ${esc(x.title)}${x.lap ? ` · tour ${x.lap}` : ''}</option>`).join('')}</select>
+      <label class="check" id="nospoilrow"><input type="checkbox" id="nospoil" ${state.noSpoiler ? 'checked' : ''}> Texte sans spoiler (vainqueur absent du début du texte)</label>`,
+    data,
+    caps: () => (type === 'results' ? captions(results, SIG, { spoiler: !state.noSpoiler }) : moreCaptions(data(), SIG)),
+    record: () => (type === 'results' ? { key: `session:${s.path}`, kind: 'session', title: `${SESSION_FR(s.name)} · ${results.gp}` }
+      : { key: `${type}:${s.path}${type === 'flash' ? `:${ev.id}` : ''}`, kind: type, title: `${type === 'flash' ? ev.title : typeName()} · ${results.gp}` }),
+    bind: (redraw) => {
+      $('#nospoil').onchange = (e) => { state.noSpoiler = e.target.checked; redraw(true); };
+      $('#flashpick').onchange = (e) => { ev = events[Number(e.target.value)]; redraw(true); };
+      app.querySelectorAll('[data-ptype]').forEach((b) => {
+        b.onclick = () => {
+          type = b.dataset.ptype;
+          app.querySelectorAll('[data-ptype]').forEach((x) => x.classList.toggle('on', x === b));
+          $('#flashpick').hidden = type !== 'flash';
+          $('#gridnote').hidden = type !== 'prerace';
+          if (type === 'prerace') { $('#gridnote').textContent = gridNote; loadGrid(redraw); }
+          $('#nospoilrow').hidden = type !== 'results';
+          redraw(true);
+        };
+      });
+    },
   });
 }
 
 // ---------- Éditeur : visuels, textes, publication, partage ----------
-function editor({ back, head, data, caps, bind }) {
+function editor({ back, head, data, caps, bind, record }) {
   let canvases = [];
   let edited = {};   // textes retouchés à la main : gardés en changeant de format
   app.innerHTML = `<div class="top"><button id="back">← Retour</button><span class="spacer"></span>
@@ -300,17 +418,18 @@ function editor({ back, head, data, caps, bind }) {
       ${c.facebook ? `<label>Texte Facebook (avec le lien de l'article)</label><textarea id="cap-facebook" rows="8">${esc(c.facebook)}</textarea>` : ''}
       <label>Texte Threads (500 caractères max.)</label><textarea id="cap-threads" rows="4" maxlength="500">${esc(c.threads)}</textarea>
       <label>Texte X (280 caractères max., lien = 23)</label><textarea id="cap-x" rows="3">${esc(c.x)}</textarea>
-      ${c.comment ? `<label>Premier commentaire (Facebook, Threads ; X : à coller en réponse)</label><textarea id="cap-comment" rows="2">${esc(c.comment)}</textarea>
+      <label>Texte Bluesky (300 caractères max.)</label><textarea id="cap-bsky" rows="3">${esc(c.bsky || c.x)}</textarea>
+      ${c.comment ? `<label>Premier commentaire (Facebook, Threads, Bluesky ; X : à coller en réponse)</label><textarea id="cap-comment" rows="2">${esc(c.comment)}</textarea>
         <div class="row"><button id="copycomment">Copier le commentaire</button></div>` : ''}
       <hr>
-      <div class="nets">${[['instagram', 'Instagram', me.instagram], ['facebook', 'Facebook', me.facebook], ['threads', 'Threads', me.threads]].map(([k, v, acc]) => `<label class="check"><input type="checkbox" data-net="${k}" ${acc ? 'checked' : 'disabled'}> <b>${v}</b> <span class="muted small">${esc(acc || 'non connecté')}</span><span class="st" data-st="${k}"></span></label>`).join('')}</div>
-      <p class="small muted">Instagram, Facebook et Threads reçoivent les visuels au format Instagram. Pour X, TikTok ou une story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.</p>
+      <div class="nets">${[['instagram', 'Instagram', me.instagram], ['facebook', 'Facebook', me.facebook], ['threads', 'Threads', me.threads], ['bluesky', 'Bluesky', me.bluesky]].map(([k, v, acc]) => `<label class="check"><input type="checkbox" data-net="${k}" ${acc ? 'checked' : 'disabled'}> <b>${v}</b> <span class="muted small">${esc(acc || 'non connecté')}</span><span class="st" data-st="${k}"></span></label>`).join('')}</div>
+      <p class="small muted">Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. Pour X, TikTok ou une story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.</p>
       <div class="row sticky"><button class="accent" id="go">Publier…</button><button id="share">Partager</button><button id="dl">Télécharger</button></div>`;
-    for (const k of ['instagram', 'facebook', 'threads', 'x', 'comment'].filter((x) => $(`#cap-${x}`))) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
+    for (const k of ['instagram', 'facebook', 'threads', 'x', 'bsky', 'comment'].filter((x) => $(`#cap-${x}`))) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
     const o = await assets(d);
     canvases = [...main.querySelectorAll('canvas')];
     for (const cv of canvases) drawSlide(cv, cv.dataset.slide, state.fmt, d, o);
-    $('#go').onclick = () => publishAll(d, o, slides);
+    $('#go').onclick = () => publishAll(d, o, slides, record?.());
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     $('#dl').onclick = () => download(canvases, d);
     if ($('#copycomment')) $('#copycomment').onclick = async () => { try { await navigator.clipboard.writeText($('#cap-comment').value); $('#copycomment').textContent = 'Copié ✓'; } catch { /* presse-papiers refusé */ } };
@@ -344,14 +463,17 @@ async function download(canvases) {
 }
 
 // Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
-async function publishAll(d, o, slides) {
+async function publishAll(d, o, slides, record = null) {
   const nets = [...app.querySelectorAll('[data-net]:checked')].map((i) => i.dataset.net);
   if (!nets.length) { alert('Cochez au moins un réseau'); return; }
-  const names = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads' };
+  const names = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky' };
   if (!confirm(`Publier maintenant sur : ${nets.map((n) => names[n]).join(', ')} ?\n\nLes posts seront publics.`)) return;
   const go = $('#go');
   go.disabled = true;
   const blobs = await Promise.all(slides.map((sl) => toBlob(drawSlide(document.createElement('canvas'), sl, 'ig', d, o), 'image/jpeg', 0.92)));
+  // Bluesky : 4 visuels au format X, moins de 1 Mo chacun
+  const small = async (cv) => { let b = null; for (const q of [0.92, 0.85, 0.75, 0.6, 0.45]) { b = await toBlob(cv, 'image/jpeg', q); if (b.size <= 950 * 1024) break; } return b; };
+  const bsky = nets.includes('bluesky') ? await Promise.all(slides.slice(0, 4).map((sl) => small(drawSlide(document.createElement('canvas'), sl, 'x', d, o)))) : [];
   for (const n of nets) {
     const st = $(`[data-st="${n}"]`);
     st.className = 'st';
@@ -361,8 +483,8 @@ async function publishAll(d, o, slides) {
     try {
       const form = new FormData();
       form.append('network', n);
-      form.append('text', $(`#cap-${n === 'threads' ? 'threads' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value);
-      blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
+      form.append('text', $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value);
+      (n === 'bluesky' ? bsky : blobs).forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
       if (n !== 'instagram' && $('#cap-comment')?.value.trim()) form.append('comment', $('#cap-comment').value.trim());
       const res = await api('publish', { method: 'POST', body: form, raw: true });
       const reader = res.body.getReader();
@@ -383,6 +505,7 @@ async function publishAll(d, o, slides) {
       }
       if (!result) throw new Error('Réponse interrompue : vérifiez sur le réseau avant de réessayer');
       st.className = 'st ok';
+      if (record) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
       st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ✓</a>` : 'Publié ✓')
         + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '');
     } catch (err) {
@@ -393,20 +516,41 @@ async function publishAll(d, o, slides) {
   go.disabled = false;
 }
 
+// ---------- Statistiques des posts ----------
+const fmtN = (v) => (v == null ? '—' : Number(v).toLocaleString('fr-FR'));
+const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', "J'aime"], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
+async function statsTab(body) {
+  body.innerHTML = '<p class="muted">Lecture des statistiques…</p>';
+  const r = await api('stats');
+  const f = Object.entries(r.followers || {});
+  body.innerHTML = `${f.length ? `<div class="row" style="margin-top:12px">${f.map(([n, v]) => `<div class="card" style="width:auto;cursor:default"><div class="t">${fmtN(v)}</div><div class="small muted">abonnés ${esc(NET_NAMES[n] || n)}</div></div>`).join('')}</div>` : ''}
+    <div class="list">${(r.posts || []).map((p) => `<div class="card" style="cursor:default"><div class="t">${esc(p.title || 'Post')}</div><div class="small muted">${esc(new Date(p.at).toLocaleString('fr-FR'))}</div>
+      ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${l} <b>${fmtN(s[k])}</b>`).join(' · ') : 'statistiques indisponibles'; return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--text)">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n)} : ${vals}</div>`; }).join('')}</div>`).join('') || '<p class="muted">Aucun post publié pour le moment.</p>'}</div>
+    <p class="note">Les 8 derniers posts. Vues et portée : autorisations instagram_manage_insights, read_insights et threads_manage_insights du jeton. X : lecture payante, non utilisée.</p>`;
+}
+
 // ---------- Accueil ----------
 function home() {
-  const acc = [me.instagram && `Instagram ${me.instagram}`, me.facebook && `Facebook ${me.facebook}`, me.threads && `Threads ${me.threads}`].filter(Boolean).join(' · ');
+  const acc = [me.instagram && `Instagram ${me.instagram}`, me.facebook && `Facebook ${me.facebook}`, me.threads && `Threads ${me.threads}`, me.bluesky && `Bluesky ${me.bluesky}`].filter(Boolean).join(' · ');
   app.innerHTML = `<div class="top"><h1>Paddock <b>Studio</b></h1><span class="spacer"></span><button id="out">Quitter</button></div>
     <p class="small muted">${esc(acc || 'Aucun compte : activez la page depuis l\'appli (Posts → Publier… → Comptes…)')}</p>
-    <div class="seg"><button data-tab="news" class="${state.tab === 'news' ? 'on' : ''}">News</button><button data-tab="sessions" class="${state.tab === 'sessions' ? 'on' : ''}">Séances</button></div>
+    <div class="seg"><button data-tab="news" class="${state.tab === 'news' ? 'on' : ''}">News</button><button data-tab="sessions" class="${state.tab === 'sessions' ? 'on' : ''}">Séances</button><button data-tab="stats" class="${state.tab === 'stats' ? 'on' : ''}">Stats</button></div>
     <div id="body"></div>`;
   $('#out').onclick = logout;
   app.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { state.tab = b.dataset.tab; home(); }; });
   const body = $('#body');
-  (state.tab === 'news' ? newsTab(body) : sessionsTab(body)).catch((err) => { body.innerHTML = `<p class="err">${esc(err.message)}</p>`; });
+  (state.tab === 'news' ? newsTab(body) : state.tab === 'stats' ? statsTab(body) : sessionsTab(body)).catch((err) => { body.innerHTML = `<p class="err">${esc(err.message)}</p>`; });
+}
+
+const startAlert = new URLSearchParams(location.search).get('alert');
+if (startAlert) history.replaceState(null, '', '/studio/');
+const afterLogin = () => { home(); openAlert(startAlert); };
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/studio/sw.js', { scope: '/studio/' }).catch(() => {});
+  navigator.serviceWorker.addEventListener('message', (e) => { if (me && e.data?.alert) openAlert(e.data.alert); });
 }
 
 (async () => {
   if (!key) { login(); return; }
-  try { me = await api('me'); home(); } catch (err) { login(err.message === 'Code incorrect' ? '' : err.message); }
+  try { me = await api('me'); afterLogin(); } catch (err) { login(err.message === 'Code incorrect' ? '' : err.message); }
 })();

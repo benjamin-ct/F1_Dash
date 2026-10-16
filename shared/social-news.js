@@ -36,6 +36,8 @@ function names(title) {
 // Types incompatibles seulement s'ils sont tous deux précis (pénalité et transfert d'un même pilote)
 const GENERIC = new Set(['actu', 'officiel']);
 const kindsMatch = (a, b) => { const x = newsKind(a).key; const y = newsKind(b).key; return x === y || GENERIC.has(x) || GENERIC.has(y); };
+// Même sujet pour deux nouvelles quelconques (noms propres calculés ici)
+export const sameStoryOf = (a, b) => sameStory({ ...a, _names: names(a.title) }, { ...b, _names: names(b.title) });
 const sameStory = (a, b) => kindsMatch(a, b) && Math.abs(a.t - b.t) < 30 * 3600e3
   && ([...a._names].some((w) => b._names.has(w)) || newsSimilarity(a, b) >= 0.3);
 
@@ -148,15 +150,21 @@ export function newsCaptions(nd, signature = '', { linkInComment = false } = {})
   const instagram = `${head}\n\n${nd.summary}${src ? `\n\n${src}` : ''}${sig}\n\n${tags.join(' ')}`;
   const facebook = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n${tags.join(' ')}`;
   // X : 280 caractères (lien = 23) ; hashtags retirés un à un, puis la ligne de la source, puis le titre raccourci
-  const xt = [BRAND_TAG, '#F1', ...people.slice(0, 2)];
   const xLink = link ? `\n${link}` : '';
-  const build = (withSrc) => `${head}${withSrc && src ? `\n\n${src}` : '\n'}${xLink}\n\n${xt.join(' ')}`;
-  let x = build(true);
-  while (xLength(x) > 280 && xt.length > 1) { xt.pop(); x = build(true); }
-  if (xLength(x) > 280) x = build(false);
-  if (xLength(x) > 280) x = `${head.slice(0, 280 - xLength(`…${xLink}\n\n${xt[0]}`)).trim()}…${xLink}\n\n${xt[0]}`;
+  // Texte court (X : 280, lien compté 23 ; Bluesky : 300, lien compté en entier)
+  const short = (len, max) => {
+    const xt = [BRAND_TAG, '#F1', ...people.slice(0, 2)];
+    const build = (withSrc) => `${head}${withSrc && src ? `\n\n${src}` : '\n'}${xLink}\n\n${xt.join(' ')}`;
+    let t = build(true);
+    while (len(t) > max && xt.length > 1) { xt.pop(); t = build(true); }
+    if (len(t) > max) t = build(false);
+    if (len(t) > max) t = `${head.slice(0, Math.max(10, max - len(`…${xLink}\n\n${xt[0]}`))).trim()}…${xLink}\n\n${xt[0]}`;
+    return t;
+  };
+  const x = short(xLength, 280);
+  const bsky = short((t) => [...t].length, 300);
   let threads = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n#F1 ${BRAND_TAG}`;
   if (threads.length > 500) threads = `${head}${srcLink ? `\n\n${srcLink}` : ''}\n\n#F1 ${BRAND_TAG}`;
   if (threads.length > 500) threads = `${head.slice(0, 500 - (threads.length - head.length) - 1)}…${threads.slice(head.length)}`;
-  return { instagram, facebook, x, threads, story: head, comment };
+  return { instagram, facebook, x, bsky, threads, story: head, comment };
 }

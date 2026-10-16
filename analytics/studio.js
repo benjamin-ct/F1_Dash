@@ -8,6 +8,10 @@
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
+import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
+import { addEntry } from '../shared/post-history.js';
+import { postStats } from '../shared/post-stats.js';
+import { pushApi } from './alerts.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -69,6 +73,7 @@ function cleanVault(v) {
   const out = { at: Date.now() };
   if (v?.meta?.pageToken) out.meta = { pageId: s(v.meta.pageId, 40), pageName: s(v.meta.pageName, 120), pageToken: s(v.meta.pageToken), igId: s(v.meta.igId, 40), igUsername: s(v.meta.igUsername, 60) };
   if (v?.threads?.token) out.threads = { token: s(v.threads.token), userId: s(v.threads.userId, 40), username: s(v.threads.username, 60), expiresAt: Number(v.threads.expiresAt) || null };
+  if (v?.bluesky?.appPassword) out.bluesky = { handle: s(v.bluesky.handle, 120), appPassword: s(v.bluesky.appPassword, 100), did: s(v.bluesky.did, 120) };
   if (v?.f1tv) out.f1tv = s(v.f1tv, 6000);
   if (v?.f1tvOff === true) out.f1tvOff = true;
   return out;
@@ -166,6 +171,15 @@ async function archive(req, url, vault) {
   return res;
 }
 
+// Documents de la FIA (liste des documents d'un Grand Prix, PDF des commissaires) : grille officielle
+const FIA_PAGE = /^\/documents\/championships\/fia-formula-one-world-championship-14(\/season\/season-\d{4}-\d+(\/event\/[\w%.'()-]+)?)?$/;
+const FIA_PDF = /^\/system\/files\/decision-document\/[\w%.'()-]+\.pdf$/;
+async function fia(req, url) {
+  const p = url.searchParams.get('p') || '';
+  if (p.includes('..') || !(FIA_PAGE.test(p) || FIA_PDF.test(p))) return json({ error: 'Adresse refusée' }, 400);
+  return cached(req, `https://www.fia.com${p}`, { headers: { 'User-Agent': UA } }, FIA_PDF.test(p) ? 3600 : 300);
+}
+
 async function image(req, url) {
   let u;
   try { u = new URL(url.searchParams.get('u') || ''); } catch { return json({ error: 'Adresse invalide' }, 400); }
@@ -181,7 +195,10 @@ async function publish(req, env, raw, vault) {
   const text = String(form.get('text') || '');
   const comment = String(form.get('comment') || '').trim().slice(0, 500);
   const images = form.getAll('images').filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type) && f.size < 8e6).slice(0, 20);
-  if (!['facebook', 'instagram', 'threads'].includes(net)) return json({ error: 'Réseau inconnu' }, 400);
+  if (!['facebook', 'instagram', 'threads', 'bluesky'].includes(net)) return json({ error: 'Réseau inconnu' }, 400);
+  if (net === 'bluesky' && !vault.bluesky) return json({ error: 'Compte Bluesky non envoyé : connectez-le dans l\'appli' }, 409);
+  if (net !== 'bluesky' && !vault.meta?.pageToken) return json({ error: 'Comptes Meta non envoyés : connectez-les dans l\'appli' }, 409);
+  if (net === 'threads' && !vault.threads?.token) return json({ error: 'Compte Threads non envoyé : connectez-le dans l\'appli' }, 409);
   if (!images.length) return json({ error: 'Aucune image' }, 400);
   const { readable, writable } = new TransformStream();
   const w = writable.getWriter();
@@ -190,13 +207,16 @@ async function publish(req, env, raw, vault) {
     try {
       await line({ step: 'Envoi des images…' });
       let r;
-      if (net === 'facebook') r = await withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
+      if (net === 'bluesky') {
+        const pics = images.slice(0, 4).map((blob) => ({ blob, width: 1600, height: 900 }));
+        r = await withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
+      } else if (net === 'facebook') r = await withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
       else if (net === 'instagram') r = await publishInstagram(vault.meta, text.slice(0, 2200), images);
       else {
         const th = (await refresh(env, raw, vault)).threads;
         r = await withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images), comment, (id, t) => replyThreads(th, id, t));
       }
-      await line({ done: true, url: r.url || null, comment: !!r.comment, commentError: r.commentError || null });
+      await line({ done: true, url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null });
     } catch (err) {
       await line({ error: String(err?.message || err).slice(0, 300) });
     } finally {
@@ -244,16 +264,37 @@ export async function studioApi(req, env, url) {
     vault = await refresh(env, a.raw, vault);
     return json({
       facebook: vault.meta?.pageName || null, instagram: vault.meta?.igId ? `@${vault.meta.igUsername || ''}` : null,
-      threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
+      threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, bluesky: vault.bluesky ? `@${vault.bluesky.handle}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
+  }
+  // Journal des publications (partagé avec l'appli)
+  if (path === 'history') {
+    const list = JSON.parse(await getRow(env, 'history') || '[]');
+    if (req.method === 'GET') return json({ items: list });
+    if (req.method === 'POST') {
+      let body;
+      try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+      const next = addEntry(list, body?.entry);
+      await setRow(env, 'history', JSON.stringify(next));
+      return json({ items: next });
+    }
+  }
+  if (path === 'stats' && req.method === 'GET') {
+    const v = await refresh(env, a.raw, vault);
+    // 8 posts au plus : nombre de requêtes du serveur limité par appel
+    return json(await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }));
   }
   if (path === 'feed' && req.method === 'GET') return feed(req, url);
   if (path === 'archive' && req.method === 'GET') return archive(req, url, await refresh(env, a.raw, vault));
   if (path === 'img' && req.method === 'GET') return image(req, url);
+  if (path === 'fia' && req.method === 'GET') return fia(req, url);
   if (path === 'publish' && req.method === 'POST') {
-    if (!vault.meta?.pageToken) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
+    if (!vault.meta?.pageToken && !vault.bluesky) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
     return publish(req, env, a.raw, vault);
   }
+  // Alertes des grosses news sur le téléphone (abonnements, dernières alertes)
+  const pushed = await pushApi(path, req, env);
+  if (pushed) return pushed;
   return json({ error: 'Introuvable' }, 404);
 }

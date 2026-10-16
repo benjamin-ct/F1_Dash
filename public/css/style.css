@@ -2318,6 +2318,11 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .posts-item figcaption span { flex-basis: 100%; font-weight: 600; }
 .posts-caps { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; }
 .posts-cap { width: 100%; resize: vertical; font: 13px/1.45 var(--font, inherit); background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; box-sizing: border-box; }
+/* Statistiques des posts */
+.posts-stats-fol { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.posts-stats-fol > div { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; display: flex; flex-direction: column; }
+.posts-stats-fol b { font-size: 20px; }
+.posts-stats-post { border-top: 1px solid var(--border); padding: 10px 0; display: grid; gap: 3px; }
 /* Posts « news » : choix de la nouvelle, titre et résumé modifiables */
 .posts-news-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 10px; }
 .posts-news-sel { flex: 1 1 320px; min-width: 0; max-width: 100%; }

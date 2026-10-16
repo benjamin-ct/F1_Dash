@@ -18,6 +18,7 @@ export function studioVault(c = getConfig()) {
   const f1tv = c.f1tvToken && !tokenInfo(c.f1tvToken).expired ? c.f1tvToken : null;
   return {
     meta: s.meta?.pageToken ? { pageId: s.meta.pageId, pageName: s.meta.pageName, pageToken: s.meta.pageToken, igId: s.meta.igId, igUsername: s.meta.igUsername } : null,
+    bluesky: s.bluesky?.appPassword ? { handle: s.bluesky.handle, appPassword: s.bluesky.appPassword, did: s.bluesky.did || '' } : null,
     threads: s.threads?.token ? { token: s.threads.token, userId: s.threads.userId, username: s.threads.username, expiresAt: s.threads.expiresAt || null } : null,
     f1tv,
     f1tvOff: !c.f1tvToken,   // F1 TV déconnecté dans l'appli (et pas seulement expiré, appli fermée)
@@ -70,6 +71,19 @@ export async function syncStudio({ force = false, fetchFn } = {}) {
     saveConfig({ studio: { ...st, error: err.status === 401 || err.status === 409 ? 'Page à réactiver (code changé ou données effacées)' : err.message } });
     return false;
   }
+}
+
+// Requête authentifiée vers la page web (si activée) ; null si désactivée ou injoignable
+export async function studioCall(path, { body, fetchFn = fetch } = {}) {
+  const st = getConfig().studio;
+  if (!st?.key || !creatorEnabled()) return null;
+  try {
+    const res = await fetchFn(`${STUDIO_URL}/studio/api/${path}`, {
+      method: body ? 'POST' : 'GET', headers: { 'X-Studio-Key': st.key, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(15000),
+    });
+    return res.ok ? await res.json() : null;
+  } catch { return null; }
 }
 
 export function startStudioSync() {

@@ -105,7 +105,7 @@ test('page du créateur : coffre chiffré, sans le code rien n\'est lisible', as
       const r = await worker('https://s.test/studio/api/publish', { method: 'POST', body: form, headers: { 'X-Studio-Key': studioKey(CODE) } });
       return (await r.text()).trim().split('\n').map((l) => JSON.parse(l)).at(-1);
     };
-    assert.deepEqual(await send(), { done: true, url: 'https://www.facebook.com/p1_42', comment: true, commentError: null });
+    assert.deepEqual(await send(), { done: true, url: 'https://www.facebook.com/p1_42', id: 'p1_42', comment: true, commentError: null });
     // Commentaire refusé (permission manquante) : le post est publié quand même, avec la raison
     refuse = true;
     const r2 = await send();
@@ -148,4 +148,42 @@ test('page du créateur : connexion F1 TV renouvelée par le serveur (appli ferm
   assert.equal(await freshF1tv(next, { now, fetchFn }), next);
   assert.equal(asked, null);
   assert.equal(await freshF1tv(old, { now, fetchFn: async () => new Response('{}', { status: 401 }) }), old);
+});
+
+test('page du créateur : journal des publications partagé et news déjà publiées reconnues', async () => {
+  const { addEntry, postedEntry, mergeHistory } = await import('../shared/post-history.js');
+  const key = studioKey('TEST');
+  const h = { 'X-Studio-Key': key };
+  const now = Date.now();
+  const entry = { key: 'news:1', at: now, kind: 'news', title: 'Haas engage Câmara', srcTitle: 'Haas sign Ferrari junior Rafael Camara for 2027', link: 'https://f1.test/a', nets: { instagram: { id: '17', url: 'https://www.instagram.com/p/x' } } };
+  await worker('https://s.test/studio/api/history', { method: 'POST', headers: h, body: JSON.stringify({ entry }) });
+  // Même publication complétée par un autre réseau : une seule entrée
+  const r = await (await worker('https://s.test/studio/api/history', { method: 'POST', headers: h, body: JSON.stringify({ entry: { ...entry, nets: { bluesky: { id: { uri: 'at://x', cid: 'c' }, url: 'https://bsky.app/profile/a/post/b' } } } }) })).json();
+  assert.equal(r.items.length, 1);
+  assert.deepEqual(Object.keys(r.items[0].nets).sort(), ['bluesky', 'instagram']);
+  const list = r.items;
+  // Même sujet, autre média et autre langue ; autre sujet ; trop ancien
+  assert.ok(postedEntry({ title: "Rafael Câmara s'engage avec Haas pour 2027", t: now, link: 'https://l.test/b' }, list));
+  assert.equal(postedEntry({ title: 'Mekies extends Red Bull contract', t: now }, list), null);
+  assert.equal(postedEntry({ title: 'Câmara joins Haas', t: now + 5 * 86400e3 }, list), null);
+  assert.ok(postedEntry({ title: 'Autre titre', t: now, link: 'https://f1.test/a' }, list));
+  // Entrée invalide ignorée ; fusion appli + page web sans doublon
+  assert.equal(addEntry(list, { key: 'x', nets: {} }).length, 1);
+  assert.equal(mergeHistory(list, list, [{ ...entry, key: 'news:2' }]).length, 2);
+});
+
+test('page du créateur : relais des documents de la FIA limité aux pages F1 et aux PDF des commissaires', async () => {
+  const fia = (p) => worker(`https://s.test/studio/api/fia?p=${encodeURIComponent(p)}`, { headers: { 'X-Studio-Key': studioKey('TEST') } });
+  for (const bad of ['/user/login', '/documents/championships/fia-formula-e-world-championship-1', '/system/files/decision-document/../x.pdf', 'https://evil.example/x.pdf']) {
+    assert.equal((await fia(bad)).status, 400, bad);
+  }
+  const real = globalThis.fetch;
+  const asked = [];
+  globalThis.fetch = async (u) => { asked.push(String(u)); return new Response('%PDF-1.7', { headers: { 'Content-Type': 'application/pdf' } }); };
+  try {
+    const r = await fia('/system/files/decision-document/2026_azerbaijan_grand_prix_-_final_starting_grid.pdf');
+    assert.equal(r.status, 200);
+    assert.equal((await fia('/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Azerbaijan%20Grand%20Prix')).status, 200);
+  } finally { globalThis.fetch = real; }
+  assert.deepEqual(asked, ['https://www.fia.com/system/files/decision-document/2026_azerbaijan_grand_prix_-_final_starting_grid.pdf', 'https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Azerbaijan%20Grand%20Prix']);
 });
