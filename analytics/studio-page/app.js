@@ -188,7 +188,7 @@ async function newsEditor(it) {
       <p class="small muted">${esc(it.srcName)} · il y a ${ago(it.t)} · <a class="muted" href="${esc(it.link)}" target="_blank" rel="noopener">lire l'article</a></p>
       <label>Titre</label><input type="text" id="ntitle" maxlength="160" value="${esc(d.title)}">
       <label>Résumé</label><textarea id="nsum" rows="4" maxlength="400">${esc(d.summary)}</textarea>
-      <label class="check"><input type="checkbox" id="linkcomment" ${state.linkComment ? 'checked' : ''}> Lien de l'article en premier commentaire (Facebook, Threads, X)</label>
+      <label class="check"><input type="checkbox" id="linkcomment" ${state.linkComment ? 'checked' : ''}> Lien de l'article en premier commentaire (Facebook, Threads, Bluesky, X)</label>
       <p class="note">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
     data: () => d,
     caps: () => newsCaptions(d, SIG, { linkInComment: state.linkComment }),
@@ -300,13 +300,14 @@ function editor({ back, head, data, caps, bind }) {
       ${c.facebook ? `<label>Texte Facebook (avec le lien de l'article)</label><textarea id="cap-facebook" rows="8">${esc(c.facebook)}</textarea>` : ''}
       <label>Texte Threads (500 caractères max.)</label><textarea id="cap-threads" rows="4" maxlength="500">${esc(c.threads)}</textarea>
       <label>Texte X (280 caractères max., lien = 23)</label><textarea id="cap-x" rows="3">${esc(c.x)}</textarea>
-      ${c.comment ? `<label>Premier commentaire (Facebook, Threads ; X : à coller en réponse)</label><textarea id="cap-comment" rows="2">${esc(c.comment)}</textarea>
+      <label>Texte Bluesky (300 caractères max.)</label><textarea id="cap-bsky" rows="3">${esc(c.bsky || c.x)}</textarea>
+      ${c.comment ? `<label>Premier commentaire (Facebook, Threads, Bluesky ; X : à coller en réponse)</label><textarea id="cap-comment" rows="2">${esc(c.comment)}</textarea>
         <div class="row"><button id="copycomment">Copier le commentaire</button></div>` : ''}
       <hr>
-      <div class="nets">${[['instagram', 'Instagram', me.instagram], ['facebook', 'Facebook', me.facebook], ['threads', 'Threads', me.threads]].map(([k, v, acc]) => `<label class="check"><input type="checkbox" data-net="${k}" ${acc ? 'checked' : 'disabled'}> <b>${v}</b> <span class="muted small">${esc(acc || 'non connecté')}</span><span class="st" data-st="${k}"></span></label>`).join('')}</div>
-      <p class="small muted">Instagram, Facebook et Threads reçoivent les visuels au format Instagram. Pour X, TikTok ou une story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.</p>
+      <div class="nets">${[['instagram', 'Instagram', me.instagram], ['facebook', 'Facebook', me.facebook], ['threads', 'Threads', me.threads], ['bluesky', 'Bluesky', me.bluesky]].map(([k, v, acc]) => `<label class="check"><input type="checkbox" data-net="${k}" ${acc ? 'checked' : 'disabled'}> <b>${v}</b> <span class="muted small">${esc(acc || 'non connecté')}</span><span class="st" data-st="${k}"></span></label>`).join('')}</div>
+      <p class="small muted">Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. Pour X, TikTok ou une story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.</p>
       <div class="row sticky"><button class="accent" id="go">Publier…</button><button id="share">Partager</button><button id="dl">Télécharger</button></div>`;
-    for (const k of ['instagram', 'facebook', 'threads', 'x', 'comment'].filter((x) => $(`#cap-${x}`))) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
+    for (const k of ['instagram', 'facebook', 'threads', 'x', 'bsky', 'comment'].filter((x) => $(`#cap-${x}`))) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
     const o = await assets(d);
     canvases = [...main.querySelectorAll('canvas')];
     for (const cv of canvases) drawSlide(cv, cv.dataset.slide, state.fmt, d, o);
@@ -347,11 +348,14 @@ async function download(canvases) {
 async function publishAll(d, o, slides) {
   const nets = [...app.querySelectorAll('[data-net]:checked')].map((i) => i.dataset.net);
   if (!nets.length) { alert('Cochez au moins un réseau'); return; }
-  const names = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads' };
+  const names = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', bluesky: 'Bluesky' };
   if (!confirm(`Publier maintenant sur : ${nets.map((n) => names[n]).join(', ')} ?\n\nLes posts seront publics.`)) return;
   const go = $('#go');
   go.disabled = true;
   const blobs = await Promise.all(slides.map((sl) => toBlob(drawSlide(document.createElement('canvas'), sl, 'ig', d, o), 'image/jpeg', 0.92)));
+  // Bluesky : 4 visuels au format X, moins de 1 Mo chacun
+  const small = async (cv) => { let b = null; for (const q of [0.92, 0.85, 0.75, 0.6, 0.45]) { b = await toBlob(cv, 'image/jpeg', q); if (b.size <= 950 * 1024) break; } return b; };
+  const bsky = nets.includes('bluesky') ? await Promise.all(slides.slice(0, 4).map((sl) => small(drawSlide(document.createElement('canvas'), sl, 'x', d, o)))) : [];
   for (const n of nets) {
     const st = $(`[data-st="${n}"]`);
     st.className = 'st';
@@ -361,8 +365,8 @@ async function publishAll(d, o, slides) {
     try {
       const form = new FormData();
       form.append('network', n);
-      form.append('text', $(`#cap-${n === 'threads' ? 'threads' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value);
-      blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
+      form.append('text', $(`#cap-${n === 'threads' ? 'threads' : n === 'bluesky' ? 'bsky' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value);
+      (n === 'bluesky' ? bsky : blobs).forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
       if (n !== 'instagram' && $('#cap-comment')?.value.trim()) form.append('comment', $('#cap-comment').value.trim());
       const res = await api('publish', { method: 'POST', body: form, raw: true });
       const reader = res.body.getReader();
@@ -395,7 +399,7 @@ async function publishAll(d, o, slides) {
 
 // ---------- Accueil ----------
 function home() {
-  const acc = [me.instagram && `Instagram ${me.instagram}`, me.facebook && `Facebook ${me.facebook}`, me.threads && `Threads ${me.threads}`].filter(Boolean).join(' · ');
+  const acc = [me.instagram && `Instagram ${me.instagram}`, me.facebook && `Facebook ${me.facebook}`, me.threads && `Threads ${me.threads}`, me.bluesky && `Bluesky ${me.bluesky}`].filter(Boolean).join(' · ');
   app.innerHTML = `<div class="top"><h1>Paddock <b>Studio</b></h1><span class="spacer"></span><button id="out">Quitter</button></div>
     <p class="small muted">${esc(acc || 'Aucun compte : activez la page depuis l\'appli (Posts → Publier… → Comptes…)')}</p>
     <div class="seg"><button data-tab="news" class="${state.tab === 'news' ? 'on' : ''}">News</button><button data-tab="sessions" class="${state.tab === 'sessions' ? 'on' : ''}">Séances</button></div>

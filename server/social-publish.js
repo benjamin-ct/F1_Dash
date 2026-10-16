@@ -4,11 +4,12 @@
 import crypto from 'node:crypto';
 import { getConfig, saveConfig } from './config.js';
 import { xLength } from '../shared/social.js';
+import { bskySession, publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { call, GRAPH, THREADS, timing, publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
 
 const XAPI = 'https://api.x.com/2';
 const TIKTOK = 'https://open.tiktokapis.com/v2';
-export const NETWORKS = ['x', 'facebook', 'instagram', 'threads', 'tiktok'];
+export const NETWORKS = ['x', 'facebook', 'instagram', 'threads', 'bluesky', 'tiktok'];
 
 const conf = () => getConfig().social || {};
 const save = (net, v) => saveConfig({ social: { ...conf(), [net]: v } });
@@ -22,6 +23,7 @@ export function accountsInfo() {
     facebook: { connected: !!c.meta?.pageToken, name: c.meta?.pageName || '' },
     instagram: { connected: !!c.meta?.igId, name: c.meta?.igUsername ? `@${c.meta.igUsername}` : '' },
     threads: { connected: !!c.threads?.token, name: c.threads?.username ? `@${c.threads.username}` : '', expiresAt: c.threads?.expiresAt || null },
+    bluesky: { connected: !!c.bluesky?.appPassword, name: c.bluesky?.handle ? `@${String(c.bluesky.handle).replace(/^@/, '')}` : '' },
     tiktok: { connected: !!c.tiktok?.refreshToken, name: c.tiktok?.name || '', configured: !!c.tiktok?.clientKey },
   };
 }
@@ -57,6 +59,11 @@ export async function saveAccount(net, b) {
     try { long = await call(`https://graph.threads.net/access_token?${new URLSearchParams({ grant_type: 'th_exchange_token', client_secret: appSecret, access_token: token })}`); } catch { /* déjà un jeton longue durée */ }
     const me = await call(`${THREADS}/me?${new URLSearchParams({ fields: 'id,username', access_token: long.access_token })}`);
     save('threads', { appSecret, token: long.access_token, expiresAt: long.expires_in ? Date.now() + long.expires_in * 1000 : null, userId: me.id, username: me.username || '' });
+  } else if (net === 'bluesky') {
+    const handle = str(b.handle, 120).replace(/^@/, ''); const appPassword = str(b.appPassword, 100);
+    if (!handle || !appPassword) throw new Error('Identifiant et mot de passe d\'application nécessaires');
+    const s = await bskySession({ handle, appPassword });   // vérification
+    save('bluesky', { handle: s.handle || handle, appPassword, did: s.did });
   } else if (net === 'tiktok') {
     const clientKey = str(b.clientKey); const clientSecret = str(b.clientSecret);
     if (!clientKey || !clientSecret) throw new Error('Client key et client secret nécessaires');
@@ -166,13 +173,19 @@ async function publishTiktok(video, mime) {
 
 // ---------- Publication ----------
 export async function publish(net, { text = '', images = [], video = null, mime = 'video/mp4', comment = '' }) {
-  const imgs = images.map((b) => Buffer.from(String(b), 'base64')).filter((b) => b.length > 8 && b.readUInt32BE(0) === 0x89504e47);
+  // Images PNG (ou JPEG pour Bluesky, 1 Mo au plus par image)
+  const imgs = images.map((b) => Buffer.from(String(b), 'base64')).filter((b) => b.length > 8 && (b.readUInt32BE(0) === 0x89504e47 || (net === 'bluesky' && b[0] === 0xff && b[1] === 0xd8)));
   const body = String(text || '');
   // Premier commentaire (lien de l'article d'une news) : X, Facebook, Threads
   const note = String(comment || '').trim().slice(0, 500);
   if (net === 'x') return withComment(() => publishX(xLength(body) > 280 ? body.slice(0, 280) : body, imgs), note, replyX);
   if (net === 'facebook') return withComment(() => publishFacebook(conf().meta, body, blobs(imgs)), note, (id, t) => commentFacebook(conf().meta, id, t));
   if (net === 'instagram') return publishInstagram(conf().meta, body.slice(0, 2200), blobs(imgs));
+  if (net === 'bluesky') {
+    const acc = conf().bluesky;
+    const pics = imgs.map((b) => ({ blob: new Blob([b], { type: b[0] === 0xff ? 'image/jpeg' : 'image/png' }), width: 1600, height: 900 }));
+    return withComment(() => publishBluesky(acc, [...body].slice(0, 300).join(''), pics), note, (id, t) => replyBluesky(acc, id, t));
+  }
   if (net === 'threads') {
     const th = await threadsAccount();
     return withComment(() => publishThreads(th, conf().meta, body.slice(0, 500), blobs(imgs)), note, (id, t) => replyThreads(th, id, t));

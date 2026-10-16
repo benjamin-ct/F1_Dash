@@ -201,5 +201,6 @@ export function captions(d, signature = '', { spoiler = true } = {}) {
   // Threads affiche tout le texte : sans spoiler, seulement l'accroche
   let threads = spoiler ? `${head}\n\n${podium}${sig}\n\n${tags.threads.join(' ')}` : `${short}${sig}\n\n${tags.threads.join(' ')}`;
   if (threads.length > 500) threads = `${spoiler ? head : short}\n\n${tags.threads.join(' ')}`.slice(0, 500);
-  return { instagram, x, threads, story: spoiler ? head : short };
+  // Bluesky : même texte que X (300 caractères, pas de lien dans les posts des séances)
+  return { instagram, x, bsky: x, threads, story: spoiler ? head : short };
 }

@@ -11,6 +11,7 @@ const NETS = [
   { id: 'facebook', name: 'Facebook', what: 'Post sur la page avec les visuels' },
   { id: 'threads', name: 'Threads', what: 'Carrousel des visuels' },
   { id: 'x', name: 'X', what: '4 visuels au format X' },
+  { id: 'bluesky', name: 'Bluesky', what: '4 visuels au format X (gratuit)' },
   { id: 'tiktok', name: 'TikTok', what: 'Vidéo en brouillon : vous ajoutez le son et publiez dans l\'appli TikTok' },
 ];
 
@@ -22,6 +23,15 @@ const api = async (path, body) => {
 };
 const b64 = (blob) => new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(',')[1]); r.readAsDataURL(blob); });
 const png = async (canvas) => b64(await new Promise((r) => canvas.toBlob(r, 'image/png')));
+// JPEG de moins de 1 Mo (limite de Bluesky) : qualité baissée si besoin
+async function jpegUnder(canvas, max = 950 * 1024) {
+  let blob = null;
+  for (const q of [0.92, 0.85, 0.75, 0.6, 0.45]) {
+    blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', q));
+    if (blob.size <= max) break;
+  }
+  return b64(blob);
+}
 
 let video = null;   // { blob, mime, url }
 const KEYS_NOTE = "Les clés restent sur cet ordinateur (fichier de configuration de l'application) et ne sont jamais incluses dans une sauvegarde des réglages.";
@@ -40,6 +50,8 @@ const HELP = {
   threads: ['Dans l\'app Meta, ajoutez le cas d\'usage « Accéder à l\'API Threads » (threads_basic, threads_content_publish, threads_manage_replies).',
     'Ajoutez votre compte Threads comme testeur, puis acceptez l\'invitation dans Threads (Paramètres → Compte → Autorisations du site web).',
     'Copiez la clé secrète Threads de l\'app et générez un jeton avec « User Token Generator ». Il est prolongé automatiquement.'],
+  bluesky: ['Gratuit : dans Bluesky, Paramètres → Confidentialité et sécurité → Mots de passe d\'application → « Ajouter un mot de passe d\'application ».',
+    'Collez ici votre identifiant (ex. benjypaddock.bsky.social) et ce mot de passe d\'application (jamais votre mot de passe principal).'],
   tiktok: ['developers.tiktok.com → Manage apps : créez une app avec Login Kit (plateforme Desktop) et Content Posting API.',
     'Login Kit : ajoutez l\'adresse de redirection {}.',
     'Autorisations user.info.basic et video.upload ; ajoutez votre compte TikTok comme utilisateur de test (sandbox).',
@@ -49,9 +61,10 @@ const FIELDS = {
   x: [['apiKey', 'API Key'], ['apiSecret', 'API Key Secret'], ['accessToken', 'Access Token'], ['accessSecret', 'Access Token Secret']],
   meta: [['appId', 'Identifiant de l\'app'], ['appSecret', 'Clé secrète de l\'app'], ['userToken', 'Jeton d\'accès (Explorateur de l\'API Graph)']],
   threads: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
+  bluesky: [['handle', 'Identifiant Bluesky'], ['appPassword', 'Mot de passe d\'application']],
   tiktok: [['clientKey', 'Client key'], ['clientSecret', 'Client secret']],
 };
-const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', tiktok: 'TikTok' };
+const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', bluesky: 'Bluesky', tiktok: 'TikTok' };
 
 async function accountsDialog(onChange) {
   let dlg = $('#socialAccDlg');
@@ -162,7 +175,8 @@ export async function openPublish({ d, caps, render, folder }) {
         ${caps.facebook ? `<label class="small muted">${t("Texte Facebook (avec le lien de l'article)")}<textarea rows="6" data-txt="facebook">${esc(caps.facebook)}</textarea></label>` : ''}
         <label class="small muted">${t('Texte Threads (500 caractères max.)')}<textarea rows="3" data-txt="threads" maxlength="500">${esc(caps.threads)}</textarea></label>
         <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x">${esc(caps.x)}</textarea></label>
-        ${caps.comment ? `<label class="small muted">${t('Premier commentaire (Facebook, Threads, X)')}<textarea rows="2" data-txt="comment">${esc(caps.comment)}</textarea></label>` : ''}
+        <label class="small muted">${t('Texte Bluesky (300 caractères max.)')}<textarea rows="3" data-txt="bsky">${esc(caps.bsky || caps.x)}</textarea></label>
+        ${caps.comment ? `<label class="small muted">${t('Premier commentaire (Facebook, Threads, X, Bluesky)')}<textarea rows="2" data-txt="comment">${esc(caps.comment)}</textarea></label>` : ''}
         <fieldset class="posts-video"><legend class="small">${t('Vidéo TikTok')}</legend>
           <div class="row small">
             <label class="toggle"><input type="radio" name="pmusic" value="gen" checked> ${t('Musique générée (libre de droits)')}</label>
@@ -211,7 +225,7 @@ export async function openPublish({ d, caps, render, folder }) {
         if (!window.confirm(`${t('Publier maintenant sur : {} ?', nets.map((n) => NETS.find((x) => x.id === n).name).join(', '))}\n\n${t(PUBLIC_NOTE)}`)) return;
         btn.disabled = true;
         const txt = (k) => $(`[data-txt="${k}"]`, dlg).value;
-        let ig = null; let xs = null;
+        let ig = null; let xs = null; let bs = null;
         for (const n of nets) {
           const st = $(`[data-st="${n}"]`, dlg);
           st.className = 'posts-st small'; st.textContent = t('Envoi…');
@@ -223,6 +237,9 @@ export async function openPublish({ d, caps, render, folder }) {
             if (n === 'tiktok') {
               if (!video) await buildVideo();
               body = { network: n, video: await b64(video.blob), mime: video.mime };
+            } else if (n === 'bluesky') {
+              bs ||= await Promise.all((await render('x')).slice(0, 4).map((c) => jpegUnder(c)));
+              body = { network: n, text: txt('bsky'), images: bs, comment: caps.comment ? txt('comment') : '' };
             } else if (n === 'x') {
               xs ||= await Promise.all((await render('x')).slice(0, 4).map(png));
               body = { network: n, text: txt('x'), images: xs, comment: caps.comment ? txt('comment') : '' };

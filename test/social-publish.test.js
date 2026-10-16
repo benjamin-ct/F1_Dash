@@ -116,3 +116,38 @@ test('Threads et Instagram : image refusée par le réseau, message clair', asyn
     globalThis.fetch = realFetch;
   }
 });
+
+test('Bluesky : images, liens et hashtags cliquables, lien de l\'article en réponse', async () => {
+  const realFetch = globalThis.fetch;
+  const records = [];
+  const uploads = [];
+  globalThis.fetch = async (url, opts = {}) => {
+    const m = String(url).split('/xrpc/')[1];
+    const ok = (d) => ({ ok: true, status: 200, json: async () => d });
+    if (m === 'com.atproto.server.createSession') {
+      const b = JSON.parse(opts.body);
+      if (b.password !== 'mdp-app') return { ok: false, status: 401, json: async () => ({ error: 'AuthenticationRequired', message: 'Invalid identifier or password' }) };
+      return ok({ accessJwt: 'jwt', did: 'did:plc:moi', handle: 'moi.bsky.social' });
+    }
+    if (m === 'com.atproto.repo.uploadBlob') { uploads.push(opts.headers['Content-Type']); return ok({ blob: { $type: 'blob', ref: { $link: `b${uploads.length}` }, mimeType: 'image/jpeg', size: 10 } }); }
+    if (m === 'com.atproto.repo.createRecord') { const b = JSON.parse(opts.body); records.push(b.record); return ok({ uri: `at://did:plc:moi/app.bsky.feed.post/r${records.length}`, cid: `c${records.length}` }); }
+    return { ok: false, status: 404, json: async () => ({}) };
+  };
+  try {
+    await assert.rejects(saveAccount('bluesky', { handle: 'moi.bsky.social', appPassword: 'faux' }), /Invalid identifier/);
+    await saveAccount('bluesky', { handle: '@moi.bsky.social', appPassword: 'mdp-app' });
+    assert.equal(accountsInfo().bluesky.name, '@moi.bsky.social');
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5]).toString('base64');
+    const r = await publish('bluesky', { text: 'TRANSFERT | Titre #F1 #BenjyPaddock', images: [jpeg, jpeg], comment: "Lire l'article : https://a.test/x" });
+    assert.equal(r.url, 'https://bsky.app/profile/moi.bsky.social/post/r1');
+    assert.equal(r.comment, true);
+    assert.deepEqual(uploads, ['image/jpeg', 'image/jpeg']);
+    assert.equal(records[0].embed.images.length, 2);
+    assert.deepEqual(records[0].embed.images[0].aspectRatio, { width: 1600, height: 900 });
+    assert.deepEqual(records[0].facets.map((f) => f.features[0].tag), ['F1', 'BenjyPaddock']);
+    assert.deepEqual(records[1].reply.parent, { uri: 'at://did:plc:moi/app.bsky.feed.post/r1', cid: 'c1' });
+    assert.equal(records[1].facets[0].features[0].uri, 'https://a.test/x');
+    // Mot de passe jamais renvoyé à l'interface
+    assert.ok(!JSON.stringify(accountsInfo()).includes('mdp-app'));
+  } finally { globalThis.fetch = realFetch; }
+});

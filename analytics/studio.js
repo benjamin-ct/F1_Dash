@@ -8,6 +8,7 @@
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
+import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -69,6 +70,7 @@ function cleanVault(v) {
   const out = { at: Date.now() };
   if (v?.meta?.pageToken) out.meta = { pageId: s(v.meta.pageId, 40), pageName: s(v.meta.pageName, 120), pageToken: s(v.meta.pageToken), igId: s(v.meta.igId, 40), igUsername: s(v.meta.igUsername, 60) };
   if (v?.threads?.token) out.threads = { token: s(v.threads.token), userId: s(v.threads.userId, 40), username: s(v.threads.username, 60), expiresAt: Number(v.threads.expiresAt) || null };
+  if (v?.bluesky?.appPassword) out.bluesky = { handle: s(v.bluesky.handle, 120), appPassword: s(v.bluesky.appPassword, 100), did: s(v.bluesky.did, 120) };
   if (v?.f1tv) out.f1tv = s(v.f1tv, 6000);
   if (v?.f1tvOff === true) out.f1tvOff = true;
   return out;
@@ -181,7 +183,10 @@ async function publish(req, env, raw, vault) {
   const text = String(form.get('text') || '');
   const comment = String(form.get('comment') || '').trim().slice(0, 500);
   const images = form.getAll('images').filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type) && f.size < 8e6).slice(0, 20);
-  if (!['facebook', 'instagram', 'threads'].includes(net)) return json({ error: 'Réseau inconnu' }, 400);
+  if (!['facebook', 'instagram', 'threads', 'bluesky'].includes(net)) return json({ error: 'Réseau inconnu' }, 400);
+  if (net === 'bluesky' && !vault.bluesky) return json({ error: 'Compte Bluesky non envoyé : connectez-le dans l\'appli' }, 409);
+  if (net !== 'bluesky' && !vault.meta?.pageToken) return json({ error: 'Comptes Meta non envoyés : connectez-les dans l\'appli' }, 409);
+  if (net === 'threads' && !vault.threads?.token) return json({ error: 'Compte Threads non envoyé : connectez-le dans l\'appli' }, 409);
   if (!images.length) return json({ error: 'Aucune image' }, 400);
   const { readable, writable } = new TransformStream();
   const w = writable.getWriter();
@@ -190,7 +195,10 @@ async function publish(req, env, raw, vault) {
     try {
       await line({ step: 'Envoi des images…' });
       let r;
-      if (net === 'facebook') r = await withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
+      if (net === 'bluesky') {
+        const pics = images.slice(0, 4).map((blob) => ({ blob, width: 1600, height: 900 }));
+        r = await withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
+      } else if (net === 'facebook') r = await withComment(() => publishFacebook(vault.meta, text, images), comment, (id, t) => commentFacebook(vault.meta, id, t));
       else if (net === 'instagram') r = await publishInstagram(vault.meta, text.slice(0, 2200), images);
       else {
         const th = (await refresh(env, raw, vault)).threads;
@@ -244,7 +252,7 @@ export async function studioApi(req, env, url) {
     vault = await refresh(env, a.raw, vault);
     return json({
       facebook: vault.meta?.pageName || null, instagram: vault.meta?.igId ? `@${vault.meta.igUsername || ''}` : null,
-      threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
+      threads: vault.threads?.token ? `@${vault.threads.username || ''}` : null, bluesky: vault.bluesky ? `@${vault.bluesky.handle}` : null, f1tv: !!vault.f1tv, at: vault.at || null,
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
   }
@@ -252,7 +260,7 @@ export async function studioApi(req, env, url) {
   if (path === 'archive' && req.method === 'GET') return archive(req, url, await refresh(env, a.raw, vault));
   if (path === 'img' && req.method === 'GET') return image(req, url);
   if (path === 'publish' && req.method === 'POST') {
-    if (!vault.meta?.pageToken) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
+    if (!vault.meta?.pageToken && !vault.bluesky) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
     return publish(req, env, a.raw, vault);
   }
   return json({ error: 'Introuvable' }, 404);
