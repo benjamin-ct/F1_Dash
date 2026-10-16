@@ -7,7 +7,7 @@ import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
-import { postData, captions } from '/shared/social.js';
+import { postData, captions, xLength } from '/shared/social.js';
 import { FORMATS, slidesFor, drawSlide, SLIDE_NAMES } from '/shared/social-draw.js';
 import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
 import { openPublish } from './social-publish-view.js';
@@ -179,7 +179,7 @@ async function render(dlg, keepHead = false) {
   for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
   const count = $('[data-count]', body);
   const area = $('.posts-cap', body);
-  const upd = () => { if (count) count.textContent = t('{} / 280 caractères', area.value.length); };
+  const upd = () => { if (count) count.textContent = t('{} / 280 caractères', xLength(area.value)); };
   area?.addEventListener('input', upd); upd();
   body.onclick = async (e) => {
     const b = e.target.closest('button');

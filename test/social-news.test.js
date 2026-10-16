@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { bigNews, newsKind, newsPost, newsCaptions, shortSummary } from '../shared/social-news.js';
 import { slidesFor } from '../shared/social-draw.js';
+import { xLength } from '../shared/social.js';
 
 const NOW = Date.UTC(2026, 9, 16, 12);
 const H = 3600e3;
@@ -45,6 +46,16 @@ test('posts news : données du post et légendes', () => {
   assert.match(c.instagram, /^TRANSFERT \| Norris prolonge avec McLaren\n\nPremière phrase\./);
   assert.match(c.instagram, /Source : Autosport \(repris par 3 autres médias\)/);
   assert.match(c.instagram, /#LandoNorris #McLaren/);
-  assert.ok(c.x.length <= 280 && c.threads.length <= 500);
+  assert.ok(xLength(c.x) <= 280 && c.threads.length <= 500);
+  // Lien de l'article : Facebook, Threads et X, pas Instagram (non cliquable)
+  for (const k of ['facebook', 'threads', 'x']) assert.ok(c[k].includes('https://x.test/a'), k);
+  assert.ok(!c.instagram.includes('https://x.test/a'));
+  assert.match(c.facebook, /Source : Autosport \(repris par 3 autres médias\)\nLire l'article : https:\/\/x\.test\/a/);
+  // Titre très long et lien très long : X tient en 280 (lien compté 23), lien gardé
+  const long = newsCaptions({ ...d, title: 'Très long titre '.repeat(30), link: `https://x.test/${'a'.repeat(200)}` }, '@moi');
+  assert.ok(xLength(long.x) <= 280, String(xLength(long.x)));
+  assert.ok(long.x.includes('a'.repeat(200)));
+  assert.ok(long.threads.length <= 500 && long.threads.includes('a'.repeat(200)));
+  assert.equal(xLength('Voir https://exemple.test/un/lien/tres/long/vraiment'), 28);
   assert.equal(shortSummary('Court.'), 'Court.');
 });

@@ -294,14 +294,15 @@ function editor({ back, head, data, caps, bind }) {
     const slides = slidesFor(d);
     const main = $('#main');
     main.innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<canvas data-slide="${sl}" title="${esc(SLIDE_NAMES[sl] || sl)}"></canvas>`).join('')}</div>
-      <label>Légende Instagram / Facebook</label><textarea id="cap-instagram" rows="8">${esc(c.instagram)}</textarea>
+      <label>${c.facebook ? 'Légende Instagram' : 'Légende Instagram / Facebook'}</label><textarea id="cap-instagram" rows="8">${esc(c.instagram)}</textarea>
+      ${c.facebook ? `<label>Texte Facebook (avec le lien de l'article)</label><textarea id="cap-facebook" rows="8">${esc(c.facebook)}</textarea>` : ''}
       <label>Texte Threads (500 caractères max.)</label><textarea id="cap-threads" rows="4" maxlength="500">${esc(c.threads)}</textarea>
-      <label>Texte X (280 caractères max.)</label><textarea id="cap-x" rows="3" maxlength="280">${esc(c.x)}</textarea>
+      <label>Texte X (280 caractères max., lien = 23)</label><textarea id="cap-x" rows="3">${esc(c.x)}</textarea>
       <hr>
       <div class="nets">${[['instagram', 'Instagram', me.instagram], ['facebook', 'Facebook', me.facebook], ['threads', 'Threads', me.threads]].map(([k, v, acc]) => `<label class="check"><input type="checkbox" data-net="${k}" ${acc ? 'checked' : 'disabled'}> <b>${v}</b> <span class="muted small">${esc(acc || 'non connecté')}</span><span class="st" data-st="${k}"></span></label>`).join('')}</div>
       <p class="small muted">Instagram, Facebook et Threads reçoivent les visuels au format Instagram. Pour X, TikTok ou une story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.</p>
       <div class="row sticky"><button class="accent" id="go">Publier…</button><button id="share">Partager</button><button id="dl">Télécharger</button></div>`;
-    for (const k of ['instagram', 'threads', 'x']) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
+    for (const k of ['instagram', 'facebook', 'threads', 'x'].filter((x) => $(`#cap-${x}`))) $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; };
     const o = await assets(d);
     canvases = [...main.querySelectorAll('canvas')];
     for (const cv of canvases) drawSlide(cv, cv.dataset.slide, state.fmt, d, o);
@@ -355,7 +356,7 @@ async function publishAll(d, o, slides) {
     try {
       const form = new FormData();
       form.append('network', n);
-      form.append('text', $(`#cap-${n === 'threads' ? 'threads' : 'instagram'}`).value);
+      form.append('text', $(`#cap-${n === 'threads' ? 'threads' : n === 'facebook' && $('#cap-facebook') ? 'facebook' : 'instagram'}`).value);
       blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
       const res = await api('publish', { method: 'POST', body: form, raw: true });
       const reader = res.body.getReader();

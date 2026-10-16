@@ -1540,6 +1540,8 @@ export default {
   "utilisation de l'échappatoire": "use of the escape road",
   "Vainqueur": "Winner",
   "Couverture": "Cover",
+  "Texte Instagram": "Instagram text",
+  "Texte Facebook (avec le lien de l'article)": "Facebook text (with the article link)",
   "Page web (téléphone)": "Web page (phone)",
   "Activée": "On",
   "Désactivée": "Off",

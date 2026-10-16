@@ -3,6 +3,7 @@
 // (jamais dans une sauvegarde des réglages) ; l'interface n'en voit que le nom du compte.
 import crypto from 'node:crypto';
 import { getConfig, saveConfig } from './config.js';
+import { xLength } from '../shared/social.js';
 import { call, GRAPH, THREADS, timing, publishFacebook, publishInstagram, publishThreads, freshThreads } from '../shared/meta-publish.js';
 
 const XAPI = 'https://api.x.com/2';
@@ -161,7 +162,7 @@ async function publishTiktok(video, mime) {
 export async function publish(net, { text = '', images = [], video = null, mime = 'video/mp4' }) {
   const imgs = images.map((b) => Buffer.from(String(b), 'base64')).filter((b) => b.length > 8 && b.readUInt32BE(0) === 0x89504e47);
   const body = String(text || '');
-  if (net === 'x') return publishX(body.slice(0, 280), imgs);
+  if (net === 'x') return publishX(xLength(body) > 280 ? body.slice(0, 280) : body, imgs);
   if (net === 'facebook') return publishFacebook(conf().meta, body, blobs(imgs));
   if (net === 'instagram') return publishInstagram(conf().meta, body.slice(0, 2200), blobs(imgs));
   if (net === 'threads') return publishThreads(await threadsAccount(), conf().meta, body.slice(0, 500), blobs(imgs));

@@ -158,9 +158,10 @@ export async function openPublish({ d, caps, render, folder }) {
           <span><b>${n.name}</b> <span class="small muted">${esc(info[n.id]?.connected ? info[n.id].name || t('Connecté') : t('Non connecté'))}</span><br><span class="small muted">${esc(t(n.what))}</span></span>
           <span class="posts-st small" data-st="${n.id}"></span></label>`).join('')}</div>
         <button class="btn small" data-acc>${icon('lock')} ${t('Comptes…')}</button>
-        <label class="small muted">${t('Texte Instagram / Facebook')}<textarea rows="6" data-txt="instagram">${esc(caps.instagram)}</textarea></label>
+        <label class="small muted">${t(caps.facebook ? 'Texte Instagram' : 'Texte Instagram / Facebook')}<textarea rows="6" data-txt="instagram">${esc(caps.instagram)}</textarea></label>
+        ${caps.facebook ? `<label class="small muted">${t("Texte Facebook (avec le lien de l'article)")}<textarea rows="6" data-txt="facebook">${esc(caps.facebook)}</textarea></label>` : ''}
         <label class="small muted">${t('Texte Threads (500 caractères max.)')}<textarea rows="3" data-txt="threads" maxlength="500">${esc(caps.threads)}</textarea></label>
-        <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x" maxlength="280">${esc(caps.x)}</textarea></label>
+        <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x">${esc(caps.x)}</textarea></label>
         <fieldset class="posts-video"><legend class="small">${t('Vidéo TikTok')}</legend>
           <div class="row small">
             <label class="toggle"><input type="radio" name="pmusic" value="gen" checked> ${t('Musique générée (libre de droits)')}</label>
@@ -226,7 +227,7 @@ export async function openPublish({ d, caps, render, folder }) {
               body = { network: n, text: txt('x'), images: xs };
             } else {
               ig ||= await Promise.all((await render('ig')).map(png));
-              body = { network: n, text: txt(n === 'threads' ? 'threads' : 'instagram'), images: ig };
+              body = { network: n, text: txt(n === 'threads' ? 'threads' : n === 'facebook' && caps.facebook ? 'facebook' : 'instagram'), images: ig };
             }
             const r = await api('/api/social/publish', body);
             st.className = 'posts-st small ok';

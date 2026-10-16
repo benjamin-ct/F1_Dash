@@ -3,7 +3,7 @@
 // visuels (jamais les photos ni le texte des articles : titre et court résumé traduits, source citée).
 // Code pur, partagé par l'appli et la page web du créateur.
 import { NEWS_DRIVERS, NEWS_TEAMS, fold, newsSimilarity } from './news.js';
-import { hashtag, teamTag, BRAND_TAG } from './social.js';
+import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
 
 // Type de nouvelle, d'après le titre et le résumé (toutes langues des sources, sans accents)
 const KINDS = [
@@ -139,12 +139,21 @@ export function newsCaptions(nd, signature = '') {
   const tags = [BRAND_TAG, '#F1', '#Formula1', '#F1News', '#Formule1', ...people, nd.year ? `#F1${nd.year}` : '']
     .filter((t) => t && t.length > 2 && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase()));
   const head = `${nd.badge.label} | ${nd.title}`;
+  // Lien de l'article : Facebook, Threads et X (pas Instagram, où il n'est pas cliquable)
+  const link = /^https:\/\//.test(nd.link || '') ? nd.link : '';
+  const srcLink = `${src}${link ? `${src ? '\n' : ''}Lire l'article : ${link}` : ''}`;
   const instagram = `${head}\n\n${nd.summary}${src ? `\n\n${src}` : ''}${sig}\n\n${tags.join(' ')}`;
+  const facebook = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n${tags.join(' ')}`;
+  // X : 280 caractères (lien = 23) ; hashtags retirés un à un, puis la ligne de la source, puis le titre raccourci
   const xt = [BRAND_TAG, '#F1', ...people.slice(0, 2)];
-  let x = `${head}${src ? `\n\n${src}` : ''}\n\n${xt.join(' ')}`;
-  while (x.length > 280 && xt.length > 1) { xt.pop(); x = `${head}${src ? `\n\n${src}` : ''}\n\n${xt.join(' ')}`; }
-  if (x.length > 280) x = `${head.slice(0, 270 - xt[0].length)}… ${xt[0]}`;
-  let threads = `${head}\n\n${nd.summary}${src ? `\n\n${src}` : ''}${sig}\n\n#F1 ${BRAND_TAG}`;
-  if (threads.length > 500) threads = `${head}${src ? `\n\n${src}` : ''}\n\n#F1 ${BRAND_TAG}`.slice(0, 500);
-  return { instagram, x, threads, story: head };
+  const xLink = link ? `\n${link}` : '';
+  const build = (withSrc) => `${head}${withSrc && src ? `\n\n${src}` : '\n'}${xLink}\n\n${xt.join(' ')}`;
+  let x = build(true);
+  while (xLength(x) > 280 && xt.length > 1) { xt.pop(); x = build(true); }
+  if (xLength(x) > 280) x = build(false);
+  if (xLength(x) > 280) x = `${head.slice(0, 280 - xLength(`…${xLink}\n\n${xt[0]}`)).trim()}…${xLink}\n\n${xt[0]}`;
+  let threads = `${head}\n\n${nd.summary}${srcLink ? `\n\n${srcLink}` : ''}${sig}\n\n#F1 ${BRAND_TAG}`;
+  if (threads.length > 500) threads = `${head}${srcLink ? `\n\n${srcLink}` : ''}\n\n#F1 ${BRAND_TAG}`;
+  if (threads.length > 500) threads = `${head.slice(0, 500 - (threads.length - head.length) - 1)}…${threads.slice(head.length)}`;
+  return { instagram, facebook, x, threads, story: head };
 }

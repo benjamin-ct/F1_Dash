@@ -20,6 +20,9 @@ export function gapFr(v) {
   return /^\+?\d/.test(s) ? `+${dec(s.replace('+', ''))} s` : s;
 }
 
+// Longueur d'un texte pour X : chaque lien compte pour 23 caractères (raccourci t.co)
+export const xLength = (s) => String(s || '').replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length;
+
 export const hashtag = (s) => `#${String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]/g, '')}`;
 
 export function postData(state) {
