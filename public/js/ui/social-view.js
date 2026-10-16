@@ -228,6 +228,34 @@ async function render(dlg, keepHead = false) {
   dlg.dataset.ready = '1';
 }
 
+// ---------- Statistiques des posts publiés ----------
+const fmtN = (v) => (v == null ? '—' : Number(v).toLocaleString());
+const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', "J'aime"], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
+async function openStats() {
+  let dlg = $('#postsStatsDlg');
+  if (!dlg) {
+    dlg = document.createElement('dialog');
+    dlg.id = 'postsStatsDlg';
+    dlg.className = 'modal posts-pub-dlg';
+    document.body.appendChild(dlg);
+    dlg.addEventListener('click', (e) => { if (e.target === dlg || e.target.closest('[data-close]')) dlg.close(); });
+  }
+  dlg.innerHTML = `<div class="sum-head"><b>${icon('chart')} ${t('Statistiques des posts')}</b><button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button></div>
+    <div class="posts-pub-body"><p class="muted">${t('Lecture des statistiques…')}</p></div>`;
+  if (!dlg.open) dlg.showModal();
+  const body = $('.posts-pub-body', dlg);
+  try {
+    const r = await fetch('/api/social/stats').then((x) => x.json());
+    const f = Object.entries(r.followers || {});
+    body.innerHTML = `${f.length ? `<div class="posts-stats-fol">${f.map(([n, v]) => `<div><b>${fmtN(v)}</b><span class="small muted">${t('abonnés')} ${NET_NAMES[n] || n}</span></div>`).join('')}</div>` : ''}
+      ${(r.posts || []).length ? (r.posts || []).map((p) => `<div class="posts-stats-post">
+        <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span></div>
+        ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${t(l)} <b>${fmtN(s[k])}</b>`).join(' · ') : t('statistiques indisponibles'); return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${NET_NAMES[n] || n}</a>` : NET_NAMES[n] || n} : ${vals}</div>`; }).join('')}
+      </div>`).join('') : `<p class="muted">${t('Aucun post publié depuis Paddock Live pour le moment.')}</p>`}
+      <p class="small muted">${icon('info')} ${t("Statistiques lues chez chaque réseau (X : lecture payante, non utilisée). Pour les vues et la portée, autorisations instagram_manage_insights, read_insights et threads_manage_insights du jeton.")}</p>`;
+  } catch (err) { body.innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
+}
+
 function open() {
   let dlg = $('#postsDlg');
   if (!dlg) {
@@ -243,6 +271,7 @@ function open() {
         <label class="small muted">${t('Signature')} <input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
         <span class="spacer"></span>
         <button class="btn" data-open hidden>${icon('external')} ${t('Ouvrir le dossier')}</button>
+        <button class="btn" data-stats>${icon('chart')} ${t('Statistiques')}</button>
         <button class="btn" data-all>${icon('save')} ${t('Enregistrer toutes les images')}</button>
         <button class="btn btn-accent" data-publish>${icon('megaphone')} ${t('Publier…')}</button>
       </div>
@@ -262,6 +291,7 @@ function open() {
       if (m && m !== mode) { mode = m; sync(); render(dlg); }
       const f = e.target.closest('[data-fmt]')?.dataset.fmt;
       if (f && f !== fmt) { fmt = f; sync(); render(dlg); }
+      if (e.target.closest('[data-stats]')) openStats();
       if (e.target.closest('[data-all]')) { try { await dlg.onSaveAll?.(); } catch (err) { toast(err.message, 5000, 'warning'); } }
       if (e.target.closest('[data-publish]')) { if (dlg.publish) dlg.publish(); else toast(t('Visuels en préparation, réessayez dans un instant'), 3000); }
       if (e.target.closest('[data-open]')) fetch('/api/posts/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: dlg.dataset.folder }) });

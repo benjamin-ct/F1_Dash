@@ -3,6 +3,7 @@
 import { getConfig, saveConfig } from './config.js';
 import { addEntry, mergeHistory } from '../shared/post-history.js';
 import { studioCall } from './studio-sync.js';
+import { postStats } from '../shared/post-stats.js';
 
 export async function postHistory({ fetchFn } = {}) {
   const local = getConfig().postsHistory || [];
@@ -15,4 +16,10 @@ export async function recordPost(entry, { fetchFn } = {}) {
   saveConfig({ postsHistory: list });
   await studioCall('history', { body: { entry }, fetchFn });
   return list;
+}
+
+// Statistiques des posts avec les comptes de cet ordinateur
+export async function statsOfPosts() {
+  const s = getConfig().social || {};
+  return postStats(await postHistory(), { meta: s.meta, threads: s.threads, bluesky: s.bluesky });
 }

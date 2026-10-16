@@ -406,17 +406,30 @@ async function publishAll(d, o, slides, record = null) {
   go.disabled = false;
 }
 
+// ---------- Statistiques des posts ----------
+const fmtN = (v) => (v == null ? '—' : Number(v).toLocaleString('fr-FR'));
+const STAT_LABELS = [['views', 'Vues'], ['reach', 'Portée'], ['likes', "J'aime"], ['comments', 'Comm.'], ['shares', 'Partages'], ['saves', 'Enreg.']];
+async function statsTab(body) {
+  body.innerHTML = '<p class="muted">Lecture des statistiques…</p>';
+  const r = await api('stats');
+  const f = Object.entries(r.followers || {});
+  body.innerHTML = `${f.length ? `<div class="row" style="margin-top:12px">${f.map(([n, v]) => `<div class="card" style="width:auto;cursor:default"><div class="t">${fmtN(v)}</div><div class="small muted">abonnés ${esc(NET_NAMES[n] || n)}</div></div>`).join('')}</div>` : ''}
+    <div class="list">${(r.posts || []).map((p) => `<div class="card" style="cursor:default"><div class="t">${esc(p.title || 'Post')}</div><div class="small muted">${esc(new Date(p.at).toLocaleString('fr-FR'))}</div>
+      ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${l} <b>${fmtN(s[k])}</b>`).join(' · ') : 'statistiques indisponibles'; return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--text)">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n)} : ${vals}</div>`; }).join('')}</div>`).join('') || '<p class="muted">Aucun post publié pour le moment.</p>'}</div>
+    <p class="note">Les 8 derniers posts. Vues et portée : autorisations instagram_manage_insights, read_insights et threads_manage_insights du jeton. X : lecture payante, non utilisée.</p>`;
+}
+
 // ---------- Accueil ----------
 function home() {
   const acc = [me.instagram && `Instagram ${me.instagram}`, me.facebook && `Facebook ${me.facebook}`, me.threads && `Threads ${me.threads}`, me.bluesky && `Bluesky ${me.bluesky}`].filter(Boolean).join(' · ');
   app.innerHTML = `<div class="top"><h1>Paddock <b>Studio</b></h1><span class="spacer"></span><button id="out">Quitter</button></div>
     <p class="small muted">${esc(acc || 'Aucun compte : activez la page depuis l\'appli (Posts → Publier… → Comptes…)')}</p>
-    <div class="seg"><button data-tab="news" class="${state.tab === 'news' ? 'on' : ''}">News</button><button data-tab="sessions" class="${state.tab === 'sessions' ? 'on' : ''}">Séances</button></div>
+    <div class="seg"><button data-tab="news" class="${state.tab === 'news' ? 'on' : ''}">News</button><button data-tab="sessions" class="${state.tab === 'sessions' ? 'on' : ''}">Séances</button><button data-tab="stats" class="${state.tab === 'stats' ? 'on' : ''}">Stats</button></div>
     <div id="body"></div>`;
   $('#out').onclick = logout;
   app.querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => { state.tab = b.dataset.tab; home(); }; });
   const body = $('#body');
-  (state.tab === 'news' ? newsTab(body) : sessionsTab(body)).catch((err) => { body.innerHTML = `<p class="err">${esc(err.message)}</p>`; });
+  (state.tab === 'news' ? newsTab(body) : state.tab === 'stats' ? statsTab(body) : sessionsTab(body)).catch((err) => { body.innerHTML = `<p class="err">${esc(err.message)}</p>`; });
 }
 
 (async () => {

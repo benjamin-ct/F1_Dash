@@ -10,6 +10,7 @@ import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { addEntry } from '../shared/post-history.js';
+import { postStats } from '../shared/post-stats.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -268,6 +269,11 @@ export async function studioApi(req, env, url) {
       await setRow(env, 'history', JSON.stringify(next));
       return json({ items: next });
     }
+  }
+  if (path === 'stats' && req.method === 'GET') {
+    const v = await refresh(env, a.raw, vault);
+    // 8 posts au plus : nombre de requêtes du serveur limité par appel
+    return json(await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }));
   }
   if (path === 'feed' && req.method === 'GET') return feed(req, url);
   if (path === 'archive' && req.method === 'GET') return archive(req, url, await refresh(env, a.raw, vault));
