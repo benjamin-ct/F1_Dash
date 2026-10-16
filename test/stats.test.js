@@ -169,7 +169,11 @@ test('serveur des statistiques : connexion par mot de passe et session', async (
   assert.match(page, /type="password"/);
   assert.match(home.headers.get('Content-Security-Policy'), /script-src 'nonce-/);
 
-  assert.equal((await get(env, '/stats')).headers.get('Location'), '/');   // pas connecté
+  assert.equal((await get(env, '/stats')).headers.get('Location'), '/login');   // pas connecté
+  // Connexion aussi sur /login (racine d'un nom de domaine à soi = site de l'appli)
+  const loginPage = await get(env, '/login');
+  assert.equal(loginPage.status, 200);
+  assert.match(await loginPage.text(), /type="password"/);
   assert.equal((await get(env, '/stats.json')).status, 403);
 
   const bad = await login(env, 'nope');
@@ -197,6 +201,7 @@ test('serveur des statistiques : connexion par mot de passe et session', async (
   assert.equal((await get({ ...env, STATS_KEY: 'autre' }, '/stats', cookie)).status, 303);
   const out = await get(env, '/logout', cookie);
   assert.match(out.headers.get('Set-Cookie'), /Max-Age=0/);
+  assert.equal(out.headers.get('Location'), '/login');
 });
 
 test('serveur des statistiques : chiffres du tableau de bord', async () => {

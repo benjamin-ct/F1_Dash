@@ -122,6 +122,18 @@ footer a { display: block; color: var(--text-2); text-decoration: none; margin: 
 footer a:hover { color: var(--text); }
 footer .legal { grid-column: 1 / -1; padding-top: 22px; border-top: 1px solid var(--line); }
 
+/* Menu caché (accès créateur) */
+dialog.hide { width: min(360px, calc(100% - 32px)); padding: 22px; border: 1px solid var(--line-2); border-radius: 20px; background: var(--card); color: var(--text); box-shadow: 0 30px 80px rgba(0, 0, 0, .6); }
+dialog.hide::backdrop { background: rgba(0, 0, 0, .6); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+dialog.hide h3 { font-size: 26px; margin-bottom: 14px; }
+dialog.hide a { display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin: 8px 0; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); text-decoration: none; font-weight: 700; }
+dialog.hide a:hover { border-color: var(--red); }
+dialog.hide a:focus { outline: none; }
+dialog.hide a:focus-visible { border-color: var(--red); box-shadow: 0 0 0 3px rgba(225, 6, 0, .25); }
+dialog.hide a small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+dialog.hide button { margin-top: 8px; width: 100%; }
+footer .brand { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
 /* Apparition au défilement */
 .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s, transform .7s cubic-bezier(.2, .8, .2, 1); }
 .reveal.on { opacity: 1; transform: none; }
@@ -325,7 +337,7 @@ footer .legal { grid-column: 1 / -1; padding-top: 22px; border-top: 1px solid va
 <footer>
   <div class="wrap">
     <div>
-      <a class="brand" href="#top"><img src="/site/img/logo.png" alt="" width="34" height="34"><span>Paddock <b>Live</b></span></a>
+      <div class="brand" id="footBrand"><img src="/site/img/logo.png" alt="" width="34" height="34"><span>Paddock <b>Live</b></span></div>
       <p data-en="The F1 pit wall in your living room. Free for Windows, macOS and Linux.">Le mur des stands à la maison. Gratuit pour Windows, macOS et Linux.</p>
     </div>
     <div>
@@ -399,6 +411,33 @@ fetch('/download/latest.json').then((r) => r.json()).then((d) => { version = d.v
 let saved = null;
 try { saved = localStorage.getItem('pl.lang'); } catch { /* sans stockage */ }
 setLang(new URLSearchParams(location.search).get('lang') || saved || (/^fr\b/i.test(navigator.language) ? 'fr' : 'en'));
+
+// Menu caché : 5 touches rapides sur le logo du bas de page (ou l'adresse se terminant par #paddock)
+// -> statistiques d'utilisation et Studio (chacun protégé par son mot de passe ou son code)
+function hiddenMenu() {
+  let d = document.getElementById('hide');
+  if (!d) {
+    d = document.createElement('dialog');
+    d.id = 'hide';
+    d.className = 'hide';
+    d.innerHTML = `<h3>Accès créateur</h3>
+      <a href="/stats"><span>Statistiques<small>Utilisation anonyme de l'appli</small></span></a>
+      <a href="/studio/"><span>Studio<small>Posts, news et publication</small></span></a>
+      <button class="btn small" type="button">Fermer</button>`;
+    d.querySelector('button').onclick = () => d.close();
+    d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
+    document.body.appendChild(d);
+  }
+  if (!d.open) d.showModal();
+}
+let taps = [];
+document.getElementById('footBrand').addEventListener('click', (e) => {
+  const now = Date.now();
+  taps = taps.filter((t) => now - t < 3000).concat(now);
+  if (taps.length >= 5) { e.preventDefault(); taps = []; hiddenMenu(); }
+});
+if (location.hash === '#paddock') hiddenMenu();
+addEventListener('hashchange', () => { if (location.hash === '#paddock') hiddenMenu(); });
 
 // Apparition des sections au défilement
 const io = 'IntersectionObserver' in window ? new IntersectionObserver((list) => list.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' }) : null;
