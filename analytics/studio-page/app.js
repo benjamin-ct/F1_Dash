@@ -2,7 +2,8 @@
 // à portée (téléphone). Grosses news de la F1 et résultats des séances, mêmes visuels et mêmes textes
 // que dans l'appli (code partagé), publication sur Facebook, Instagram et Threads par le serveur
 // Paddock Live après confirmation, ou partage vers les autres applis (X, TikTok…) depuis le téléphone.
-import { parseFeed, newsTags, newsImportance, clusterNews } from '/shared/news.js';
+import { clusterNews } from '/shared/news.js';
+import { feedItems, decodeBody } from '/shared/news-collect.js';
 import { bigNews, newsPost, newsCaptions, newsKind } from '/shared/social-news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -18,7 +19,6 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const app = $('#app');
 const KEY = 'studio.key';
 const SIG = '@BenjyPaddock';
-const F1_ONLY = /formula 1|formula one|\bf1\b|grand prix|formule 1/i;
 const TOPICS = ['SessionInfo', 'SessionStatus', 'DriverList', 'TimingData', 'TimingAppData', 'TimingStats', 'RaceControlMessages', 'LapCount', 'ChampionshipPrediction', 'WeatherData'];
 
 let key = null;
@@ -76,7 +76,7 @@ function login(error = '') {
     try {
       me = await api('me');
       try { ($('#keep').checked ? localStorage : sessionStorage).setItem(KEY, key); } catch { /* ignore */ }
-      home();
+      afterLogin();
     } catch (err) { login(err.message); }
   };
 }
@@ -91,13 +91,6 @@ async function mapLimit(list, n, fn) {
   return out;
 }
 const ago = (ts) => { const m = Math.max(1, Math.round((Date.now() - ts) / 60e3)); return m < 60 ? `${m} min` : m < 48 * 60 ? `${Math.round(m / 60)} h` : `${Math.round(m / 1440)} j`; };
-
-async function decodeBody(res) {
-  const buf = await res.arrayBuffer();
-  const head = new TextDecoder('latin1').decode(buf.slice(0, 200));
-  const label = ((res.headers.get('Content-Type') || '').match(/charset=([\w-]+)/i)?.[1] || head.match(/encoding=["']([\w-]+)["']/i)?.[1] || 'utf-8').toLowerCase();
-  try { return new TextDecoder(label).decode(buf); } catch { return new TextDecoder().decode(buf); }
-}
 
 // Textes en français (traduction partagée du serveur Paddock Live, gardée en mémoire)
 async function toFrench(list) {
@@ -136,17 +129,7 @@ async function loadNews() {
   const now = Date.now();
   const items = [];
   await mapLimit(me.sources, 6, async (s) => {
-    try {
-      const feed = parseFeed(await decodeBody(await api(`feed?id=${encodeURIComponent(s.id)}`, { raw: true })));
-      for (const raw of feed.items) {
-        if (s.filter === 'f1' && !F1_ONLY.test(`${raw.title} ${raw.summary}`)) continue;
-        const t = raw.t && raw.t <= now + 10 * 60e3 ? raw.t : now - 24 * 3600e3;
-        const it = { id: `${s.id}|${raw.link || raw.guid}`, src: s.id, srcName: s.name, title: String(raw.title || '').slice(0, 300), summary: raw.summary || '', link: raw.link, t, lang: s.lang, cat: s.cat, kind: 'article' };
-        it.tags = newsTags(`${it.title} ${it.summary}`);
-        it.imp = newsImportance(it, s.cat);
-        items.push(it);
-      }
-    } catch { /* source indisponible */ }
+    try { items.push(...feedItems(s, await decodeBody(await api(`feed?id=${encodeURIComponent(s.id)}`, { raw: true })), now)); } catch { /* source indisponible */ }
   });
   items.sort((a, b) => a.t - b.t);
   clusterNews(items);
@@ -163,13 +146,69 @@ async function newsTab(body) {
   const history = (await api('history').catch(() => ({}))).items || [];
   const posted = list.map((it) => postedEntry(it, history));
   const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
-  body.innerHTML = `<div class="row"><label class="check"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}> Toutes les actus (48 h)</label><span class="spacer"></span><button id="reload">Actualiser</button></div>
+  body.innerHTML = `<div id="alerts" class="alerts"></div>
+    <div class="row"><label class="check"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}> Toutes les actus (48 h)</label><span class="spacer"></span><button id="reload">Actualiser</button></div>
     ${list.length ? '' : '<p class="muted">Aucune grosse news ces dernières 48 heures.</p>'}
     <div class="list">${list.map((it, i) => { const k = newsKind(it); return `<button class="card" data-i="${i}"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${posted[i] ? ' <span class="badge" style="background:#8E97A6">PUBLIÉE ✓</span>' : ''}
       <div class="t">${esc(titles[i] || it.title)}</div><div class="small muted">${esc(it.srcName)} · il y a ${ago(it.t)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>`; }).join('')}</div>`;
   $('#all').onchange = (e) => { state.all = e.target.checked; newsTab(body); };
   $('#reload').onclick = () => { news = null; newsTab(body); };
   body.querySelectorAll('[data-i]').forEach((b) => { b.onclick = () => newsEditor(list[Number(b.dataset.i)], posted[Number(b.dataset.i)]); });
+  alertsBlock($('#alerts'));
+}
+
+// ---------- Alertes des grosses news sur ce téléphone (notifications) ----------
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const pushReady = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const keyBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), (c) => c.charCodeAt(0));
+
+async function currentSub() {
+  if (!pushReady()) return null;
+  const reg = await navigator.serviceWorker.getRegistration('/studio/');
+  return reg ? reg.pushManager.getSubscription() : null;
+}
+
+async function enableAlerts() {
+  if (await Notification.requestPermission() !== 'granted') throw new Error('Notifications refusées : autorisez-les pour cette page dans les réglages du téléphone');
+  const { key: server } = await api('push');
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  // Abonnement fait avec une autre clé du serveur : refait
+  const same = sub?.options?.applicationServerKey && btoa(String.fromCharCode(...new Uint8Array(sub.options.applicationServerKey))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') === server;
+  if (sub && !same) { await sub.unsubscribe(); sub = null; }
+  try {
+    sub ||= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(server) });
+  } catch (err) { throw new Error(`Abonnement refusé par le navigateur (${err.message}). Navigation privée : les notifications n'y fonctionnent pas.`); }
+  await api('push', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
+}
+
+async function alertsBlock(el) {
+  if (!el) return;
+  if (!pushReady()) {
+    el.innerHTML = `<p class="note small">${IOS && !installed() ? 'Alertes des grosses news : sur iPhone, ajoutez d\'abord cette page à l\'écran d\'accueil (bouton Partager → « Sur l\'écran d\'accueil »), puis ouvrez-la depuis l\'icône.' : 'Alertes indisponibles dans ce navigateur.'}</p>`;
+    return;
+  }
+  const sub = await currentSub().catch(() => null);
+  const on = !!sub && Notification.permission === 'granted';
+  el.innerHTML = `<div class="row small"><span>${on ? 'Alertes des grosses news actives sur ce téléphone' : 'Recevoir une alerte à chaque grosse news (transfert, pénalité, annonce officielle…)'}</span><span class="spacer"></span>
+    ${on ? '<button id="alerttest">Tester</button><button id="alertoff">Couper</button>' : '<button class="accent" id="alerton">Activer</button>'}</div><p class="small err" id="alerterr"></p>`;
+  const fail = (err) => { $('#alerterr').textContent = err.message; };
+  if ($('#alerton')) $('#alerton').onclick = () => enableAlerts().then(() => alertsBlock(el)).catch(fail);
+  if ($('#alerttest')) $('#alerttest').onclick = () => api('push/test', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }).then(() => { $('#alerterr').textContent = 'Envoyée : elle arrive dans quelques secondes.'; }).catch(fail);
+  if ($('#alertoff')) $('#alertoff').onclick = async () => { try { await api('push/off', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) }); await sub.unsubscribe(); alertsBlock(el); } catch (err) { fail(err); } };
+}
+
+// Notification touchée : post de la news prêt à relire
+async function openAlert(id) {
+  if (!id) return;
+  try {
+    const it = ((await api('alerts')).items || []).find((a) => a.id === id);
+    if (!it) return;
+    const history = (await api('history').catch(() => ({}))).items || [];
+    state.tab = 'news';
+    newsEditor(it, postedEntry(it, history));
+  } catch { /* alerte introuvable : liste des news */ }
 }
 
 async function latestDrivers() {
@@ -460,7 +499,15 @@ function home() {
   (state.tab === 'news' ? newsTab(body) : state.tab === 'stats' ? statsTab(body) : sessionsTab(body)).catch((err) => { body.innerHTML = `<p class="err">${esc(err.message)}</p>`; });
 }
 
+const startAlert = new URLSearchParams(location.search).get('alert');
+if (startAlert) history.replaceState(null, '', '/studio/');
+const afterLogin = () => { home(); openAlert(startAlert); };
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/studio/sw.js', { scope: '/studio/' }).catch(() => {});
+  navigator.serviceWorker.addEventListener('message', (e) => { if (me && e.data?.alert) openAlert(e.data.alert); });
+}
+
 (async () => {
   if (!key) { login(); return; }
-  try { me = await api('me'); home(); } catch (err) { login(err.message === 'Code incorrect' ? '' : err.message); }
+  try { me = await api('me'); afterLogin(); } catch (err) { login(err.message === 'Code incorrect' ? '' : err.message); }
 })();

@@ -14,6 +14,8 @@ const copy = (from, to, filter = () => true) => {
 
 fs.rmSync(OUT, { recursive: true, force: true });
 copy(path.join(ROOT, 'analytics', 'studio-page'), path.join(OUT, 'studio'));
+// Icônes (écran d'accueil du téléphone, notifications)
+for (const f of ['icon-512.png', 'apple-touch-icon.png']) fs.copyFileSync(path.join(ROOT, 'public', f), path.join(OUT, 'studio', f));
 copy(path.join(ROOT, 'shared'), path.join(OUT, 'shared'), (f) => f.endsWith('.js'));
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps

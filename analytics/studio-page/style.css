@@ -53,3 +53,6 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 16px 0; }
 [hidden] { display: none !important; }
 .seg button:disabled { opacity: .4; }
 #flashpick { margin-bottom: 8px; }
+.alerts { margin: 4px 0 10px; }
+.alerts .row { gap: 8px; align-items: center; }
+.alerts .err:empty { display: none; }

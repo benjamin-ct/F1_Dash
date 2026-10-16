@@ -1,0 +1,13 @@
+{
+  "name": "Paddock Studio",
+  "short_name": "Studio",
+  "start_url": "/studio/",
+  "scope": "/studio/",
+  "display": "standalone",
+  "background_color": "#07080A",
+  "theme_color": "#07080A",
+  "lang": "fr",
+  "icons": [
+    { "src": "/studio/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

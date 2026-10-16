@@ -7,11 +7,13 @@
 //   Session : cookie signé (HMAC du mot de passe), valable 30 jours.
 // - GET /stats.json : les mêmes chiffres en JSON (connecté, ou ?key=…).
 // - /studio/ : page web du créateur (fichiers statiques du dossier site/) et son API /studio/api/…
-//   (studio.js : accès par clé dérivée du code, jetons chiffrés, relais, publication).
+//   (studio.js : accès par clé dérivée du code, jetons chiffrés, relais, publication) ;
+// - tâche planifiée (toutes les 5 min) : alertes des grosses news sur le téléphone du créateur (alerts.js).
 import { cleanBatch, LABELS, FEATURE_GROUPS } from '../shared/stats.js';
 import { studioApi } from './studio.js';
 import { loginPage, dashboardPage } from './page.js';
 import { cleanRequest, translateBatch } from './translate.js';
+import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
 
 const MAX_BODY = 32 * 1024;
@@ -185,6 +187,10 @@ const periodOf = (url) => {
 };
 
 export default {
+  // Toutes les 5 minutes : grosses news signalées sur le téléphone du créateur (s'il est abonné)
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(newsAlerts(env).catch(() => null));
+  },
   async fetch(req, env) {
     const url = new URL(req.url);
     if (req.method === 'POST' && url.pathname === '/e') {

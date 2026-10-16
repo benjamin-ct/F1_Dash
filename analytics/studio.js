@@ -11,6 +11,7 @@ import { publishFacebook, publishInstagram, publishThreads, freshThreads, commen
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { addEntry } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
+import { pushApi } from './alerts.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -282,5 +283,8 @@ export async function studioApi(req, env, url) {
     if (!vault.meta?.pageToken && !vault.bluesky) return json({ error: 'Comptes non envoyés : activez la page depuis l\'appli' }, 409);
     return publish(req, env, a.raw, vault);
   }
+  // Alertes des grosses news sur le téléphone (abonnements, dernières alertes)
+  const pushed = await pushApi(path, req, env);
+  if (pushed) return pushed;
   return json({ error: 'Introuvable' }, 404);
 }
