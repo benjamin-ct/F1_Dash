@@ -6,15 +6,19 @@ import { call, GRAPH, THREADS } from './meta-publish.js';
 
 const BSKY = 'https://public.api.bsky.app/xrpc';
 const safe = (p) => p.catch(() => null);
+// Appel dont l'erreur est gardée (raison affichée quand aucune statistique n'est lisible)
+const tryCall = (p, errs) => p.catch((err) => { errs.push(err.message); return null; });
+const unavailable = (errs) => ({ error: errs[0] || 'refusé par le réseau' });
 const metric = (r, name) => r?.data?.find((m) => m.name === name)?.values?.[0]?.value ?? r?.data?.find((m) => m.name === name)?.total_value?.value ?? null;
 
 async function instagram(meta, id) {
   const tok = { access_token: meta.pageToken };
+  const errs = [];
   const [base, ins] = await Promise.all([
-    safe(call(`${GRAPH}/${id}?${new URLSearchParams({ fields: 'like_count,comments_count', ...tok })}`)),
-    safe(call(`${GRAPH}/${id}/insights?${new URLSearchParams({ metric: 'reach,saved,shares,views', ...tok })}`)),
+    tryCall(call(`${GRAPH}/${id}?${new URLSearchParams({ fields: 'like_count,comments_count', ...tok })}`), errs),
+    tryCall(call(`${GRAPH}/${id}/insights?${new URLSearchParams({ metric: 'reach,saved,shares,views', ...tok })}`), errs),
   ]);
-  if (!base && !ins) return null;
+  if (!base && !ins) return unavailable(errs);
   return { likes: base?.like_count ?? null, comments: base?.comments_count ?? null, reach: metric(ins, 'reach'), views: metric(ins, 'views'), shares: metric(ins, 'shares'), saves: metric(ins, 'saved') };
 }
 
@@ -23,15 +27,16 @@ const num = (v) => (v == null ? null : typeof v === 'object' ? Object.values(v).
 
 async function facebook(meta, id) {
   const tok = { access_token: meta.pageToken };
-  const insights = (metric) => safe(call(`${GRAPH}/${id}/insights?${new URLSearchParams({ metric, ...tok })}`));
+  const errs = [];
+  const insights = (metric) => tryCall(call(`${GRAPH}/${id}/insights?${new URLSearchParams({ metric, ...tok })}`), errs);
   // Vues et vues uniques des médias (mesures de Meta depuis la suppression des « impressions »),
   // ancienne mesure seulement si les nouvelles sont refusées
   const [base, now] = await Promise.all([
-    safe(call(`${GRAPH}/${id}?${new URLSearchParams({ fields: 'reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0),shares', ...tok })}`)),
+    tryCall(call(`${GRAPH}/${id}?${new URLSearchParams({ fields: 'reactions.summary(total_count).limit(0),comments.summary(total_count).limit(0),shares', ...tok })}`), errs),
     insights('post_total_media_view_unique,post_media_view'),
   ]);
   const old = now ? null : await insights('post_impressions_unique');
-  if (!base && !now && !old) return null;
+  if (!base && !now && !old) return unavailable(errs);
   const out = { likes: base?.reactions?.summary?.total_count ?? null, comments: base?.comments?.summary?.total_count ?? null, shares: base?.shares?.count ?? 0, reach: num(metric(now, 'post_total_media_view_unique') ?? metric(old, 'post_impressions_unique')) };
   const views = num(metric(now, 'post_media_view'));
   if (views != null) out.views = views;
@@ -39,8 +44,9 @@ async function facebook(meta, id) {
 }
 
 async function threads(th, id) {
-  const r = await safe(call(`${THREADS}/${id}/insights?${new URLSearchParams({ metric: 'views,likes,replies,reposts,quotes', access_token: th.token })}`));
-  if (!r) return null;
+  const errs = [];
+  const r = await tryCall(call(`${THREADS}/${id}/insights?${new URLSearchParams({ metric: 'views,likes,replies,reposts,quotes', access_token: th.token })}`), errs);
+  if (!r) return unavailable(errs);
   return { views: metric(r, 'views'), likes: metric(r, 'likes'), comments: metric(r, 'replies'), shares: (metric(r, 'reposts') ?? 0) + (metric(r, 'quotes') ?? 0) };
 }
 

@@ -40,7 +40,7 @@ const localInput = (ts) => { const x = new Date(ts); x.setMinutes(x.getMinutes()
 export function bestHour(posts) {
   const by = new Map();
   for (const p of posts) {
-    const s = Object.values(p.stats || {}).filter(Boolean);
+    const s = Object.values(p.stats || {}).filter((x) => x && !x.error);
     if (!s.length) continue;
     const score = s.reduce((a, x) => a + (x.likes || 0) + 2 * (x.comments || 0) + 3 * (x.shares || 0) + (x.views || x.reach || 0) / 100, 0);
     const h = new Date(p.at).getHours();

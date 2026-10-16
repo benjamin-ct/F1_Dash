@@ -39,7 +39,7 @@ export const DEFAULT_SOURCES = [
 
   rss('marca', 'Marca', 'https://e00-marca.uecdn.es/rss/motor/formula1.xml', 'media', 'es'),
   rss('as', 'AS', 'https://feeds.as.com/mrss-s/pages/as/site/as.com/section/motor/subsection/formula_1/', 'media', 'es'),
-  rss('soymotor', 'SoyMotor', 'https://soymotor.com/rss.xml', 'media', 'es'),
+  rss('motorsport-es', 'Motorsport.com España', 'https://es.motorsport.com/rss/f1/news/', 'media', 'es'),
 
   rss('gazzetta', 'La Gazzetta dello Sport', 'https://www.gazzetta.it/dynamic-feed/rss/section/Formula-1.xml', 'media', 'it'),
   rss('formulapassion', 'FormulaPassion', 'https://www.formulapassion.it/feed', 'media', 'it'),

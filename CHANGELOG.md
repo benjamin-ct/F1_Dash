@@ -4,6 +4,14 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.12 — à venir
+
+### Actu
+- La source espagnole SoyMotor, qui bloque désormais la lecture de ses actus, est remplacée par Motorsport.com España.
+
+### Améliorations
+- Petites améliorations internes.
+
 ## v1.27.11 — 2026-10-16
 
 ### Améliorations
