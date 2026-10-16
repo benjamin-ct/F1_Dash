@@ -854,9 +854,17 @@ async function statsTab(body) {
   const r = await api('stats');
   const f = Object.entries(r.followers || {});
   body.innerHTML = `<div id="schedlist"></div>${f.length ? `<div class="row" style="margin-top:12px">${f.map(([n, v]) => `<div class="card" style="width:auto;cursor:default"><div class="t">${fmtN(v)}</div><div class="small muted">abonnés ${esc(NET_NAMES[n] || n)}</div></div>`).join('')}</div>` : ''}
-    <div class="list">${(r.posts || []).map((p) => `<div class="card" style="cursor:default"><div class="t">${esc(p.title || 'Post')}</div><div class="small muted">${esc(new Date(p.at).toLocaleString('fr-FR'))}</div>
+    <div class="list">${(r.posts || []).map((p) => `<div class="card" style="cursor:default"><div class="row"><div class="t">${esc(p.title || 'Post')}</div><span class="spacer"></span><button data-statsremove="${esc(p.key)}">Retirer</button></div><div class="small muted">${esc(new Date(p.at).toLocaleString('fr-FR'))}</div>
       ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s && !s.error ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${l} <b>${fmtN(s[k])}</b>`).join(' · ') : s?.error ? `statistiques indisponibles <span class="muted">(${esc(s.error)})</span>` : 'statistiques indisponibles'; return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--text)">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n)} : ${vals}</div>`; }).join('')}</div>`).join('') || '<p class="muted">Aucun post publié pour le moment.</p>'}</div>`;
   schedList($('#schedlist'));
+  // Post supprimé sur les réseaux : retiré des statistiques (ici et dans l'appli)
+  body.querySelectorAll('[data-statsremove]').forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm('Retirer ce post des statistiques ?\n\nÀ faire si vous l\'avez supprimé sur les réseaux : rien n\'est supprimé chez eux.')) return;
+      b.disabled = true;
+      try { await api('history/remove', { method: 'POST', body: JSON.stringify({ key: b.dataset.statsremove }) }); b.closest('.card').remove(); } catch (err) { b.disabled = false; alert(err.message); }
+    };
+  });
 }
 
 // ---------- Accueil ----------

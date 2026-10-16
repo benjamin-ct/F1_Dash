@@ -175,6 +175,20 @@ test('page du créateur : journal des publications partagé et news déjà publi
   // Entrée invalide ignorée ; fusion appli + page web sans doublon
   assert.equal(addEntry(list, { key: 'x', nets: {} }).length, 1);
   assert.equal(mergeHistory(list, list, [{ ...entry, key: 'news:2' }]).length, 2);
+  // Post supprimé sur les réseaux : retiré du journal, sa clé gardée pour que l'appli ne le renvoie pas
+  const rm = await (await worker('https://s.test/studio/api/history/remove', { method: 'POST', headers: h, body: JSON.stringify({ key: 'news:1' }) })).json();
+  assert.deepEqual(rm.items, []);
+  assert.deepEqual(rm.removed, ['news:1']);
+  assert.equal((await worker('https://s.test/studio/api/history/remove', { method: 'POST', headers: h, body: JSON.stringify({ key: '' }) })).status, 400);
+  const got = await (await worker('https://s.test/studio/api/history', { headers: h })).json();
+  assert.deepEqual(got.removed, ['news:1']);
+  const { withoutRemoved, removeEntry } = await import('../shared/post-history.js');
+  assert.deepEqual(withoutRemoved(mergeHistory(list, [{ ...entry, key: 'news:2' }]), got.removed).map((e) => e.key), ['news:2']);
+  assert.deepEqual(removeEntry(list, ['a'], 'news:1').removed, ['news:1', 'a']);
+  // Même post republié : il compte de nouveau
+  await worker('https://s.test/studio/api/history', { method: 'POST', headers: h, body: JSON.stringify({ entry }) });
+  const again = await (await worker('https://s.test/studio/api/history', { headers: h })).json();
+  assert.deepEqual([again.items.length, again.removed], [1, []]);
 });
 
 test('page du créateur : relais des documents de la FIA limité aux pages F1 et aux PDF des commissaires', async () => {

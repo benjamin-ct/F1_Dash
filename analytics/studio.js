@@ -9,7 +9,7 @@
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
-import { addEntry } from '../shared/post-history.js';
+import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
 import { pushApi } from './alerts.js';
 
@@ -418,14 +418,26 @@ export async function studioApi(req, env, url) {
     });
   }
   // Journal des publications (partagé avec l'appli)
-  if (path === 'history') {
+  if (path === 'history' || path === 'history/remove') {
     const list = JSON.parse(await getRow(env, 'history') || '[]');
-    if (req.method === 'GET') return json({ items: list });
+    const removed = JSON.parse(await getRow(env, 'history-removed') || '[]');
+    if (req.method === 'GET' && path === 'history') return json({ items: list, removed });
     if (req.method === 'POST') {
       let body;
       try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+      // Post supprimé sur les réseaux : retiré du journal et des statistiques
+      if (path === 'history/remove') {
+        if (!cleanKey(body?.key)) return json({ error: 'Post inconnu' }, 400);
+        const r = removeEntry(list, removed, body.key);
+        await setRow(env, 'history', JSON.stringify(r.items));
+        await setRow(env, 'history-removed', JSON.stringify(r.removed));
+        return json(r);
+      }
       const next = addEntry(list, body?.entry);
       await setRow(env, 'history', JSON.stringify(next));
+      // Même post republié : il compte de nouveau
+      const k = cleanKey(body?.entry?.key);
+      if (k && removed.includes(k)) await setRow(env, 'history-removed', JSON.stringify(removed.filter((x) => x !== k)));
       return json({ items: next });
     }
   }

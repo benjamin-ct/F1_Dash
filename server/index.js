@@ -34,7 +34,7 @@ import { lightsInfo, saveLights, hueDiscover, huePair, lightDevices, setLights }
 import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
 import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync } from './studio-sync.js';
-import { postHistory, recordPost, statsOfPosts } from './post-history.js';
+import { postHistory, recordPost, removePost, statsOfPosts } from './post-history.js';
 import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
@@ -354,7 +354,8 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/schedule':
     case 'POST /api/social/schedule':
     case 'POST /api/social/schedule/cancel':
-    case 'POST /api/social/history': {
+    case 'POST /api/social/history':
+    case 'POST /api/social/history/remove': {
       if (!isLoopback(req.socket.remoteAddress) || !creatorEnabled()) return sendJSON(res, 403, { error: 'Mode créateur désactivé' });
       try {
         if (route === 'GET /api/social/accounts') return sendJSON(res, 200, accountsInfo());
@@ -405,6 +406,7 @@ async function handleApi(req, res, url) {
         // Résumé détaillé d'une news en points clés (images suivantes du post)
         if (route === 'POST /api/social/summary') return sendJSON(res, 200, { points: await summarize(String((await readBody(req, 1e4)).link || '')) });
         if (route === 'POST /api/social/history') return sendJSON(res, 200, { items: await recordPost((await readBody(req, 1e5)).entry) });
+        if (route === 'POST /api/social/history/remove') return sendJSON(res, 200, { items: await removePost((await readBody(req, 1e4)).key) });
         if (route === 'POST /api/social/studio') {
           const b = await readBody(req, 1e4);
           return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));

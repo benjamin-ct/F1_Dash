@@ -464,10 +464,23 @@ async function openStats() {
     const f = Object.entries(r.followers || {});
     body.innerHTML = `${f.length ? `<div class="posts-stats-fol">${f.map(([n, v]) => `<div><b>${fmtN(v)}</b><span class="small muted">${t('abonnés')} ${NET_NAMES[n] || n}</span></div>`).join('')}</div>` : ''}
       ${(r.posts || []).length ? (r.posts || []).map((p) => `<div class="posts-stats-post">
-        <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span></div>
+        <div class="row"><b>${esc(p.title || t('Post'))}</b><span class="spacer"></span><span class="small muted">${esc(new Date(p.at).toLocaleString())}</span>
+          <button class="btn small" data-statsremove="${esc(p.key)}" title="${t('Post supprimé sur les réseaux : le retirer des statistiques')}">${t('Retirer')}</button></div>
         ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s && !s.error ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${t(l)} <b>${fmtN(s[k])}</b>`).join(' · ') : s?.error ? `${t('statistiques indisponibles')} <span class="muted">(${esc(s.error)})</span>` : t('statistiques indisponibles'); return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${NET_NAMES[n] || n}</a>` : NET_NAMES[n] || n} : ${vals}</div>`; }).join('')}
       </div>`).join('') : `<p class="muted">${t('Aucun post publié depuis Paddock Live pour le moment.')}</p>`}
       <p class="small muted">${icon('info')} ${t("Statistiques lues chez chaque réseau (X : lecture payante, non utilisée). Pour les vues et la portée, autorisations instagram_manage_insights, read_insights et threads_manage_insights du jeton.")}</p>`;
+    body.querySelectorAll('[data-statsremove]').forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm(t('Retirer ce post des statistiques ? (À faire si vous l\'avez supprimé sur les réseaux ; rien n\'est supprimé chez eux.)'))) return;
+        b.disabled = true;
+        try {
+          const r = await fetch('/api/social/history/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: b.dataset.statsremove }) });
+          if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `Erreur ${r.status}`);
+          histCache = null;
+          b.closest('.posts-stats-post').remove();
+        } catch (err) { b.disabled = false; toast(err.message, 4000, 'warning'); }
+      };
+    });
   } catch (err) { body.innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
 }
 
