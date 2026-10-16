@@ -204,18 +204,16 @@ async function seasonSource(sig) {
     d = teamDuelsData(data, { year, upTo: race.round, live });
     extra = msg(t('Bilan de la saison jusqu\'à la manche choisie : qui devance l\'autre en qualifications et en course.'));
   } else {
-    // Tours, tracé du circuit et direction de course (safety car, VSC, drapeaux) pour la vidéo
-    const info = circuitInfo(race.circuitId);
-    const [laps, track, rc] = await Promise.all([
+    // Tours et direction de course (safety car, VSC, drapeaux) pour la vidéo
+    const [laps, rc] = await Promise.all([
       lapsOf().catch((err) => ({ error: err.message })),
-      info ? cached(`circuit|${info.key}|${year}`, () => jget(`/api/circuit?key=${info.key}&year=${year}`, 60000), 3600e3).catch(() => null) : null,
       cached(`rc|${year}|${race.round}`, () => jget(`/api/social/racecontrol?year=${year}&round=${race.round}`, 60000), 3600e3).catch(() => null),
     ]);
     if (laps.error || !laps.total) return { head: head + msg(laps.error || t('Tours de cette course pas encore publiés.'), true) };
-    d = raceLapsData(race, laps, { year, live, track, rcm: rc?.messages?.length ? rc.messages : null });
+    d = raceLapsData(race, laps, { year, live, rcm: rc?.messages?.length ? rc.messages : null });
     const sec = Math.round(raceVideoTiming(d).duration);
     extra = `<div class="row posts-news-bar"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo animée')}</button>
-      <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels) de {} s : les voitures sur le circuit, safety cars, drapeaux et moments forts de la course.', sec))}</span></div>
+      <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels) de {} s : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts.', sec))}</span></div>
       ${d.story.estimated ? msg(t('Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.')) : ''}
       <video class="posts-vid" data-rv controls playsinline hidden></video>`;
   }
@@ -386,7 +384,7 @@ async function render(dlg, keepHead = false) {
     if (!r.d) { body.innerHTML = r.head; return; }
     ({ d, caps, head, record } = r);
   }
-  const slides = slidesFor(d, { fmt, follow });
+  const slides = slidesFor(d, { fmt, follow, question: withQuestion });
   if (withQuestion) caps = questionCaptions(caps, d, sig);
   if (follow) caps = followCaptions(caps, d, sig);
   if (!slides.length || (!d.rows?.length && !d.post && !d.news)) { body.innerHTML = `${mode !== 'news' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
@@ -409,7 +407,7 @@ async function render(dlg, keepHead = false) {
   if (id !== renderId) return;   // format ou réglage changé entre-temps
   curPost = { d, o };
   // Publication : visuels de n'importe quel format, dessinés à part
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => slidesFor(d, { fmt: f, follow }).map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)), videoMaker: d.post === 'racelaps' ? raceVideoMaker(d, o) : null });
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => slidesFor(d, { fmt: f, follow, question: withQuestion }).map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)), videoMaker: d.post === 'racelaps' ? raceVideoMaker(d, o) : null });
   const canvases = [...body.querySelectorAll('canvas')];
   for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
   const count = $('[data-count]', body);
@@ -517,7 +515,7 @@ function open() {
         <div class="posts-seg" role="tablist">${Object.entries({ ig: 'Instagram / Facebook', story: 'Story / TikTok', x: 'X / Threads / Bluesky' }).map(([k, v]) => `<button class="posts-fmt" data-fmt="${k}">${v}</button>`).join('')}</div>
         <label class="toggle small"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
         <label class="toggle small" title="${t("Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
-        <label class="toggle small" title="${t('Une question adaptée au post en fin de texte, pour faire réagir en commentaire')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>
+        <label class="toggle small" title="${t('Une question adaptée au post en fin de texte et en avant-dernière image des carrousels, pour faire réagir en commentaire')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>
         <label class="toggle small" title="${t("Dernière image des carrousels et une ligne dans les textes pour inviter à s'abonner au compte (X et Bluesky : dans le texte seulement)")}"><input type="checkbox" data-follow> ${t('Image « Abonnez-vous »')}</label>
         <label class="small muted">${t('Signature')} <input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
         <span class="spacer"></span>

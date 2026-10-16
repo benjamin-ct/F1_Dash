@@ -445,7 +445,7 @@ function editor({ back, head, data, caps, bind, record }) {
     ${head}
     <label class="check"><input type="checkbox" id="photos" ${state.photos ? 'checked' : ''}> Photos des pilotes</label>
     <label class="check"><input type="checkbox" id="follow" ${state.follow ? 'checked' : ''}> Image « Abonnez-vous » à la fin des carrousels (et une ligne dans les textes)</label>
-    <label class="check"><input type="checkbox" id="question" ${state.question ? 'checked' : ''}> Question en fin de texte (pour faire réagir en commentaire)</label>
+    <label class="check"><input type="checkbox" id="question" ${state.question ? 'checked' : ''}> Question en fin de texte et en image avant la fin du carrousel (pour faire réagir en commentaire)</label>
     <div id="main"></div>`;
   // changed : données modifiées (titre d'une news, texte sans spoiler) -> textes régénérés
   const redraw = async (changed = false) => {
@@ -455,7 +455,7 @@ function editor({ back, head, data, caps, bind, record }) {
     if (state.question) base = questionCaptions(base, d, SIG);
     if (state.follow) base = followCaptions(base, d, SIG);
     const c = { ...base, ...edited };
-    const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow });
+    const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     const main = $('#main');
     main.innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<canvas data-slide="${sl}" title="${esc(slideName(sl))}"></canvas>`).join('')}</div>
       <label>${c.facebook ? 'Légende Instagram' : 'Légende Instagram / Facebook'}</label><textarea id="cap-instagram" rows="8">${esc(c.instagram)}</textarea>
@@ -523,7 +523,7 @@ async function fitJpeg(cv, max) {
 }
 // Visuels : format Instagram (Instagram, Facebook, Threads) ; Bluesky : 4 au format X, moins de 1 Mo
 async function postImages(d, o, nets, maxIg = Infinity) {
-  const draw = (fmt, max, n = 99) => Promise.all(slidesFor(d, { fmt, follow: state.follow }).slice(0, n).map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, o), max)));
+  const draw = (fmt, max, n = 99) => Promise.all(slidesFor(d, { fmt, follow: state.follow, question: state.question }).slice(0, n).map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, o), max)));
   return { ig: nets.some((n) => n !== 'bluesky') ? await draw('ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
 
@@ -804,14 +804,9 @@ async function seasonEditor(year, data, race) {
   } else if (state.stype === 'teamduels') {
     d = teamDuelsData(data, { year, upTo: race.round, live });
   } else {
-    const info = circuitInfo(race.circuitId);
-    const [laps, track, rcm] = await Promise.all([
-      lapsOf(year, race.round),
-      info ? trackOf(year, info.key).catch(() => null) : null,
-      raceControlOf(year, race).catch(() => null),
-    ]);
+    const [laps, rcm] = await Promise.all([lapsOf(year, race.round), raceControlOf(year, race).catch(() => null)]);
     if (!laps.total) throw new Error('Tours de cette course pas encore publiés');
-    d = raceLapsData(race, laps, { year, live, track, rcm: rcm?.length ? rcm : null });
+    d = raceLapsData(race, laps, { year, live, rcm: rcm?.length ? rcm : null });
     if (d.story.estimated) note = 'Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.';
   }
   const video = state.stype === 'racelaps';
@@ -820,7 +815,7 @@ async function seasonEditor(year, data, race) {
     back: () => home(),
     head: `<p class="small muted">${esc(d.gp)} · manche ${race.round}</p>${note ? `<p class="note">${esc(note)}</p>` : ''}
       ${video ? `<div class="row"><button id="mkvid">Créer la vidéo animée (${Math.round(raceVideoTiming(d).duration)} s)</button><button id="sharevid" disabled>Partager la vidéo</button></div>
-        <p class="small muted" id="vidst">Vidéo verticale pour TikTok, Reels ou une story : les voitures sur le circuit, safety cars, drapeaux et moments forts. Garder l'écran allumé pendant l'enregistrement.</p>
+        <p class="small muted" id="vidst">Vidéo verticale pour TikTok, Reels ou une story : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts. Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden style="width:100%;border-radius:12px"></video>` : ''}`,
     data: () => d, caps: () => seasonCaptions(d, SIG),
     record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${STYPES.find(([k]) => k === state.stype)[1]} · ${d.gp}` }),

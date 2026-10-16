@@ -250,9 +250,8 @@ test('vidéo de course : safety car, VSC, drapeaux et moments forts (direction d
   const T = (id, position, time) => ({ driverId: id, position: String(position), time });
   const pl = parseRaceLaps([{ Laps: [{ number: '1', Timings: [T('max', 1, '1:40.0')] }] }], [{ Driver: { driverId: 'max', code: 'VER' }, Constructor: {}, grid: '1', position: '1', positionText: '1' }], [{ PitStops: [{ driverId: 'max', lap: '1' }, { driverId: 'max', lap: '1' }] }]);
   assert.deepEqual(pl.drivers[0].pits, [1]);
-  // Données de la vidéo : déroulé et tracé (ovale par défaut) ; timing plus lent sur les neutralisations
+  // Données de la vidéo : déroulé ; timing plus lent sur les neutralisations
   const d = raceLapsData(R1, { ...laps, drivers: laps.drivers.map((x) => ({ ...x, teamId: '' })) }, { year: 2026, rcm });
-  assert.equal(d.track, null);
   assert.equal(d.story.counts.sc, 1);
   const { raceVideoTiming } = await import('../shared/social-draw-season.js');
   const tm = raceVideoTiming(d);

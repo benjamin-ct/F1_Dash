@@ -60,6 +60,10 @@ test("news en plusieurs images : points clés répartis, légendes avec l'essent
   assert.deepEqual(slidesFor(d), ['news', 'essentiel-1', 'essentiel-2']);
   assert.deepEqual(slidesFor(d, { fmt: 'ig', follow: true }), ['news', 'essentiel-1', 'essentiel-2', 'abonnement']);
   assert.deepEqual(slidesFor(d, { fmt: 'story', follow: true }), ['news', 'essentiel-1', 'abonnement']);
+  // Question en avant-dernière image des carrousels (pas sur X : 4 images au plus)
+  assert.deepEqual(slidesFor(d, { fmt: 'ig', follow: true, question: true }), ['news', 'essentiel-1', 'essentiel-2', 'question', 'abonnement']);
+  assert.deepEqual(slidesFor(d, { fmt: 'ig', question: true }).at(-1), 'question');
+  assert.deepEqual(slidesFor(d, { fmt: 'x', follow: true, question: true }), slidesFor(d, { fmt: 'x' }));
   assert.ok(slidesFor(d, { fmt: 'x', follow: true }).length <= 4);
   const c = newsCaptions(d, '@moi');
   assert.match(c.instagram, /L'essentiel :\n– Ferrari prolonge Hamilton de deux saisons\.\n– Le Britannique/);

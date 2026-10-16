@@ -320,11 +320,11 @@ export function recapItem(ctx, W, H, d, o, i, fmt) {
 }
 
 // ---------- Vidéo animée de la course (images successives) ----------
-// Feux de départ, puis la course : tracé du circuit avec le leader fixe sur la ligne et chaque voiture
-// placée derrière lui selon son écart (rien ne défile : le peloton s'étire ou se resserre), piste
-// colorée selon l'état (safety car, VSC, drapeau rouge…), bandeaux des moments forts
-// (neutralisations, relances, nouveau leader, abandons, pénalités, meilleur tour), classement complet
-// animé ; pour finir le podium et les chiffres de la course.
+// Feux de départ, puis le graphique des positions qui se dessine tour après tour : une ligne par
+// pilote (couleur de l'écurie), tout le classement en direct au bout des lignes (écarts, PIT),
+// arrêts au stand et abandons marqués, périodes de safety car, VSC et drapeau rouge en bandes de
+// couleur, dépassements mis en lumière, bandeau des moments forts ; pour finir le podium et les
+// chiffres de la course.
 const FLAG = {
   green: { color: '#3ddc84', label: 'DRAPEAU VERT' }, yellow: { color: '#ffd60a', label: 'DRAPEAU JAUNE' },
   sc: { color: '#ffc400', label: 'SAFETY CAR' }, vsc: { color: '#ff9f1c', label: 'VIRTUAL SAFETY CAR' },
@@ -378,41 +378,6 @@ function lapAt(tm, total, time) {
   return { lap: total, f: 0 };
 }
 
-// Tracé : points (carré de côté 1) et distance parcourue ; à défaut, un ovale
-const tracks = new WeakMap();
-function trackOf(d) {
-  if (tracks.has(d)) return tracks.get(d);
-  let pts = d.track?.pts;
-  let w = d.track?.w || 1;
-  let h = d.track?.h || 1;
-  // Sens de la course : le virage 1 doit suivre de peu la ligne de départ (premier point)
-  const c1 = d.track?.corners?.slice().sort((a, b) => a.n - b.n)[0];
-  if (pts?.length && c1) {
-    let best = 0;
-    pts.forEach((q, i) => { if (Math.hypot(q[0] - c1.p[0], q[1] - c1.p[1]) < Math.hypot(pts[best][0] - c1.p[0], pts[best][1] - c1.p[1])) best = i; });
-    if (best > pts.length / 2) pts = [pts[0], ...pts.slice(1).reverse()];
-  }
-  if (!pts?.length) {
-    pts = Array.from({ length: 160 }, (_, i) => { const a = (i / 160) * Math.PI * 2; return [0.5 + 0.48 * Math.cos(a), 0.3 + 0.28 * Math.sin(a)]; });
-    w = 0.96; h = 0.56;
-  }
-  const dist = [0];
-  for (let i = 1; i <= pts.length; i++) { const [a, b] = pts[i - 1]; const [c, e] = pts[i % pts.length]; dist.push(dist[i - 1] + Math.hypot(c - a, e - b)); }
-  const t = { pts, w, h, dist, len: dist.at(-1) };
-  tracks.set(d, t);
-  return t;
-}
-function pointAt(t, s) {
-  const target = (((s % 1) + 1) % 1) * t.len;
-  let lo = 0;
-  let hi = t.pts.length;
-  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (t.dist[m] <= target) lo = m; else hi = m; }
-  const [a, b] = t.pts[lo];
-  const [c, e] = t.pts[(lo + 1) % t.pts.length];
-  const k = (target - t.dist[lo]) / ((t.dist[lo + 1] - t.dist[lo]) || 1);
-  return [a + (c - a) * k, b + (e - b) * k];
-}
-
 // Temps cumulés et écarts au leader à la fin de chaque tour
 const gapsMemo = new WeakMap();
 function gapsOf(d) {
@@ -426,6 +391,13 @@ function gapsOf(d) {
   return g;
 }
 
+// Point d'une courbe entre deux tours (tangentes horizontales : les dépassements en douceur)
+const bez = (x0, y0, x1, y1, t) => {
+  const m = (x0 + x1) / 2;
+  const k = 1 - t;
+  return [k * k * k * x0 + 3 * k * k * t * m + 3 * k * t * t * m + t * t * t * x1, k * k * k * y0 + 3 * k * k * t * y0 + 3 * k * t * t * y1 + t * t * t * y1];
+};
+
 export function raceFrame(ctx, W, H, d, o, time) {
   const tm = raceVideoTiming(d);
   const story = d.story || { status: [], events: [] };
@@ -433,13 +405,13 @@ export function raceFrame(ctx, W, H, d, o, time) {
   const pad = Math.round(W * 0.055);
   const { lap, f } = lapAt(tm, d.total, time);
   const done = time >= tm.starts.at(-1);
-  const st = done ? 'green' : lap === 0 && time < tm.intro ? 'green' : story.status[Math.min(d.total, lap + 1) - 1] || 'green';
+  const intro = time < tm.intro;
+  const st = done || intro ? 'green' : story.status[Math.min(d.total, lap + 1) - 1] || 'green';
   const flag = FLAG[st] || FLAG.green;
   background(ctx, W, H, st === 'green' ? C.red : flag.color);
-  // Lueur de l'état de la piste
   if (st !== 'green') {
-    const rg = ctx.createRadialGradient(W / 2, H * 0.32, 0, W / 2, H * 0.32, W);
-    rg.addColorStop(0, `${flag.color}38`); rg.addColorStop(1, `${flag.color}00`);
+    const rg = ctx.createRadialGradient(W / 2, H * 0.1, 0, W / 2, H * 0.1, W * 1.1);
+    rg.addColorStop(0, `${flag.color}30`); rg.addColorStop(1, `${flag.color}00`);
     ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
   }
   // En-tête : Grand Prix, tour, état de la piste
@@ -447,106 +419,136 @@ export function raceFrame(ctx, W, H, d, o, time) {
   ctx.fillStyle = C.red; ctx.fillRect(pad, top, 10 * u, 70 * u);
   txt(ctx, d.gp.toUpperCase(), pad + 28 * u, top + 32 * u, { size: Math.round(38 * u), weight: 800, family: TITLE, max: W * 0.56, spacing: 1 });
   txt(ctx, `SAISON ${d.year} · ${d.total} TOURS`, pad + 28 * u, top + 66 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 3 });
-  const label = time < tm.intro ? 'DÉPART' : done ? 'ARRIVÉE' : `TOUR ${Math.min(d.total, lap + 1)}/${d.total}`;
+  const label = intro ? 'DÉPART' : done ? 'ARRIVÉE' : `TOUR ${Math.min(d.total, lap + 1)}/${d.total}`;
   txt(ctx, label, W - pad, top + 44 * u, { size: Math.round(50 * u), weight: 800, family: TITLE, color: done ? C.gold : C.text, align: 'right', spacing: 1 });
-  if (time >= tm.intro && !done) {
-    const lbl = flag.label;
+  if (!intro && !done) {
     ctx.font = `800 ${Math.round(22 * u)}px ${TITLE}`;
-    const pw = ctx.measureText(lbl).width + 34 * u;
+    const pw = ctx.measureText(flag.label).width + 40 * u;
     rr(ctx, W - pad - pw, top + 58 * u, pw, 34 * u, 17 * u); ctx.fillStyle = st === 'green' ? 'rgba(61,220,132,0.16)' : flag.color; ctx.fill();
-    txt(ctx, lbl, W - pad - pw / 2, top + 82 * u, { size: Math.round(22 * u), weight: 800, family: TITLE, color: st === 'green' ? C.green : '#111', align: 'center', spacing: 1.5 });
+    txt(ctx, flag.label, W - pad - pw / 2, top + 82 * u, { size: Math.round(22 * u), weight: 800, family: TITLE, color: st === 'green' ? C.green : '#111', align: 'center', spacing: 1.5 });
   }
-  // Barre de progression : couleur de l'état de la piste à chaque tour
-  const by = top + 112 * u;
-  const bw = W - pad * 2;
-  rr(ctx, pad, by, bw, 12 * u, 6 * u); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill();
-  story.status.forEach((s, i) => { if (s !== 'green') { ctx.fillStyle = FLAG[s].color; ctx.fillRect(pad + (bw * i) / d.total, by, Math.max(2, bw / d.total), 12 * u); } });
-  const prog = done ? 1 : time < tm.intro ? 0 : (lap + f) / d.total;
-  ctx.fillStyle = '#fff'; ctx.fillRect(pad + bw * prog - 2 * u, by - 6 * u, 4 * u, 24 * u);
 
-  // ---- Circuit ----
-  const t = trackOf(d);
-  const box = { x: pad + 20 * u, y: by + 36 * u, w: W - 2 * pad - 40 * u, h: H * 0.25 };
-  const sc = Math.min(box.w / t.w, box.h / t.h);
-  const ox = box.x + (box.w - t.w * sc) / 2;
-  const oy = box.y + (box.h - t.h * sc) / 2;
-  const P = ([x, y]) => [ox + x * sc, oy + y * sc];
-  const path = () => { ctx.beginPath(); t.pts.forEach((p, i) => { const [x, y] = P(p); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); };
-  ctx.save();
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 40 * u; path(); ctx.stroke();
-  ctx.shadowColor = st === 'green' ? 'rgba(255,255,255,0.35)' : flag.color; ctx.shadowBlur = 40 * u;
-  ctx.strokeStyle = st === 'green' ? '#2a3140' : flag.color; ctx.globalAlpha = st === 'green' ? 1 : 0.55; ctx.lineWidth = 28 * u; path(); ctx.stroke();
-  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
-  ctx.strokeStyle = st === 'green' ? '#d9dee8' : flag.color; ctx.lineWidth = 6 * u;
-  if (st === 'vsc' || st === 'neutral') ctx.setLineDash([22 * u, 14 * u]);
-  path(); ctx.stroke(); ctx.setLineDash([]);
-  // Ligne de départ : damier
-  const [sx, sy] = P(t.pts[0]);
-  const q = 8 * u;
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { ctx.fillStyle = (i + j) % 2 ? '#111' : '#fff'; ctx.fillRect(sx - 2 * q + i * q, sy - q + j * q, q, q); }
-  ctx.restore();
-
-  // Voitures : position sur le tracé d'après l'écart au leader
-  const g = gapsOf(d);
+  // ---- Graphique des positions : une ligne par pilote, qui se dessine tour après tour ----
   const n = d.drivers.length;
+  const prog = done ? d.total : intro ? 0 : Math.min(d.total, lap + f);
+  const x0 = pad + 52 * u;
+  const x1 = W - pad - 220 * u;
+  const y0 = top + 150 * u;
+  const y1 = H - 400 * u;
+  const rowH = (y1 - y0) / Math.max(1, n - 1);
+  const X = (l) => x0 + ((x1 - x0) * l) / d.total;
+  const Y = (p) => y0 + (p - 1) * rowH;
+  // Repères : positions, tours, périodes neutralisées (bandes de couleur, nom au-dessus)
+  for (let p = 1; p <= n; p++) {
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(x0, Y(p) - 0.5, x1 - x0, 1);
+    txt(ctx, String(p), x0 - 16 * u, Y(p) + 7 * u, { size: Math.round(20 * u), weight: 700, family: TITLE, color: p <= 3 ? MEDAL[p - 1] : C.muted, align: 'right' });
+  }
+  for (let l = 10; l <= d.total - 6; l += 10) {
+    ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fillRect(X(l), y0 - 14 * u, 1, y1 - y0 + 28 * u);
+    txt(ctx, String(l), X(l), y1 + 44 * u, { size: Math.round(18 * u), weight: 700, family: TITLE, color: C.muted, align: 'center' });
+  }
+  txt(ctx, 'TOURS', x1, y1 + 44 * u, { size: Math.round(18 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
+  for (let i = 0; i < d.total; i++) {
+    const s = story.status[i];
+    if (!s || s === 'green' || i >= prog) continue;
+    const a = X(i);
+    const b = X(Math.min(i + 1, prog));
+    ctx.fillStyle = `${FLAG[s].color}${s === 'yellow' ? '1c' : '33'}`;
+    ctx.fillRect(a, y0 - 24 * u, b - a + 0.5, y1 - y0 + 48 * u);
+    if (story.status[i - 1] !== s && s !== 'yellow') txt(ctx, { sc: 'SC', vsc: 'VSC', red: 'ROUGE', neutral: 'NEUTRAL.' }[s], a + 4 * u, y0 - 32 * u, { size: Math.round(20 * u), weight: 800, family: TITLE, color: FLAG[s].color, spacing: 1 });
+  }
+  // Lignes des pilotes (la tête de chaque ligne avance avec la course)
   const posAt = (x, l) => (l === 0 ? (x.grid || n) : x.pos[l - 1] || (x.classified && l > x.laps ? x.finish : null));
-  const leaderLap = g.lead[Math.min(d.total, lap + 1)] - g.lead[Math.min(d.total, lap)] || g.lapRef;
-  const lapRef = Math.min(leaderLap > 0 ? leaderLap : g.lapRef, g.lapRef * 1.8);
+  const g = gapsOf(d);
   const gapAt = (i, l) => {
     const x = d.drivers[i];
-    if (l === 0) return ((x.grid || n) - 1) * 0.3;
+    if (l === 0) return null;
     const c = g.cum[i][Math.min(l, x.laps) - 1];
-    return c == null ? null : c - g.lead[Math.min(l, x.laps)] + (l > x.laps ? (l - x.laps) * g.lapRef : 0);
+    return c == null ? null : c - g.lead[Math.min(l, x.laps)];
   };
-  const cars = [];
-  d.drivers.forEach((x, i) => {
-    let s;
-    if (time < tm.intro) s = -0.004 - ((x.grid || n) - 1) * 0.0032;
-    else if (done) s = null;
-    else {
-      if (lap >= x.laps && !x.classified) return;          // abandon : plus en piste
-      const g0 = gapAt(i, lap);
-      const g1 = gapAt(i, lap + 1) ?? g0;
-      if (g0 == null) return;
-      const gap = g0 + (g1 - g0) * f;
-      s = -gap / lapRef;   // leader fixe sur la ligne, les autres derrière lui selon leur écart
+  const L = Math.floor(prog);
+  const fe = done ? 0 : ease(clamp01((prog - L) * 1.4));
+  const heads = [];
+  const order = d.drivers.map((x, i) => i).sort((a, b) => (posAt(d.drivers[b], L) || 99) - (posAt(d.drivers[a], L) || 99));
+  for (const i of order) {
+    const x = d.drivers[i];
+    const col = vivid(x.color);
+    const last = Math.min(L, x.classified ? d.total : x.laps);
+    ctx.beginPath();
+    let px = X(0);
+    let py = Y(posAt(x, 0));
+    ctx.moveTo(px, py);
+    for (let l = 1; l <= last; l++) {
+      const p = posAt(x, l);
+      if (!p) break;
+      const nx = X(l);
+      const ny = Y(p);
+      ctx.bezierCurveTo((px + nx) / 2, py, (px + nx) / 2, ny, nx, ny);
+      px = nx; py = ny;
     }
-    if (s == null) return;
-    cars.push({ i, x, s, p: posAt(x, Math.max(lap, 0)) || 99, pit: !done && time >= tm.intro && (x.pits || []).includes(lap + 1) });
-  });
-  cars.sort((a, b) => b.p - a.p);
-  for (const c of cars) {
-    const [cx, cy] = P(pointAt(t, c.s));
-    const r = (c.p === 1 ? 14 : 11) * u;
-    ctx.beginPath(); ctx.arc(cx, cy, r + 4 * u, 0, Math.PI * 2); ctx.fillStyle = c.p === 1 ? C.gold : '#0b0d12'; ctx.fill();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = vivid(c.x.color); ctx.fill();
-    c.at = [cx, cy];
+    // Tour en cours : morceau de courbe jusqu'à la tête
+    const alive = x.classified || L < x.laps;
+    const pNext = alive && L < d.total ? posAt(x, L + 1) : null;
+    let hx = px;
+    let hy = py;
+    if (pNext && !done && prog > L) {
+      const steps = 8;
+      for (let k = 1; k <= steps; k++) { const [bx, byy] = bez(px, py, X(L + 1), Y(pNext), (k / steps) * (prog - L)); ctx.lineTo(bx, byy); }
+      hx = X(prog);
+      hy = py + (Y(pNext) - py) * fe;
+    }
+    const lead = alive && Math.round((hy - y0) / rowH) === 0;
+    ctx.strokeStyle = col; ctx.globalAlpha = alive ? 0.92 : 0.45; ctx.lineWidth = (lead ? 6 : 4) * u; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    // Arrêts au stand : points blancs sur la ligne
+    for (const pl of x.pits || []) {
+      if (pl > prog || !posAt(x, pl)) continue;
+      ctx.beginPath(); ctx.arc(X(pl), Y(posAt(x, pl)), 6 * u, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.lineWidth = 2.5 * u; ctx.strokeStyle = col; ctx.stroke();
+    }
+    if (!alive) {
+      // Abandon : croix au bout de la ligne
+      const ex = X(x.laps);
+      const ey = Y(posAt(x, x.laps) || n);
+      ctx.strokeStyle = '#ff4d4d'; ctx.lineWidth = 4 * u;
+      ctx.beginPath(); ctx.moveTo(ex - 9 * u, ey - 9 * u); ctx.lineTo(ex + 9 * u, ey + 9 * u); ctx.moveTo(ex + 9 * u, ey - 9 * u); ctx.lineTo(ex - 9 * u, ey + 9 * u); ctx.stroke();
+      continue;
+    }
+    heads.push({ i, x, col, hx, hy, gain: pNext && posAt(x, L) ? posAt(x, L) - pNext : 0, pit: !done && (x.pits || []).includes(L + 1) });
   }
-  // Étiquettes : 3 premiers et voitures au stand, placées sans se chevaucher (au-dessus, en dessous…)
-  const placed = [];
-  const free = (r) => !placed.some((q) => r.x < q.x + q.w && q.x < r.x + r.w && r.y < q.y + q.h && q.y < r.y + r.h);
-  for (const c of cars.filter((x) => x.p <= 3 || (x.pit && x.p <= 10)).sort((a, b) => a.p - b.p)) {
-    const [cx, cy] = c.at;
-    const lbl = c.pit ? `${c.x.code} · PIT` : c.p <= 3 && time >= tm.intro ? `P${c.p} ${c.x.code}` : c.x.code;
-    ctx.font = `800 ${Math.round(22 * u)}px ${TITLE}`;
-    const lw = ctx.measureText(lbl).width + 18 * u;
-    const lx0 = Math.min(W - pad - lw, Math.max(pad, cx - lw / 2));
-    const spots = [[lx0, cy - 52 * u], [lx0, cy + 22 * u], [Math.min(W - pad - lw, cx + 24 * u), cy - 15 * u], [Math.max(pad, cx - 24 * u - lw), cy - 15 * u], [lx0, cy - 86 * u], [lx0, cy + 56 * u]];
-    const [lx, ly] = spots.find(([x, y]) => free({ x, y, w: lw, h: 30 * u })) || spots[0];
-    placed.push({ x: lx - 4 * u, y: ly - 4 * u, w: lw + 8 * u, h: 38 * u });
-    rr(ctx, lx, ly, lw, 30 * u, 8 * u); ctx.fillStyle = c.pit ? '#ff8a3d' : c.p === 1 ? C.gold : 'rgba(11,13,18,0.88)'; ctx.fill();
-    txt(ctx, lbl, lx + lw / 2, ly + 22 * u, { size: Math.round(22 * u), weight: 800, family: TITLE, color: c.pit || c.p === 1 ? '#111' : C.text, align: 'center' });
+  // Têtes des lignes et étiquettes (code, écart ou PIT) : tout le classement en direct
+  heads.sort((a, b) => b.hy - a.hy);
+  const fs = Math.round(Math.min(26 * u, rowH * 0.62));
+  for (const h of heads) {
+    const pos = Math.round((h.hy - y0) / rowH) + 1;
+    if (h.gain > 0 && fe > 0 && fe < 1) {
+      ctx.beginPath(); ctx.arc(h.hx, h.hy, 22 * u, 0, Math.PI * 2); ctx.fillStyle = `rgba(61,220,132,${0.45 * Math.sin(fe * Math.PI)})`; ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(h.hx, h.hy, (pos === 1 ? 12 : 9) * u, 0, Math.PI * 2); ctx.fillStyle = h.col; ctx.fill();
+    ctx.lineWidth = 3 * u; ctx.strokeStyle = pos === 1 ? C.gold : '#0b0d12'; ctx.stroke();
+    const lx = h.hx + 18 * u;
+    rr(ctx, lx, h.hy - rowH * 0.42, 4 * u, rowH * 0.84, 2 * u); ctx.fillStyle = h.col; ctx.fill();
+    txt(ctx, h.x.code, lx + 12 * u, h.hy + fs * 0.36, { size: fs, weight: 800, family: TITLE, color: pos <= 3 ? MEDAL[pos - 1] : C.text });
+    let right = '';
+    if (h.pit) right = 'PIT';
+    else if (pos === 1) right = done ? 'VAINQUEUR' : intro ? '' : 'LEADER';
+    else if (!intro) {
+      const lp = done ? d.total : L;
+      if (h.x.classified && lp > h.x.laps) right = `+${lp - h.x.laps}T`;
+      else { const gl = gapAt(h.i, lp); right = gl != null && gl >= 0 && gl < 600 ? `+${dec(gl, 1)}` : ''; }
+    }
+    if (right) txt(ctx, right, lx + 12 * u + fs * 2.2, h.hy + fs * 0.34, { size: Math.round(fs * 0.78), weight: 700, family: /^[+\d,]+$/.test(right) ? MONO : TITLE, color: right === 'PIT' ? '#ff8a3d' : right === 'VAINQUEUR' ? C.gold : C.muted });
   }
 
   // Feux de départ (présentation)
-  if (time < tm.intro) {
+  if (intro) {
     const on = Math.min(5, Math.floor((time / (tm.intro - 0.6)) * 6));
     const out = time > tm.intro - 0.45;
     const lw = 5 * 92 * u;
     const lx = (W - lw) / 2;
-    const ly = box.y + box.h / 2 - 60 * u;
-    rr(ctx, lx - 20 * u, ly - 20 * u, lw + 40 * u, 140 * u, 24 * u); ctx.fillStyle = 'rgba(8,9,12,0.92)'; ctx.fill();
+    const ly = (y0 + y1) / 2 - 90 * u;
+    rr(ctx, lx - 20 * u, ly - 20 * u, lw + 40 * u, 200 * u, 24 * u); ctx.fillStyle = 'rgba(8,9,12,0.94)'; ctx.fill();
     for (let k = 0; k < 5; k++) {
       ctx.beginPath(); ctx.arc(lx + 46 * u + k * 92 * u, ly + 50 * u, 32 * u, 0, Math.PI * 2);
       const lit = !out && k < on;
@@ -554,10 +556,12 @@ export function raceFrame(ctx, W, H, d, o, time) {
       if (lit) { ctx.shadowColor = '#ff1a1a'; ctx.shadowBlur = 30 * u; }
       ctx.fill(); ctx.shadowBlur = 0;
     }
-    txt(ctx, out ? "C'EST PARTI !" : 'GRILLE DE DÉPART', W / 2, ly + 160 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, align: 'center', color: out ? C.green : C.text, spacing: 3 });
+    txt(ctx, out ? "C'EST PARTI !" : 'GRILLE DE DÉPART', W / 2, ly + 150 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, align: 'center', color: out ? C.green : C.text, spacing: 3 });
   }
 
-  // Bandeau du moment fort en cours
+  // ---- Bandeau du bas : moment fort en cours, sinon le leader ----
+  const bandY = y1 + 90 * u;
+  const bandH = H - 110 * u - bandY;
   const bn = tm.banners.find((b) => time >= b.t0 && time < b.t1);
   if (bn && !done) {
     const k = clamp01((time - bn.t0) / 0.25);
@@ -566,97 +570,52 @@ export function raceFrame(ctx, W, H, d, o, time) {
     const name = x ? `${x.first} ${x.last}`.trim() : bn.code || '';
     const [title, sub] = BANNER[bn.kind];
     const col = BANNER_COLOR[bn.kind] || FLAG[bn.kind]?.color || C.red;
-    const bh = 130 * u;
-    const byy = box.y + box.h - bh + 20 * u;
     ctx.save();
     ctx.globalAlpha = fade;
-    ctx.translate(W / 2, byy + bh / 2);
+    ctx.translate(W / 2, bandY + bandH / 2);
     ctx.scale(0.6 + 0.4 * ease(k), 1);
     ctx.transform(1, 0, -0.12, 1, 0, 0);
-    rr(ctx, -W / 2 + pad, -bh / 2, W - 2 * pad, bh, 14 * u); ctx.fillStyle = col; ctx.fill();
-    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-W / 2 + pad, bh / 2 - 12 * u, W - 2 * pad, 12 * u);
+    rr(ctx, -W / 2 + pad, -bandH / 2, W - 2 * pad, bandH, 14 * u); ctx.fillStyle = col; ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(-W / 2 + pad, bandH / 2 - 12 * u, W - 2 * pad, 12 * u);
     ctx.restore();
     ctx.save();
     ctx.globalAlpha = fade * k;
     const dark = ['sc', 'vsc', 'neutral', 'restart', 'lead'].includes(bn.kind) ? '#0b0d12' : '#fff';
-    txt(ctx, title, W / 2, byy + 64 * u, { size: Math.round(56 * u), weight: 800, family: TITLE, color: dark, align: 'center', spacing: 3, max: W - 3 * pad });
-    txt(ctx, sub(bn, name).toUpperCase(), W / 2, byy + 104 * u, { size: Math.round(28 * u), weight: 700, family: TITLE, color: dark, align: 'center', spacing: 1.5, max: W - 3 * pad });
+    txt(ctx, title, W / 2, bandY + bandH / 2 + 4 * u, { size: Math.round(62 * u), weight: 800, family: TITLE, color: dark, align: 'center', spacing: 3, max: W - 3 * pad });
+    txt(ctx, sub(bn, name).toUpperCase(), W / 2, bandY + bandH / 2 + 52 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: dark, align: 'center', spacing: 1.5, max: W - 3 * pad });
     ctx.restore();
+  } else if (!intro && !done) {
+    const lead = d.drivers.find((x) => posAt(x, Math.max(1, L)) === 1);
+    if (lead) {
+      rr(ctx, pad, bandY + 20 * u, W - 2 * pad, bandH - 40 * u, 14 * u); ctx.fillStyle = C.panel; ctx.fill();
+      ctx.fillStyle = vivid(lead.color); ctx.fillRect(pad, bandY + 20 * u, 10 * u, bandH - 40 * u);
+      txt(ctx, 'EN TÊTE', pad + 36 * u, bandY + bandH / 2 - 14 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.muted, spacing: 3 });
+      txt(ctx, `${lead.first} ${lead.last}`.toUpperCase(), pad + 36 * u, bandY + bandH / 2 + 28 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, max: W * 0.5 });
+      const c = story.events.filter((e) => e.lap <= L + 1);
+      const facts = [['sc', 'SC', 'SC'], ['vsc', 'VSC', 'VSC'], ['out', 'ABANDON', 'ABANDONS'], ['lead', 'CHANGEMENT DE LEADER', 'CHANGEMENTS DE LEADER']].map(([kk, one, many]) => { const v = c.filter((e) => e.kind === kk).length; return v ? `${v} ${v > 1 ? many : one}` : ''; }).filter(Boolean);
+      txt(ctx, facts.join('  ·  ') || 'COURSE SANS INCIDENT', W - pad - 30 * u, bandY + bandH / 2 + 8 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.text, align: 'right', spacing: 1, max: W * 0.4 });
+    }
   }
 
-  // Lecture du schéma : le leader reste sur la ligne (masqué sous un bandeau)
-  if (time >= tm.intro && !done && !bn) txt(ctx, 'LEADER SUR LA LIGNE · LES AUTRES SELON LEUR ÉCART', box.x, box.y + box.h + 30 * u, { size: Math.round(18 * u), weight: 700, family: TITLE, color: C.muted, spacing: 1.5 });
-
-  // ---- Classement complet ----
-  const rank = (l) => {
-    const live = d.drivers.map((x, i) => ({ i, p: posAt(x, l) })).filter((e) => e.p).sort((a, b) => a.p - b.p);
-    const out = d.drivers.map((x, i) => ({ i, p: posAt(x, l) })).filter((e) => !e.p).sort((a, b) => d.drivers[b.i].laps - d.drivers[a.i].laps);
-    const r = new Map();
-    [...live, ...out].forEach((e, k) => r.set(e.i, k));
-    return r;
-  };
-  const fe = ease(clamp01(f * 1.6));
-  const r0 = rank(lap);
-  const r1 = rank(Math.min(d.total, lap + 1));
-  const listTop = box.y + box.h + 46 * u;
-  const rows = n;
-  const rowH = Math.min(74 * u, (H - listTop - 80 * u) / rows);
-  const fs = Math.round(rowH * 0.5);
-  ctx.save();
-  ctx.beginPath(); ctx.rect(0, listTop - 4, W, rows * rowH + 8); ctx.clip();
-  d.drivers.forEach((x, i) => {
-    const k = done ? r1.get(i) : r0.get(i) + (r1.get(i) - r0.get(i)) * fe;
-    if (k > rows) return;
-    const y = listTop + k * rowH;
-    const kk = Math.round(k);
-    rr(ctx, pad, y + 3, W - pad * 2, rowH - 6, 10 * u);
-    ctx.fillStyle = done && kk < 3 ? 'rgba(232,195,90,0.16)' : kk === 0 ? 'rgba(255,255,255,0.09)' : C.panel; ctx.fill();
-    const mid = y + rowH / 2 + fs * 0.36;
-    txt(ctx, String(kk + 1), pad + 54 * u, mid, { size: fs, weight: 800, family: TITLE, align: 'right', color: kk < 3 ? MEDAL[kk] : C.text });
-    ctx.fillStyle = vivid(x.color); ctx.fillRect(pad + 70 * u, y + rowH * 0.22, 7 * u, rowH * 0.56);
-    txt(ctx, x.code, pad + 94 * u, mid, { size: fs, weight: 800, family: TITLE });
-    txt(ctx, x.last.toUpperCase(), pad + 94 * u + fs * 2.5, mid, { size: Math.round(fs * 0.76), weight: 600, family: TITLE, color: C.muted, max: W * 0.34 });
-    // Places gagnées / perdues sur le tour en cours
-    const dl = r0.get(i) - r1.get(i);
-    if (!done && lap > 0 && dl) txt(ctx, dl > 0 ? '▲' : '▼', W * 0.66, mid, { size: Math.round(fs * 0.7), weight: 800, color: dl > 0 ? C.green : '#ff4d4d', align: 'center' });
-    let right = '';
-    const lp = Math.min(d.total, done ? d.total : lap + 1);
-    if ((x.pits || []).includes(lap + 1) && !done) right = 'PIT';
-    else if (!x.classified && lp > x.laps && lap > 0) right = 'ABANDON';
-    else if (x.classified && lp > x.laps && (done || lap > 0)) right = `+${lp - x.laps} TOUR${lp - x.laps > 1 ? 'S' : ''}`;
-    else if (lap === 0 && !done) right = `P${x.grid || '—'}`;
-    else if (kk === 0) right = done ? 'VAINQUEUR' : 'LEADER';
-    else {
-      const gl = gapAt(i, done ? d.total : lap);
-      right = gl != null && gl >= 0 && gl < 600 ? `+${dec(gl, 1)}` : '';
-    }
-    const col = right === 'PIT' ? '#ff8a3d' : right === 'ABANDON' ? '#ff4d4d' : right === 'VAINQUEUR' ? C.gold : C.text;
-    txt(ctx, right, W - pad - 20 * u, mid, { size: Math.round(fs * 0.8), weight: 700, family: /^[+\d,]+$/.test(right) ? MONO : TITLE, color: col, align: 'right' });
-  });
-  ctx.restore();
-
-  // ---- Arrivée : podium et chiffres de la course ----
+  // ---- Arrivée : podium et chiffres de la course dans le bandeau (le classement final reste visible) ----
   if (done) {
     const k = ease(clamp01((time - tm.starts.at(-1)) / 0.8));
     const pod = [...d.drivers].filter((x) => x.finish).sort((a, b) => a.finish - b.finish).slice(0, 3);
+    const w0 = pod[0];
     ctx.save();
     ctx.globalAlpha = k;
-    rr(ctx, box.x - 10 * u, box.y - 10 * u, box.w + 20 * u, box.h + 20 * u, 26 * u); ctx.fillStyle = 'rgba(8,9,12,0.9)'; ctx.fill();
-    // Contenu prévu pour 600 px de haut : réduit pour tenir dans le cadre du circuit
-    const zs = Math.min(1, (box.h + 10 * u) / (610 * u));
-    ctx.translate(W / 2, box.y); ctx.scale(zs, zs); ctx.translate(-W / 2, -box.y + 5 * u);
-    txt(ctx, 'DRAPEAU À DAMIER', W / 2, box.y + 60 * u, { size: Math.round(30 * u), weight: 800, family: TITLE, color: C.muted, align: 'center', spacing: 4 });
-    const w0 = pod[0];
+    rr(ctx, pad, bandY, W - 2 * pad, bandH, 18 * u); ctx.fillStyle = 'rgba(8,9,12,0.92)'; ctx.fill();
+    ctx.strokeStyle = C.gold; ctx.lineWidth = 3 * u; ctx.stroke();
     if (w0) {
-      txt(ctx, 'VAINQUEUR', W / 2, box.y + 130 * u, { size: Math.round(36 * u), weight: 800, family: TITLE, color: C.gold, align: 'center', spacing: 6 });
-      txt(ctx, `${w0.first} ${w0.last}`.toUpperCase(), W / 2, box.y + 225 * u, { size: Math.round(92 * u), weight: 800, family: TITLE, align: 'center', max: box.w - 40 * u });
-      ctx.fillStyle = vivid(w0.color); ctx.fillRect(W / 2 - 80 * u, box.y + 252 * u, 160 * u, 8 * u);
-      txt(ctx, w0.team.toUpperCase(), W / 2, box.y + 300 * u, { size: Math.round(30 * u), weight: 700, family: TITLE, color: C.muted, align: 'center', spacing: 2 });
+      ctx.fillStyle = vivid(w0.color); ctx.fillRect(pad, bandY, 12 * u, bandH);
+      txt(ctx, 'VAINQUEUR', pad + 40 * u, bandY + 50 * u, { size: Math.round(24 * u), weight: 800, family: TITLE, color: C.gold, spacing: 5 });
+      txt(ctx, `${w0.first} ${w0.last}`.toUpperCase(), pad + 40 * u, bandY + 112 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, max: W * 0.55 });
+      txt(ctx, w0.team.toUpperCase(), pad + 40 * u, bandY + 150 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, spacing: 2 });
     }
     pod.slice(1).forEach((x, j) => {
-      const cx = W / 2 + (j ? 1 : -1) * box.w * 0.24;
-      txt(ctx, `P${j + 2}`, cx, box.y + 385 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, color: MEDAL[j + 1], align: 'center' });
-      txt(ctx, x.last.toUpperCase(), cx, box.y + 432 * u, { size: Math.round(44 * u), weight: 800, family: TITLE, align: 'center', max: box.w * 0.45 });
+      const yy = bandY + 62 * u + j * 56 * u;
+      txt(ctx, `P${j + 2}`, W * 0.67, yy, { size: Math.round(30 * u), weight: 800, family: TITLE, color: MEDAL[j + 1] });
+      txt(ctx, x.last.toUpperCase(), W * 0.67 + 56 * u, yy, { size: Math.round(36 * u), weight: 800, family: TITLE, max: W * 0.24 });
     });
     const c = story.counts || {};
     const facts = [
@@ -664,17 +623,16 @@ export function raceFrame(ctx, W, H, d, o, time) {
       c.red ? `${c.red} DRAPEAU${c.red > 1 ? 'X' : ''} ROUGE${c.red > 1 ? 'S' : ''}` : '', d.leadChanges ? `${d.leadChanges} CHANGEMENT${d.leadChanges > 1 ? 'S' : ''} DE LEADER` : '',
     ].filter(Boolean);
     if (!facts.length) facts.push('AUCUNE NEUTRALISATION');
-    txt(ctx, facts.join('  ·  '), W / 2, box.y + 520 * u, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.text, align: 'center', spacing: 1.5, max: box.w - 40 * u });
-    if (story.best) {
-      const b = d.drivers.find((x) => x.code === story.best.code);
-      txt(ctx, `MEILLEUR TOUR · ${(b?.last || story.best.code).toUpperCase()} · ${lapStr(story.best.time)} (TOUR ${story.best.lap})`, W / 2, box.y + 568 * u, { size: Math.round(26 * u), weight: 700, family: TITLE, color: '#b36bff', align: 'center', spacing: 1.5, max: box.w - 40 * u });
-    }
+    const b = story.best ? d.drivers.find((x) => x.code === story.best.code) : null;
+    const best = story.best ? `MEILLEUR TOUR ${(b?.last || story.best.code).toUpperCase()} ${lapStr(story.best.time)}` : '';
+    txt(ctx, facts.join(' · '), pad + 40 * u, bandY + bandH - 26 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: C.text, spacing: 1, max: W * 0.5 });
+    if (best) txt(ctx, best, W - pad - 30 * u, bandY + bandH - 26 * u, { size: Math.round(22 * u), weight: 700, family: TITLE, color: '#b36bff', align: 'right', spacing: 1, max: W * 0.38 });
     ctx.restore();
   }
   const fy = H - Math.round(H * 0.025);
   txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(30 * u), weight: 700, family: TITLE, spacing: 1 });
   if (done) txt(ctx, 'ABONNEZ-VOUS POUR LA SUITE', W - pad, fy, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, align: 'right', spacing: 2 });
-  else if (story.estimated && story.events.some((e) => e.kind === 'neutral')) txt(ctx, 'Neutralisations estimées d\'après les temps au tour', W - pad, fy, { size: Math.round(20 * u), weight: 600, color: C.muted, align: 'right' });
+  else if (story.estimated && story.events.some((e) => e.kind === 'neutral')) txt(ctx, "Neutralisations estimées d'après les temps au tour", W - pad, fy, { size: Math.round(20 * u), weight: 600, color: C.muted, align: 'right' });
 }
 
 // ---------- Race Week : visuel propre à chaque Grand Prix ----------
