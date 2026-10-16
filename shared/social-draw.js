@@ -273,7 +273,10 @@ function classement(ctx, W, H, d, o) {
     if (d.kind === 'race' && r.points) {
       txt(ctx, `+${r.points}`, right, mid, { size: Math.round(fs * 0.8), weight: 700, family: TITLE, color: C.green, align: 'right' });
     }
-    const gx = d.kind === 'race' ? right - fs * 2.4 : right;
+    // Essais : nombre de tours de chaque pilote à droite, écart juste avant
+    const laps = d.kind === 'practice' && d.rows.some((x) => x.laps);
+    if (laps) txt(ctx, r.laps ? `${r.laps} tours` : '', right, mid, { size: Math.round(fs * 0.72), weight: 600, color: C.muted, align: 'right' });
+    const gx = d.kind === 'race' ? right - fs * 2.4 : laps ? right - fs * 3.9 : right;
     txt(ctx, r.out ? 'ABANDON' : r.gap || (i === 0 && d.kind === 'race' ? 'VAINQUEUR' : ''), gx, mid, { size: Math.round(fs * 0.8), weight: 600, family: r.out || (i === 0 && d.kind === 'race') ? TITLE : MONO, color: r.out ? C.red : i === 0 ? C.gold : C.text, align: 'right' });
     if (d.kind === 'quali' && r.knockedOut) txt(ctx, `ÉLIMINÉ ${d.sprint ? 'SQ' : 'Q'}${r.koPart}`, x + colW * 0.6, mid, { size: Math.round(fs * 0.62), weight: 700, family: TITLE, color: C.red, spacing: 1 });
   });
