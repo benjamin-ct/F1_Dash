@@ -70,9 +70,9 @@ export async function saveAccount(net, b) {
     // Vérification des clés : jeton de l'app (sans compte), refusé par TikTok si une clé est fausse
     // (autre réponse, ou TikTok injoignable : clés gardées, la connexion dira si elles conviennent)
     try {
-      await call(`${TIKTOK}/oauth/token/`, { method: 'POST', form: { client_key: clientKey, client_secret: clientSecret, grant_type: 'client_credentials' } });
+      await tiktokOAuth({ client_key: clientKey, client_secret: clientSecret, grant_type: 'client_credentials' });
     } catch (err) {
-      if (/invalid_client|client.?(key|secret)|incorrect/i.test(err.message)) throw new Error(`Clés refusées par TikTok (${err.message}) : vérifiez le client key et le client secret`);
+      if (err.code === 'invalid_client' || /client.?(key|secret)|incorrect/i.test(err.message)) throw new Error(`Clés refusées par TikTok (${err.message}) : vérifiez le client key et le client secret`);
     }
     const prev = conf().tiktok || {};
     // Autre app TikTok : l'ancienne connexion ne vaut plus
@@ -130,6 +130,24 @@ async function threadsAccount() {
 }
 
 // ---------- TikTok : connexion (PKCE, retour sur cet ordinateur) et brouillon vidéo ----------
+// Jetons TikTok : formulaire envoyé avec « application/x-www-form-urlencoded » tout court. TikTok
+// refuse l'en-tête que fetch met de lui-même (« …;charset=UTF-8 ») : « invalid_request ».
+async function tiktokOAuth(form) {
+  const res = await fetch(`${TIKTOK}/oauth/token/`, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(form).toString(), signal: AbortSignal.timeout(30000),
+  });
+  let d = {};
+  try { d = JSON.parse(await res.text()); } catch { /* réponse illisible */ }
+  if (!res.ok || d.error || !d.access_token) {
+    const why = [d.error, d.error_description].filter(Boolean).join(' : ') || `HTTP ${res.status}`;
+    const e = new Error(String(why).slice(0, 300));
+    e.code = d.error || '';
+    throw e;
+  }
+  return d;
+}
+
 const pending = new Map();   // state -> { verifier, redirect, at }
 
 export function tiktokLoginUrl(origin) {
@@ -153,9 +171,9 @@ export async function tiktokCallback(params) {
   const p = pending.get(params.get('state'));
   if (!p || Date.now() - p.at > 15 * 60e3) throw new Error('Demande de connexion expirée : recommencez depuis l\'application');
   pending.delete(params.get('state'));
-  if (params.get('error')) throw new Error(params.get('error_description') || params.get('error'));
+  if (params.get('error')) throw new Error([params.get('error'), params.get('error_description')].filter(Boolean).join(' : '));
   const t = conf().tiktok;
-  const r = await call(`${TIKTOK}/oauth/token/`, { method: 'POST', form: { client_key: t.clientKey, client_secret: t.clientSecret, code: params.get('code') || '', grant_type: 'authorization_code', redirect_uri: p.redirect, code_verifier: p.verifier } });
+  const r = await tiktokOAuth({ client_key: t.clientKey, client_secret: t.clientSecret, code: params.get('code') || '', grant_type: 'authorization_code', redirect_uri: p.redirect, code_verifier: p.verifier });
   const saved = storeTiktok(t, r);
   try {
     const u = await call(`${TIKTOK}/user/info/?fields=display_name`, { headers: { Authorization: `Bearer ${saved.accessToken}` } });
@@ -167,7 +185,7 @@ async function tiktokToken() {
   const t = conf().tiktok;
   if (!t?.refreshToken) throw new Error('Compte TikTok non connecté');
   if (t.accessToken && t.expiresAt - Date.now() > 5 * 60e3) return t.accessToken;
-  const r = await call(`${TIKTOK}/oauth/token/`, { method: 'POST', form: { client_key: t.clientKey, client_secret: t.clientSecret, grant_type: 'refresh_token', refresh_token: t.refreshToken } });
+  const r = await tiktokOAuth({ client_key: t.clientKey, client_secret: t.clientSecret, grant_type: 'refresh_token', refresh_token: t.refreshToken });
   return storeTiktok(t, r).accessToken;
 }
 
