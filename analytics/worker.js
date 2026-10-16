@@ -3,7 +3,7 @@
 //   Seuls le jour (pris ici, pas chez l'utilisateur), la version, le système, le type d'appareil,
 //   le nom de la fonction et un nombre sont gardés : ni adresse IP, ni identifiant, ni contenu.
 // - POST /t : traduction partagée ; GET /r/<empreinte> et POST /r : transcription partagée des radios.
-// - GET / : connexion (mot de passe = secret STATS_KEY du Worker), puis tableau de bord sur /stats.
+// - GET / ou /login : connexion (mot de passe = secret STATS_KEY du Worker), puis tableau de bord sur /stats.
 //   Session : cookie signé (HMAC du mot de passe), valable 30 jours.
 // - GET /stats.json : les mêmes chiffres en JSON (connecté, ou ?key=…).
 // - /studio/ : page web du créateur (fichiers statiques du dossier site/) et son API /studio/api/…
@@ -261,7 +261,9 @@ export default {
     }
     if (!env.STATS_KEY) return json({ error: 'Mot de passe STATS_KEY non configuré' }, 503);
 
-    if (url.pathname === '/' && req.method === 'GET') {
+    // Connexion : à la racine sur *.workers.dev, et sur /login partout (sur un nom de domaine à soi,
+    // la racine affiche le site de l'appli)
+    if ((url.pathname === '/' || url.pathname === '/login') && req.method === 'GET') {
       if (await signedIn(req, env)) return redirect('/stats');
       const nonce = nonceOf();
       return html(loginPage({ nonce }), nonce);
@@ -274,12 +276,12 @@ export default {
       const nonce = nonceOf();
       return html(loginPage({ nonce, error: 'Mot de passe incorrect' }), nonce, 401);
     }
-    if (url.pathname === '/logout') return redirect('/', { 'Set-Cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` });
+    if (url.pathname === '/logout') return redirect('/login', { 'Set-Cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` });
 
     if (req.method === 'GET' && (url.pathname === '/stats' || url.pathname === '/stats.json')) {
       const key = url.searchParams.get('key');
       const ok = (await signedIn(req, env)) || (key !== null && sameKey(key, env.STATS_KEY));
-      if (!ok) return url.pathname === '/stats' ? redirect('/') : json({ error: 'Non connecté' }, 403);
+      if (!ok) return url.pathname === '/stats' ? redirect('/login') : json({ error: 'Non connecté' }, 403);
       const days = periodOf(url);
       // Ancien lien avec ?key= : on ouvre la session et on retire le mot de passe de l'adresse
       if (key !== null && url.pathname === '/stats') return redirect(`/stats?days=${days}`, { 'Set-Cookie': await sessionCookie(env) });

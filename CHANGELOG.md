@@ -4,6 +4,11 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.21 — 2026-10-16
+
+### Synchro TV
+- Préréglages du délai valables dans tous les pays : « TV : antenne, satellite, câble ou box » (≈ 10 s) et « Streaming : appli ou site web » (≈ 40 s) remplacent ceux de Canal+ et myCANAL. Ce ne sont que des points de départ : le délai se calibre toujours avec la synchro TV, et vos propres préréglages restent en place.
+
 ## v1.27.20 — 2026-10-16
 
 ### Corrections
