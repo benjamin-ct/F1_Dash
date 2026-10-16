@@ -9,6 +9,13 @@
   « Application de bureau » avec la version (ex. `v1.15.0`). La page de la version reprend la section
   du journal (`scripts/release-notes.mjs`) ; le workflow échoue si elle manque.
 - Ne fusionner et publier que lorsque l'utilisateur le demande (« merge et publie »).
+- **Modifications du serveur seul, sans nouvelle version de l'appli** : quand une PR ne touche que le serveur des
+  statistiques (Worker : `analytics/**`, page du Studio, `scripts/build-studio.mjs`, et les fichiers de `shared/`
+  que l'appli n'importe pas, ni directement ni par un autre fichier de `shared/` — vérifier avec
+  `grep -rl <fichier> public server shared`), pas d'entrée dans `CHANGELOG.md` ni de
+  version : le workflow « Statistiques » déploie le Worker tout seul à chaque push. « Merge et publie » = fusionner la
+  PR, sans lancer « Application de bureau ». Dès qu'un fichier de l'appli change (`public/`, `server/`, `desktop/`,
+  fichier de `shared/` importé par l'appli), c'est une version normale.
 - Avant de pousser : `npm test`.
 - **Version anglaise** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js` (clé = texte
   français, `{}` pour les valeurs) ; `node scripts/i18n-missing.mjs` liste ceux qui manquent.
