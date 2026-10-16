@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clean, tidy, badReply, fixRadio } from '../shared/radio-text.js';
+import { clean, tidy, badReply, fixRadio, collapseLoops } from '../shared/radio-text.js';
 
 test('radios : transcription sans aucun mot comptée comme vide', () => {
   assert.equal(clean('-'), '');
@@ -49,4 +49,15 @@ test('radios embarquées : textes inventés sur le bruit du moteur écartés', a
   // Phrases rapprochées d'une même radio réunies ; marqueurs « >> » retirés
   const one = [{ timestamp: [1, 3.4], text: ' >> Keep going.' }, { timestamp: [3.6, 5], text: ' >> I got it.' }, { timestamp: [9, 10], text: ' Copy.' }];
   assert.deepEqual(newSegments(one, 0, null).map((s) => s.text), ['Keep going. I got it.', 'Copy.']);
+});
+
+test('radios : phrase répétée en boucle par la reconnaissance vocale ou la traduction réduite à une fois', () => {
+  assert.equal(collapseLoops(`because easier, ${'easier, '.repeat(60)}`), 'because easier…');
+  assert.equal(collapseLoops(`parce que plus facile, ${'plus facile, '.repeat(80)}`), 'parce que plus facile…');
+  assert.equal(clean(`(engine) because easier, ${'easier, '.repeat(30)}`), 'because easier…');
+  assert.equal(collapseLoops(`I think ${'we need to box '.repeat(6)}now please.`), 'I think we need to box now please.');
+  // Vraies répétitions des radios : gardées
+  assert.equal(collapseLoops('Box box, box box, box box this lap, confirm'), 'Box box, box box, box box this lap, confirm');
+  assert.equal(collapseLoops('Go, go, go, go, go! Push now'), 'Go, go, go, go, go! Push now');
+  assert.equal(collapseLoops('Well done, Charles. Nicely driven race.'), 'Well done, Charles. Nicely driven race.');
 });

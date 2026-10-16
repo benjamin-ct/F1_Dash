@@ -2,10 +2,37 @@
 // le modèle de langage, et corrections du jargon F1 que le petit modèle de traduction rend mot à mot.
 // (Utilisé par le moteur de transcription, public/js/workers/whisper.js.)
 
-// Texte reconnu : annotations retirées (« (bruit) », « [musique] ») ; un texte sans aucun mot
-// (« - », « ... » sur une radio sans parole audible) compte comme vide
+// Boucle de la reconnaissance vocale (ou de la traduction qui la recopie) : même groupe de 1 à 8
+// mots répété à la suite (« easier, easier, easier… », des dizaines de fois) gardé une seule fois.
+// Seuils hauts pour ne pas toucher aux vraies répétitions des radios (« box box, box box, box box ») :
+// 8 fois pour un mot seul, 5 fois pour un groupe de mots.
+export function collapseLoops(t) {
+  const toks = String(t || '').split(/\s+/).filter(Boolean);
+  if (toks.length < 6) return String(t || '').trim();
+  const k = toks.map((w) => w.toLowerCase().replace(/[^\p{L}\p{N}']+/gu, ''));
+  const same = (a, b, n) => { for (let j = 0; j < n; j++) if (k[a + j] !== k[b + j]) return false; return true; };
+  const out = [];
+  let endsInLoop = false;
+  for (let i = 0; i < toks.length;) {
+    let skip = 0;
+    for (let n = 1; n <= 8 && !skip; n++) {
+      if (!k.slice(i, i + n).join('')) continue;
+      let reps = 1;
+      while (i + (reps + 1) * n <= toks.length && same(i, i + reps * n, n)) reps++;
+      if (reps >= (n === 1 ? 8 : 5)) { out.push(...toks.slice(i, i + n)); skip = reps * n; }
+    }
+    if (skip) i += skip; else out.push(toks[i++]);
+    endsInLoop = skip > 0;
+  }
+  const s = out.join(' ');
+  // Texte coupé par la boucle : terminé proprement
+  return endsInLoop ? `${s.replace(/[\s,;:–—-]+$/, '')}${/[.!?…]$/.test(s) ? '' : '…'}` : s;
+}
+
+// Texte reconnu : annotations retirées (« (bruit) », « [musique] »), boucles réduites ; un texte
+// sans aucun mot (« - », « ... » sur une radio sans parole audible) compte comme vide
 export const clean = (t) => {
-  const s = String(t || '').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').replace(/>>+/g, ' ').replace(/\s+/g, ' ').trim().replace(/^[-–—]+\s*/, '');
+  const s = collapseLoops(String(t || '').replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').replace(/>>+/g, ' ').replace(/\s+/g, ' ').trim().replace(/^[-–—]+\s*/, ''));
   return /[A-Za-z]{2}|\d/.test(s) ? s : '';
 };
 

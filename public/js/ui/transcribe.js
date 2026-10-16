@@ -5,7 +5,7 @@ import { storageGet, storageSet } from '../util.js';
 import { emit } from '../store.js';
 import { track } from './stats.js';
 import { cloudOn, cloudAsrOn, cloudTranslate, cloudTranscribe } from '../cloud.js';
-import { fixRadio } from '/shared/radio-text.js';
+import { fixRadio, collapseLoops } from '/shared/radio-text.js';
 
 const KEY = 'paddock.radioTexts';
 const MAX_KEEP = 400;
@@ -33,9 +33,15 @@ let retryAt = 0;
 let current = null;   // tâche en cours {id, resolve, reject}
 let nextId = 1;
 
-// Anciennes transcriptions sans aucun mot (« - ») : comptées comme « pas de parole reconnue »
+// Anciennes transcriptions sans aucun mot (« - ») : comptées comme « pas de parole reconnue » ;
+// phrases répétées en boucle (reconnaissance ou traduction) réduites à une seule fois
 function cleanTexts(o) {
-  for (const t of Object.values(o || {})) if (t?.en && !/[A-Za-z]{2}|\d/.test(t.en)) { t.en = ''; t.tr = {}; }
+  for (const t of Object.values(o || {})) {
+    if (!t?.en) continue;
+    if (!/[A-Za-z]{2}|\d/.test(t.en)) { t.en = ''; t.tr = {}; continue; }
+    t.en = collapseLoops(t.en);
+    for (const [l, x] of Object.entries(t.tr || {})) if (typeof x === 'string') t.tr[l] = collapseLoops(x);
+  }
   return o || {};
 }
 
@@ -321,7 +327,7 @@ async function pump() {
       let en;
       if (c) {
         task.q = 'cloud';
-        en = c.text;
+        en = collapseLoops(c.text);
         texts[task.url] = { en, tr: {}, tq: {}, q: 'cloud', ...(c.d ? { d: c.d } : {}) };
       } else {
         if (cloudAsrOn()) noCloud.add(task.url);   // refusée par le serveur : pas de nouvel essai
@@ -330,7 +336,7 @@ async function pump() {
         const audio = await decode(task.url);
         if (status.state !== 'ready') setStatus('loading', 'Préparation de la transcription…');
         const d = Math.round(audio.length / 1600) / 10;
-        en = await run({ kind: 'asr', audio, quality: q }, [audio.buffer]);
+        en = collapseLoops(await run({ kind: 'asr', audio, quality: q }, [audio.buffer]));
         texts[task.url] = { en, tr: {}, tq: {}, q, d };
       }
       // Traduction juste après, avant les radios plus anciennes
@@ -344,7 +350,7 @@ async function pump() {
         const c = await cloudTranslate(t.en, 'en', task.lang);
         const q = task.q = c ? 'cloud' : await qualityFor('mt');
         effective.mt = q;
-        const tr = c ? fixRadio(c, task.lang) : await run({ kind: 'translate', text: t.en, lang: task.lang, quality: q, who: task.who });
+        const tr = collapseLoops(c ? fixRadio(c, task.lang) : await run({ kind: 'translate', text: t.en, lang: task.lang, quality: q, who: task.who }));
         t.tr = { ...(t.tr || {}), [task.lang]: tr };
         t.tq = { ...(t.tq || {}), [task.lang]: q };
       }

@@ -173,3 +173,27 @@ test('Threads : post vérifié visible publiquement (page lue comme un aperçu d
     assert.equal(await threadsVisible('https://www.threads.com/@paddocklive/post/X', 'paddocklive', []), null);
   } finally { globalThis.fetch = real; }
 });
+
+test('TikTok : clés vérifiées à l\'enregistrement, connexion effacée si l\'app change', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    const b = new URLSearchParams(String(opts.body));
+    assert.equal(String(url), 'https://open.tiktokapis.com/v2/oauth/token/');
+    assert.equal(b.get('grant_type'), 'client_credentials');
+    const d = b.get('client_secret') === 'bon' ? { access_token: 'clt', expires_in: 7200 } : { error: 'invalid_client', error_description: 'Client key or secret is incorrect.' };
+    return { ok: !d.error, status: d.error ? 401 : 200, text: async () => JSON.stringify(d) };
+  };
+  try {
+    await assert.rejects(saveAccount('tiktok', { clientKey: 'cle', clientSecret: 'faux' }), /Clés refusées par TikTok/);
+    assert.equal(accountsInfo().tiktok.configured, false);
+    await saveAccount('tiktok', { clientKey: 'cle', clientSecret: 'bon' });
+    assert.deepEqual(accountsInfo().tiktok, { connected: false, name: '', configured: true });
+    // Compte connecté puis clés d'une autre app : il faut se reconnecter
+    const { getConfig } = await import('../server/config.js');
+    saveConfig({ social: { ...getConfig().social, tiktok: { ...getConfig().social.tiktok, refreshToken: 'r', name: 'Moi' } } });
+    await saveAccount('tiktok', { clientKey: 'cle', clientSecret: 'bon' });
+    assert.equal(accountsInfo().tiktok.connected, true);
+    await saveAccount('tiktok', { clientKey: 'autre', clientSecret: 'bon' });
+    assert.equal(accountsInfo().tiktok.connected, false);
+  } finally { globalThis.fetch = realFetch; }
+});

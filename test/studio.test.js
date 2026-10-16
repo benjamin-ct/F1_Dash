@@ -324,11 +324,24 @@ test('page du créateur : toutes les sources d\'actu en une réponse (octets d\'
   assert.equal(res.headers.get('Cache-Control'), 'no-store');
   const parts = unpackFeeds(new Uint8Array(await res.arrayBuffer()));
   assert.deepEqual(parts.map((p) => [p.id, p.type, new TextDecoder().decode(p.body)]), [[rss[0].id, 'application/rss+xml', '<rss/>']]);
-  // Gardées 2 minutes par le serveur : pas relues entre-temps, relues ensuite
+  // Lecture incomplète gardée 20 secondes, lecture complète 2 minutes
   const n = urls.length;
   const t0 = Date.now();
-  assert.equal(unpackFeeds(new Uint8Array(await (await feeds({ fetchFn: async (u) => { urls.push(u); return new Response(''); }, now: t0 + 60e3 })).arrayBuffer())).length, 1);
+  assert.equal(unpackFeeds(new Uint8Array(await (await feeds({ fetchFn: async (u) => { urls.push(u); return new Response(''); }, now: t0 + 10e3 })).arrayBuffer())).length, 1);
   assert.equal(urls.length, n);
-  await feeds({ fetchFn: async (u) => { urls.push(u); return new Response(''); }, now: t0 + 200e3 });
+  await feeds({ fetchFn: async (u) => { urls.push(u); return new Response('<rss>ok</rss>'); }, now: t0 + 200e3 });
   assert.equal(urls.length, n + rss.length);
+  await feeds({ fetchFn: async (u) => { urls.push(u); return new Response(''); }, now: t0 + 300e3 });
+  assert.equal(urls.length, n + rss.length);
+  // Toutes les sources en panne : dernières lectures réussies reprises ; résultat incomplet gardé
+  // 20 secondes seulement
+  const down = async (u) => { urls.push(u); throw new Error('panne'); };
+  const kept = unpackFeeds(new Uint8Array(await (await feeds({ fetchFn: down, now: t0 + 400e3 })).arrayBuffer()));
+  assert.equal(kept.length, rss.length);
+  assert.ok(kept.every((p) => new TextDecoder().decode(p.body) === '<rss>ok</rss>'));
+  const m = urls.length;
+  await feeds({ fetchFn: down, now: t0 + 410e3 });
+  assert.equal(urls.length, m);              // encore gardé
+  await feeds({ fetchFn: down, now: t0 + 430e3 });
+  assert.equal(urls.length, m + rss.length); // relu
 });

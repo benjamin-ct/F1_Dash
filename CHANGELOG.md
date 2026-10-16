@@ -4,6 +4,13 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.17 — 2026-10-16
+
+### Corrections
+- Radios retranscrites : une phrase répétée en boucle par la reconnaissance vocale (« plus facile, plus facile, plus facile… ») n'apparaît plus qu'une fois, dans le texte comme dans sa traduction, y compris pour les radios déjà retranscrites.
+- Les messages de confirmation et d'erreur s'affichent désormais aussi quand une fenêtre est ouverte par-dessus l'appli : ils restaient cachés derrière.
+- Petites améliorations internes.
+
 ## v1.27.16 — 2026-10-16
 
 ### Améliorations

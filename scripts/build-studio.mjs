@@ -71,6 +71,13 @@ fs.writeFileSync(path.join(OUT, 'stats.webmanifest'), JSON.stringify({
 // « Tirer pour actualiser » de la page des statistiques : script classique tiré du module partagé
 const ptr = fs.readFileSync(path.join(ROOT, 'shared', 'pull-refresh.js'), 'utf8').replace(/^export function/m, 'function');
 fs.writeFileSync(path.join(OUT, 'stats-refresh.js'), `${ptr}\npullToRefresh(() => { location.reload(); return new Promise(() => {}); });\n`);
+// Conditions d'utilisation et politique de confidentialité (/legal/terms, /legal/privacy), demandées
+// par TikTok pour l'app de publication en brouillon
+copy(path.join(ROOT, 'analytics', 'legal'), path.join(OUT, 'legal'));
+// Présentation publique de l'appli (/app/), site officiel déclaré à TikTok
+copy(path.join(ROOT, 'analytics', 'home'), path.join(OUT, 'app'));
+// Fichiers servis à la racine du site (vérification du domaine par TikTok)
+copy(path.join(ROOT, 'analytics', 'root'), OUT);
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
 // En-têtes : la page et l'API ne doivent pas être indexées ni mises en cache trop longtemps
 fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
@@ -84,6 +91,10 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
   X-Content-Type-Options: nosniff
 /fonts/*
   Cache-Control: public, max-age=2592000
+/legal/*
+  Cache-Control: public, max-age=3600
+/app/*
+  Cache-Control: public, max-age=3600
 `);
 const n = (d) => fs.readdirSync(path.join(OUT, d)).length;
 console.log(`Site prêt : version ${VERSION}, ${n(`m/${VERSION}/studio`)} fichiers studio, ${n(`m/${VERSION}/shared`)} modules partagés (${graph.length} chargés d'emblée), ${n('fonts')} polices`);
