@@ -2,7 +2,7 @@
 
 # 🏁 Paddock Live
 
-Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordinateur, **calé sur le délai de votre diffusion TV** (Canal+, myCANAL…). Windows, macOS et Linux.
+Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordinateur, **calé sur le délai de votre diffusion TV** (chaîne TV, box, appli de streaming…). Windows, macOS et Linux.
 
 ![Paddock Live pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
 
@@ -71,7 +71,7 @@ Le flux de chronométrage arrive **avant** l'image TV : le dashboard vous montre
 
 1. Lancez le dashboard quelques minutes avant la session.
 2. Cliquez sur **🎯 Synchro TV** (touche `S`), puis **Écouter la TV** : le micro de l'ordinateur reconnaît la prochaine radio d'équipe diffusée et règle le délai tout seul (expérimental). Ou, à la main : au moment où vous voyez un repère sur votre TV (changement de tour, drapeau…), cliquez **« Je le vois ! »**.
-3. Enregistrez ce délai en préréglage (« Canal+ salon »…) pour la prochaine fois.
+3. Enregistrez ce délai en préréglage (« TV du salon »…) pour la prochaine fois.
 
 Ajustement fin : `←` `→` ±1 s, `Maj` ±5 s, `Alt` ±0,1 s.
 
@@ -99,6 +99,6 @@ Tests : `npm test`.
 
 **Statistiques anonymes (facultatives)** : au premier lancement, Paddock Live demande s'il peut envoyer des statistiques d'utilisation anonymes (fonctions utilisées, version, système). Ni compte, ni identifiant, ni contenu ; refusable et modifiable à tout moment dans Réglages → Application. Détails dans le [guide](docs/GUIDE.md#-statistiques-dutilisation-anonymes).
 
-> Projet non officiel, sans lien avec la Formula 1, la FIA ou Canal+. Les données proviennent du flux public F1 Live Timing et sont destinées à un usage personnel.
+> Projet non officiel, sans lien avec la Formula 1, la FIA ni aucun diffuseur TV. Les données proviennent du flux public F1 Live Timing et sont destinées à un usage personnel.
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/X6Y427QAUT)

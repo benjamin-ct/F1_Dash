@@ -9,8 +9,9 @@ import { DEC } from '../i18n.js';
 // propre retard. Utilisez la synchro TV puis enregistrez votre propre préréglage.
 const DEFAULT_PRESETS = [
   { name: 'Temps réel (0 s)', ms: 0, builtin: true },
-  { name: 'Canal+ TV / box (≈ 10 s, à calibrer)', ms: 10000, builtin: true },
-  { name: 'myCANAL appli / web (≈ 40 s, à calibrer)', ms: 40000, builtin: true },
+  // Points de départ valables partout (le retard réel dépend de la chaîne et de l'équipement)
+  { name: 'TV : antenne, satellite, câble ou box (≈ 10 s, à calibrer)', ms: 10000, builtin: true },
+  { name: 'Streaming : appli ou site web (≈ 40 s, à calibrer)', ms: 40000, builtin: true },
 ];
 
 function customPresets() {

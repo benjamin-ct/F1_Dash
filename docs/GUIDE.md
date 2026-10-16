@@ -91,7 +91,7 @@ Le bouton **Radios** de la barre de gauche (🎙 en haut à droite dans les autr
 
 - **Canal** : « International » (commentaires TV, plusieurs langues) ou « F1 Live » (émission F1 TV) ; **langue** au choix parmi celles du flux (français, anglais, allemand, espagnol, néerlandais, portugais…).
 - **Volume**, **🔇 couper le son** (ou touche **C**), **▶ / ⏹**.
-- **Caler sur le dashboard** : le son est automatiquement positionné sur l'instant affiché par le dashboard (donc sur le délai Canal+), grâce à l'horodatage du flux ; **« Décalage du son »** pour affiner à l'oreille.
+- **Caler sur le dashboard** : le son est automatiquement positionné sur l'instant affiché par le dashboard (donc sur votre délai TV), grâce à l'horodatage du flux ; **« Décalage du son »** pour affiner à l'oreille.
 - Seul le son est téléchargé (pas la vidéo).
 - **Abonnement requis : F1 TV Pro.** Avec F1 TV Access (seule offre proposée dans certains pays, dont la France), F1 TV refuse la vidéo (« technical package not available ») : l'offre détectée est affichée dans ⚙ Réglages.
 - **Flux protégés (DRM Widevine)** : l'application de bureau utilise Electron castlabs, qui contient le module Widevine (téléchargé au premier lancement). Si F1 TV refuse la licence, c'est qu'il exige une application **certifiée VMP** : voir « Signature VMP » ci-dessous ; en attendant, le lien « Ouvrir le dashboard dans le navigateur » du panneau 🎙 ouvre le dashboard dans Chrome/Edge (certifiés), l'application restant ouverte.
@@ -102,7 +102,7 @@ Le bouton **Radios** de la barre de gauche (🎙 en haut à droite dans les autr
 Dans le panneau 🎙, choisissez **« Radio / flux audio »** pour écouter la station de votre choix (par exemple une radio qui commente la course dans votre langue) :
 
 - **＋ Ajouter** : nom, langue et adresse du flux (MP3/AAC, HLS `.m3u8`, listes `.pls` / `.m3u`) — les stations sont mémorisées ; 🗑 pour en supprimer une.
-- **Retarder du délai du dashboard** : la radio étant en avance sur la TV, le son est automatiquement retardé du délai Canal+ réglé dans le dashboard (jusqu'à 170 s) ; **« Décalage du son »** pour affiner à l'oreille (la radio a elle-même quelques secondes de retard).
+- **Retarder du délai du dashboard** : la radio étant en avance sur la TV, le son est automatiquement retardé du délai TV réglé dans le dashboard (jusqu'à 170 s) ; **« Décalage du son »** pour affiner à l'oreille (la radio a elle-même quelques secondes de retard).
 - Même volume, **🔇 / touche C** et **▶ / ⏹** que pour F1 TV.
 
 #### Signature VMP (pour les flux DRM de F1 TV)
@@ -159,7 +159,7 @@ Sur un petit écran, **un seul panneau à la fois** : classement, carte, course,
 - L'accès utilise le **port 3030** (`lanPort` dans `config.json` pour le changer). L'ordinateur doit rester allumé avec Paddock Live ouvert.
 - Autre possibilité avec la version Node.js : `HOST=0.0.0.0` ouvre l'interface principale à tout le réseau local, **sans clé** (voir [Options](#-options)) ; à réserver à un réseau de confiance.
 
-## ⏱ Se caler sur le délai de Canal+
+## ⏱ Se caler sur le délai de votre diffusion
 
 Le flux de chronométrage F1 arrive **avant** l'image TV. Le dashboard garde tout l'historique en mémoire et vous montre la course **telle qu'elle était il y a N secondes** : chronos, carte, drapeaux, duels, radios, tout est décalé ensemble.
 
@@ -173,7 +173,7 @@ Le flux de chronométrage F1 arrive **avant** l'image TV. Le dashboard garde tou
   - Le plus précis : le **compteur de tours** qui change à l'écran (le leader franchit la ligne), ou l'extinction des feux.
   - **Anti-spoiler** : les événements pas encore visibles à la TV (pénalités, abandons, entrées aux stands…) sont masqués dans cette liste. Seuls les changements de tour restent affichés. Une case permet d'afficher le détail.
 - **Réglage manuel** : boutons −5 / −1 / −0,1 / +0,1 / +1 / +5 (menu **±** à côté de la valeur), saisie directe (ex. `42,5`), molette de la souris sur la valeur, ou clavier : `←` `→` ±1 s, `Maj` ±5 s, `Alt` ±0,1 s.
-- **Préréglages** : enregistrez votre délai calibré (« Canal+ salon », « myCANAL PC »…) pour le retrouver en un clic la prochaine fois. Les deux préréglages Canal+ fournis ne sont que des **points de départ indicatifs** : le retard réel dépend de votre équipement (box, satellite, TNT, appli, navigateur) ; calibrez-le une fois avec la synchro TV.
+- **Préréglages** : enregistrez votre délai calibré (« TV du salon », « Streaming PC »…) pour le retrouver en un clic la prochaine fois. Les deux préréglages fournis (TV, streaming) ne sont que des **points de départ indicatifs** : le retard réel dépend de votre équipement (box, satellite, TNT, appli, navigateur) ; calibrez-le une fois avec la synchro TV.
 
 Le délai peut aller jusqu'à 10 minutes (modifiable avec `MAX_DELAY_SECONDS`). Si vous augmentez le délai juste après avoir lancé le dashboard, un ⚠ vous signale qu'il n'y a pas encore assez d'historique : l'affichage devient exact dès que ce délai est écoulé. **Astuce : lancez le dashboard quelques minutes avant la session.**
 
