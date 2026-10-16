@@ -1,6 +1,6 @@
 {
   "name": "Paddock Studio",
-  "short_name": "Studio",
+  "short_name": "Paddock Studio",
   "start_url": "/studio/",
   "scope": "/studio/",
   "display": "standalone",
