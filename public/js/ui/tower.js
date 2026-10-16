@@ -382,7 +382,9 @@ function predictLap(l, st) {
 }
 export function initTower() {
   const wrap = $('#tower').parentElement;
-  if ('ResizeObserver' in window) new ResizeObserver(() => fitTower()).observe(wrap);
+  // Ajustement à l'image suivante : le faire pendant la mesure relançait l'observateur en boucle
+  let fitFrame = 0;
+  if ('ResizeObserver' in window) new ResizeObserver(() => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(() => fitTower()); }).observe(wrap);
   on('prefs', (k) => { if (k === 'towerFit') fitTower(true); });
   on('reset', () => { freshReset = true; prevPos.clear(); flashes.clear(); });
   $('#tower').addEventListener('click', (e) => {

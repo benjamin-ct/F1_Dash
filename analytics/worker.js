@@ -8,6 +8,8 @@
 // - GET /stats.json : les mêmes chiffres en JSON (connecté, ou ?key=…).
 // - /studio/ : page web du créateur (fichiers statiques du dossier site/) et son API /studio/api/…
 //   (studio.js : accès par clé dérivée du code, jetons chiffrés, relais, publication) ;
+// - /site/ : site de présentation de l'appli (racine d'un nom de domaine à soi) ; /download/… :
+//   fichiers de la dernière version (download.js).
 // - tâche planifiée (toutes les 5 min) : alertes des grosses news sur le téléphone du créateur (alerts.js).
 import { cleanBatch, LABELS, FEATURE_GROUPS } from '../shared/stats.js';
 import { studioApi, runSchedule } from './studio.js';
@@ -16,6 +18,7 @@ import { cleanRequest, translateBatch } from './translate.js';
 import { cleanSummaryRequest, summarizeArticle } from './summarize.js';
 import { newsAlerts } from './alerts.js';
 import { transcribeRadio, cachedRadio, HASH_RE, MAX_AUDIO } from './transcribe.js';
+import { download } from './download.js';
 
 const MAX_BODY = 32 * 1024;
 const COOKIE = 'pl_stats';
@@ -198,6 +201,12 @@ export default {
   },
   async fetch(req, env) {
     const url = new URL(req.url);
+    // Site de l'appli : liens de téléchargement vers la dernière version ; sur un nom de domaine
+    // à soi (pas *.workers.dev), la racine affiche le site au lieu de la page des statistiques
+    if (req.method === 'GET' && url.pathname.startsWith('/download/')) return download(url.pathname);
+    if (req.method === 'GET' && url.pathname === '/' && !url.hostname.endsWith('.workers.dev') && env.ASSETS) {
+      return env.ASSETS.fetch(new Request(new URL('/site/', url), req));
+    }
     if (req.method === 'POST' && url.pathname === '/e') {
       try { return await ingest(req, env); } catch { return json({ error: 'Erreur' }, 500); }
     }
