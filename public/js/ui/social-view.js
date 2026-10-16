@@ -19,6 +19,7 @@ import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KIN
 import { postedEntry } from '/shared/post-history.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { openPublish } from './social-publish-view.js';
+import { openImageViewer } from '/shared/image-viewer.js';
 
 const SIG_KEY = 'paddock.postSignature';
 const OPT_KEY = 'paddock.postOptions';
@@ -404,7 +405,7 @@ async function render(dlg, keepHead = false) {
   if (follow) caps = followCaptions(caps, d, sig);
   if (!slides.length || (!d.rows?.length && !d.post && !d.news)) { body.innerHTML = `${mode !== 'news' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
   const main = `<p class="small muted">${icon('info')} ${t('Toutes les images sont publiées : décochez celles à laisser de côté (sommaire, nombre de points et numéros suivent).')}</p>
-    <div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item" data-fig="${i}"><canvas data-slide="${s}"></canvas>
+    <div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item" data-fig="${i}"><canvas data-slide="${s}" title="${t('Cliquer pour voir en grand')}"></canvas>
       <figcaption><span><label class="posts-pick"><input type="checkbox" data-pick="${s}" ${skip.has(s) ? '' : 'checked'}> <b data-num></b> ${esc(t(slideName(s)))}</label></span>
         <button class="btn small" data-copy="${i}" title="${t('Copier l\'image, à coller dans le réseau social')}">${icon('doc')} ${t('Copier')}</button>
         <button class="btn small" data-save="${i}">${icon('save')} ${t('Enregistrer')}</button></figcaption></figure>`).join('')}</div>
@@ -454,6 +455,12 @@ async function render(dlg, keepHead = false) {
   const upd = () => { if (count) count.textContent = t('{} / 280 caractères', xLength(area.value)); };
   area?.addEventListener('input', upd); upd();
   body.onclick = async (e) => {
+    // Image cliquée : vue en grand (toutes les images du post, flèches pour passer de l'une à l'autre)
+    const cv = e.target.closest('.posts-item canvas');
+    if (cv) {
+      openImageViewer(allCanvases.map((c) => ({ canvas: c, label: t(slideName(c.dataset.slide)), off: !canvases.includes(c) })), allCanvases.indexOf(cv), { t });
+      return;
+    }
     const b = e.target.closest('button');
     if (!b) return;
     try {

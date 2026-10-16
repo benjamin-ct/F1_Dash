@@ -4,6 +4,12 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.19 — à venir
+
+### Interface
+- Les champs de saisie (nom d'un préréglage de délai, adresse d'une source d'actu ou d'une radio, jetons de connexion, date…) ont maintenant la même allure que le reste de l'application, en thème sombre comme en clair.
+- Petites améliorations internes.
+
 ## v1.27.18 — 2026-10-16
 
 ### Corrections
