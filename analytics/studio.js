@@ -8,7 +8,7 @@
 // (envoyés par l'appli) sont chiffrés avec cette clé (AES-GCM) : sans elle, la base ne contient
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
@@ -310,14 +310,23 @@ async function publish(req, env, raw, vault) {
   return new Response(readable, { headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' } });
 }
 
-// ---------- Vidéo du kit de lancement : brouillon TikTok, Short YouTube en privé ----------
+// ---------- Vidéo du kit de lancement : brouillon TikTok, Short YouTube en privé, Reel Instagram ----------
 // Seulement les vidéos du kit (fichiers du site) : rien d'autre ne transite par ici.
 async function sendVideo(req, env, raw, vault, url) {
   let body;
   try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
   const net = String(body?.network || '');
   const src = String(body?.src || '');
-  if (net !== 'tiktok' && net !== 'youtube') return json({ error: 'Réseau inconnu' }, 400);
+  if (net !== 'tiktok' && net !== 'youtube' && net !== 'instagram-reel') return json({ error: 'Réseau inconnu' }, 400);
+  if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src)) return json({ error: 'Vidéo inconnue' }, 400);
+  if (net === 'instagram-reel') {
+    if (!vault.meta?.igId) return json({ error: 'Compte Instagram non envoyé : connectez-le dans l\'appli' }, 409);
+    // Instagram lit lui-même la vidéo à son adresse publique
+    try {
+      const r = await reelInstagram(vault.meta, new URL(src, url).href, String(body?.text || ''));
+      return json({ ok: true, url: r.url, id: r.id ?? null, note: 'Reel publié' });
+    } catch (err) { return json({ error: String(err?.message || err).slice(0, 300) }, 502); }
+  }
   if (!vault[net]) return json({ error: `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »` }, 409);
   if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src) || !env.ASSETS) return json({ error: 'Vidéo inconnue' }, 400);
   const file = await env.ASSETS.fetch(new Request(new URL(src, url)));

@@ -348,6 +348,7 @@ test('page du créateur : toutes les sources d\'actu en une réponse (octets d\'
 
 test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTok, Short YouTube en privé)', async () => {
   saveConfig({ creator: true, social: {
+    meta: { pageId: 'p1', pageName: 'Ma page', pageToken: 'jeton-page', igId: 'ig1', igUsername: 'benjypaddock' },
     tiktok: { clientKey: 'ck', clientSecret: 'secret-tiktok', accessToken: 'vieux', expiresAt: 0, refreshToken: 'rt-tiktok', openId: 'o1', name: 'Benjy Paddock' },
     youtube: { clientId: '1-a.apps.googleusercontent.com', clientSecret: 'secret-google', accessToken: 'yat', expiresAt: Date.now() + 3600e3, refreshToken: 'rt-google', name: 'Benjy Paddock' },
   } });
@@ -381,6 +382,19 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
       return new Response('{}', { headers: { location: 'https://up.test/yt' } });
     }
     if (u === 'https://up.test/yt') return new Response(JSON.stringify({ id: 'v42' }));
+    if (u.includes('graph.facebook.com')) {
+      const g = new URL(u);
+      const form = opts.body instanceof URLSearchParams ? Object.fromEntries(opts.body) : {};
+      if (g.pathname.endsWith('/ig1/media')) {
+        assert.equal(form.media_type, 'REELS');
+        assert.equal(form.video_url, 'https://s.test/kit/benjy/video.mp4');
+        assert.equal(form.caption, 'Bienvenue au paddock');
+        return new Response(JSON.stringify({ id: 'r1' }));
+      }
+      if (g.searchParams.get('fields') === 'status_code,status') return new Response(JSON.stringify({ status_code: 'FINISHED' }));
+      if (g.pathname.endsWith('/media_publish')) return new Response(JSON.stringify({ id: 'pub9' }));
+      if (g.searchParams.get('fields') === 'permalink') return new Response(JSON.stringify({ permalink: 'https://www.instagram.com/reel/abc/' }));
+    }
     throw new Error(`inattendu : ${u}`);
   };
   const send = (body) => worker('https://s.test/studio/api/video', { method: 'POST', headers: key, body: JSON.stringify(body) });
@@ -398,6 +412,10 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
     assert.equal(calls.filter((u) => u.endsWith('/oauth/token/')).length, 1);
     r = await send({ network: 'youtube', src: '/kit/benjy/video.mp4', text: 'Bienvenue\nLe récap' });
     assert.equal((await r.json()).url, 'https://youtube.com/shorts/v42');
+    // Reel Instagram : Instagram lit la vidéo à son adresse publique
+    r = await send({ network: 'instagram-reel', src: '/kit/benjy/video.mp4', text: 'Bienvenue au paddock' });
+    assert.equal((await r.json()).url, 'https://www.instagram.com/reel/abc/');
+    assert.equal((await send({ network: 'instagram-reel', src: 'https://ailleurs.test/v.mp4' })).status, 400);
     // Seulement les vidéos du kit, seulement TikTok et YouTube
     assert.equal((await send({ network: 'tiktok', src: 'https://ailleurs.test/v.mp4' })).status, 400);
     assert.equal((await send({ network: 'tiktok', src: '/kit/../secret.mp4' })).status, 400);
