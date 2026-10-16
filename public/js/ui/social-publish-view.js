@@ -1,5 +1,5 @@
-// Mode créateur : publication des posts sur les réseaux (X, Instagram, Facebook, Threads) et
-// envoi de la vidéo en brouillon sur TikTok ; configuration des comptes.
+// Mode créateur : publication des posts sur les réseaux (X, Instagram, Facebook, Threads), envoi
+// de la vidéo en brouillon sur TikTok et en privé sur YouTube Shorts ; configuration des comptes.
 import { $, esc } from '../util.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
@@ -13,7 +13,15 @@ const NETS = [
   { id: 'x', name: 'X', what: '4 visuels au format X' },
   { id: 'bluesky', name: 'Bluesky', what: '4 visuels au format X (gratuit)' },
   { id: 'tiktok', name: 'TikTok', what: 'Vidéo en brouillon : vous ajoutez le son et publiez dans l\'appli TikTok' },
+  { id: 'youtube', name: 'YouTube Shorts', what: 'Vidéo envoyée en privé, à rendre publique dans YouTube Studio (possible seulement après l\'audit YouTube de votre projet Google)' },
 ];
+const VIDEO_NETS = ['tiktok', 'youtube'];
+// Texte YouTube par défaut : titre = accroche du post, description = texte Instagram (sans l'accroche répétée)
+function youtubeText(caps) {
+  const title = (String(caps.story || caps.x || '').split('\n').find((l) => l.trim()) || '').trim();
+  const desc = String(caps.instagram || caps.x || '').trim();
+  return `${title}\n${desc.startsWith(title) ? desc.slice(title.length).trim() : desc}`.trim();
+}
 
 const api = async (path, body) => {
   const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
@@ -52,7 +60,7 @@ export function bestHour(posts) {
 }
 const KEYS_NOTE = "Les clés restent sur cet ordinateur (fichier de configuration de l'application) et ne sont jamais incluses dans une sauvegarde des réglages.";
 const MUSIC_NOTE = "Pour une musique de votre choix, vérifiez que vous avez le droit de l'utiliser. Dans TikTok, vous pouvez aussi ajouter un son de la bibliothèque avant de publier.";
-const PUBLIC_NOTE = "Les posts seront publics (TikTok : brouillon à finir dans l'appli).";
+const PUBLIC_NOTE = "Les posts seront publics (TikTok : brouillon à finir dans l'appli ; YouTube : Short privé, verrouillé tant que votre projet Google n'a pas passé l'audit de l'API YouTube).";
 
 // ---------- Comptes ----------
 const HELP = {
@@ -72,6 +80,12 @@ const HELP = {
     'Login Kit : ajoutez l\'adresse de redirection {}.',
     'Autorisations user.info.basic et video.upload ; ajoutez votre compte TikTok comme utilisateur de test (sandbox).',
     'Collez client key et client secret, enregistrez, puis « Se connecter à TikTok ».'],
+  youtube: ['console.cloud.google.com : créez un projet, puis API et services → Bibliothèque : activez « YouTube Data API v3 ».',
+    'Écran de consentement OAuth (Google Auth Platform) : type « Externe », votre adresse e-mail, puis ajoutez votre compte Google (celui de la chaîne) dans « Utilisateurs test ».',
+    'Identifiants (Clients) → Créer un client OAuth, type « Application de bureau » : copiez l\'ID client et le code secret du client.',
+    'Collez-les ici, enregistrez, puis « Se connecter à YouTube » et choisissez votre chaîne. Google affiche « application non validée » : c\'est votre propre projet, continuez.',
+    'En mode « Test », Google déconnecte au bout de 7 jours : pour éviter ça, publiez l\'application dans l\'écran de consentement (aucune validation nécessaire pour votre propre compte).',
+    'Important : tant que votre projet Google n\'a pas passé l\'audit de l\'API YouTube, YouTube verrouille en privé les vidéos envoyées (impossible de les rendre publiques). Demande gratuite : support.google.com/youtube/contact/yt_api_form. Après l\'audit, les Shorts envoyés se rendent publics dans YouTube Studio.'],
 };
 const FIELDS = {
   x: [['apiKey', 'API Key'], ['apiSecret', 'API Key Secret'], ['accessToken', 'Access Token'], ['accessSecret', 'Access Token Secret']],
@@ -79,8 +93,11 @@ const FIELDS = {
   threads: [['appSecret', 'Clé secrète Threads'], ['token', 'Jeton Threads']],
   bluesky: [['handle', 'Identifiant Bluesky'], ['appPassword', 'Mot de passe d\'application']],
   tiktok: [['clientKey', 'Client key'], ['clientSecret', 'Client secret']],
+  youtube: [['clientId', 'ID client'], ['clientSecret', 'Code secret du client']],
 };
-const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', bluesky: 'Bluesky', tiktok: 'TikTok' };
+const TITLES = { x: 'X', meta: 'Instagram + Facebook', threads: 'Threads', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube Shorts' };
+// Connexion par le navigateur (OAuth) : bouton « Se connecter à … »
+const OAUTH = { tiktok: 'TikTok', youtube: 'YouTube' };
 
 // open : section gardée ouverte après un enregistrement (sinon tout se replie)
 async function accountsDialog(onChange, open = null) {
@@ -97,7 +114,7 @@ async function accountsDialog(onChange, open = null) {
     const a = k === 'meta' ? [info.facebook, info.instagram] : [info[k]];
     const on = a.filter((x) => x?.connected);
     if (on.length) return `<span class="posts-ok">${icon('check')} ${esc(on.map((x) => x.name).filter(Boolean).join(' · ') || t('Connecté'))}</span>`;
-    return k === 'tiktok' && info.tiktok.configured ? `<span class="muted">${t('Clés enregistrées, compte non connecté')}</span>` : `<span class="muted">${t('Non connecté')}</span>`;
+    return OAUTH[k] && info[k]?.configured ? `<span class="muted">${t('Clés enregistrées, compte non connecté')}</span>` : `<span class="muted">${t('Non connecté')}</span>`;
   };
   const redirect = `http://127.0.0.1:${location.port || 80}/tiktok-callback/`;
   dlg.innerHTML = `<div class="sum-head"><b>${icon('lock')} ${t('Comptes des réseaux sociaux')}</b><button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button></div>
@@ -107,7 +124,7 @@ async function accountsDialog(onChange, open = null) {
         <ol class="small">${HELP[k].map((h) => `<li>${esc(t(h, redirect))}</li>`).join('')}</ol>
         ${FIELDS[k].map(([f, l]) => `<label class="small">${esc(t(l))}<input type="password" data-f="${f}" autocomplete="off" spellcheck="false"></label>`).join('')}
         <div class="row"><button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>
-          ${k === 'tiktok' ? `<button class="btn small ${info.tiktok.configured && !info.tiktok.connected ? 'btn-accent' : ''}" data-tiktok ${info.tiktok.configured ? '' : 'disabled'}>${t('Se connecter à TikTok')}</button>` : ''}
+          ${OAUTH[k] ? `<button class="btn small ${info[k]?.configured && !info[k]?.connected ? 'btn-accent' : ''}" data-login ${info[k]?.configured ? '' : 'disabled'}>${t('Se connecter à {}', OAUTH[k])}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}
       <details class="posts-acc" data-studio ${studio.enabled ? '' : 'open'}><summary><b>${t('Page web (téléphone)')}</b> ${studio.enabled ? `<span class="posts-ok">${icon('check')} ${t('Activée')}</span>` : `<span class="muted">${t('Désactivée')}</span>`}</summary>
         <p class="small">${t("Préparez et publiez les posts depuis votre téléphone, même ordinateur éteint : grosses news et séances, publication sur Instagram, Facebook et Threads après confirmation, partage vers les autres applis. Les comptes ci-dessus et la connexion F1 TV sont envoyés chiffrés au serveur Paddock Live.")}</p>
@@ -155,11 +172,11 @@ async function accountsDialog(onChange, open = null) {
         const body = { network };
         for (const i of box.querySelectorAll('[data-f]')) body[i.dataset.f] = i.value;
         await api('/api/social/accounts', body);
-        toast(t(k === 'tiktok' ? 'Clés TikTok vérifiées : cliquez sur « Se connecter à TikTok »' : 'Compte enregistré'), k === 'tiktok' ? 6000 : 2500, 'check');
+        toast(k === 'tiktok' ? t('Clés TikTok vérifiées : cliquez sur « Se connecter à TikTok »') : k === 'youtube' ? t('Clés enregistrées : cliquez sur « Se connecter à YouTube »') : t('Compte enregistré'), OAUTH[k] ? 6000 : 2500, 'check');
       } else if (btn.dataset.remove !== undefined) {
         await api('/api/social/accounts', { network, remove: true });
-      } else if (btn.dataset.tiktok !== undefined) {
-        const { url } = await api('/api/social/tiktok/login', {});
+      } else if (btn.dataset.login !== undefined) {
+        const { url } = await api(`/api/social/${k}/login`, {});
         window.open(url, '_blank');
         toast(t('Connectez-vous dans le navigateur, puis revenez ici et rouvrez cette fenêtre'), 6000, 'external');
       }
@@ -195,7 +212,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
         <label class="small muted">${t('Texte X (280 caractères max.)')}<textarea rows="3" data-txt="x">${esc(caps.x)}</textarea></label>
         <label class="small muted">${t('Texte Bluesky (300 caractères max.)')}<textarea rows="3" data-txt="bsky">${esc(caps.bsky || caps.x)}</textarea></label>
         ${caps.comment ? `<label class="small muted">${t('Premier commentaire (Facebook, Threads, X, Bluesky)')}<textarea rows="2" data-txt="comment">${esc(caps.comment)}</textarea></label>` : ''}
-        <fieldset class="posts-video"><legend class="small">${t('Vidéo TikTok')}</legend>
+        <label class="small muted">${t('Texte YouTube Shorts (1re ligne = titre, 100 caractères max.)')}<textarea rows="3" data-txt="youtube">${esc(caps.youtube || youtubeText(caps))}</textarea></label>
+        <fieldset class="posts-video"><legend class="small">${t('Vidéo TikTok / YouTube Shorts')}</legend>
           <div class="row small">
             <label class="toggle"><input type="radio" name="pmusic" value="gen" checked> ${t('Musique générée (libre de droits)')}</label>
             <label class="toggle"><input type="radio" name="pmusic" value="file"> ${t('Mon fichier audio')}</label>
@@ -237,9 +255,9 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
   const txt = (k) => $(`[data-txt="${k}"]`, dlg).value;
   let ig = null; let xs = null; let bs = null;
   const bodyFor = async (n) => {
-    if (n === 'tiktok') {
+    if (VIDEO_NETS.includes(n)) {
       if (!video) await buildVideo();
-      return { network: n, video: await b64(video.blob), mime: video.mime };
+      return { network: n, video: await b64(video.blob), mime: video.mime, ...(n === 'youtube' ? { text: txt('youtube') } : {}) };
     }
     if (n === 'bluesky') {
       bs ||= await Promise.all((await render('x')).slice(0, 4).map((c) => jpegUnder(c)));
@@ -322,7 +340,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
             st.className = 'posts-st small ok';
             // Journal des publications (news marquées « publiée », statistiques)
             if (record) api('/api/social/history', { entry: { ...record, at: Date.now(), nets: { [n]: { id: r.id ?? null, url: r.url || null } } } }).then(() => onPosted?.()).catch(() => {});
-            st.innerHTML = (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${icon('check')} ${t('Publié')}</a>` : `${icon('check')} ${esc(t(r.note || 'Envoyé'))}`)
+            st.innerHTML = (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${icon('check')} ${t(r.note ? 'Envoyé' : 'Publié')}</a>${r.note ? ` · ${esc(t(r.note))}` : ''}` : `${icon('check')} ${esc(t(r.note || 'Envoyé'))}`)
               + (r.comment ? ` · ${t('commentaire ajouté')}` : r.commentError ? ` <span class="posts-warn">· ${esc(t('commentaire refusé : {}', r.commentError))}</span>` : '')
               + (r.visible === false ? ` <span class="posts-warn">· ${t('pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)')}</span>` : '');
           } catch (err) {

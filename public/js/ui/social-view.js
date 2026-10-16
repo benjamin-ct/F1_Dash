@@ -215,7 +215,7 @@ async function seasonSource(sig) {
     d = raceLapsData(race, laps, { year, live, rcm: rc?.messages?.length ? rc.messages : null });
     const sec = Math.round(raceVideoTiming(d).duration);
     extra = `<div class="row posts-news-bar"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo animée')}</button>
-      <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels) de {} s : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts.', sec))}</span></div>
+      <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) de {} s : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts.', sec))}</span></div>
       ${d.story.estimated ? msg(t('Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.')) : ''}
       <video class="posts-vid" data-rv controls playsinline hidden></video>`;
   }
@@ -265,7 +265,7 @@ async function postHistory(force = false) {
   }
   return histCache.items;
 }
-const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok' };
+const NET_NAMES = { instagram: 'Instagram', facebook: 'Facebook', threads: 'Threads', x: 'X', bluesky: 'Bluesky', tiktok: 'TikTok', youtube: 'YouTube' };
 
 async function newsList() {
   if (!newsCache || Date.now() - newsCache.at > 60e3) {
@@ -557,7 +557,7 @@ function open() {
     dlg.innerHTML = `<div class="sum-head"><b>${icon('megaphone')} ${t('Posts pour les réseaux sociaux')}</b><button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button></div>
       <div class="posts-bar">
         <div class="posts-seg" role="tablist">${[['session', 'Séance'], ['season', 'Saison'], ['news', 'News']].map(([k, v]) => `<button class="posts-fmt" data-mode="${k}">${t(v)}</button>`).join('')}</div>
-        <div class="posts-seg" role="tablist">${Object.entries({ ig: 'Instagram / Facebook', story: 'Story / TikTok', x: 'X / Threads / Bluesky' }).map(([k, v]) => `<button class="posts-fmt" data-fmt="${k}">${v}</button>`).join('')}</div>
+        <div class="posts-seg" role="tablist">${Object.entries({ ig: 'Instagram / Facebook', story: 'Story / TikTok / Shorts', x: 'X / Threads / Bluesky' }).map(([k, v]) => `<button class="posts-fmt" data-fmt="${k}">${v}</button>`).join('')}</div>
         <label class="toggle small"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
         <label class="toggle small" title="${t("Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
         <label class="toggle small" title="${t('Une question adaptée au post en fin de texte et en avant-dernière image des carrousels, pour faire réagir en commentaire')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>

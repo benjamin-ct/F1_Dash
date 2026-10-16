@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-social-'));
-const { oauth1, accountsInfo, saveAccount, publish, timing } = await import('../server/social-publish.js');
+const { oauth1, accountsInfo, saveAccount, publish, timing, youtubeLoginUrl, youtubeCallback, youtubeSnippet } = await import('../server/social-publish.js');
 const { saveConfig } = await import('../server/config.js');
 
 test('X : signature OAuth 1.0a (exemple de la documentation de X)', () => {
@@ -197,5 +197,74 @@ test('TikTok : clés vérifiées à l\'enregistrement, connexion effacée si l\'
     assert.equal(accountsInfo().tiktok.connected, true);
     await saveAccount('tiktok', { clientKey: 'autre', clientSecret: 'bon' });
     assert.equal(accountsInfo().tiktok.connected, false);
+  } finally { globalThis.fetch = realFetch; }
+});
+
+test('YouTube : titre et description du Short (1re ligne, 100 caractères, sans chevrons, #Shorts)', () => {
+  const s = youtubeSnippet(`${'A'.repeat(120)}\nLigne <deux>\n\n#F1`);
+  assert.equal(s.title, 'A'.repeat(100));
+  assert.equal(s.description, 'Ligne deux\n\n#F1\n\n#Shorts');
+  assert.equal(youtubeSnippet('Titre #Shorts').description, '');
+  assert.equal(youtubeSnippet('').title, 'Paddock');
+});
+
+test('YouTube : connexion Google (PKCE), Short envoyé en privé, reconnexion demandée si l\'accès expire', async () => {
+  const realFetch = globalThis.fetch;
+  const { getConfig } = await import('../server/config.js');
+  await assert.rejects(saveAccount('youtube', { clientId: 'abc', clientSecret: 's' }), /apps\.googleusercontent\.com/);
+  await saveAccount('youtube', { clientId: '123-abc.apps.googleusercontent.com', clientSecret: 'secret-g' });
+  assert.deepEqual(accountsInfo().youtube, { connected: false, name: '', configured: true });
+  const login = new URL(youtubeLoginUrl('http://127.0.0.1:4321'));
+  assert.equal(login.origin + login.pathname, 'https://accounts.google.com/o/oauth2/v2/auth');
+  assert.equal(login.searchParams.get('redirect_uri'), 'http://127.0.0.1:4321/youtube-callback/');
+  assert.equal(login.searchParams.get('code_challenge_method'), 'S256');
+  assert.match(login.searchParams.get('code_challenge'), /^[\w-]{43}$/);
+  assert.match(login.searchParams.get('scope'), /youtube\.upload/);
+  assert.equal(login.searchParams.get('access_type'), 'offline');
+  const log = [];
+  let refresh = 'ok';
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    log.push({ u, opts });
+    const json = (d, status = 200, headers = {}) => ({ ok: status < 300, status, headers: new Headers(headers), text: async () => JSON.stringify(d), json: async () => d });
+    if (u === 'https://oauth2.googleapis.com/token') {
+      const b = new URLSearchParams(String(opts.body));
+      assert.equal(b.get('client_secret'), 'secret-g');
+      if (b.get('grant_type') === 'authorization_code') {
+        assert.equal(b.get('redirect_uri'), 'http://127.0.0.1:4321/youtube-callback/');
+        assert.ok(b.get('code_verifier'));
+        return json({ access_token: 'at1', expires_in: 3599, refresh_token: 'rt1' });
+      }
+      return refresh === 'ok' ? json({ access_token: 'at2', expires_in: 3599 }) : json({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, 400);
+    }
+    if (u.startsWith('https://www.googleapis.com/youtube/v3/channels')) return json({ items: [{ snippet: { title: 'Benjy Paddock' } }] });
+    if (u.startsWith('https://www.googleapis.com/upload/youtube/v3/videos')) {
+      const meta = JSON.parse(opts.body);
+      assert.equal(meta.status.privacyStatus, 'private');
+      assert.equal(meta.snippet.title, 'Verstappen gagne');
+      assert.equal(opts.headers['X-Upload-Content-Length'], '4');
+      return json({}, 200, { location: 'https://upload.test/session1' });
+    }
+    if (u === 'https://upload.test/session1') {
+      assert.equal(opts.method, 'PUT');
+      assert.equal(opts.body.length, 4);
+      return json({ id: 'vid42' });
+    }
+    throw new Error(`inattendu : ${u}`);
+  };
+  try {
+    // Retour d'une autre demande (ou d'une demande TikTok) : refusé
+    await assert.rejects(youtubeCallback(new URLSearchParams({ state: 'inconnu', code: 'c' })), /expirée/);
+    await youtubeCallback(new URLSearchParams({ state: login.searchParams.get('state'), code: 'c' }));
+    assert.deepEqual(accountsInfo().youtube, { connected: true, name: 'Benjy Paddock', configured: true });
+    assert.ok(!JSON.stringify(accountsInfo()).includes('rt1'));
+    const r = await publish('youtube', { text: 'Verstappen gagne\nLe récap', video: Buffer.from('abcd').toString('base64'), mime: 'video/mp4' });
+    assert.equal(r.url, 'https://youtube.com/shorts/vid42');
+    assert.match(r.note, /privé/);
+    // Jeton périmé, accès retiré chez Google : on efface la connexion et on le dit
+    saveConfig({ social: { ...getConfig().social, youtube: { ...getConfig().social.youtube, expiresAt: 0 } } });
+    refresh = 'revoked';
+    await assert.rejects(publish('youtube', { text: 'x', video: 'YWJjZA==' }), /reconnectez-vous/);
+    assert.deepEqual(accountsInfo().youtube, { connected: false, name: 'Benjy Paddock', configured: true });
   } finally { globalThis.fetch = realFetch; }
 });

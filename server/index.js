@@ -35,7 +35,7 @@ import { exportServerSettings, importServerSettings } from './backup.js';
 import { creatorEnabled, setCreator, savePostImage, openPostsDir } from './creator.js';
 import { studioInfo, enableStudio, disableStudio, syncStudio, startStudioSync } from './studio-sync.js';
 import { postHistory, recordPost, removePost, statsOfPosts } from './post-history.js';
-import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, publish as publishSocial } from './social-publish.js';
+import { accountsInfo, saveAccount, tiktokLoginUrl, tiktokCallback, youtubeLoginUrl, youtubeCallback, publish as publishSocial } from './social-publish.js';
 import { startAutoRenew, renew as renewF1tv, sessionOf, state as renewState, resetRenewState } from './f1tv-auth.js';
 import { localHost, sameSiteRequest, decodePath } from './guard.js';
 import { stats, startStats } from './stats.js';
@@ -340,6 +340,7 @@ async function handleApi(req, res, url) {
     case 'GET /api/social/accounts':
     case 'POST /api/social/accounts':
     case 'POST /api/social/tiktok/login':
+    case 'POST /api/social/youtube/login':
     case 'POST /api/social/publish':
     case 'GET /api/social/studio':
     case 'POST /api/social/studio':
@@ -412,6 +413,7 @@ async function handleApi(req, res, url) {
           return sendJSON(res, 200, b.off ? await disableStudio() : b.sync ? (await syncStudio({ force: true }), studioInfo()) : await enableStudio(String(b.code || '')));
         }
         if (route === 'POST /api/social/tiktok/login') return sendJSON(res, 200, { url: tiktokLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
+        if (route === 'POST /api/social/youtube/login') return sendJSON(res, 200, { url: youtubeLoginUrl(`http://127.0.0.1:${req.socket.localPort}`) });
         const body = await readBody(req, route === 'POST /api/social/publish' ? 120e6 : 1e6);
         if (route === 'POST /api/social/accounts') {
           const info = await saveAccount(String(body.network || ''), body);
@@ -699,9 +701,11 @@ async function handler(req, res) {
   }
   const url = new URL(req.url, 'http://localhost');
   // Retour de la connexion TikTok (mode créateur) : page ouverte par le navigateur depuis tiktok.com
-  if (url.pathname === '/tiktok-callback/' && isLoopback(req.socket.remoteAddress)) {
-    let msg = 'Compte TikTok connecté. Vous pouvez fermer cet onglet et revenir à Paddock Live.';
-    try { if (!creatorEnabled()) throw new Error('Mode créateur désactivé'); await tiktokCallback(url.searchParams); } catch (err) { msg = `Connexion TikTok impossible : ${err.message}`; }
+  const oauthNet = { '/tiktok-callback/': ['TikTok', tiktokCallback], '/youtube-callback/': ['YouTube', youtubeCallback] }[url.pathname];
+  if (oauthNet && isLoopback(req.socket.remoteAddress)) {
+    const [name, callback] = oauthNet;
+    let msg = `Compte ${name} connecté. Vous pouvez fermer cet onglet et revenir à Paddock Live.`;
+    try { if (!creatorEnabled()) throw new Error('Mode créateur désactivé'); await callback(url.searchParams); } catch (err) { msg = `Connexion ${name} impossible : ${err.message}`; }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     res.end(`<!doctype html><meta charset="utf-8"><title>Paddock Live</title><body style="font:16px system-ui;background:#0b0d12;color:#f3f5f9;display:grid;place-items:center;height:90vh"><p>${msg.replace(/[<>&]/g, '')}</p></body>`);
     return;
