@@ -236,7 +236,7 @@ async function publish(req, env, raw, vault) {
         const th = (await refresh(env, raw, vault)).threads;
         r = await withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images), comment, (id, t) => replyThreads(th, id, t));
       }
-      await line({ done: true, url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null });
+      await line({ done: true, url: r.url || null, id: r.id ?? null, comment: !!r.comment, commentError: r.commentError || null, ...(r.visible != null ? { visible: r.visible } : {}) });
     } catch (err) {
       await line({ error: String(err?.message || err).slice(0, 300) });
     } finally {

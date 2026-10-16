@@ -85,7 +85,7 @@ test('page du créateur : coffre chiffré, sans le code rien n\'est lisible', as
   // Publication sur Facebook : progression puis lien
   const realFetch = globalThis.fetch;
   let refuse = false;
-  Object.assign(timing, { poll: 1, maxPoll: 1 });
+  Object.assign(timing, { poll: 1, maxPoll: 1, visible: [] });
   globalThis.fetch = async (url, opts = {}) => {
     const u = new URL(url);
     const ok = (d) => new Response(JSON.stringify(d), { status: 200 });

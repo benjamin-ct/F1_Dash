@@ -71,7 +71,7 @@ const PNG = (k) => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0
 
 test('Threads et Instagram : chaque image du carrousel est prête avant le carrousel, images déposées une seule fois', async () => {
   const realFetch = globalThis.fetch;
-  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000 });
+  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
   saveConfig({ social: { meta: { pageId: 'page1', pageToken: 'jp', igId: 'ig1', igUsername: 'moi' }, threads: { token: 'jt', userId: 'th1', username: 'moi' } } });
   try {
     const { log } = fakeMeta();
@@ -105,7 +105,7 @@ test('Threads et Instagram : chaque image du carrousel est prête avant le carro
 
 test('Threads et Instagram : image refusée par le réseau, message clair', async () => {
   const realFetch = globalThis.fetch;
-  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000 });
+  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
   saveConfig({ social: { meta: { pageId: 'page2', pageToken: 'jp', igId: 'ig1' }, threads: { token: 'jt', userId: 'th1' } } });
   try {
     fakeMeta({ errorOn: 'c5' });   // 3 dépôts (ph1-3), 1re image c4, 2e image c5
@@ -150,4 +150,26 @@ test('Bluesky : images, liens et hashtags cliquables, lien de l\'article en rép
     // Mot de passe jamais renvoyé à l'interface
     assert.ok(!JSON.stringify(accountsInfo()).includes('mdp-app'));
   } finally { globalThis.fetch = realFetch; }
+});
+
+test('Threads : post vérifié visible publiquement (page lue comme un aperçu de lien)', async () => {
+  const { threadsVisible } = await import('../shared/meta-publish.js');
+  const real = globalThis.fetch;
+  const page = (title) => new Response(`<head><meta property="og:title" content="${title}" /></head>`, { status: 200 });
+  try {
+    let agent = '';
+    globalThis.fetch = async (u, o) => { agent = o.headers['user-agent']; return page('Paddock Live (&#064;paddocklive) on Threads'); };
+    assert.equal(await threadsVisible('https://www.threads.com/@paddocklive/post/X', 'paddocklive', [0]), true);
+    assert.match(agent, /facebookexternalhit/);
+    // Page de connexion à chaque essai : caché ; visible au 2e essai : visible
+    globalThis.fetch = async () => page('Threads &#x2022; Log in');
+    assert.equal(await threadsVisible('https://www.threads.com/@paddocklive/post/X', 'paddocklive', [0, 0]), false);
+    let n = 0;
+    globalThis.fetch = async () => page(++n < 2 ? 'Threads &#x2022; Log in' : 'Paddock Live (&#064;paddocklive) on Threads');
+    assert.equal(await threadsVisible('https://www.threads.com/@paddocklive/post/X', 'paddocklive', [0, 0]), true);
+    // Page illisible : on ne sait pas
+    globalThis.fetch = async () => { throw new Error('réseau'); };
+    assert.equal(await threadsVisible('https://www.threads.com/@paddocklive/post/X', 'paddocklive', [0]), null);
+    assert.equal(await threadsVisible('https://www.threads.com/@paddocklive/post/X', 'paddocklive', []), null);
+  } finally { globalThis.fetch = real; }
 });

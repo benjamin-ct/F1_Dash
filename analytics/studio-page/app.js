@@ -552,7 +552,8 @@ async function publishAll(d, o, record = null) {
       st.className = 'st ok';
       if (record) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
       st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ✓</a>` : 'Publié ✓')
-        + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '');
+        + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '')
+        + (result.visible === false ? ' <span class="err">· pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)</span>' : '');
     } catch (err) {
       st.className = 'st err';
       st.textContent = err.message;
