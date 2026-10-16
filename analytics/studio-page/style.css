@@ -276,7 +276,9 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, .35); }
 .sheet-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 18px 10px 4px 20px; touch-action: none; }
 .sheet-head .iconbtn { border-radius: 50%; background: rgba(255, 255, 255, .08); width: 38px; height: 38px; }
 .sheet-head::before { content: ''; position: absolute; top: 7px; left: 50%; width: 38px; height: 5px; margin-left: -19px; border-radius: 3px; background: var(--line-2); }
+dialog.sheet { transition: transform .3s var(--spring); overscroll-behavior: contain; }
 dialog.sheet.drag { animation: none; transition: none; }
+.sheet-body { overscroll-behavior: contain; }
 .sheet-head b { font-size: 17px; }
 .sheet-body { max-height: calc(88vh - 60px); overflow: auto; padding: 0 16px 22px; }
 dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); }

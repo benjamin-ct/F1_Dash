@@ -330,11 +330,12 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (e) => { if (session.me && e.data?.alert) openAlert(e.data.alert); });
 }
 
-// Tirer vers le bas sur l'accueil : onglet relu ; pas dans un post (textes en cours de saisie)
+// Tirer vers le bas sur l'accueil : onglet relu ; pas dans un post (textes en cours de saisie) ni
+// sous une feuille ouverte (le même geste la referme)
 pullToRefresh(async () => {
   session.me = await api('me').catch(() => session.me);
   await showTab({ force: true });
-}, { enabled: () => !!session.me && !!$('#body') });
+}, { enabled: () => !!session.me && !!$('#body') && !$('dialog[open]') });
 
 (async () => {
   if (!hasKey()) { login(); return; }

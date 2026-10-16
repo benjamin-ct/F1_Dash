@@ -157,16 +157,25 @@ export function sheet(title, html) {
   d.querySelector('[data-close]').onclick = () => d.close();
   d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
   d.addEventListener('close', () => d.remove());
-  // Glisser l'en-tête vers le bas : feuille fermée (comme sur l'iPhone)
-  const head = d.querySelector('.sheet-head');
+  // Glisser vers le bas (depuis l'en-tête, ou n'importe où quand le contenu est en haut) : feuille
+  // fermée, comme sur l'iPhone
+  const body = d.querySelector('.sheet-body');
   let y0 = null;
-  head.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; d.classList.add('drag'); }, { passive: true });
-  head.addEventListener('touchmove', (e) => { if (y0 !== null) d.style.transform = `translateY(${Math.max(0, e.touches[0].clientY - y0)}px)`; }, { passive: true });
-  head.addEventListener('touchend', (e) => {
+  d.addEventListener('touchstart', (e) => {
+    y0 = e.touches.length === 1 && (e.target.closest('.sheet-head') || body.scrollTop <= 0) ? e.touches[0].clientY : null;
+  }, { passive: true });
+  d.addEventListener('touchmove', (e) => {
+    if (y0 === null) return;
+    const dy = e.touches[0].clientY - y0;
+    if (dy < 0 && !d.classList.contains('drag')) { y0 = null; return; }   // défilement vers le haut : contenu
+    if (dy > 6) { d.classList.add('drag'); d.style.transform = `translateY(${dy}px)`; e.preventDefault(); }
+  }, { passive: false });
+  d.addEventListener('touchend', (e) => {
     const dy = y0 === null ? 0 : e.changedTouches[0].clientY - y0;
+    const dragged = d.classList.contains('drag');
     y0 = null;
     d.classList.remove('drag');
-    if (dy > 90) d.close(); else d.style.transform = '';
+    if (dragged && dy > 90) d.close(); else d.style.transform = '';
   });
   d.showModal();
   return d;
