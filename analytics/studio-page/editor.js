@@ -132,7 +132,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     $('#netsbox').innerHTML = `<h3 class="section">Publier sur</h3>${[['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky']].map(([k, v]) => {
       const acc = session.me?.[k];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? 'checked' : 'disabled'}></label>`;
-    }).join('')}<p class="hint">Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. X, TikTok, story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.</p>`;
+    }).join('')}<p class="hint">Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. X, TikTok, YouTube Shorts, story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.</p>`;
     const o = await assets(d);
     const all = $$('#main canvas');
     // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro

@@ -1,5 +1,5 @@
 // Mode créateur : publication des posts sur les réseaux du propriétaire (X, Facebook, Instagram,
-// Threads, brouillon vidéo TikTok). Les clés et jetons restent dans config.json sur cet ordinateur
+// Threads, brouillon vidéo TikTok, Short YouTube en privé). Les clés et jetons restent dans config.json sur cet ordinateur
 // (jamais dans une sauvegarde des réglages) ; l'interface n'en voit que le nom du compte.
 import crypto from 'node:crypto';
 import { getConfig, saveConfig } from './config.js';
@@ -9,7 +9,9 @@ import { call, GRAPH, THREADS, timing, publishFacebook, publishInstagram, publis
 
 const XAPI = 'https://api.x.com/2';
 const TIKTOK = 'https://open.tiktokapis.com/v2';
-export const NETWORKS = ['x', 'facebook', 'instagram', 'threads', 'bluesky', 'tiktok'];
+const GOOGLE_TOKEN = 'https://oauth2.googleapis.com/token';
+const YOUTUBE = 'https://www.googleapis.com/youtube/v3';
+export const NETWORKS = ['x', 'facebook', 'instagram', 'threads', 'bluesky', 'tiktok', 'youtube'];
 
 const conf = () => getConfig().social || {};
 const save = (net, v) => saveConfig({ social: { ...conf(), [net]: v } });
@@ -25,6 +27,7 @@ export function accountsInfo() {
     threads: { connected: !!c.threads?.token, name: c.threads?.username ? `@${c.threads.username}` : '', expiresAt: c.threads?.expiresAt || null },
     bluesky: { connected: !!c.bluesky?.appPassword, name: c.bluesky?.handle ? `@${String(c.bluesky.handle).replace(/^@/, '')}` : '' },
     tiktok: { connected: !!c.tiktok?.refreshToken, name: c.tiktok?.name || '', configured: !!c.tiktok?.clientKey },
+    youtube: { connected: !!c.youtube?.refreshToken, name: c.youtube?.name || '', configured: !!c.youtube?.clientId },
   };
 }
 
@@ -77,6 +80,13 @@ export async function saveAccount(net, b) {
     const prev = conf().tiktok || {};
     // Autre app TikTok : l'ancienne connexion ne vaut plus
     save('tiktok', prev.clientKey && prev.clientKey !== clientKey ? { clientKey, clientSecret } : { ...prev, clientKey, clientSecret });
+  } else if (net === 'youtube') {
+    const clientId = str(b.clientId, 300); const clientSecret = str(b.clientSecret, 200);
+    if (!clientId || !clientSecret) throw new Error('ID client et code secret du client nécessaires');
+    if (!/\.apps\.googleusercontent\.com$/.test(clientId)) throw new Error('ID client inattendu : copiez celui qui se termine par « .apps.googleusercontent.com »');
+    const prev = conf().youtube || {};
+    // Autre client Google : l'ancienne connexion ne vaut plus
+    save('youtube', prev.clientId && prev.clientId !== clientId ? { clientId, clientSecret } : { ...prev, clientId, clientSecret });
   } else throw new Error('Réseau inconnu');
   return accountsInfo();
 }
@@ -169,7 +179,7 @@ function storeTiktok(t, r) {
 
 export async function tiktokCallback(params) {
   const p = pending.get(params.get('state'));
-  if (!p || Date.now() - p.at > 15 * 60e3) throw new Error('Demande de connexion expirée : recommencez depuis l\'application');
+  if (!p || p.net || Date.now() - p.at > 15 * 60e3) throw new Error('Demande de connexion expirée : recommencez depuis l\'application');
   pending.delete(params.get('state'));
   if (params.get('error')) throw new Error([params.get('error'), params.get('error_description')].filter(Boolean).join(' : '));
   const t = conf().tiktok;
@@ -198,6 +208,107 @@ async function publishTiktok(video, mime) {
   return { url: null, note: 'Brouillon envoyé : ouvrez la notification dans TikTok pour ajouter un son et publier' };
 }
 
+// ---------- YouTube : connexion Google (PKCE, retour sur cet ordinateur) et Short envoyé en privé ----------
+// Projet Google non validé : YouTube garde en privé les vidéos envoyées par l'API. On les envoie donc
+// en privé, et le créateur les rend publiques dans YouTube Studio.
+async function googleOAuth(form) {
+  const res = await fetch(GOOGLE_TOKEN, {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(form).toString(), signal: AbortSignal.timeout(30000),
+  });
+  let d = {};
+  try { d = JSON.parse(await res.text()); } catch { /* réponse illisible */ }
+  if (!res.ok || d.error || !d.access_token) {
+    const why = [d.error, d.error_description].filter(Boolean).join(' : ') || `HTTP ${res.status}`;
+    const e = new Error(String(why).slice(0, 300));
+    e.code = d.error || '';
+    throw e;
+  }
+  return d;
+}
+
+export function youtubeLoginUrl(origin) {
+  const y = conf().youtube;
+  if (!y?.clientId) throw new Error('Renseignez d\'abord l\'ID client et le code secret Google');
+  const verifier = crypto.randomBytes(48).toString('base64url');
+  const state = crypto.randomBytes(16).toString('hex');
+  const redirect = `${origin}/youtube-callback/`;
+  pending.set(state, { verifier, redirect, at: Date.now(), net: 'youtube' });
+  const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+  return `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+    client_id: y.clientId, redirect_uri: redirect, response_type: 'code', state, code_challenge: challenge, code_challenge_method: 'S256',
+    scope: 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly', access_type: 'offline', prompt: 'consent',
+  })}`;
+}
+
+function storeYoutube(y, r) {
+  save('youtube', { ...y, accessToken: r.access_token, expiresAt: Date.now() + (r.expires_in || 3600) * 1000, refreshToken: r.refresh_token || y.refreshToken });
+  return conf().youtube;
+}
+
+export async function youtubeCallback(params) {
+  const p = pending.get(params.get('state'));
+  if (!p || p.net !== 'youtube' || Date.now() - p.at > 15 * 60e3) throw new Error('Demande de connexion expirée : recommencez depuis l\'application');
+  pending.delete(params.get('state'));
+  if (params.get('error')) throw new Error(params.get('error') === 'access_denied' ? 'Accès refusé (vérifiez que votre compte Google est bien un utilisateur test du projet)' : params.get('error'));
+  const y = conf().youtube;
+  const r = await googleOAuth({ client_id: y.clientId, client_secret: y.clientSecret, code: params.get('code') || '', grant_type: 'authorization_code', redirect_uri: p.redirect, code_verifier: p.verifier });
+  if (!r.refresh_token && !y.refreshToken) throw new Error('Google n\'a pas donné d\'accès durable : recommencez la connexion');
+  const saved = storeYoutube(y, r);
+  try {
+    const ch = await call(`${YOUTUBE}/channels?part=snippet&mine=true`, { headers: { Authorization: `Bearer ${saved.accessToken}` } });
+    save('youtube', { ...saved, name: ch?.items?.[0]?.snippet?.title || '' });
+  } catch { /* nom facultatif */ }
+}
+
+async function youtubeToken() {
+  const y = conf().youtube;
+  if (!y?.refreshToken) throw new Error('Compte YouTube non connecté');
+  if (y.accessToken && y.expiresAt - Date.now() > 5 * 60e3) return y.accessToken;
+  try {
+    return storeYoutube(y, await googleOAuth({ client_id: y.clientId, client_secret: y.clientSecret, grant_type: 'refresh_token', refresh_token: y.refreshToken })).accessToken;
+  } catch (err) {
+    // Accès retiré ou expiré (projet Google en mode « Test » : 7 jours) : il faut se reconnecter
+    if (err.code === 'invalid_grant') {
+      const { accessToken, refreshToken, expiresAt, ...keys } = y;
+      save('youtube', keys);
+      throw new Error('Connexion YouTube expirée : reconnectez-vous (Comptes… → YouTube)');
+    }
+    throw err;
+  }
+}
+
+// Titre (1re ligne, 100 caractères) et description : YouTube refuse les chevrons
+export function youtubeSnippet(text) {
+  const clean = String(text || '').replace(/[<>]/g, '').trim();
+  const lines = clean.split('\n');
+  const title = [...(lines[0] || '').trim()].slice(0, 100).join('').trim() || 'Paddock';
+  let description = lines.slice(1).join('\n').trim();
+  if (!/#shorts\b/i.test(clean)) description = `${description}${description ? '\n\n' : ''}#Shorts`;
+  return { title, description: [...description].slice(0, 4900).join(''), categoryId: '17' };
+}
+
+async function publishYoutube(video, mime, text) {
+  if (!video?.length) throw new Error('Vidéo manquante');
+  const token = await youtubeToken();
+  const init = await fetch(`https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Length': String(video.length), 'X-Upload-Content-Type': mime },
+    body: JSON.stringify({ snippet: youtubeSnippet(text), status: { privacyStatus: 'private', selfDeclaredMadeForKids: false } }),
+    signal: AbortSignal.timeout(30000),
+  });
+  const where = init.headers.get('location');
+  if (!init.ok || !where) {
+    const j = await init.json().catch(() => ({}));
+    const why = j.error?.errors?.[0]?.reason === 'quotaExceeded' ? 'quota du jour de l\'API YouTube atteint, réessayez demain' : j.error?.message || `HTTP ${init.status}`;
+    throw new Error(`Envoi refusé par YouTube : ${why}`);
+  }
+  const res = await fetch(where, { method: 'PUT', headers: { 'Content-Type': mime, 'Content-Length': String(video.length) }, body: video, signal: AbortSignal.timeout(600000) });
+  const v = await res.json().catch(() => ({}));
+  if (!res.ok || !v.id) throw new Error(`Envoi de la vidéo refusé par YouTube (${v.error?.message || `HTTP ${res.status}`})`);
+  return { url: `https://youtube.com/shorts/${v.id}`, id: v.id, note: 'Short envoyé en privé : rendez-le public dans YouTube Studio' };
+}
+
 // ---------- Publication ----------
 export async function publish(net, { text = '', images = [], video = null, mime = 'video/mp4', comment = '' }) {
   // Images PNG (ou JPEG pour Bluesky, 1 Mo au plus par image)
@@ -217,6 +328,9 @@ export async function publish(net, { text = '', images = [], video = null, mime 
     const th = await threadsAccount();
     return withComment(() => publishThreads(th, conf().meta, body.slice(0, 500), blobs(imgs)), note, (id, t) => replyThreads(th, id, t));
   }
-  if (net === 'tiktok') return publishTiktok(video ? Buffer.from(String(video), 'base64') : null, /^video\/(mp4|webm|quicktime)$/.test(mime) ? mime : 'video/mp4');
+  const vid = video ? Buffer.from(String(video), 'base64') : null;
+  const vmime = /^video\/(mp4|webm|quicktime)$/.test(mime) ? mime : 'video/mp4';
+  if (net === 'tiktok') return publishTiktok(vid, vmime);
+  if (net === 'youtube') return publishYoutube(vid, vmime, body);
   throw new Error('Réseau inconnu');
 }
