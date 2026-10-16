@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bigNews, newsKind, newsPost, newsCaptions, shortSummary } from '../shared/social-news.js';
+import { bigNews, newsKind, newsKinds, sortNews, newsPost, newsCaptions, shortSummary } from '../shared/social-news.js';
 import { slidesFor } from '../shared/social-draw.js';
 import { xLength } from '../shared/social.js';
 
@@ -58,4 +58,19 @@ test('posts news : données du post et légendes', () => {
   assert.ok(long.threads.length <= 500 && long.threads.includes('a'.repeat(200)));
   assert.equal(xLength('Voir https://exemple.test/un/lien/tres/long/vraiment'), 28);
   assert.equal(shortSummary('Court.'), 'Court.');
+});
+
+test('posts news : tri à la une ou récentes, déjà publiées en dernier, types présents', () => {
+  const a = { id: 'a', title: 'Vieille grosse news', score: 9, t: NOW - 40 * H };
+  const b = { id: 'b', title: 'Russell handed grid penalty', score: 7, t: NOW - 2 * H };
+  const c = { id: 'c', title: 'Norris signs new McLaren contract', score: 8, t: NOW - 10 * H };
+  const d = { id: 'd', title: 'Haas sign Camara', score: 9, t: NOW - H };
+  const ids = (l) => l.map((x) => x.id).join('');
+  // À la une : la fraîcheur départage (la vieille news de 40 h passe derrière)
+  assert.equal(ids(sortNews([a, b, c, d], { now: NOW })), 'dcba');
+  assert.equal(ids(sortNews([a, b, c, d], { by: 'recent', now: NOW })), 'dbca');
+  // Déjà publiée : en dernier, quel que soit l'ordre
+  assert.equal(ids(sortNews([a, b, c, d], { now: NOW, done: (x) => x.id === 'd' })), 'cbad');
+  const kinds = newsKinds([a, b, c, d]);
+  assert.deepEqual(kinds.map((k) => [k.key, k.n]), [['transfert', 2], ['actu', 1], ['penalite', 1]]);
 });

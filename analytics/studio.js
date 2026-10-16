@@ -12,6 +12,7 @@ import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
 import { pushApi } from './alerts.js';
+import { packFeeds } from '../shared/feed-pack.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -156,6 +157,39 @@ async function feed(req, url) {
   const s = DEFAULT_SOURCES.find((x) => x.id === url.searchParams.get('id') && x.kind !== 'bsky');
   if (!s) return json({ error: 'Source inconnue' }, 404);
   return cached(req, feedUrl(s), { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' } }, 180);
+}
+
+// Toutes les sources d'actu en une seule réponse (au lieu d'une requête par source depuis le
+// téléphone) : lues en parallèle, 5 secondes au plus chacune. Gardées 2 minutes par le serveur : en
+// mémoire (adresse workers.dev, où le cache de Cloudflare ne fonctionne pas) et dans le cache
+// (domaine personnalisé)
+const FEEDS_TTL = 120e3;
+let feedsMemo = null;
+let feedsLoading = null;
+export async function feeds({ fetchFn = fetch, now = Date.now() } = {}) {
+  const key = new Request('https://studio.cache/feeds-all');
+  // Réponse jamais gardée par le navigateur (« Actualiser » relit toujours le serveur)
+  const send = (body) => new Response(body, { headers: { 'Content-Type': 'text/plain; charset=x-user-defined', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' } });
+  if (feedsMemo && now - feedsMemo.at < FEEDS_TTL) return send(feedsMemo.body);
+  const hit = await caches.default.match(key).catch(() => null);
+  if (hit) return send(hit.body);
+  // Plusieurs « Actualiser » en même temps : une seule lecture des sources, partagée
+  feedsLoading ||= (async () => {
+    const list = DEFAULT_SOURCES.filter((s) => s.kind === 'rss');
+    const parts = await Promise.all(list.map(async (s) => {
+      try {
+        const res = await fetchFn(feedUrl(s), { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' }, signal: AbortSignal.timeout(5000) });
+        if (res.status !== 200) return null;
+        return { id: s.id, type: res.headers.get('Content-Type') || '', body: new Uint8Array(await res.arrayBuffer()) };
+      } catch { return null; }
+    }));
+    // Texte pour la compression de Cloudflare ; lu en octets par la page
+    const body = packFeeds(parts);
+    feedsMemo = { at: now, body };
+    await caches.default.put(key, new Response(body, { headers: { 'Cache-Control': `max-age=${FEEDS_TTL / 1000}` } })).catch(() => {});
+    return body;
+  })().finally(() => { feedsLoading = null; });
+  return send(await feedsLoading);
 }
 
 async function archive(req, url, vault) {
@@ -447,6 +481,7 @@ export async function studioApi(req, env, url) {
     return json(await postStats(JSON.parse(await getRow(env, 'history') || '[]'), { meta: v.meta, threads: v.threads, bluesky: v.bluesky }, { limit: 8 }));
   }
   if (path === 'feed' && req.method === 'GET') return feed(req, url);
+  if (path === 'feeds' && req.method === 'GET') return feeds();
   if (path === 'archive' && req.method === 'GET') return archive(req, url, await refresh(env, a.raw, vault));
   if (path === 'img' && req.method === 'GET') return image(req, url);
   if (path === 'fia' && req.method === 'GET') return fia(req, url);

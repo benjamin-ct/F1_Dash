@@ -1,0 +1,175 @@
+// Studio : posts des news (et récap de la semaine) et des séances (résultats, avant-course,
+// championnat, flash). Chargé à l'ouverture d'un post.
+import { decodeBody } from '/shared/news-collect.js';
+import { bigNews, newsPost, newsCaptions, OTHER_SERIES } from '/shared/social-news.js';
+import { postData, captions } from '/shared/social.js';
+import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
+import { builtinNomination } from '/shared/tyres.js';
+import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/shared/fia-list.js';
+import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
+import { extractArticle } from '/shared/article.js';
+import { recapData, seasonCaptions } from '/shared/social-season.js';
+import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES } from './ui.js';
+import { toFrench, freshNews, cachedNews, latestDrivers, loadState, rememberDrivers, SESSION_FR } from './data.js';
+import { editor } from './editor.js';
+
+// Résumé détaillé : page de l'article lue par le serveur, texte extrait ici, points clés rédigés par
+// l'IA du serveur (reformulés, jamais recopiés)
+async function detailedSummary(it) {
+  const html = await decodeBody(await api(`page?u=${encodeURIComponent(it.link)}`, { raw: true }));
+  const a = extractArticle(html, it.link);
+  const text = a.blocks.map((b) => b.h || b.p || '').filter(Boolean).join('\n\n').slice(0, 12000);
+  if (text.length < 400) throw new Error('Pas de texte lisible sur cette page (vidéo, accès réservé…)');
+  const res = await fetch('/s', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: it.title || a.title, text }) });
+  const j = await res.json().catch(() => ({}));
+  if (res.status === 429) throw new Error('Plafond du jour atteint, réessayez demain');
+  if (!res.ok || !Array.isArray(j.points)) throw new Error(j.error || 'Résumé indisponible pour le moment');
+  return j.points;
+}
+
+export async function newsEditor(it, done, back) {
+  const [title, summary] = await toFrench([{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]);
+  const failed = title === null || summary === null;
+  const make = async (t, s, p = '') => newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
+  let d = await make(title ?? it.title, summary ?? it.summary);
+  editor({
+    back,
+    title: 'News',
+    subtitle: `${it.srcName} · il y a ${ago(it.t)}`,
+    below: true,
+    head: `<div class="row"><span class="badge" style="background:${d.badge.color}">${esc(d.badge.label)}</span>${it.link ? `<a class="link" href="${esc(it.link)}" target="_blank" rel="noopener">Lire l'article ${icon('link')}</a>` : ''}</div>
+      ${done ? `<p class="notice ok">${icon('check')}Déjà publiée le ${esc(new Date(done.at).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }))} sur ${esc(Object.keys(done.nets).map((n) => NET_NAMES[n] || n).join(', '))}</p>` : ''}
+      <label class="field"><span>Titre</span><input type="text" id="ntitle" maxlength="160" value="${esc(d.title)}"></label>
+      <label class="field"><span>Résumé</span><textarea id="nsum" rows="4" maxlength="400">${esc(d.summary)}</textarea></label>
+      <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="npoints" rows="5" maxlength="1600" placeholder="Facultatif : « Résumé détaillé » ou à écrire soi-même"></textarea></label>
+      ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
+      ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
+      <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
+    data: () => d,
+    caps: () => newsCaptions(d, SIG, { linkInComment: state.linkComment }),
+    record: () => ({ key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) }),
+    bind: (redraw) => {
+      let tm = null;
+      const upd = () => { clearTimeout(tm); tm = setTimeout(async () => { d = await make($('#ntitle').value, $('#nsum').value, $('#npoints').value); redraw(true); }, 400); };
+      $('#ntitle').oninput = upd;
+      $('#nsum').oninput = upd;
+      $('#npoints').oninput = upd;
+      if ($('#nsummary')) $('#nsummary').onclick = async () => {
+        const btn = $('#nsummary');
+        btn.disabled = true;
+        btn.classList.add('busy');
+        $('#nsumst').textContent = 'Lecture de l\'article et résumé…';
+        try {
+          $('#npoints').value = (await detailedSummary(it)).join('\n');
+          $('#nsumst').textContent = 'Points clés reformulés par l\'IA : relisez-les avant de publier.';
+          upd();
+        } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
+      };
+      $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
+    },
+  });
+}
+
+// ---------- Récap de la semaine : les 5 plus grosses news des 7 derniers jours ----------
+export async function recapEditor(back) {
+  const news = cachedNews()?.items || await freshNews();
+  const f1 = (l) => l.filter((it) => !OTHER_SERIES.test(`${it.title} ${it.summary || ''}`));
+  let list = f1(bigNews(news, { hours: 7 * 24 })).slice(0, 5);
+  if (list.length < 3) list = f1(bigNews(news, { hours: 7 * 24, all: true })).slice(0, 5);
+  if (!list.length) throw new Error('Pas assez d\'actus ces 7 derniers jours');
+  const fr = await toFrench(list.flatMap((it) => [{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]));
+  const drivers = await latestDrivers();
+  const d = recapData(list.map((it, i) => newsPost(it, { title: fr[2 * i] ?? it.title, summary: fr[2 * i + 1] ?? it.summary, driverList: drivers, sourceName: it.srcName })));
+  editor({
+    back,
+    title: 'Récap de la semaine',
+    subtitle: `${d.items.length} grosses news des 7 derniers jours`,
+    head: '<p class="hint">Titres et résumés traduits automatiquement : relisez les visuels avant de publier.</p>',
+    data: () => d, caps: () => seasonCaptions(d, SIG),
+    record: () => ({ key: `recap:${d.date}`, kind: 'recap', title: `La semaine en F1 · ${d.date}` }),
+  });
+}
+
+// ---------- Grille de départ officielle (document de la FIA, lu dans le navigateur) ----------
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38';
+const fiaGet = (p) => api(`fia?p=${encodeURIComponent(p)}`, { raw: true });
+async function pdfItems(buf) {
+  const lib = await import(`${PDFJS}/pdf.min.mjs`);
+  lib.GlobalWorkerOptions.workerSrc = `${PDFJS}/pdf.worker.min.mjs`;
+  const pdf = await lib.getDocument({ data: new Uint8Array(buf), verbosity: 0 }).promise;
+  const pages = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const tc = await (await pdf.getPage(i)).getTextContent();
+    pages.push(tc.items.filter((it) => it.str && it.str.trim()).map((it) => ({ x: it.transform[4], y: it.transform[5], s: it.str })));
+  }
+  return pages;
+}
+async function fiaGrid(year, meeting, sprint) {
+  const { bySeason, events } = parseSeasons(await (await fiaGet(CHAMPIONSHIP)).text());
+  const event = bySeason[year] && pickEvent(events, meeting);
+  if (!event) return null;
+  const doc = gridDocument(parseDocumentList(await (await fiaGet(`${bySeason[year]}/event/${encodeURIComponent(event)}`)).text()), { sprint });
+  if (!doc) return null;
+  const grid = parseStartingGrid(await pdfItems(await (await fiaGet(new URL(doc.url).pathname)).arrayBuffer()));
+  return grid && { ...grid, title: doc.title };
+}
+
+// Types de posts d'une séance : résultats, avant-course (grille, météo, pneus), championnat, flash
+const POST_TYPES = [['results', 'Résultats'], ['prerace', 'Avant-course'], ['champ', 'Championnat'], ['flash', 'Flash']];
+export async function sessionEditor(s, back) {
+  const st = await loadState(s.path);
+  rememberDrivers(st.DriverList);
+  const meet = st.SessionInfo?.Meeting || {};
+  const tyres = builtinNomination(Number(String(s.path).slice(0, 4)), { name: meet.Name, location: meet.Location, country: meet.Country?.Name });
+  const events = flashEvents(st);
+  const results = postData(st);
+  const champ = champData(st);
+  let type = 'results';
+  let ev = events[0] || null;
+  let grid;   // grille officielle de la FIA : undefined = pas encore lue
+  let gridNote = '';
+  const avail = (k) => k === 'results' || k === 'prerace' || (k === 'champ' && champ) || (k === 'flash' && ev);
+  const data = () => (type === 'prerace' ? preraceData(st, { tyres, grid }) : type === 'champ' ? champ : type === 'flash' ? flashData(st, ev) : results);
+  const typeName = () => POST_TYPES.find(([k]) => k === type)[1];
+  const loadGrid = async (redraw) => {
+    if (grid !== undefined) return;
+    grid = null;
+    $('#gridnote').textContent = 'Lecture de la grille officielle de la FIA…';
+    try {
+      grid = await fiaGrid(Number(String(s.path).slice(0, 4)), { name: meet.Name, country: meet.Country?.Name, location: meet.Location }, results.sprint);
+      gridNote = !grid ? 'Grille pas encore publiée par la FIA : ordre des qualifications, sans les pénalités.'
+        : grid.final ? 'Grille officielle de la FIA, pénalités comprises.' : 'Grille provisoire de la FIA : la définitive peut encore changer.';
+    } catch (err) { gridNote = `Grille de la FIA indisponible (${err.message}) : ordre des qualifications, sans les pénalités.`; }
+    if ($('#gridnote')) $('#gridnote').textContent = type === 'prerace' ? gridNote : '';
+    if (type === 'prerace') redraw(true);
+  };
+  editor({
+    back,
+    title: SESSION_FR(s.name),
+    subtitle: results.gp,
+    head: `<div class="seg wide" id="ptype">${POST_TYPES.map(([k, v]) => `<button data-ptype="${k}" class="${k === type ? 'on' : ''}" ${avail(k) ? '' : 'disabled'}>${v}</button>`).join('')}</div>
+      <p class="hint" id="gridnote" hidden></p>
+      <label class="field" id="flashrow" hidden><span>Moment de la séance</span><select id="flashpick">${events.map((x, i) => `<option value="${i}">${esc(FLASH_KINDS[x.kind].label)} · ${esc(x.title)}${x.lap ? ` · tour ${x.lap}` : ''}</option>`).join('')}</select></label>
+      <div id="nospoilrow">${toggle('nospoil', 'Texte sans spoiler', state.noSpoiler, 'Vainqueur absent du début du texte')}</div>`,
+    data,
+    caps: () => (type === 'results' ? captions(results, SIG, { spoiler: !state.noSpoiler }) : moreCaptions(data(), SIG)),
+    record: () => (type === 'results' ? { key: `session:${s.path}`, kind: 'session', title: `${SESSION_FR(s.name)} · ${results.gp}` }
+      : { key: `${type}:${s.path}${type === 'flash' ? `:${ev.id}` : ''}`, kind: type, title: `${type === 'flash' ? ev.title : typeName()} · ${results.gp}` }),
+    bind: (redraw) => {
+      $('#nospoil').onchange = (e) => { state.noSpoiler = e.target.checked; redraw(true); };
+      $('#flashpick').onchange = (e) => { ev = events[Number(e.target.value)]; redraw(true); };
+      $$('[data-ptype]').forEach((b) => {
+        b.onclick = () => {
+          type = b.dataset.ptype;
+          $$('[data-ptype]').forEach((x) => x.classList.toggle('on', x === b));
+          glide();
+          $('#flashrow').hidden = type !== 'flash';
+          $('#gridnote').hidden = type !== 'prerace';
+          if (type === 'prerace') { $('#gridnote').textContent = gridNote; loadGrid(redraw); }
+          $('#nospoilrow').hidden = type !== 'results';
+          redraw(true);
+        };
+      });
+    },
+  });
+}

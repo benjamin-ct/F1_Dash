@@ -308,3 +308,27 @@ test('page du créateur : publication programmée, publiée par le serveur à l\
   assert.equal(l3.items.find((x) => x.id === j3.id).nets.facebook.status, 'expired');
   await disableStudio({ fetchFn });
 });
+
+test('page du créateur : toutes les sources d\'actu en une réponse (octets d\'origine, sources en panne écartées)', async () => {
+  const { packFeeds, unpackFeeds } = await import('../shared/feed-pack.js');
+  const { feeds } = await import('../analytics/studio.js');
+  const { DEFAULT_SOURCES, feedUrl } = await import('../shared/news-sources.js');
+  const latin = Uint8Array.from([0x3c, 0x61, 0x3e, 0xe9, 0x0a, 0x3c, 0x2f, 0x61, 0x3e]);   // « <a>é\n</a> » en latin-1
+  const back = unpackFeeds(packFeeds([{ id: 'x', type: 'text/xml; charset=iso-8859-1', body: latin }, null, { id: 'y', type: '', body: new Uint8Array() }]));
+  assert.deepEqual(back.map((p) => [p.id, p.type, [...p.body]]), [['x', 'text/xml; charset=iso-8859-1', [...latin]], ['y', '', []]]);
+  assert.deepEqual(unpackFeeds(new TextEncoder().encode('x\ntype\n999\nabc')), []);   // taille fausse : rien de lu
+  const rss = DEFAULT_SOURCES.filter((s) => s.kind === 'rss');
+  const urls = [];
+  const res = await feeds({ fetchFn: async (u) => { urls.push(u); return u === feedUrl(rss[0]) ? new Response('<rss/>', { headers: { 'Content-Type': 'application/rss+xml' } }) : u === feedUrl(rss[1]) ? new Response('', { status: 403 }) : Promise.reject(new Error('panne')); } });
+  assert.equal(urls.length, rss.length);
+  assert.equal(res.headers.get('Cache-Control'), 'no-store');
+  const parts = unpackFeeds(new Uint8Array(await res.arrayBuffer()));
+  assert.deepEqual(parts.map((p) => [p.id, p.type, new TextDecoder().decode(p.body)]), [[rss[0].id, 'application/rss+xml', '<rss/>']]);
+  // Gardées 2 minutes par le serveur : pas relues entre-temps, relues ensuite
+  const n = urls.length;
+  const t0 = Date.now();
+  assert.equal(unpackFeeds(new Uint8Array(await (await feeds({ fetchFn: async (u) => { urls.push(u); return new Response(''); }, now: t0 + 60e3 })).arrayBuffer())).length, 1);
+  assert.equal(urls.length, n);
+  await feeds({ fetchFn: async (u) => { urls.push(u); return new Response(''); }, now: t0 + 200e3 });
+  assert.equal(urls.length, n + rss.length);
+});

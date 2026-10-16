@@ -1947,4 +1947,13 @@ export default {
   "Question en fin de texte": "Question at the end of the text",
   "Race Week": "Race Week",
   "Tracé du circuit indisponible pour ce Grand Prix : visuel sans le circuit.": "Circuit layout unavailable for this Grand Prix: visual without the circuit.",
+  "Ordre des news": "News order",
+  "Plus récentes": "Most recent",
+  "Type de news": "News type",
+  "Tous les types": "All types",
+  "TRANSFERT": "TRANSFER",
+  "DÉPART": "EXIT",
+  "ACCIDENT": "CRASH",
+  "OFFICIEL": "OFFICIAL",
+  "ACTU F1": "F1 NEWS",
 };
