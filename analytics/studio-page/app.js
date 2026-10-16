@@ -526,8 +526,7 @@ async function statsTab(body) {
   const f = Object.entries(r.followers || {});
   body.innerHTML = `${f.length ? `<div class="row" style="margin-top:12px">${f.map(([n, v]) => `<div class="card" style="width:auto;cursor:default"><div class="t">${fmtN(v)}</div><div class="small muted">abonnés ${esc(NET_NAMES[n] || n)}</div></div>`).join('')}</div>` : ''}
     <div class="list">${(r.posts || []).map((p) => `<div class="card" style="cursor:default"><div class="t">${esc(p.title || 'Post')}</div><div class="small muted">${esc(new Date(p.at).toLocaleString('fr-FR'))}</div>
-      ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${l} <b>${fmtN(s[k])}</b>`).join(' · ') : 'statistiques indisponibles'; return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--text)">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n)} : ${vals}</div>`; }).join('')}</div>`).join('') || '<p class="muted">Aucun post publié pour le moment.</p>'}</div>
-    <p class="note">Les 8 derniers posts. Vues et portée : autorisations instagram_manage_insights, read_insights et threads_manage_insights du jeton. X : lecture payante, non utilisée.</p>`;
+      ${Object.entries(p.nets).map(([n, x]) => { const s = p.stats?.[n]; const vals = s ? STAT_LABELS.filter(([k]) => s[k] != null).map(([k, l]) => `${l} <b>${fmtN(s[k])}</b>`).join(' · ') : 'statistiques indisponibles'; return `<div class="small">${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--text)">${esc(NET_NAMES[n] || n)}</a>` : esc(NET_NAMES[n] || n)} : ${vals}</div>`; }).join('')}</div>`).join('') || '<p class="muted">Aucun post publié pour le moment.</p>'}</div>`;
 }
 
 // ---------- Accueil ----------
