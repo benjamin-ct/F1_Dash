@@ -14,14 +14,16 @@ const BODY = '"Titillium Web", sans-serif';
 const MONO = '"JetBrains Mono", monospace';
 const MEDAL = [C.gold, C.silver, C.bronze];
 
-// Diapositives selon la séance
-export function slidesFor(d) {
+// Diapositives selon la séance ; carrousel Instagram / Facebook / Threads : une couverture
+// « Résultats » en premier (le vainqueur n'est pas dévoilé dès la première image)
+export function slidesFor(d, fmt = 'ig') {
   if (!d.rows.length) return [];
-  if (d.kind === 'race') return ['vainqueur', 'podium', 'classement', 'faits', ...(d.champ ? ['championnat'] : [])];
-  if (d.kind === 'quali') return ['pole', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
-  return ['classement'];
+  let list = ['classement'];
+  if (d.kind === 'race') list = ['vainqueur', 'podium', 'classement', 'faits', ...(d.champ ? ['championnat'] : [])];
+  else if (d.kind === 'quali') list = ['pole', 'podium', 'classement', ...(d.facts.length ? ['faits'] : [])];
+  return fmt === 'ig' ? ['couverture', ...list] : list;
 }
-export const SLIDE_NAMES = { vainqueur: 'Vainqueur', pole: 'Pole position', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat' };
+export const SLIDE_NAMES = { couverture: 'Couverture', vainqueur: 'Vainqueur', pole: 'Pole position', podium: 'Podium', classement: 'Classement', faits: 'Faits marquants', championnat: 'Championnat' };
 
 // ---------- Outils de dessin ----------
 function rr(ctx, x, y, w, h, r) {
@@ -338,13 +340,96 @@ function championnat(ctx, W, H, d, o) {
   txt(ctx, d.final ? 'Après la course' : 'Projection en cours de course', W - f.pad, f.bottom + 20, { size: 22, weight: 600, color: C.muted, align: 'right' });
 }
 
+// Couverture du carrousel : Grand Prix, séance, date, circuit et sommaire des images suivantes
+function cover(ctx, W, H, d, o, next) {
+  background(ctx, W, H, C.red);
+  const land = W > H;
+  const u = Math.min(W, H) / 1080;
+  const pad = Math.round(W * 0.055);
+  // Damier fondu en haut à droite
+  const sq = Math.round(46 * u);
+  ctx.save();
+  for (let i = 0; i < 9; i++) {
+    for (let j = 0; j < 9; j++) {
+      if ((i + j) % 2) continue;
+      const a = 0.11 * (1 - (i + j) / 16);
+      if (a <= 0) continue;
+      ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+      ctx.fillRect(W - (i + 1) * sq, j * sq, sq, sq);
+    }
+  }
+  ctx.restore();
+  // En-tête : barre rouge, Formule 1 et saison
+  const top = Math.round(Math.min(W, H) * 0.06);
+  ctx.fillStyle = C.red;
+  ctx.fillRect(pad, top, 10, Math.round(64 * u));
+  txt(ctx, 'FORMULE 1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
+  txt(ctx, `SAISON ${d.year || ''}`.trim(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 3 });
+
+  // Bloc central : drapeau, « Résultats », séance, nom du Grand Prix
+  const colW = land ? W * 0.5 : W - pad * 2;
+  let y = land ? H * 0.3 : H * 0.24;
+  if (o.flag) {
+    const fh = Math.round(66 * u);
+    const fw = Math.round(fh * o.flag.width / o.flag.height);
+    rr(ctx, pad, y, fw, fh, 8); ctx.save(); ctx.clip(); ctx.drawImage(o.flag, pad, y, fw, fh); ctx.restore();
+    y += fh + 30 * u;
+  }
+  txt(ctx, 'RÉSULTATS', pad, y + 150 * u, { size: Math.round(190 * u), weight: 800, family: TITLE, max: colW, spacing: 2 });
+  y += 190 * u;
+  // Séance dans une étiquette rouge
+  const tag = (d.kind === 'race' && !d.sprint ? 'Course' : d.label).toUpperCase();
+  ctx.font = `700 ${Math.round(36 * u)}px ${TITLE}`;
+  const tw = ctx.measureText(tag).width + 6 * tag.length * u;
+  rr(ctx, pad, y, tw + 48 * u, 62 * u, 8 * u); ctx.fillStyle = C.red; ctx.fill();
+  txt(ctx, tag, pad + 24 * u, y + 44 * u, { size: Math.round(36 * u), weight: 700, family: TITLE, spacing: 6 * u });
+  y += 62 * u + 70 * u;
+  const lines = wrap(ctx, d.gp.toUpperCase(), pad, y + 20 * u, colW, 92 * u, 2, { size: Math.round(92 * u), weight: 800, family: TITLE });
+  y += (lines - 1) * 92 * u + 80 * u;
+  const info = [d.date, d.circuit, d.kind === 'race' && d.laps ? `${d.laps} tours` : ''].filter(Boolean).join('  ·  ').toUpperCase();
+  if (info) txt(ctx, info, pad, y, { size: Math.round(30 * u), weight: 600, family: TITLE, color: C.muted, max: colW, spacing: 2 });
+
+  // Sommaire des images suivantes
+  const items = next.map((s, i) => [String(i + 2).padStart(2, '0'), SLIDE_NAMES[s] || s]);
+  const sx = land ? W * 0.62 : pad;
+  const end = H - Math.round(Math.min(W, H) * 0.13);   // au-dessus du pied
+  let sy = land ? H * 0.3 : Math.max(y + 80 * u, end - items.length * 52 * u - 40 * u);
+  const lh = Math.min(52 * u, (end - sy - 22 * u) / Math.max(items.length, 1));
+  txt(ctx, 'AU PROGRAMME', sx, sy, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.red, spacing: 4 });
+  sy += 22 * u;
+  ctx.fillStyle = C.line; ctx.fillRect(sx, sy, (land ? W - sx - pad : W * 0.5), 2);
+  for (const [n, name] of items) {
+    sy += lh;
+    txt(ctx, n, sx, sy, { size: Math.round(30 * u), weight: 700, family: MONO, color: C.muted });
+    txt(ctx, name.toUpperCase(), sx + 70 * u, sy, { size: Math.round(36 * u), weight: 700, family: TITLE, spacing: 1 });
+  }
+
+  // Pied : signature, « faites défiler », résultats provisoires
+  const fy = H - Math.round(Math.min(W, H) * 0.045);
+  ctx.fillStyle = C.line;
+  ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
+  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, spacing: 1 });
+  const swipe = d.final ? 'FAITES DÉFILER' : 'RÉSULTATS PROVISOIRES · FAITES DÉFILER';
+  const ax = W - pad;
+  const ay = fy - Math.round(Math.min(W, H) * 0.009);
+  ctx.save();
+  ctx.strokeStyle = C.red; ctx.lineWidth = 5 * u; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const k of [0, 1]) {
+    const cx = ax - k * 18 * u;
+    ctx.beginPath(); ctx.moveTo(cx - 14 * u, ay - 13 * u); ctx.lineTo(cx, ay); ctx.lineTo(cx - 14 * u, ay + 13 * u); ctx.stroke();
+  }
+  ctx.restore();
+  txt(ctx, swipe, ax - 52 * u, fy, { size: Math.round(Math.min(W, H) * 0.024), weight: 700, family: TITLE, color: d.final ? C.text : C.gold, align: 'right', spacing: 2 });
+}
+
 export function drawSlide(canvas, slide, fmt, d, o = {}) {
   const { w, h } = FORMATS[fmt];
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, w, h);
-  if (slide === 'vainqueur') hero(ctx, w, h, d, o, 'VAINQUEUR');
+  if (slide === 'couverture') cover(ctx, w, h, d, o, slidesFor(d, fmt).filter((sl) => sl !== 'couverture'));
+  else if (slide === 'vainqueur') hero(ctx, w, h, d, o, 'VAINQUEUR');
   else if (slide === 'pole') hero(ctx, w, h, d, o, 'POLE POSITION');
   else if (slide === 'podium') podium(ctx, w, h, d, o);
   else if (slide === 'classement') classement(ctx, w, h, d, o);

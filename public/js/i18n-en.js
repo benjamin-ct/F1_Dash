@@ -1539,6 +1539,7 @@ export default {
   "Usure : variation moyenne du temps au tour sur le relais en cours (positive = le pilote ralentit, les pneus se dégradent). Le carburant qui s'allège fait gagner ~0,05 s/tour, à garder en tête.": "Wear: average change in lap time over the current stint (positive = the driver is slowing, the tyres are degrading). Lighter fuel gains ~0.05 s/lap, worth keeping in mind.",
   "utilisation de l'échappatoire": "use of the escape road",
   "Vainqueur": "Winner",
+  "Couverture": "Cover",
   "Vainqueur sprint": "Sprint winner",
   "valeur": "value",
   "valeur du circuit": "circuit value",

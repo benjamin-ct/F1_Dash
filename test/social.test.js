@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { postData, captions, gapFr } from '../shared/social.js';
+import { slidesFor } from '../shared/social-draw.js';
 
 const state = {
   SessionInfo: { Type: 'Race', Name: 'Race', StartDate: '2026-09-06T13:00:00', Meeting: { Name: 'Italian Grand Prix', Country: { Code: 'ITA', Name: 'Italy' } } },
@@ -73,4 +74,13 @@ test('posts : qualifications', () => {
   assert.deepEqual(d.rows.map((r) => r.gap), ['1:19.8', '+0,100', '1:21.0']);
   assert.equal(d.rows[2].koPart, 1);
   assert.match(captions(d).instagram, /^Pole position pour Lando Norris au Grand Prix d'Italie !/);
+});
+
+test('posts : couverture « Résultats » en première image du carrousel Instagram seulement', () => {
+  const d = { kind: 'race', rows: [{}], facts: [], champ: {} };
+  assert.deepEqual(slidesFor(d, 'ig'), ['couverture', 'vainqueur', 'podium', 'classement', 'faits', 'championnat']);
+  assert.deepEqual(slidesFor(d, 'x'), ['vainqueur', 'podium', 'classement', 'faits', 'championnat']);
+  assert.deepEqual(slidesFor(d, 'story')[0], 'vainqueur');
+  assert.deepEqual(slidesFor({ ...d, kind: 'quali', champ: null }, 'ig').slice(0, 2), ['couverture', 'pole']);
+  assert.deepEqual(slidesFor({ ...d, rows: [] }, 'ig'), []);
 });

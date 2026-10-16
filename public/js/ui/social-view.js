@@ -85,7 +85,7 @@ async function render(dlg) {
   dlg.dataset.ready = '';
   dlg.publish = null;
   const d = postData(store.state);
-  const slides = slidesFor(d);
+  const slides = slidesFor(d, fmt);
   const sig = storageGet(SIG_KEY, '@BenjyPaddock');
   const caps = captions(d, sig);
   const body = $('.posts-body', dlg);
@@ -105,7 +105,7 @@ async function render(dlg) {
   const o = { ...(await assets(d)), signature: sig };
   if (id !== renderId) return;   // format ou réglage changé entre-temps
   // Publication : visuels de n'importe quel format, dessinés à part
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), render: async (f) => slides.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), render: async (f) => slidesFor(d, f).map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, o)) });
   const canvases = [...body.querySelectorAll('canvas')];
   for (const c of canvases) drawSlide(c, c.dataset.slide, fmt, d, o);
   const count = $('[data-count]', body);
