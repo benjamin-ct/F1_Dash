@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { bigNews, newsKind, newsKinds, sortNews, newsPost, newsCaptions, shortSummary } from '../shared/social-news.js';
 import { slidesFor } from '../shared/social-draw.js';
 import { xLength } from '../shared/social.js';
+import { newsVideoTiming } from '../shared/social-news-video.js';
 
 const NOW = Date.UTC(2026, 9, 16, 12);
 const H = 3600e3;
@@ -77,4 +78,16 @@ test('posts news : tri à la une ou récentes, déjà publiées en dernier, type
   assert.equal(ids(sortNews([a, b, c, d], { now: NOW, done: (x) => x.id === 'd' })), 'cbad');
   const kinds = newsKinds([a, b, c, d]);
   assert.deepEqual(kinds.map((k) => [k.key, k.n]), [['transfert', 2], ['actu', 1], ['penalite', 1]]);
+});
+
+test('vidéo Breaking news : durée selon le texte, 4 points clés au plus', () => {
+  const d = newsPost({ title: 'x', tags: ['NOR'], t: NOW }, { title: 'Norris prolonge avec McLaren', summary: 'Contrat signé jusqu\'en 2030.', points: ['Un', 'Deux points', 'Trois', 'Quatre', 'Cinq'] });
+  const tm = newsVideoTiming(d);
+  assert.equal(tm.pts.length, 4);
+  assert.equal(tm.starts.length, 6);
+  assert.ok(tm.main >= 5 && tm.main <= 9);
+  assert.ok(Math.abs(tm.duration - (1.8 + 5 + 4 * 3 + 2.8)) < 1e-9);   // textes courts : durées minimales
+  const court = newsVideoTiming({ ...d, points: [] });
+  assert.equal(court.starts.length, 2);
+  assert.ok(court.duration < 13);
 });

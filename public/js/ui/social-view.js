@@ -13,6 +13,7 @@ import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { makeAnimation } from '/shared/social-video.js';
+import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES } from '/shared/social-news.js';
 import { builtinNomination } from '/shared/tyres.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
@@ -227,17 +228,19 @@ async function seasonSource(sig) {
   return { d, caps: seasonCaptions(d, sig), head: head + extra, record: { key: `${seasonType}:${year}-${race.round}`, kind: seasonType, title: `${t(label)} · ${d.gp}` } };
 }
 
-// Vidéo animée de la course (format story) : enregistrée dans le navigateur
+// Vidéo animée (format story) de la course ou d'une news (« Breaking news ») : enregistrée dans le navigateur
 let raceVideo = null;
-const raceVideoMaker = (d, o) => (opts) => makeAnimation((ctx, tt) => raceFrame(ctx, 1080, 1920, d, o, tt), raceVideoTiming(d).duration, opts);
+const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt) => raceFrame(ctx, 1080, 1920, d, o, tt), raceVideoTiming(d).duration, opts)
+  : d.news ? (opts) => makeAnimation((ctx, tt) => newsFrame(ctx, 1080, 1920, d, o, tt), newsVideoTiming(d).duration, opts) : null);
 async function buildRaceVideo(dlg, btn) {
-  if (!curPost || curPost.d.post !== 'racelaps') return;
+  const make = curPost && raceVideoMaker(curPost.d, curPost.o);
+  if (!make) return;
   const st = $('[data-rvst]', dlg);
   btn.disabled = true;
   try {
-    const v = await raceVideoMaker(curPost.d, curPost.o)({ music: 'gen', onProgress: (p) => { st.textContent = t('Enregistrement de la vidéo… {} %', Math.round(p * 100)); } });
+    const v = await make({ music: 'gen', onProgress: (p) => { st.textContent = t('Enregistrement de la vidéo… {} %', Math.round(p * 100)); } });
     if (raceVideo?.url) URL.revokeObjectURL(raceVideo.url);
-    raceVideo = { ...v, url: URL.createObjectURL(v.blob), folder: folderOf(curPost.d) };
+    raceVideo = { ...v, url: URL.createObjectURL(v.blob), folder: folderOf(curPost.d), name: curPost.d.news ? 'video-breaking-news' : 'video-course' };
     const el = $('[data-rv]', dlg);
     el.src = raceVideo.url; el.hidden = false;
     $('[data-racevideosave]', dlg).disabled = false;
@@ -247,7 +250,7 @@ async function buildRaceVideo(dlg, btn) {
 async function saveRaceVideo() {
   if (!raceVideo) return;
   const data = await new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(',')[1]); r.readAsDataURL(raceVideo.blob); });
-  const r = await fetch('/api/posts/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: raceVideo.folder, name: 'video-course', data }) }).then((x) => x.json());
+  const r = await fetch('/api/posts/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: raceVideo.folder, name: raceVideo.name, data }) }).then((x) => x.json());
   if (r.error) throw new Error(r.error);
   toast(t('Vidéo enregistrée dans {}', r.dir), 4000, 'check');
 }
@@ -328,6 +331,9 @@ async function newsSource(sig) {
       <label class="small muted">${t('Points clés, un par ligne (images suivantes du carrousel)')}<textarea data-npoints rows="4" maxlength="1600" placeholder="${t('Facultatif : cliquez sur « Résumé détaillé » ou écrivez-les vous-même')}">${esc(points)}</textarea></label>
       <div class="row">${it.link ? `<button class="btn small" data-nsummary title="${t("Résumé de l'article en 3 à 5 points, reformulés par l'IA du serveur Paddock Live : relisez-les avant de publier")}">${icon('doc')} ${t('Résumé détaillé')}</button>` : ''}<span class="small muted" data-nsumst></span></div>
       <label class="toggle small" title="${t("Facebook, Threads et X : le lien de l'article est publié en premier commentaire plutôt que dans le texte (Instagram : pas de lien)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
+      <div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button>
+        <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) : titre, résumé puis points clés, avec musique. Aussi utilisée pour TikTok et YouTube à la publication.'))}</span></div>
+      <video class="posts-vid" data-rv controls playsinline hidden></video>
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
     </div>`;
   const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
@@ -430,7 +436,7 @@ async function render(dlg, keepHead = false) {
   // Publication : visuels de n'importe quel format, dessinés à part
   // Publication : images gardées, de n'importe quel format, dessinées à part
   const drawChosen = (f) => { const list = chosenOf(slidesFor(d, { fmt: f, follow, question: withQuestion })); return list.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, { ...o, slides: list })); };
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => drawChosen(f), videoMaker: d.post === 'racelaps' ? raceVideoMaker(d, o) : null });
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => drawChosen(f), videoMaker: raceVideoMaker(d, o) });
   const allCanvases = [...body.querySelectorAll('canvas')];
   let canvases = [];
   // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro

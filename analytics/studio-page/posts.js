@@ -12,7 +12,9 @@ import { extractArticle } from '/shared/article.js';
 import { recapData, seasonCaptions } from '/shared/social-season.js';
 import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES } from './ui.js';
 import { toFrench, freshNews, cachedNews, latestDrivers, loadState, rememberDrivers, SESSION_FR } from './data.js';
-import { editor } from './editor.js';
+import { editor, assets } from './editor.js';
+import { makeAnimation } from '/shared/social-video.js';
+import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
 
 // Résumé détaillé : page de l'article lue par le serveur, texte extrait ici, points clés rédigés par
 // l'IA du serveur (reformulés, jamais recopiés)
@@ -26,6 +28,32 @@ async function detailedSummary(it) {
   if (res.status === 429) throw new Error('Plafond du jour atteint, réessayez demain');
   if (!res.ok || !Array.isArray(j.points)) throw new Error(j.error || 'Résumé indisponible pour le moment');
   return j.points;
+}
+
+// ---------- Vidéo « Breaking news » (TikTok, Reels, Shorts, story), commune aux news et aux posts écrits ----------
+const NEWS_VIDEO = `<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+  <p class="hint" id="vidst">Vidéo verticale « Breaking news » pour TikTok, Reels, YouTube Shorts ou une story : titre, résumé puis points clés, avec musique. Garder l'écran allumé pendant l'enregistrement.</p>
+  <video id="vid" controls playsinline hidden></video>`;
+function bindNewsVideo(getD, name) {
+  let clip = null;
+  $('#mkvid').onclick = async () => {
+    $('#mkvid').disabled = true;
+    try {
+      const d = getD();
+      const o = await assets(d);
+      const { duration } = newsVideoTiming(d);
+      clip = await makeAnimation((ctx, t) => newsFrame(ctx, 1080, 1920, d, o, t), duration, { music: 'gen', onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+      $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
+      $('#sharevid').disabled = false;
+      $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo`;
+    } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
+  };
+  $('#sharevid').onclick = async () => {
+    if (!clip) return;
+    const file = new File([clip.blob], `${name}.${clip.mime.includes('mp4') ? 'mp4' : 'webm'}`, { type: clip.mime });
+    if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file] }); } catch { /* annulé */ } return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+  };
 }
 
 export async function newsEditor(it, done, back) {
@@ -45,6 +73,7 @@ export async function newsEditor(it, done, back) {
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="npoints" rows="5" maxlength="1600" placeholder="Facultatif : « Résumé détaillé » ou à écrire soi-même"></textarea></label>
       ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
+      ${NEWS_VIDEO}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
     data: () => d,
     caps: () => newsCaptions(d, SIG, { linkInComment: state.linkComment }),
@@ -67,6 +96,7 @@ export async function newsEditor(it, done, back) {
         } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
+      bindNewsVideo(() => d, 'breaking-news');
     },
   });
 }
@@ -99,7 +129,8 @@ export async function manualEditor(back) {
       <label class="field"><span>Source <small>(facultatif, citée en bas de l'image)</small></span><input type="text" id="msrc" maxlength="60" placeholder="Ex. : communiqué de McLaren"></label>
       <div class="field"><span>Photo <small>(facultatif : remplace les portraits des pilotes)</small></span>
         <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
-      <p class="hint">Les pilotes et écuries cités sont reconnus dans le texte : portraits, logos et couleurs suivent tout seuls.</p>`,
+      <p class="hint">Les pilotes et écuries cités sont reconnus dans le texte : portraits, logos et couleurs suivent tout seuls.</p>
+      ${NEWS_VIDEO}`,
     data: () => d,
     caps: () => newsCaptions(d, SIG),
     record: () => ({ key: `manual:${it.id}`, kind: 'manual', title: d.title }),
@@ -141,6 +172,7 @@ export async function manualEditor(back) {
         } catch { $('#mimgst').textContent = 'Image illisible'; }
       };
       $('#mimgdel').onclick = () => { f.image = null; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; upd(true); };
+      bindNewsVideo(() => d, 'breaking-news');
     },
   });
 }

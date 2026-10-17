@@ -2022,6 +2022,8 @@ export default {
   "Bilan de la saison jusqu'à la manche choisie : qui devance l'autre en qualifications et en course.": "Season record up to the chosen round: who beats whom in qualifying and in the race.",
   "Tours de cette course pas encore publiés.": "Laps of this race not published yet.",
   "Créer la vidéo animée": "Create the animated video",
+  "Créer la vidéo Breaking news": "Create the Breaking news video",
+  "Vidéo verticale (story, TikTok, Reels, Shorts) : titre, résumé puis points clés, avec musique. Aussi utilisée pour TikTok et YouTube à la publication.": "Vertical video (story, TikTok, Reels, Shorts): title, summary then key points, with music. Also used for TikTok and YouTube when publishing.",
   "Vidéo verticale (story, TikTok, Reels, Shorts) de {} s : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts.": "Vertical video (story, TikTok, Reels, Shorts) of {} s: the position chart draws itself lap by lap, with safety cars, flags and key moments.",
   "Direction de course indisponible (archives de la F1) : neutralisations estimées d'après les temps au tour.": "Race control unavailable (F1 archives): neutralisations estimated from lap times.",
   "Carrousel des 5 grosses news des 7 derniers jours": "Carousel of the 5 biggest news of the last 7 days",
