@@ -62,7 +62,8 @@ Le vainqueur, le podium, le classement et les faits marquants de chaque Grand Pr
   },
   paddocklive: {
     name: 'Paddock Live',
-    match: /paddocklive/i,
+    // « benjy.paddocklive.app » (pseudo Bluesky de Benjy Paddock) contient aussi « paddocklive »
+    match: /^(?!.*benjy).*paddocklive/i,
     ig: 4, x: 4, story: 4,
     text: {
       instagram: `Voici Paddock Live.
