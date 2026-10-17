@@ -8,7 +8,7 @@ import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { FLAG_ISO } from './header.js';
 import { postData, captions, xLength } from '/shared/social.js';
-import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
+import { FORMATS, slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
@@ -124,13 +124,13 @@ function sessionSource(sig) {
           : og.error ? t('Grille de la FIA indisponible ({}) : ordre des qualifications, sans les pénalités.', og.error)
             : t('Grille pas encore publiée par la FIA : ordre des qualifications, sans les pénalités.');
       const warn = `<p class="posts-warn small">${icon('info')} ${esc(note)}</p>`;
-      return { d, caps: moreCaptions(d, sig), head: types + warn, record: { key: `prerace:${folderOf(d)}`, kind: 'prerace', title: `${t('Avant-course')} · ${d.gp}` } };
+      return { d, caps: (dd) => moreCaptions(dd, sig), head: types + warn, record: { key: `prerace:${folderOf(d)}`, kind: 'prerace', title: `${t('Avant-course')} · ${d.gp}` } };
     });
   }
   if (postType === 'champ') {
     const d = champData(state);
     if (!d) return { head: `${types}<p class="muted">${t('Championnat disponible après une course ou un sprint : ouvrez la séance en direct ou en replay.')}</p>` };
-    return { d, caps: moreCaptions(d, sig), head: types, record: { key: `champ:${folderOf(d)}`, kind: 'champ', title: `${t('Championnat')} · ${d.gp}` } };
+    return { d, caps: (dd) => moreCaptions(dd, sig), head: types, record: { key: `champ:${folderOf(d)}`, kind: 'champ', title: `${t('Championnat')} · ${d.gp}` } };
   }
   if (postType === 'flash') {
     const evs = flashEvents(state);
@@ -139,11 +139,11 @@ function sessionSource(sig) {
     flashSel = ev.id;
     const d = flashData(state, ev);
     const pick = `<div class="row posts-news-bar"><select class="posts-news-sel" data-flashpick>${evs.map((x) => `<option value="${esc(x.id)}" ${x === ev ? 'selected' : ''}>${esc(t(FLASH_KINDS[x.kind].label))} · ${esc(x.title)}${x.lap ? ` · ${esc(t('tour {}', x.lap))}` : ''}</option>`).join('')}</select></div>`;
-    return { d, caps: moreCaptions(d, sig), head: types + pick, record: { key: `flash:${folderOf(d)}`, kind: 'flash', title: `${ev.title} · ${d.gp}` } };
+    return { d, caps: (dd) => moreCaptions(dd, sig), head: types + pick, record: { key: `flash:${folderOf(d)}`, kind: 'flash', title: `${ev.title} · ${d.gp}` } };
   }
   const d = postData(state);
   const warn = d.final ? '' : `<p class="posts-warn small">${icon('warning')} ${t('Séance pas terminée : résultats provisoires, au rythme de votre délai TV.')}</p>`;
-  return { d, caps: captions(d, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };
+  return { d, caps: (dd) => captions(dd, sig, { spoiler: !noSpoiler }), head: types + warn, record: { key: `session:${folderOf(d)}`, kind: 'session', title: `${d.label} · ${d.gp}` } };
 }
 
 // ---------- Posts de saison : programme, records, notes, duels, course tour par tour ----------
@@ -225,7 +225,7 @@ async function seasonSource(sig) {
       <video class="posts-vid" data-rv controls playsinline hidden></video>`;
   }
   const label = SEASON_TYPES.find(([k]) => k === seasonType)[1];
-  return { d, caps: seasonCaptions(d, sig), head: head + extra, record: { key: `${seasonType}:${year}-${race.round}`, kind: seasonType, title: `${t(label)} · ${d.gp}` } };
+  return { d, caps: (dd) => seasonCaptions(dd, sig), head: head + extra, record: { key: `${seasonType}:${year}-${race.round}`, kind: seasonType, title: `${t(label)} · ${d.gp}` } };
 }
 
 // Vidéo animée (format story) de la course ou d'une news (« Breaking news ») : enregistrée dans le navigateur
@@ -340,7 +340,7 @@ async function newsSource(sig) {
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
     </div>`;
   const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
-  return { d, caps: newsCaptions(d, sig, { linkInComment: linkComment }), head, record };
+  return { d, caps: (dd) => newsCaptions(dd, sig, { linkInComment: linkComment }), head, record };
 }
 // Récap de la semaine : les 5 plus grosses news des 7 derniers jours (une par sujet)
 async function recapSource(sig, data, bar) {
@@ -352,7 +352,7 @@ async function recapSource(sig, data, bar) {
   const posts = list.map((it, i) => newsPost(it, { title: fr[2 * i] ?? it.title, summary: fr[2 * i + 1] ?? it.summary, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src }));
   const d = recapData(posts);
   const head = `${bar(null)}<p class="small muted">${icon('info')} ${t('Titres et résumés traduits automatiquement : relisez les visuels avant de publier.')}</p>`;
-  return { d, caps: seasonCaptions(d, sig), head, record: { key: `recap:${d.date}`, kind: 'recap', title: `${t('La semaine en F1')} · ${d.date}` } };
+  return { d, caps: (dd) => seasonCaptions(dd, sig), head, record: { key: `recap:${d.date}`, kind: 'recap', title: `${t('La semaine en F1')} · ${d.date}` } };
 }
 const fileOf = (i, slide) => `${FORMATS[fmt].name}-${i + 1}-${slide}`;
 
@@ -414,8 +414,15 @@ async function render(dlg, keepHead = false) {
   if (skipSlides.key !== postKey) skipSlides = { key: postKey, set: new Set() };
   const skip = skipSlides.set;
   const chosenOf = (list) => chosenSlides(list, [...skip]);
-  if (withQuestion) caps = questionCaptions(caps, d, sig);
-  if (follow) caps = followCaptions(caps, d, sig);
+  // Textes sans ce que montraient les images écartées (question et abonnement compris)
+  const capsOf = caps;
+  const textsOf = () => {
+    let c = capsOf(keptData(d, skip, fmt));
+    if (withQuestion && !skip.has('question')) c = questionCaptions(c, d, sig);
+    if (follow && !skip.has('abonnement')) c = followCaptions(c, d, sig);
+    return c;
+  };
+  caps = textsOf();
   if (!slides.length || (!d.rows?.length && !d.post && !d.news)) { body.innerHTML = `${mode !== 'news' ? head : ''}<p class="muted">${t('Pas encore de classement pour cette séance : lancez un live ou un replay.')}</p>`; return; }
   const main = `<p class="small muted">${icon('info')} ${t('Toutes les images sont publiées : décochez celles à laisser de côté (sommaire, nombre de points et numéros suivent).')}</p>
     <div class="posts-grid">${slides.map((s, i) => `<figure class="posts-item" data-fig="${i}"><canvas data-slide="${s}" title="${t('Cliquer pour voir en grand')}"></canvas>
@@ -461,6 +468,11 @@ async function render(dlg, keepHead = false) {
       // Une image au moins reste publiée
       if (!chosenOf(slides).some((s) => !skip.has(s))) { skip.delete(cb.dataset.pick); cb.checked = true; toast(t('Gardez au moins une image'), 2500, 'warning'); }
       paint();
+      // Texte affiché mis à jour, sauf s'il a été retouché à la main
+      const prev = caps;
+      caps = textsOf();
+      const k = fmt === 'x' ? 'x' : 'instagram';
+      if (area && area.value === prev[k]) { area.value = caps[k]; upd(); }
     };
   });
   const count = $('[data-count]', body);

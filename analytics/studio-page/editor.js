@@ -1,6 +1,6 @@
 // Studio : éditeur d'un post (visuels, textes, publication, programmation, partage), commun aux news,
 // séances et posts de la saison.
-import { slidesFor, drawSlide, slideName, chosenSlides, pointPages } from '/shared/social-draw.js';
+import { slidesFor, drawSlide, slideName, chosenSlides, keptData } from '/shared/social-draw.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { FLAG_ISO } from '/shared/flags.js';
@@ -41,18 +41,6 @@ const CAPS = [
   ['comment', () => 'Premier commentaire (Facebook, Threads, Bluesky ; X : à coller en réponse)', 2],
 ];
 const xLen = (s) => String(s || '').replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length;
-// Données des textes sans ce que montraient les images écartées : points clés, infos du récap, duels
-// d'une page, faits marquants, pneus et météo
-function keptData(d, skip, fmt) {
-  if (!skip.size) return d;
-  if (d.news) return { ...d, points: pointPages(d.points, fmt).filter((_, i) => !skip.has(`essentiel-${i + 1}`)).flat() };
-  if (d.post === 'recap') return { ...d, items: d.items.filter((_, i) => !skip.has(`recap-${i + 1}`)) };
-  if (d.post === 'teamduels') return { ...d, rows: d.rows.filter((_, i) => !skip.has(`equipes-${Math.floor(i / 5) + 1}`)) };
-  if ((d.post === 'weekend' || d.post === 'raceweek') && skip.has('infos')) return { ...d, tyres: null, forecast: [] };
-  if (d.post === 'prerace' && skip.has('meteo')) return { ...d, weather: null, tyres: null };
-  if (!d.post && skip.has('faits')) return { ...d, facts: [] };
-  return d;
-}
 
 // Retour à la liste : bouton, geste « retour » de Safari (historique) et, sur l'appli installée,
 // glissement depuis le bord gauche de l'écran
