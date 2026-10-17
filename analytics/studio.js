@@ -337,7 +337,7 @@ async function sendVideo(req, env, raw, vault, url) {
     } catch (err) { return json({ error: String(err?.message || err).slice(0, 300) }, 502); }
   }
   if (net !== 'tiktok' && net !== 'youtube' && net !== 'instagram-reel') return json({ error: 'Réseau inconnu' }, 400);
-  if (!/^\/kit\/[a-z]+\/(video|reel)\.mp4$/.test(src)) return json({ error: 'Vidéo inconnue' }, 400);
+  if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src)) return json({ error: 'Vidéo inconnue' }, 400);
   if (net === 'instagram-reel') {
     if (!vault.meta?.igId) return json({ error: 'Compte Instagram non envoyé : connectez-le dans l\'appli' }, 409);
     // Instagram lit lui-même la vidéo à son adresse publique
@@ -347,7 +347,7 @@ async function sendVideo(req, env, raw, vault, url) {
     } catch (err) { return json({ error: String(err?.message || err).slice(0, 300) }, 502); }
   }
   if (!vault[net]) return json({ error: `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »` }, 409);
-  if (!/^\/kit\/[a-z]+\/(video|reel)\.mp4$/.test(src) || !env.ASSETS) return json({ error: 'Vidéo inconnue' }, 400);
+  if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src) || !env.ASSETS) return json({ error: 'Vidéo inconnue' }, 400);
   const file = await env.ASSETS.fetch(new Request(new URL(src, url)));
   if (!file.ok) return json({ error: 'Vidéo du kit introuvable' }, 404);
   const video = new Uint8Array(await file.arrayBuffer());
