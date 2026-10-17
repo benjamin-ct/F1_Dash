@@ -316,15 +316,17 @@ export function homeTouched() { touched = true; }
 // dernière séance : sinon un écran d'attente (prochaine séance, replay, résultats).
 const COVERS = ['#homeView', '#seasonView', '#newsView', '#replayView'];
 let noLiveKey = '';
-function noLiveCheck() {
+// show = false (contrôle régulier, évènements de la séance) : l'écran peut seulement se retirer.
+// Il ne s'affiche qu'en arrivant sur le tableau de bord, jamais par-dessus des résultats en cours de lecture.
+function noLiveCheck(show = true) {
   const view = $('#noLiveView');
   if (!view) return;
   const st = store.state.SessionStatus?.Status;
   const running = st === 'Started' || st === 'Aborted' || !!liveNow();
   if (running) resultsOpen = false;
   const covered = COVERS.some((s) => $(s) && !$(s).hidden);
-  const show = !!schedule && !running && !covered && !resultsOpen && store.status?.mode !== 'replay';
-  if (!show) { view.hidden = true; return; }
+  if (!schedule || running || covered || resultsOpen || store.status?.mode === 'replay') { view.hidden = true; return; }
+  if (view.hidden && !show) return;
   if (view.hidden) { place(view); view.hidden = false; noLiveKey = ''; }
   const nx = nextSession(), ls = lastSession();
   const key = `${nx?.t}|${ls?.t}|${nx ? countdown(nx.t - Date.now()) : ''}`;
@@ -351,11 +353,13 @@ export function initNoLive() {
     if (b.dataset.nl === 'results') { resultsOpen = true; noLiveCheck(); } else act(b.dataset.nl);
   });
   // Vues ouvertes ou fermées, source changée, séance qui démarre : écran affiché ou retiré aussitôt
-  const mo = new MutationObserver(noLiveCheck);
+  const mo = new MutationObserver(() => noLiveCheck());
   for (const s of COVERS) if ($(s)) mo.observe($(s), { attributes: true, attributeFilter: ['hidden'] });
-  on('status', noLiveCheck);
-  on('events', (events) => { if (events.some(([t]) => t === 'SessionStatus' || t === 'SessionInfo')) noLiveCheck(); });
+  // Retour au direct après un replay : comme une arrivée sur le tableau de bord
+  let mode = store.status?.mode;
+  on('status', (s) => { noLiveCheck(mode === 'replay' && s?.mode !== 'replay'); mode = s?.mode; });
+  on('events', (events) => { if (events.some(([t]) => t === 'SessionStatus' || t === 'SessionInfo')) noLiveCheck(false); });
   addEventListener('resize', () => { if (!view.hidden) place(view); });
-  setInterval(noLiveCheck, 5000);
+  setInterval(() => noLiveCheck(false), 5000);
   noLiveCheck();
 }
