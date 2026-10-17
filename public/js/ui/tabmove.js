@@ -57,7 +57,9 @@ function place(t, id, before = null) {
   if (!btn || !p || !h || !b) return;
   const ref = before && before !== t ? tabBtn(before) : null;
   h.insertBefore(btn, ref && ref.parentElement === h ? ref : h.querySelector(':scope > .panel-ctrl'));
-  b.appendChild(p);
+  // Contenu déjà dans ce panneau : laissé en place (le déplacer remettrait sa liste en haut et
+  // rejouerait ses animations, ex. toute la Direction de course)
+  if (p.parentElement !== b) b.appendChild(p);
 }
 
 function apply(layout) {
@@ -69,7 +71,11 @@ function apply(layout) {
   }
   // Onglets absents de la disposition (nouveaux) : à leur place d'origine
   for (const id of HOSTS) for (const t of defaults[id]) if (!used.has(t)) want[id].push(t);
-  for (const id of HOSTS) for (const t of want[id]) place(t, id);
+  // Seuls les panneaux dont les onglets changent sont touchés (la disposition enregistrée après un
+  // glisser-déposer est déjà celle affichée : rien ne bouge)
+  const changed = HOSTS.filter((id) => tabsOf(id).join() !== want[id].join());
+  if (!changed.length) return;
+  for (const id of changed) for (const t of want[id]) place(t, id);
   for (const id of HOSTS) tidy(id);
   emit('tabsMoved');
 }
@@ -184,7 +190,7 @@ export function initTabMove() {
     for (const t of defaults[id]) origin[t] = id;
   }
   if (prefs.tabLayout) apply(prefs.tabLayout);
-  else for (const id of HOSTS) tidy(id);
+  for (const id of HOSTS) tidy(id);
   on('prefs', (k) => { if (k === 'tabLayout') apply(prefs.tabLayout); });
   document.addEventListener('pointerdown', onDown);
   $('#tabsReset')?.addEventListener('click', () => { resetTabs(); toast('Onglets remis à leur place d\'origine', 2500, 'check'); });

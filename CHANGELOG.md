@@ -21,6 +21,8 @@ l'application (Réglages → Application → Nouveautés).
 - Redimensionnement des panneaux : la barre entre deux panneaux suit enfin la souris jusqu'au bout, et
   le curseur à double flèche ne reste plus bloqué après le relâchement (surtout avec une deuxième
   fenêtre ouverte, qui redessinait la disposition pendant le geste).
+- Déplacer un onglet d'un panneau à l'autre ne recharge plus les autres panneaux : la Direction de
+  course garde sa liste et sa position de lecture.
 
 ### Mise en page
 - Barre de gauche : le libellé « Commentaires » est resserré pour ne plus toucher les bords du bouton.
