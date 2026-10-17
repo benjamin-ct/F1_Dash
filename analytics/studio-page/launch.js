@@ -97,7 +97,7 @@ Abonne-toi pour suivre le lancement. Les récaps de chaque course : @BenjyPaddoc
 
 Chronos, carte GPS, radios d'équipe traduites, pneus et stratégie en direct, calés sur ta TV. Zéro spoiler.
 
-Abonne-toi pour suivre le lancement. Les récaps de chaque course : @benjypaddock.bsky.social
+Abonne-toi pour suivre le lancement. Les récaps de chaque course : @benjy.paddocklive.app
 
 #F1 #PaddockLive`,
       tiktok: 'Le mur des stands à la maison : chronos, carte GPS, radios et stratégie en direct, calés sur ta TV. Zéro spoiler. Abonne-toi pour le lancement #F1 #Formula1 #F1TikTok #PaddockLive',
