@@ -20,6 +20,13 @@ test('anglais : chaque traduction garde ses valeurs dynamiques', () => {
   }
 });
 
+test('anglais : un texte déjà en anglais ne change pas une seconde fois', () => {
+  // La page retraduit ce qu'elle affiche : un gabarit trop court (« T{} ») happait tout texte en T
+  for (const s of ['Teammates', 'Title possible at the earliest', 'The title cannot be decided', 'Lap 12', 'Pit stops']) {
+    assert.equal(i18n.translate(s), null, s);
+  }
+});
+
 test('anglais : textes exacts, gabarits et valeurs elles-mêmes traduites', () => {
   assert.equal(i18n.LANG, 'en');
   assert.equal(i18n.DEC, '.');

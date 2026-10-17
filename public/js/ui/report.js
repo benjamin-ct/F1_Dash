@@ -14,7 +14,8 @@ function gapText(g) {
   if (laps) return Number(laps[1]) === 1 ? t('+1 tour') : t('+{} tours', laps[1]);
   return /^\+?\d/.test(v) ? `+${v.replace('+', '').replace('.', DEC)} s` : esc(v);
 }
-const lapsText = (laps) => laps.map((l) => t('T{}', l)).join(', ');
+// Numéro de tour court : « T12 » (Lap -> « L12 ») ; pas de gabarit « T{} », qui happerait tout texte en T
+const lapNo = (l) => `${EN ? 'L' : 'T'}${l}`;
 
 // Pilote : repère d'écurie (logo ou barre) + trigramme
 function who(d, dl, full = false) {
@@ -61,9 +62,9 @@ export function reportHtml(state) {
     }
     if (f.common) tiles.push(tile(t('Stratégie la plus courante'), `<div class="rp-tyres">${tyres(f.common.comps)}</div><div class="muted small">${t('{} pilotes', f.common.count)}</div>`));
     const neut = [
-      ...f.sc.map((l) => `<span class="rp-chip sc">${t('Voiture de sécurité')} · ${t('T{}', l)}</span>`),
-      ...f.vsc.map((l) => `<span class="rp-chip vsc">VSC · ${t('T{}', l)}</span>`),
-      ...f.red.map((l) => `<span class="rp-chip red">${t('Drapeau rouge')} · ${t('T{}', l)}</span>`),
+      ...f.sc.map((l) => `<span class="rp-chip sc">${t('Voiture de sécurité')} · ${lapNo(l)}</span>`),
+      ...f.vsc.map((l) => `<span class="rp-chip vsc">VSC · ${lapNo(l)}</span>`),
+      ...f.red.map((l) => `<span class="rp-chip red">${t('Drapeau rouge')} · ${lapNo(l)}</span>`),
     ];
     tiles.push(tile(t('Neutralisations'), neut.length ? `<div class="rp-chips">${neut.join('')}</div>` : `<div class="rp-calm"><span class="rp-chip green">${t('Drapeau vert')}</span> <span class="muted small">${f.final ? t('de bout en bout') : t('aucune jusqu\'ici')}</span></div>`));
     if (f.out.length) tiles.push(tile(t('Abandons'), `<div class="rp-chips">${f.out.map((d) => `<span class="rp-chip out">${who(d, dl)}</span>`).join('')}</div>`));
@@ -73,7 +74,7 @@ export function reportHtml(state) {
   } else if (f.mostLaps) {
     tiles.push(tile(t('Le plus de tours'), `<div class="rp-row">${who(f.mostLaps, dl, true)}</div><div class="rp-best plain">${f.mostLaps.laps}</div><div class="muted small">${t('tours')}</div>`));
   }
-  if (f.kind !== 'race' && f.red.length) tiles.push(tile(t('Drapeaux rouges'), `<div class="rp-chips">${f.red.map((l) => `<span class="rp-chip red">${t('Drapeau rouge')}${l ? ` · ${t('T{}', l)}` : ''}</span>`).join('')}</div>`));
+  if (f.kind !== 'race' && f.red.length) tiles.push(tile(t('Drapeaux rouges'), `<div class="rp-chips">${f.red.map((l) => `<span class="rp-chip red">${t('Drapeau rouge')}${l ? ` · ${lapNo(l)}` : ''}</span>`).join('')}</div>`));
   if (f.penalties.length) tiles.push(tile(t('Pénalités'), f.penalties.map((p) => `<div class="rp-row">${esc(p)}</div>`).join('')));
   return `${podium(f, dl)}${tiles.length ? `<div class="rp-tiles">${tiles.join('')}</div>` : ''}`;
 }

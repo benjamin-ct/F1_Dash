@@ -76,7 +76,8 @@ l'application (Réglages → Application → Nouveautés).
 - Thème clair : les noms des pilotes et les temps sont de nouveau lisibles dans la bulle qui apparaît au
   survol des graphiques d'analyse (écarts, positions, temps au tour) ; textes des drapeaux de la carte
   lisibles aussi.
-- Version anglaise : le bouton « Revoir … » de l'écran « Pas de séance en direct » est traduit.
+- Version anglaise : le bouton « Revoir … » de l'écran « Pas de séance en direct » est traduit, ainsi que
+  « en faveur de … » sous les écarts en qualification des Duels.
 
 ## v1.27.29 — 2026-10-17
 

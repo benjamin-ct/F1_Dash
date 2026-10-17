@@ -35,7 +35,8 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 | ![Classement](docs/screenshots/classement.png) | ![Carte](docs/screenshots/carte.png) |
 | ![Analyse : rythme](docs/screenshots/analyse-rythme.png) | ![Saison : accueil](docs/screenshots/saison-accueil.png) |
 | ![Saison : fiche pilote](docs/screenshots/saison-pilote.png) | ![Saison : évolutions techniques](docs/screenshots/saison-evolutions-techniques.png) |
-| ![Replay : moments clés](docs/screenshots/moments.png) | ![Résumé automatique de la séance](docs/screenshots/resume.png) |
+| ![Replay : moments clés](docs/screenshots/moments.png) | ![Résultats de la séance : podium, remontées, stratégies, classement complet](docs/screenshots/resultats.png) |
+| ![Saison : course au titre, et quand le titre peut se jouer](docs/screenshots/saison-course-au-titre.png) | ![Saison : duels entre coéquipiers ou pilote contre pilote](docs/screenshots/saison-duels.png) |
 | ![Météo : radar de la pluie autour du circuit](docs/screenshots/radar.png) | ![Saison : pronostics entre amis](docs/screenshots/pronostics.png) |
 | ![Radios d'équipe retranscrites et traduites](docs/screenshots/radios.png) | ![Analyse : comparaison de deux tours, secteur par secteur](docs/screenshots/analyse-comparaison.png) |
 

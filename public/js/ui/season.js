@@ -302,8 +302,8 @@ function qualiGapBox(g, A, B, ca) {
     <text x="${pl - 6}" y="${pt + 8}" class="sz-ax" text-anchor="end">${esc(A.code)}</text><text x="${pl - 6}" y="${H - pb}" class="sz-ax" text-anchor="end">${esc(B.code)}</text>`;
   return `<section class="sz-box"><h3>Écart en qualification</h3>
     <div class="sz-cards sz-kpis">
-      <div class="sz-card sz-kpi"><div class="muted small">Écart médian</div><div class="sz-big">${g.median === null ? '—' : f3(g.median)}</div><div class="muted small">${g.median ? `en faveur de ${esc(lead.last)} · ${Math.abs(g.medianPct).toFixed(2).replace('.', DEC)} %` : ''}</div></div>
-      <div class="sz-card sz-kpi"><div class="muted small">Écart moyen</div><div class="sz-big">${g.mean === null ? '—' : f3(g.mean)}</div><div class="muted small">${g.mean ? `en faveur de ${esc((g.mean <= 0 ? A : B).last)}` : ''}</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Écart médian</div><div class="sz-big">${g.median === null ? '—' : f3(g.median)}</div><div class="muted small">${g.median ? `${t('en faveur de {}', esc(lead.last))} · ${Math.abs(g.medianPct).toFixed(2).replace('.', DEC)} %` : ''}</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Écart moyen</div><div class="sz-big">${g.mean === null ? '—' : f3(g.mean)}</div><div class="muted small">${g.mean ? t('en faveur de {}', esc((g.mean <= 0 ? A : B).last)) : ''}</div></div>
       <div class="sz-card sz-kpi"><div class="muted small">Plus devant</div><div class="sz-big">${esc(A.code)} ${g.rounds.filter((x) => x.s < 0).length} – ${g.rounds.filter((x) => x.s > 0).length} ${esc(B.code)}</div><div class="muted small">séances où l'un a battu l'autre au temps</div></div>
     </div>
     <div class="sz-scroll"><svg viewBox="0 0 ${W} ${H}" class="sz-svg sz-gap-chart">${axis}${bars}</svg></div>

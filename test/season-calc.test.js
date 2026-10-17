@@ -115,3 +115,31 @@ test('course au titre : au plus tôt et conditions au prochain GP', () => {
   assert.equal(placeForMaxPoints(25 - 6), 2, 'si AAA gagne, BBB doit finir 2e (18 pts) ou plus loin');
   assert.equal(placeForMaxPoints(0), 11);
 });
+
+test('course au titre : sprint au prochain GP, dernière manche, titre déjà joué', () => {
+  const pts = (o) => Object.entries(o).map(([code, points]) => ({ code, teamId: code, points }));
+  const race = (round, done) => ({ round, name: `GP ${round}`, results: done ? pts({ AAA: 25, BBB: 18 }) : [], sprintResults: [] });
+  const drivers = (a, b) => [{ pos: 1, code: 'AAA', name: 'A', points: a, teamId: 'AAA' }, { pos: 2, code: 'BBB', name: 'B', points: b, teamId: 'BBB' }];
+  const constructors = (a, b) => [{ pos: 1, id: 'AAA', name: 'A', points: a }, { pos: 2, id: 'BBB', name: 'B', points: b }];
+  // Week-end sprint à venir : 25 + 8 = 33 points en jeu, puis une course (25)
+  let data = { races: [race(1, true), { ...race(2), sprint: true }, race(3)], drivers: drivers(50, 30), constructors: constructors(50, 30) };
+  let c = titleRace(data, 2026).clinchD;
+  assert.deepEqual(c.next, { round: 2, name: 'GP 2', sprint: true, max: 33 });
+  assert.equal(c.needs[0].margin, 25 - 20 + 1);
+  assert.equal(c.earliest.round, 2);
+  // Constructeurs : 43 + 15 au week-end sprint, puis 43 -> 24 de plus que BBB
+  assert.equal(titleRace(data, 2026).clinchC.next.max, 58);
+  assert.equal(titleRace(data, 2026).clinchC.needs[0].margin, 43 - 20 + 1);
+  // Dernière manche : il suffit de finir devant au total (égalité non comptée)
+  data = { races: [race(1, true), race(2)], drivers: drivers(30, 20), constructors: [] };
+  c = titleRace(data, 2026).clinchD;
+  assert.equal(c.earliest.round, 2);
+  assert.equal(c.possibleNext, true);
+  assert.equal(c.needs[0].margin, 0 - 10 + 1);
+  // Titre déjà joué : plus d'encadré ; plus de manche à venir : rien non plus
+  data = { races: [race(1, true), race(2)], drivers: drivers(60, 20), constructors: [] };
+  assert.equal(titleRace(data, 2026).champion.code, 'AAA');
+  assert.equal(titleRace(data, 2026).clinchD, null);
+  data = { races: [race(1, true)], drivers: drivers(25, 18), constructors: [] };
+  assert.equal(titleRace(data, 2026).clinchD, null);
+});
