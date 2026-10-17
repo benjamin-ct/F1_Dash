@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSummary, gpNameFr } from '../shared/summary.js';
+import { buildSummary, gpNameFr, summaryFacts } from '../shared/summary.js';
 
 const state = {
   SessionInfo: { Type: 'Race', Name: 'Race', Meeting: { Name: 'Italian Grand Prix' } },
@@ -41,4 +41,18 @@ test('résumé : course en cours (provisoire) et nom du Grand Prix en français'
 
 test('résumé : sans données', () => {
   assert.equal(buildSummary({}).title, 'Résumé indisponible');
+});
+
+test('résumé en cartes : mêmes éléments en données (podium, remontées, stratégie, neutralisations, abandons)', () => {
+  const f = summaryFacts(state);
+  assert.equal(f.kind, 'race');
+  assert.equal(f.final, true);
+  assert.deepEqual(f.top.map((d) => [d.tla, d.gap, d.grid]), [['NOR', '', 2], ['LEC', '+2.5', 1], ['HAM', '', 10]]);
+  assert.deepEqual(f.up.map((m) => [m.tla, m.from, m.to, m.d]), [['HAM', 10, 3, 7], ['STR', 8, 4, 4]]);
+  assert.deepEqual(f.leaderStrat, ['MEDIUM', 'HARD']);
+  assert.deepEqual(f.sc, [12]);
+  assert.deepEqual(f.out.map((d) => d.tla), ['ALO'], 'Stroll, garé après l\'arrivée avec 52 tours, est classé');
+  assert.deepEqual(f.penalties, ['Stroll (5 s)']);
+  assert.equal(f.fastest.tla, 'HAM');
+  assert.equal(f.fastest.lap, 50);
 });

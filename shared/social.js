@@ -4,6 +4,7 @@
 
 import { buildSummary, gpNameFr, sessionKindOf } from './summary.js';
 import { realStints } from './pits.js';
+import { portraitUrl } from './portraits.js';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 const RACE_PTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
@@ -55,7 +56,7 @@ export function postData(state) {
     else gap = i === 0 ? (lines[n]?.BestLapTime?.Value || '') : (lines[n]?.TimeDiffToFastest ? `+${dec(String(lines[n].TimeDiffToFastest).replace('+', ''))}` : '');
     return {
       pos: i + 1, num: n, tla: d.Tla || n, first: d.FirstName || '', last: d.LastName || d.Tla || n,
-      team: d.TeamName || '', color: d.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: d.HeadshotUrl || null,
+      team: d.TeamName || '', color: d.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: portraitUrl(d.Tla, true) || d.HeadshotUrl || null,
       gap, grid, delta: kind === 'race' && grid && !out ? grid - (i + 1) : null, out, laps: Number(lines[n].NumberOfLaps) || 0,
       points: kind === 'race' && !out ? (pts[i] || 0) : 0, knockedOut: !!lines[n].KnockedOut,
       // Partie de la qualif où le pilote a été éliminé (dernier temps réalisé : Q1 ou Q2)

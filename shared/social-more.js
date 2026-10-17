@@ -2,6 +2,7 @@
 // après la course, « flash » pendant la séance (drapeau rouge, voiture de sécurité, abandon,
 // pénalité) et duels entre coéquipiers. Données tirées de l'état de la séance, textes en français.
 import { postData, hashtag, teamTag, BRAND_TAG } from './social.js';
+import { portraitUrl } from './portraits.js';
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 const num = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v));
@@ -31,7 +32,7 @@ export function preraceData(state, { tyres = null, grid = null } = {}) {
     const dl = state?.DriverList || {};
     const pens = Object.fromEntries((grid.penalties || []).flatMap((p) => p.cars.map((c) => [c, p.fr])));
     rows = grid.rows.map((g) => {
-      const base = byNum[g.num] || { num: g.num, tla: dl[g.num]?.Tla || g.lastUp.slice(0, 3), first: g.first, last: g.last, team: dl[g.num]?.TeamName || g.team, color: dl[g.num]?.TeamColour ? `#${dl[g.num].TeamColour}` : '#8b95a8', headshot: dl[g.num]?.HeadshotUrl || '' };
+      const base = byNum[g.num] || { num: g.num, tla: dl[g.num]?.Tla || g.lastUp.slice(0, 3), first: g.first, last: g.last, team: dl[g.num]?.TeamName || g.team, color: dl[g.num]?.TeamColour ? `#${dl[g.num].TeamColour}` : '#8b95a8', headshot: portraitUrl(dl[g.num]?.Tla, true) || dl[g.num]?.HeadshotUrl || '' };
       return { ...base, pos: g.pos, pitlane: g.pitlane, penalty: pens[g.num] || null };
     });
     gridSource = grid.final ? 'fia' : 'fia-provisional';

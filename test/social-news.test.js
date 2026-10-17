@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bigNews, newsKind, newsKinds, sortNews, newsPost, newsCaptions, shortSummary } from '../shared/social-news.js';
+import { bigNews, newsKind, newsKinds, sortNews, newsPost, newsCaptions, shortSummary, isBreaking } from '../shared/social-news.js';
 import { slidesFor } from '../shared/social-draw.js';
 import { xLength } from '../shared/social.js';
+import { newsVideoTiming } from '../shared/social-news-video.js';
 
 const NOW = Date.UTC(2026, 9, 16, 12);
 const H = 3600e3;
@@ -38,7 +39,11 @@ test('posts news : données du post et légendes', () => {
   const dl = { 4: { Tla: 'NOR', FirstName: 'Lando', LastName: 'Norris', TeamName: 'McLaren', TeamColour: 'FF8000', HeadshotUrl: 'https://h.test/n.png' } };
   const d = newsPost(item, { title: 'Norris prolonge avec McLaren', summary: 'Première phrase. Deuxième phrase. Troisième phrase très longue '.repeat(5), driverList: dl, sourceName: 'Autosport' });
   assert.equal(d.badge.key, 'transfert');
-  assert.equal(d.drivers[0].headshot, 'https://h.test/n.png');
+  // Portrait officiel de la saison (grand format), même sans la liste des pilotes de la séance
+  assert.match(d.drivers[0].headshot, /w_800.*\/2026mclarenlannor01right\.webp$/);
+  const other = newsPost(it({ title: 'Lindblad extends with Racing Bulls', tags: ['LIN'] }), { title: 'Lindblad prolonge', summary: 'Une phrase.', sourceName: 'X' });
+  assert.match(other.drivers[0].headshot, /\/2026racingbullsarvlin01right\.webp$/);
+  assert.equal(other.drivers[0].color, '#6692FF');   // couleur d'écurie de la saison
   assert.equal(d.color, '#FF8000');
   assert.ok(d.summary.length <= 280);
   assert.deepEqual(slidesFor(d), ['news']);
@@ -73,4 +78,28 @@ test('posts news : tri à la une ou récentes, déjà publiées en dernier, type
   assert.equal(ids(sortNews([a, b, c, d], { now: NOW, done: (x) => x.id === 'd' })), 'cbad');
   const kinds = newsKinds([a, b, c, d]);
   assert.deepEqual(kinds.map((k) => [k.key, k.n]), [['transfert', 2], ['actu', 1], ['penalite', 1]]);
+});
+
+test('vidéo Breaking news : durée selon le texte, 4 points clés au plus', () => {
+  const d = newsPost({ title: 'x', tags: ['NOR'], t: NOW }, { title: 'Norris prolonge avec McLaren', summary: 'Contrat signé jusqu\'en 2030.', points: ['Un', 'Deux points', 'Trois', 'Quatre', 'Cinq'] });
+  const tm = newsVideoTiming(d);
+  assert.equal(tm.pts.length, 4);
+  assert.equal(tm.starts.length, 6);
+  assert.ok(tm.main >= 5 && tm.main <= 9);
+  assert.ok(Math.abs(tm.duration - (1.8 + 5 + 4 * 3 + 2.8)) < 1e-9);   // textes courts : durées minimales
+  const court = newsVideoTiming({ ...d, points: [] });
+  assert.equal(court.starts.length, 2);
+  assert.ok(court.duration < 13);
+});
+
+test('très grosse info (Breaking news) : importance maximale, ou reprise partout et importante', () => {
+  const it = (o) => ({ title: 'Some news', summary: '', t: NOW, ...o });
+  assert.equal(isBreaking(it({ imp: 3 })), true);
+  assert.equal(isBreaking(it({ imp: 2, sources: 12 })), true);
+  assert.equal(isBreaking(it({ imp: 1, sources: 30, title: 'Camara signs for Haas' })), true);   // transfert
+  assert.equal(isBreaking(it({ imp: 1, sources: 35, title: 'Horner takes swipe at Steiner' })), false);
+  assert.equal(isBreaking(it({ imp: 1, sources: 13, title: 'Russell handed engine penalty' })), true);   // pénalité
+  assert.equal(isBreaking(it({ imp: 1, sources: 6, title: 'Russell handed engine penalty' })), false);
+  assert.equal(isBreaking(it({ imp: 2, sources: 4 })), false);
+  assert.equal(newsPost(it({ imp: 3, tags: [] }), {}).breaking, true);
 });

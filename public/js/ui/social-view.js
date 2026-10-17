@@ -13,12 +13,14 @@ import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, raceLapsData, recapData, seasonCaptions } from '/shared/social-season.js';
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { makeAnimation } from '/shared/social-video.js';
-import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES } from '/shared/social-news.js';
+import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
+import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES, isBreaking } from '/shared/social-news.js';
 import { builtinNomination } from '/shared/tyres.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { postedEntry } from '/shared/post-history.js';
 import { circuitInfo } from '/shared/circuits-info.js';
-import { openPublish } from './social-publish-view.js';
+import { loadTeamLogos } from '/shared/team-logos.js';
+import { openPublish, musicSelect, musicEvent, endPreview } from './social-publish-view.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 
 const SIG_KEY = 'paddock.postSignature';
@@ -71,8 +73,11 @@ async function assets(d) {
     await Promise.all(d.rows.slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   }
   const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
-  const flag = iso ? await loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`, true) : null;
-  return { photos, flag };
+  const [flag, logos] = await Promise.all([
+    iso ? loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`, true) : null,
+    loadTeamLogos((u) => loadImage(photoUrl({ HeadshotUrl: u }))),
+  ]);
+  return { photos, flag, logos };
 }
 
 const POST_FOLDER = { prerace: 'Avant-course', champ: 'Championnat', flash: 'Flash' };
@@ -214,7 +219,7 @@ async function seasonSource(sig) {
     if (laps.error || !laps.total) return { head: head + msg(laps.error || t('Tours de cette course pas encore publiés.'), true) };
     d = raceLapsData(race, laps, { year, live, rcm: rc?.messages?.length ? rc.messages : null });
     const sec = Math.round(raceVideoTiming(d).duration);
-    extra = `<div class="row posts-news-bar"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo animée')}</button>
+    extra = `<div class="row posts-news-bar"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo animée')}</button> ${musicSelect('race')}
       <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) de {} s : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts.', sec))}</span></div>
       ${d.story.estimated ? msg(t('Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.')) : ''}
       <video class="posts-vid" data-rv controls playsinline hidden></video>`;
@@ -223,17 +228,19 @@ async function seasonSource(sig) {
   return { d, caps: seasonCaptions(d, sig), head: head + extra, record: { key: `${seasonType}:${year}-${race.round}`, kind: seasonType, title: `${t(label)} · ${d.gp}` } };
 }
 
-// Vidéo animée de la course (format story) : enregistrée dans le navigateur
+// Vidéo animée (format story) de la course ou d'une news (« Breaking news ») : enregistrée dans le navigateur
 let raceVideo = null;
-const raceVideoMaker = (d, o) => (opts) => makeAnimation((ctx, tt) => raceFrame(ctx, 1080, 1920, d, o, tt), raceVideoTiming(d).duration, opts);
+const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt) => raceFrame(ctx, 1080, 1920, d, o, tt), raceVideoTiming(d).duration, opts)
+  : d.news && d.breaking ? (opts) => makeAnimation((ctx, tt) => newsFrame(ctx, 1080, 1920, d, o, tt), newsVideoTiming(d).duration, opts) : null);
 async function buildRaceVideo(dlg, btn) {
-  if (!curPost || curPost.d.post !== 'racelaps') return;
+  const make = curPost && raceVideoMaker(curPost.d, curPost.o);
+  if (!make) return;
   const st = $('[data-rvst]', dlg);
   btn.disabled = true;
   try {
-    const v = await raceVideoMaker(curPost.d, curPost.o)({ music: 'gen', onProgress: (p) => { st.textContent = t('Enregistrement de la vidéo… {} %', Math.round(p * 100)); } });
+    const v = await make({ music: 'gen', track: $('[data-vtrack]', dlg)?.value, onProgress: (p) => { st.textContent = t('Enregistrement de la vidéo… {} %', Math.round(p * 100)); } });
     if (raceVideo?.url) URL.revokeObjectURL(raceVideo.url);
-    raceVideo = { ...v, url: URL.createObjectURL(v.blob), folder: folderOf(curPost.d) };
+    raceVideo = { ...v, url: URL.createObjectURL(v.blob), folder: folderOf(curPost.d), name: curPost.d.news ? 'video-breaking-news' : 'video-course' };
     const el = $('[data-rv]', dlg);
     el.src = raceVideo.url; el.hidden = false;
     $('[data-racevideosave]', dlg).disabled = false;
@@ -243,7 +250,7 @@ async function buildRaceVideo(dlg, btn) {
 async function saveRaceVideo() {
   if (!raceVideo) return;
   const data = await new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(',')[1]); r.readAsDataURL(raceVideo.blob); });
-  const r = await fetch('/api/posts/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: raceVideo.folder, name: 'video-course', data }) }).then((x) => x.json());
+  const r = await fetch('/api/posts/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: raceVideo.folder, name: raceVideo.name, data }) }).then((x) => x.json());
   if (r.error) throw new Error(r.error);
   toast(t('Vidéo enregistrée dans {}', r.dir), 4000, 'check');
 }
@@ -256,6 +263,7 @@ let newsType = '';     // filtre par type de news ('' : toutes)
 let newsCache = null;
 const frCache = new Map();
 const edits = new Map();   // id -> { title, summary } corrigés à la main
+const breakingSet = new Map();   // id -> très grosse info cochée ou décochée à la main (vidéo Breaking news)
 
 let histCache = null;
 async function postHistory(force = false) {
@@ -300,7 +308,7 @@ async function newsSource(sig) {
   const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
   const posted = list.map((it) => postedOf.get(it));
   const bar = (sel) => `<div class="row posts-news-bar">
-      <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${posted[i] ? `✓ ${esc(t('Publiée'))} · ` : ''}${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
+      <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${posted[i] ? `✓ ${esc(t('Publiée'))} · ` : ''}${isBreaking(it) ? 'BREAKING · ' : ''}${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
       <select class="small" data-newssort title="${t('Ordre des news')}"><option value="top" ${newsSort === 'top' ? 'selected' : ''}>${t('À la une')}</option><option value="recent" ${newsSort === 'recent' ? 'selected' : ''}>${t('Plus récentes')}</option></select>
       ${kinds.length > 1 ? `<select class="small" data-newstype title="${t('Type de news')}"><option value="">${t('Tous les types')} (${big.length})</option>${kinds.map((k) => `<option value="${k.key}" ${newsType === k.key ? 'selected' : ''}>${esc(t(k.label))} (${k.n})</option>`).join('')}</select>` : ''}
       <label class="toggle small"><input type="checkbox" data-newsall ${newsAll ? 'checked' : ''}> ${t('Toutes les actus')}</label>
@@ -315,6 +323,7 @@ async function newsSource(sig) {
   const points = edits.get(it.id)?.points ?? '';
   const failed = title === null || summary === null;
   const d = newsPost(it, { title: title ?? it.title, summary: summary ?? it.summary, points, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src });
+  if (breakingSet.has(it.id)) d.breaking = breakingSet.get(it.id);
   const done = posted[list.indexOf(it)];
   const head = `${bar(it)}
     ${done ? `<p class="posts-warn small">${icon('check')} ${esc(t('Déjà publiée le {} sur {}', new Date(done.at).toLocaleString(), Object.keys(done.nets).map((n) => NET_NAMES[n] || n).join(', ')))}</p>` : ''}
@@ -324,6 +333,10 @@ async function newsSource(sig) {
       <label class="small muted">${t('Points clés, un par ligne (images suivantes du carrousel)')}<textarea data-npoints rows="4" maxlength="1600" placeholder="${t('Facultatif : cliquez sur « Résumé détaillé » ou écrivez-les vous-même')}">${esc(points)}</textarea></label>
       <div class="row">${it.link ? `<button class="btn small" data-nsummary title="${t("Résumé de l'article en 3 à 5 points, reformulés par l'IA du serveur Paddock Live : relisez-les avant de publier")}">${icon('doc')} ${t('Résumé détaillé')}</button>` : ''}<span class="small muted" data-nsumst></span></div>
       <label class="toggle small" title="${t("Facebook, Threads et X : le lien de l'article est publié en premier commentaire plutôt que dans le texte (Instagram : pas de lien)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
+      <label class="toggle small" title="${t('Visuel et vidéo « Breaking news », réservés aux infos qui font du bruit')}"><input type="checkbox" data-breaking ${d.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
+      ${d.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button> ${musicSelect('news')}
+        <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) : titre, résumé puis points clés, avec musique. Aussi utilisée pour TikTok et YouTube à la publication.'))}</span></div>
+      <video class="posts-vid" data-rv controls playsinline hidden></video>` : ''}
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
     </div>`;
   const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
@@ -426,7 +439,7 @@ async function render(dlg, keepHead = false) {
   // Publication : visuels de n'importe quel format, dessinés à part
   // Publication : images gardées, de n'importe quel format, dessinées à part
   const drawChosen = (f) => { const list = chosenOf(slidesFor(d, { fmt: f, follow, question: withQuestion })); return list.map((sl) => drawSlide(document.createElement('canvas'), sl, f, d, { ...o, slides: list })); };
-  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => drawChosen(f), videoMaker: d.post === 'racelaps' ? raceVideoMaker(d, o) : null });
+  dlg.publish = () => openPublish({ d, caps, folder: folderOf(d), record, onPosted: () => { histCache = null; if (mode === 'news') render(dlg); }, render: async (f) => drawChosen(f), videoMaker: raceVideoMaker(d, o) });
   const allCanvases = [...body.querySelectorAll('canvas')];
   let canvases = [];
   // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
@@ -600,7 +613,9 @@ function open() {
       $('[data-nospoil]', dlg).closest('label').hidden = mode !== 'session' || postType !== 'results';
       storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment, postType, follow, question: withQuestion, seasonType });
     };
+    dlg.addEventListener('close', endPreview);
     dlg.addEventListener('click', async (e) => {
+      if (musicEvent(e)) return;
       if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
       const m = e.target.closest('[data-mode]')?.dataset.mode;
       if (m && m !== mode) { mode = m; sync(); render(dlg); }
@@ -625,6 +640,7 @@ function open() {
     // News : choix de la nouvelle, toutes les actus, titre et résumé corrigés à la main
     let te = null;
     dlg.addEventListener('change', (e) => {
+      if (musicEvent(e)) return;
       if (e.target.matches('[data-newspick]')) { newsSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-flashpick]')) { flashSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-newsall]')) { newsAll = e.target.checked; render(dlg); }
@@ -633,6 +649,7 @@ function open() {
       if (e.target.matches('[data-recap]')) { recapMode = e.target.checked; render(dlg); }
       if (e.target.matches('[data-roundpick]')) { roundSel = Number(e.target.value); render(dlg); }
       if (e.target.matches('[data-linkcomment]')) { linkComment = e.target.checked; sync(); render(dlg); }
+      if (e.target.matches('[data-breaking]') && newsSel) { breakingSet.set(newsSel, e.target.checked); render(dlg); }
     });
     dlg.addEventListener('input', (e) => {
       if (!e.target.matches('[data-ntitle], [data-nsum], [data-npoints]') || !newsSel) return;

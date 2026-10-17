@@ -96,11 +96,11 @@ const childPrefs = () => ({ contextIsolation: true, sandbox: true, preload: path
 
 // Carte flottante : fenêtre transparente, sans cadre ni fond, au-dessus de tout (par-dessus la vidéo)
 const isFloatUrl = (u) => /[?&]float=1(&|$)/.test(u || '');
-const floatOptions = (b) => ({
+const floatOptions = (b, { width = 560, height = 460, title = 'Paddock Live — carte flottante' } = {}) => ({
   frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: false, alwaysOnTop: true,
   resizable: true, minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: false,
-  minWidth: 160, minHeight: 120, icon: APP_ICON, title: 'Paddock Live — carte flottante',
-  ...(b && boundsVisible(b) ? b : { width: 560, height: 460 }),
+  minWidth: 160, minHeight: 120, icon: APP_ICON, title,
+  ...(b && boundsVisible(b) ? b : { width, height }),
   webPreferences: childPrefs(),
 });
 function floatOnTop(win) {
@@ -282,15 +282,9 @@ function openCompose(url) {
 // navigateur pour les flux DRM) s'ouvre dans le navigateur.
 function setupContents(wc, url) {
   wc.setWindowOpenHandler(({ url: target }) => {
-    // Mini-classement : petite fenêtre toujours au premier plan (par-dessus la vidéo)
+    // Mini-classement : petite fenêtre sans cadre ni fond, toujours au premier plan (par-dessus la vidéo)
     if (target.startsWith(url) && new URL(target).pathname === '/mini.html') {
-      return {
-        action: 'allow',
-        overrideBrowserWindowOptions: {
-          width: 300, height: 540, minWidth: 220, minHeight: 200, alwaysOnTop: true, autoHideMenuBar: true,
-          icon: APP_ICON, backgroundColor: winBg(), title: 'Paddock Live — mini-classement', webPreferences: childPrefs(),
-        },
-      };
+      return { action: 'allow', overrideBrowserWindowOptions: floatOptions(null, { width: 300, height: 540, title: 'Paddock Live — mini-classement' }) };
     }
     if (target.startsWith(url) && isPanelUrl(target) && isFloatUrl(target)) {
       return { action: 'allow', overrideBrowserWindowOptions: floatOptions() };

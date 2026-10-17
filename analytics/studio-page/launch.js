@@ -120,7 +120,7 @@ const NETS = [
   { id: 'bluesky', name: 'Bluesky', media: 'x', text: 'bluesky', api: 'bluesky', hint: '4 images au plus', max: 300 },
   { id: 'x', name: 'X', media: 'x', text: 'x', hint: 'Ouvrir X met le texte et copie la 1re image : collez-la dans le post, puis les suivantes', max: 280, intent: 'https://x.com/intent/post?text=' },
   { id: 'tiktok', name: 'TikTok', media: 'video', text: 'tiktok', draft: 'tiktok', hint: 'Vidéo verticale : envoyée en brouillon, son et texte à ajouter dans TikTok' },
-  { id: 'reels', name: 'Reels Instagram', media: 'reel', text: 'reels', draft: 'instagram-reel', who: 'instagram', hint: 'Même vidéo, en Reel (montré aussi dans le fil)' },
+  { id: 'reels', name: 'Reels Instagram', media: 'video', text: 'reels', draft: 'instagram-reel', who: 'instagram', hint: 'Même vidéo, en Reel (montré aussi dans le fil)' },
   { id: 'youtube', name: 'YouTube Shorts', media: 'video', text: 'youtube', draft: 'youtube', hint: '1re ligne = titre (100 caractères au plus). Envoyé en privé : verrouillé tant que l\'audit de l\'API YouTube n\'est pas passé' },
   { id: 'story', name: 'Stories Instagram et Facebook', media: 'story', hint: 'Une story par image, dans l\'ordre', stories: [['instagram-story', 'instagram', 'Instagram'], ['facebook-story', 'facebook', 'Facebook']] },
 ];
@@ -131,8 +131,8 @@ const setDone = (acc, id, on) => {
   d[`${acc}.${id}`] = on;
   store.set('launch', d);
 };
-// Vidéo : plein cadre (TikTok, Shorts) ; Reel : même vidéo un peu réduite, dans la partie visible sur iPhone
-const mediaOf = (acc, kind) => (kind === 'video' || kind === 'reel' ? [`/kit/${acc}/${kind}.mp4`] : files(acc, kind, ACCOUNTS[acc][kind]));
+// Vidéo : la même partout, plein cadre (TikTok, Shorts, Reels)
+const mediaOf = (acc, kind) => (kind === 'video' ? [`/kit/${acc}/video.mp4`] : files(acc, kind, ACCOUNTS[acc][kind]));
 
 // Fichiers du kit (gardés pendant la visite)
 const blobs = new Map();
@@ -208,7 +208,7 @@ function block(x, a, isDone) {
   const mine = (name) => (name && a.match.test(String(name).replace(/[\s._-]/g, '')) ? name : null);
   const account = mine(linked);
   const stories = (x.stories || []).filter(([, net]) => mine(session.me?.[net]));
-  const thumbs = x.media === 'video' || x.media === 'reel'
+  const thumbs = x.media === 'video'
     ? `<video src="${media[0]}" playsinline controls preload="metadata"></video>`
     : `<div class="kit-media ${x.media}">${media.map((u, i) => `<img src="${u}" alt="" loading="lazy" data-i="${i}">`).join('')}</div>`;
   return `<section class="panel kit-net${isDone ? ' done' : ''}" data-net="${x.id}">

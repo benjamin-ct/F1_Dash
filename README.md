@@ -4,7 +4,7 @@
 
 Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordinateur, **calé sur le délai de votre diffusion TV** (chaîne TV, box, appli de streaming…). Windows, macOS et Linux.
 
-![Paddock Live pendant une course (replay du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
+![Paddock Live pendant une séance (replay des qualifications du Grand Prix d'Azerbaïdjan 2026)](docs/screenshots/tableau-de-bord.png)
 
 <sub>Design « Pitwall » en mode sombre. L'application suit par défaut le mode clair ou sombre de l'ordinateur ou du téléphone (voir plus bas).</sub>
 
@@ -24,7 +24,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Espace Saison** : calendrier, classements, notes des pilotes (S à F), écart en qualification entre coéquipiers, statistiques par pilote, régularité, arrêts, vitesses, profils des circuits, évolutions techniques et éléments moteur (documents FIA).
 - **Replays** de toutes les sessions archivées, avec les **moments clés** cliquables (départ, drapeaux, leaders, arrêts, incidents, pénalités), disposition libre des panneaux, second écran.
 - **Mini-classement flottant** toujours au premier plan, à poser par-dessus la vidéo de la course.
-- **Résumé automatique** de la séance en français, **radar de la pluie** autour du circuit, **rappels** avant chaque séance et **calendrier** à ajouter à votre agenda.
+- **Résultats** et **résumé** de la séance en cartes (podium, remontées, stratégies, neutralisations, classement complet), **radar de la pluie** autour du circuit, **rappels** avant chaque séance et **calendrier** à ajouter à votre agenda.
 - **Pronostics entre amis** (pole et podium) avec classement de la saison, et **lumières connectées** (Philips Hue, Home Assistant) aux couleurs des drapeaux, en expérimental.
 - **En français ou en anglais** (Réglages → Affichage → Langue / Language).
 - **Sauvegarde des réglages** dans un fichier, à restaurer après une réinstallation ou sur un autre ordinateur.
@@ -35,9 +35,10 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 | ![Classement](docs/screenshots/classement.png) | ![Carte](docs/screenshots/carte.png) |
 | ![Analyse : rythme](docs/screenshots/analyse-rythme.png) | ![Saison : accueil](docs/screenshots/saison-accueil.png) |
 | ![Saison : fiche pilote](docs/screenshots/saison-pilote.png) | ![Saison : évolutions techniques](docs/screenshots/saison-evolutions-techniques.png) |
-| ![Replay : moments clés](docs/screenshots/moments.png) | ![Résumé automatique de la séance](docs/screenshots/resume.png) |
+| ![Replay : moments clés](docs/screenshots/moments.png) | ![Résultats de la séance : podium, remontées, stratégies, classement complet](docs/screenshots/resultats.png) |
+| ![Saison : course au titre, et quand le titre peut se jouer](docs/screenshots/saison-course-au-titre.png) | ![Saison : duels entre coéquipiers ou pilote contre pilote](docs/screenshots/saison-duels.png) |
 | ![Météo : radar de la pluie autour du circuit](docs/screenshots/radar.png) | ![Saison : pronostics entre amis](docs/screenshots/pronostics.png) |
-| ![Radios d'équipe retranscrites et traduites](docs/screenshots/radios.png) | ![Analyse : race trace](docs/screenshots/analyse-race-trace.png) |
+| ![Radios d'équipe retranscrites et traduites](docs/screenshots/radios.png) | ![Analyse : comparaison de deux tours, secteur par secteur](docs/screenshots/analyse-comparaison.png) |
 
 <img src="docs/screenshots/mini-classement.png" alt="Mini-classement flottant, toujours au premier plan" width="380" align="right">
 

@@ -2,13 +2,14 @@
 // séance, calendrier, classements avec évolution des points, résultats et records, duels entre
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
-import { $, esc, api, teamColor } from '../util.js';
+import { $, esc, api, teamColor, teamLogo, photoUrl } from '../util.js';
+import { store } from '../store.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge } from './season-stats.js';
-import { driverRatings, qualiGaps } from '/shared/season-calc.js';
+import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
-import { DEC, LOCALE, EN } from '../i18n.js';
+import { DEC, LOCALE, EN, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
@@ -246,7 +247,9 @@ function renderStandings() {
     seen.add(d.teamId);
     return { label: d.code, color: color(d.team, d.teamId), dashed, points: pr.get(d.code) || [] };
   });
-  return `<section class="sz-box"><h3>Évolution des points — 10 premiers</h3>${lineChartSvg(top)}</section>
+  // Dessiné à la largeur réelle de la page : textes et traits gardent leur taille (pas étirés)
+  const w = Math.max(600, ($('#szContent')?.clientWidth || 934) - 34);
+  return `<section class="sz-box"><h3>Évolution des points — 10 premiers</h3>${lineChartSvg(top, { w, h: 280 })}</section>
     <div class="sz-grid2">
       <section class="sz-box"><h3>Pilotes</h3>${standingsTable(data.drivers, 'd')}</section>
       <section class="sz-box"><h3>Constructeurs</h3>${standingsTable(data.constructors, 'c')}</section>
@@ -274,6 +277,8 @@ function renderResults() {
 }
 
 let h2hTeam = null;
+let h2hMode = 'team';     // 'team' (coéquipiers) | 'drivers' (pilote contre pilote)
+let h2hA = null, h2hB = null;
 
 // Écart en qualification entre les deux coéquipiers, manche par manche
 function qualiGapBox(g, A, B, ca) {
@@ -297,23 +302,45 @@ function qualiGapBox(g, A, B, ca) {
     <text x="${pl - 6}" y="${pt + 8}" class="sz-ax" text-anchor="end">${esc(A.code)}</text><text x="${pl - 6}" y="${H - pb}" class="sz-ax" text-anchor="end">${esc(B.code)}</text>`;
   return `<section class="sz-box"><h3>Écart en qualification</h3>
     <div class="sz-cards sz-kpis">
-      <div class="sz-card sz-kpi"><div class="muted small">Écart médian</div><div class="sz-big">${g.median === null ? '—' : f3(g.median)}</div><div class="muted small">${g.median ? `en faveur de ${esc(lead.last)} · ${Math.abs(g.medianPct).toFixed(2).replace('.', DEC)} %` : ''}</div></div>
-      <div class="sz-card sz-kpi"><div class="muted small">Écart moyen</div><div class="sz-big">${g.mean === null ? '—' : f3(g.mean)}</div><div class="muted small">${g.mean ? `en faveur de ${esc((g.mean <= 0 ? A : B).last)}` : ''}</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Écart médian</div><div class="sz-big">${g.median === null ? '—' : f3(g.median)}</div><div class="muted small">${g.median ? `${t('en faveur de {}', esc(lead.last))} · ${Math.abs(g.medianPct).toFixed(2).replace('.', DEC)} %` : ''}</div></div>
+      <div class="sz-card sz-kpi"><div class="muted small">Écart moyen</div><div class="sz-big">${g.mean === null ? '—' : f3(g.mean)}</div><div class="muted small">${g.mean ? t('en faveur de {}', esc((g.mean <= 0 ? A : B).last)) : ''}</div></div>
       <div class="sz-card sz-kpi"><div class="muted small">Plus devant</div><div class="sz-big">${esc(A.code)} ${g.rounds.filter((x) => x.s < 0).length} – ${g.rounds.filter((x) => x.s > 0).length} ${esc(B.code)}</div><div class="muted small">séances où l'un a battu l'autre au temps</div></div>
     </div>
     <div class="sz-scroll"><svg viewBox="0 0 ${W} ${H}" class="sz-svg sz-gap-chart">${axis}${bars}</svg></div>
     <div class="muted small">Barre vers le haut : ${esc(A.last)} plus rapide ; vers le bas : ${esc(B.last)}.</div></section>`;
 }
 
+// Logo de l'écurie (pastille de sa couleur), sinon barre de couleur
+function logoMark(team, teamId) {
+  const url = teamLogo(team);
+  return url ? `<span class="team-logo color" style="--tc:${color(team, teamId)};background-image:url('${url}')"></span>` : bar(team, teamId);
+}
+
+// Duel : deux coéquipiers (choix de l'écurie par son logo) ou deux pilotes quelconques
 function renderH2H() {
   const teams = data.constructors.map((c) => ({ id: c.id, name: c.name }));
   h2hTeam ||= teams[0]?.id;
-  // Pilotes de l'écurie (le plus de courses)
-  const count = new Map();
-  for (const r of data.races) for (const x of [...r.results, ...r.quali]) if (x.teamId === h2hTeam) count.set(x.code, { d: x, n: (count.get(x.code)?.n || 0) + 1 });
-  const pair = [...count.values()].sort((a, b) => b.n - a.n).slice(0, 2).map((x) => x.d);
-  if (pair.length < 2) return `<div class="note">Pas assez de données pour cette écurie.</div>`;
-  const [A, B] = pair;
+  let A, B;
+  if (h2hMode === 'drivers') {
+    const all = data.drivers;
+    h2hA = all.some((d) => d.code === h2hA) ? h2hA : all[0]?.code;
+    h2hB = all.some((d) => d.code === h2hB) && h2hB !== h2hA ? h2hB : all.find((d) => d.code !== h2hA)?.code;
+    A = all.find((d) => d.code === h2hA);
+    B = all.find((d) => d.code === h2hB);
+  } else {
+    // Pilotes de l'écurie (le plus de courses)
+    const count = new Map();
+    for (const r of data.races) for (const x of [...r.results, ...r.quali]) if (x.teamId === h2hTeam) count.set(x.code, { d: x, n: (count.get(x.code)?.n || 0) + 1 });
+    [A, B] = [...count.values()].sort((a, b) => b.n - a.n).slice(0, 2).map((x) => x.d);
+  }
+  const mode = `<div class="tab-seg sz-h2h-mode"><button type="button" data-h2h-mode="team" class="${h2hMode === 'team' ? 'on' : ''}">Coéquipiers</button><button type="button" data-h2h-mode="drivers" class="${h2hMode === 'drivers' ? 'on' : ''}">Pilote contre pilote</button></div>`;
+  const opts = (sel) => data.drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === sel ? 'selected' : ''}>${esc(d.name || d.code)}</option>`).join('');
+  const pick = h2hMode === 'drivers'
+    ? `<div class="sz-h2h-drivers"><label class="small">Pilote A <select id="szH2hA">${opts(h2hA)}</select></label><label class="small">Pilote B <select id="szH2hB">${opts(h2hB)}</select></label></div>`
+    : `<div class="sz-team-pick">${teams.map((t) => `<button type="button" class="sz-team-btn${t.id === h2hTeam ? ' on' : ''}" data-h2h-team="${esc(t.id)}" style="--tc:${color(t.name, t.id)}">${logoMark(t.name, t.id)}<span>${esc(t.name)}</span></button>`).join('')}</div>`;
+  const top = `<div class="sz-h2h-pick">${mode}</div>${pick}`;
+  if (!A || !B) return `${top}<div class="note">${h2hMode === 'drivers' ? 'Pas assez de données pour ces pilotes.' : 'Pas assez de données pour cette écurie.'}</div>`;
+  const mates = A.teamId === B.teamId;
   const stat = (fn) => [fn(A.code), fn(B.code)];
   const races = data.races.filter(done);
   const q = { a: 0, b: 0 }, rr = { a: 0, b: 0 };
@@ -339,26 +366,107 @@ function renderH2H() {
     ['Abandons', stat((c) => sum(c, (r, k) => (res(r, k) && !/^\d+$/.test(res(r, k).posText) ? 1 : 0)))],
   ];
   const ca = color(A.team, A.teamId);
+  // Pilote B dans la couleur de son écurie (gris entre coéquipiers : même couleur que A)
+  const cb = mates ? '' : color(B.team, B.teamId);
   const gaps = qualiGaps(races, A.code, B.code);
   const rt = ratingsFor(data, stats?.year === data.year ? stats : null);
   const ra = rt.find((e) => e.code === A.code), rb = rt.find((e) => e.code === B.code);
-  return `<div class="sz-h2h-pick"><label class="small">Écurie <select id="szTeam">${teams.map((t) => `<option value="${t.id}" ${t.id === h2hTeam ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label></div>
-    <section class="sz-box sz-h2h"><div class="sz-h2h-head"><b style="color:${ca}">${esc(A.name)}</b><span class="sz-vs">VS</span><b>${esc(B.name)}</b></div>
+  const note = (e) => (!e ? '—' : mates ? gradeBadge(e.mate, e.mateGrade) : gradeBadge(e.season, e.seasonGrade));
+  return `${top}
+    <div class="sz-h2h-layout">
+    <section class="sz-box sz-h2h"><div class="sz-h2h-head"><span class="sz-h2h-who">${logoMark(A.team, A.teamId)}<b style="color:${ca}">${esc(A.name)}</b></span><span class="sz-vs">VS</span><span class="sz-h2h-who b"><b ${cb ? `style="color:${cb}"` : ''}>${esc(B.name)}</b>${logoMark(B.team, B.teamId)}</span></div>
       ${rows.map(([label, [a, b]]) => {
         const tot = a + b || 1;
         const better = label === 'Abandons' ? (a < b ? 'a' : b < a ? 'b' : '') : (a > b ? 'a' : b > a ? 'b' : '');
         return `<div class="sz-h2h-row"><div class="sz-h2h-label">${label}</div>
-          <div class="sz-h2h-bar"><span class="${better === 'a' ? 'win' : ''}">${a}</span><div class="sz-h2h-track"><i class="a" style="width:${(a / tot) * 50}%;background:${ca}"></i><i class="b" style="width:${(b / tot) * 50}%"></i></div><span class="${better === 'b' ? 'win' : ''}">${b}</span></div></div>`;
+          <div class="sz-h2h-bar"><span class="${better === 'a' ? 'win' : ''}">${a}</span><div class="sz-h2h-track"><i class="a" style="width:${(a / tot) * 50}%;background:${ca}"></i><i class="b" style="width:${(b / tot) * 50}%${cb ? `;background:${cb}` : ''}"></i></div><span class="${better === 'b' ? 'win' : ''}">${b}</span></div></div>`;
       }).join('')}
-      <div class="sz-h2h-row"><div class="sz-h2h-label">Note face au coéquipier</div><div class="sz-h2h-bar sz-h2h-grades"><span>${ra ? gradeBadge(ra.mate, ra.mateGrade) : '—'}</span><div></div><span>${rb ? gradeBadge(rb.mate, rb.mateGrade) : '—'}</span></div></div>
+      <div class="sz-h2h-row"><div class="sz-h2h-label">${mates ? 'Note face au coéquipier' : 'Note de la saison'}</div><div class="sz-h2h-bar sz-h2h-grades"><span>${note(ra)}</span><div></div><span>${note(rb)}</span></div></div>
     </section>
     ${qualiGapBox(gaps, A, B, ca)}
+    </div>
     <p class="muted small">Duel en course : meilleure place à l'arrivée quand les deux pilotes ont couru (un abandon compte comme une défaite). Écart en qualification : dans la dernière partie disputée par les deux (Q3, sinon Q2, sinon Q1) ; les écarts de plus de 3 % (incident, piste qui change) sont montrés en transparence mais pas comptés.</p>`;
+}
+
+// Course au titre : pilotes et constructeurs encore capables d'être champions ; les autres grisés,
+// avec la manche où ils ont été éliminés (mathématiquement)
+function renderTitle() {
+  const tr = titleRace(data, data.year);
+  const dl = Object.values(store.state.DriverList || {});
+  const photo = (code) => photoUrl(dl.find((x) => x?.Tla === code) || { Tla: code });
+  const out = (e, team) => (e.alive ? '' : `<div class="tr-out">${team ? t('Éliminée') : t('Éliminé')} · R${e.outRound} ${esc(gpShort(e.outName, EN))}</div>`);
+  // Barre : points actuels (couleur d'écurie) + maximum encore possible (hachures) ; trait = leader
+  const bars = (e, list, col) => {
+    const lead = Math.max(...list.map((x) => x.points));
+    const top = Math.max(...list.map((x) => x.maxPts), 1);
+    return `<div class="tr-bar"><i class="now" style="width:${(e.points / top) * 100}%;background:${col}"></i><i class="max" style="width:${((e.maxPts - e.points) / top) * 100}%;--tc:${col}"></i><b style="left:${(lead / top) * 100}%"></b></div>`;
+  };
+  const sub = (e, team) => (e.alive
+    ? (e.behind ? `<div class="tr-sub">${t('{} pts du leader', e.behind)}</div>` : `<div class="tr-sub lead">${t('Leader')}</div>`)
+    : out(e, team));
+  const driverCard = (e) => {
+    const col = color(e.team, e.teamId);
+    const img = photo(e.code);
+    return `<div class="tr-card${e.alive ? '' : ' out'}" style="--tc:${col}">
+      <div class="tr-pic">${img ? `<img src="${img}" alt="" loading="lazy">` : `<span>${esc(e.code)}</span>`}<em>${e.pos}</em></div>
+      <div class="tr-info"><b>${esc(e.name)}</b><span class="tr-team">${esc(e.team)}</span>
+        <div class="tr-pts"><b>${e.points}</b> pts <span class="muted">· max ${e.maxPts}</span></div>${sub(e, false)}${bars(e, tr.drivers, col)}</div></div>`;
+  };
+  const teamCard = (e) => {
+    const col = color(e.name, e.id);
+    const logo = teamLogo(e.name);
+    return `<div class="tr-card team${e.alive ? '' : ' out'}" style="--tc:${col}">
+      <div class="tr-pic logo">${logo ? `<span class="team-logo color" style="--tc:${col};background-image:url('${logo}')"></span>` : bar(e.name, e.id)}<em>${e.pos}</em></div>
+      <div class="tr-info"><b>${esc(e.name)}</b>
+        <div class="tr-pts"><b>${e.points}</b> pts <span class="muted">· max ${e.maxPts}</span></div>${sub(e, true)}${bars(e, tr.constructors, col)}</div></div>`;
+  };
+  const alive = (l) => l.filter((e) => e.alive).length;
+  const head = (l, champ, kind) => (champ
+    ? `<div class="tr-champ">${icon('trophy')} ${kind === 'd' ? t('{} est champion du monde', esc(champ.name)) : t('{} est championne du monde des constructeurs', esc(champ.name))}</div>`
+    : `<div class="tr-count"><b>${alive(l)}</b> ${kind === 'd' ? t('pilotes encore en lice') : t('écuries encore en lice')}</div>`);
+  // Quand le titre peut-il se jouer : au plus tôt, et toutes les conditions au prochain Grand Prix (tableau compact)
+  const clinchBox = (c, kind) => {
+    if (!c) return '';
+    const gp = (r) => `<b>${esc(gpShort(r.name, EN))}</b> <span class="muted">R${r.round}</span>`;
+    const L = esc(c.leader.name);
+    const top = c.needs[0];
+    const atNext = c.earliest?.round === c.next.round;
+    const list = kind === 'd' ? tr.drivers : tr.constructors;
+    const who = (n) => {
+      const e = list.find((x) => x.key === n.key) || {};
+      return `<span class="tr-cl-who" style="--tc:${kind === 'd' ? color(e.team, e.teamId) : color(e.name, e.id)}" title="${esc(n.name)}">${esc(kind === 'd' ? n.code : n.name)}</span>`;
+    };
+    // Place à l'arrivée qu'il faut au rival quand le leader finit 1er (25 pts) ou 2e (18 pts)
+    const place = (n, lp, lpos) => {
+      const allowed = lp - n.margin;
+      if (allowed < 0) return '—';
+      const p = placeForMaxPoints(allowed);
+      if (p < lpos || (lpos === 1 && p <= 2)) return t('suffit');
+      return p > 10 ? t('hors des points') : t('P{} ou plus loin', p === lpos ? p + 1 : p);
+    };
+    const places = kind === 'd' && !c.next.sprint;
+    const gap = (m) => (m === 1 ? t('+1 pt ou plus') : m > 0 ? t('+{} pts ou plus', m) : m === 0 ? t('égalité ou mieux') : m === -1 ? t('−1 pt au pire') : t('−{} pts au pire', -m));
+    const head = `<div class="tr-cl-head"><span>${icon('trophy')} ${t(atNext ? 'Titre possible dès le prochain Grand Prix : {}' : 'Titre possible au plus tôt : {}', c.earliest ? gp(c.earliest) : t('Dernière manche'))}</span>
+      ${!atNext && top ? `<span class="muted">${t('si {} marque le maximum à chaque manche jusque-là et {} aucun point', L, esc(top.name))}</span>` : ''}</div>`;
+    const body = !c.possibleNext
+      ? `<div class="tr-cl-note">${t('Pas encore à {} : il faudrait {} points de plus que {} ({} au maximum sur le week-end).', esc(gpShort(c.next.name, EN)), top.margin, esc(top.name), c.next.max)}</div>`
+      : `<div class="tr-cl-sub">${c.needs.length > 1 ? t('Conditions pour {}, toutes à la fois', L) : t('Condition pour {}', L)}${c.next.sprint ? ` <span class="muted">· ${t('sprint et course cumulés')}</span>` : ''}</div>
+        <div class="tr-cl-scroll"><table class="tr-cl-tbl"><thead><tr><th>${t('Rival')}</th><th>${t('Sur le week-end')}</th>${places ? `<th>${t('En gagnant')}</th><th>${t('En finissant 2e')}</th>` : ''}</tr></thead>
+        <tbody>${c.needs.map((n) => `<tr><td>${who(n)}</td><td><b>${gap(n.margin)}</b></td>${places ? `<td>${place(n, 25, 1)}</td><td>${place(n, 18, 2)}</td>` : ''}</tr>`).join('')}</tbody></table></div>
+        <div class="tr-cl-note">${t('À égalité de points, le titre va au plus grand nombre de victoires.')}</div>`;
+    return `<div class="tr-clinch">${head}${body}</div>`;
+  };
+  const left = tr.races ? `${t('{} courses', tr.races)}${tr.sprints ? ` ${t('et {} sprints', tr.sprints)}` : ''} ${t('à disputer')}` : t('Saison terminée');
+  return `<div class="tr-intro sz-box"><div><div class="muted small">${t('Reste')}</div><div class="tr-big">${left}</div></div>
+      <div><div class="muted small">${t('Points encore à prendre')}</div><div class="tr-big">${tr.maxD} <span class="muted small">${t('par pilote')}</span> · ${tr.maxC} <span class="muted small">${t('par écurie')}</span></div></div></div>
+    <section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}${clinchBox(tr.clinchD, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>
+    <section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`;
 }
 
 // Explication en tête des vues qui n'en ont pas déjà une
 const HELP = {
   standings: 'Classements officiels des pilotes et des constructeurs, mis à jour après chaque course (sprints compris).',
+  title: 'Qui peut encore être champion : un pilote (ou une écurie) est éliminé quand ses points, plus le maximum encore à prendre dans les courses et sprints restants, ne rattrapent plus le leader. La barre montre ses points (plein) et ce qu\'il peut encore marquer (hachures) ; le trait vertical, les points du leader.',
   drivers: 'Fiche d\'un pilote : ses chiffres clés et ses notes de la saison, sa position au départ et à l\'arrivée de chaque course, la répartition de ses arrivées, ses points comparés à la saison précédente, puis le détail course par course (qualification, grille, arrivée, points, tours en tête, meilleur tour, vitesse, arrêts).',
   ratings: 'Une note sur 100 et une lettre (S, A, B, C, D, F) pour chaque pilote : la note de la saison le compare à tous les pilotes, la note face au coéquipier le compare à son coéquipier dans la même voiture.',
   predict: 'Avant chaque Grand Prix, chacun pronostique la pole et le podium, sur cet ordinateur ou sur son téléphone (accès réseau). Les choix des autres restent cachés jusqu\'à la fermeture : début des qualifications pour la pole, départ de la course pour le podium.',
@@ -373,7 +481,7 @@ function render() {
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
-    home: renderHome, calendar: renderCalendar, standings: renderStandings, results: renderResults, h2h: renderH2H,
+    home: renderHome, calendar: renderCalendar, standings: renderStandings, title: renderTitle, results: renderResults, h2h: renderH2H,
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year),
@@ -433,10 +541,16 @@ export function initSeason() {
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
   $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; animate(); render(); } });
-  $('#szContent').addEventListener('click', (e) => { const b = e.target.closest('[data-szgo]'); if (b) { section = b.dataset.szgo; animate(); render(); } });
+  $('#szContent').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-szgo]');
+    if (b) { section = b.dataset.szgo; animate(); render(); return; }
+    const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
+    if (t) { h2hTeam = t.dataset.h2hTeam; render(); } else if (m) { h2hMode = m.dataset.h2hMode; render(); }
+  });
   $('#szContent').addEventListener('change', (e) => {
     const id = e.target.id;
-    if (id === 'szTeam') h2hTeam = e.target.value;
+    if (id === 'szH2hA') h2hA = e.target.value;
+    else if (id === 'szH2hB') h2hB = e.target.value;
     else if (id === 'szDriver') drvCode = e.target.value;
     else if (id === 'szSpeedPt') speedPt = e.target.value;
     else if (id === 'szCircSort') circSort = e.target.value;

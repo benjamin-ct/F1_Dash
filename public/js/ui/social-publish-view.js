@@ -1,10 +1,11 @@
 // Mode créateur : publication des posts sur les réseaux (X, Instagram, Facebook, Threads), envoi
 // de la vidéo en brouillon sur TikTok et en privé sur YouTube Shorts ; configuration des comptes.
-import { $, esc } from '../util.js';
+import { $, esc, storageGet, storageSet } from '../util.js';
 import { icon } from '../icons.js';
 import { t } from '../i18n.js';
 import { toast } from './delay.js';
 import { makeVideo } from '/shared/social-video.js';
+import { TRACKS, trackOf, previewTrack } from '/shared/social-music.js';
 
 const NETS = [
   { id: 'instagram', name: 'Instagram', what: 'Carrousel des visuels (format Instagram)' },
@@ -59,6 +60,34 @@ export function bestHour(posts) {
   return [...by.entries()].map(([h, l]) => [h, l.reduce((a, b) => a + b, 0) / l.length]).sort((a, b) => b[1] - a[1])[0][0];
 }
 const KEYS_NOTE = "Les clés restent sur cet ordinateur (fichier de configuration de l'application) et ne sont jamais incluses dans une sauvegarde des réglages.";
+// ---------- Musique des vidéos : morceaux fabriqués sur place (libres de droits) ----------
+// Choix gardé par type de vidéo (course, news, diaporama), à écouter avant (15 s)
+const TRACK_KEY = 'paddock.videoTrack';
+const TRACK_DEF = { race: 'depart', news: 'flash', slides: 'electro' };
+export const trackKind = (d) => (d.post === 'racelaps' ? 'race' : d.news ? 'news' : 'slides');
+export const savedTrack = (kind) => trackOf(storageGet(TRACK_KEY, {})[kind] || TRACK_DEF[kind]).id;
+export const musicSelect = (kind) => `<select class="small" data-vtrack="${kind}" title="${t('Musique fabriquée sur place, libre de droits')}">${TRACKS.map((x) => `<option value="${x.id}" ${x.id === savedTrack(kind) ? 'selected' : ''} title="${esc(t(x.desc))}">${esc(t(x.name))}</option>`).join('')}</select>
+  <button class="btn small" data-vlisten>${icon('play')} ${t('Écouter')}</button>`;
+let stopPreview = null;
+const endPreview = () => { stopPreview?.(); stopPreview = null; document.querySelectorAll('[data-vlisten]').forEach((b) => { b.innerHTML = `${icon('play')} ${t('Écouter')}`; }); };
+// À appeler pour chaque clic ou changement de la fenêtre : true si l'événement était pour la musique
+export function musicEvent(e) {
+  const sel = e.target.closest?.('[data-vtrack]');
+  if (e.type === 'change' && sel) {
+    storageSet(TRACK_KEY, { ...storageGet(TRACK_KEY, {}), [sel.dataset.vtrack]: sel.value });
+    if (stopPreview) { endPreview(); sel.nextElementSibling?.click(); }
+    return true;
+  }
+  const btn = e.type === 'click' && e.target.closest('[data-vlisten]');
+  if (!btn) return false;
+  if (stopPreview) { endPreview(); return true; }
+  const me = stopPreview = previewTrack(btn.previousElementSibling.value, 15);
+  btn.innerHTML = `${icon('stop')} ${t('Arrêter')}`;
+  setTimeout(() => { if (stopPreview === me) endPreview(); }, 15000);
+  return true;
+}
+export { endPreview };
+
 const MUSIC_NOTE = "Pour une musique de votre choix, vérifiez que vous avez le droit de l'utiliser. Dans TikTok, vous pouvez aussi ajouter un son de la bibliothèque avant de publier.";
 const PUBLIC_NOTE = "Les posts seront publics (TikTok : brouillon à finir dans l'appli ; YouTube : Short privé, verrouillé tant que votre projet Google n'a pas passé l'audit de l'API YouTube).";
 
@@ -215,7 +244,7 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
         <label class="small muted">${t('Texte YouTube Shorts (1re ligne = titre, 100 caractères max.)')}<textarea rows="3" data-txt="youtube">${esc(caps.youtube || youtubeText(caps))}</textarea></label>
         <fieldset class="posts-video"><legend class="small">${t('Vidéo TikTok / YouTube Shorts')}</legend>
           <div class="row small">
-            <label class="toggle"><input type="radio" name="pmusic" value="gen" checked> ${t('Musique générée (libre de droits)')}</label>
+            <label class="toggle"><input type="radio" name="pmusic" value="gen" checked> ${t('Musique générée (libre de droits)')}</label> ${musicSelect(trackKind(d))}
             <label class="toggle"><input type="radio" name="pmusic" value="file"> ${t('Mon fichier audio')}</label>
             <label class="toggle"><input type="radio" name="pmusic" value="none"> ${t('Sans musique')}</label>
             <input type="file" accept="audio/*" data-audio hidden>
@@ -243,7 +272,8 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
     const file = $('[data-audio]', dlg).files?.[0] || null;
     if (music === 'file' && !file) { $('[data-audio]', dlg).click(); throw new Error(t('Choisissez d\'abord un fichier audio')); }
     const onProgress = (p) => { if (vst()) vst().textContent = t('Enregistrement de la vidéo… {} %', Math.round(p * 100)); };
-    const v = videoMaker ? await videoMaker({ music, file, onProgress }) : await makeVideo(await render('story'), { music, file, onProgress });
+    const track = $('[data-vtrack]', dlg)?.value;
+    const v = videoMaker ? await videoMaker({ music, file, track, onProgress }) : await makeVideo(await render('story'), { music, file, track, onProgress });
     if (video?.url) URL.revokeObjectURL(video.url);
     video = { ...v, url: URL.createObjectURL(v.blob) };
     const el = $('.posts-vid', dlg);
@@ -283,8 +313,10 @@ export async function openPublish({ d, caps, render, folder, record = null, onPo
       <span class="spacer"></span>${j.status === 'pending' ? `<button class="btn small" data-schedcancel="${esc(j.id)}">${t('Annuler')}</button>` : ''}</div>`).join('');
   };
   schedList();
-  dlg.onchange = (e) => { if (e.target.name === 'pmusic' && e.target.value === 'file') $('[data-audio]', dlg).click(); };
+  dlg.onchange = (e) => { if (musicEvent(e)) return; if (e.target.name === 'pmusic' && e.target.value === 'file') $('[data-audio]', dlg).click(); };
+  dlg.addEventListener('close', endPreview);
   dlg.onclick = async (e) => {
+    if (musicEvent(e)) return;
     if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
     if (e.target.closest('[data-acc]')) { accountsDialog(async () => { info = await api('/api/social/accounts').catch(() => info); draw(); }); return; }
     const btn = e.target.closest('button');

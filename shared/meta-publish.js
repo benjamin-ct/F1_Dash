@@ -161,6 +161,51 @@ export async function reelInstagram(meta, videoUrl, caption) {
   return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id };
 }
 
+// ---------- Vidéo envoyée par le créateur (MP4 ou MOV) ----------
+// Déposée sur la page Facebook sans être publiée : son adresse publique sert à Instagram (Reel) et à
+// Threads, comme pour les images. Prête quand Facebook a fini de la traiter.
+const GRAPH_VIDEO = GRAPH.replace('//graph.', '//graph-video.');
+async function uploadVideo(meta, video, fields) {
+  if (!meta?.pageToken) throw new Error('Page Facebook non connectée (nécessaire aussi pour Instagram et Threads)');
+  const form = new FormData();
+  form.append('source', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
+  for (const [k, v] of Object.entries({ ...fields, access_token: meta.pageToken })) form.append(k, v);
+  return call(`${GRAPH_VIDEO}/${meta.pageId}/videos`, { method: 'POST', form });
+}
+export async function hostVideo(meta, video) {
+  const key = await digest(video, `video:${meta?.pageId}`);
+  const hit = hostedCache.get(key);
+  if (hit && Date.now() - hit.at < HOST_TTL) return hit;
+  const { id } = await uploadVideo(meta, video, { published: 'false' });
+  const t0 = Date.now();
+  for (let i = 0; ; i++) {
+    const s = await call(`${GRAPH}/${id}?${new URLSearchParams({ fields: 'status,source', access_token: meta.pageToken })}`);
+    const st = s.status?.video_status;
+    if (st === 'ready' && s.source) {
+      const h = { id, url: s.source, at: Date.now() };
+      hostedCache.set(key, h);
+      return h;
+    }
+    if (st === 'error' || st === 'expired') throw new Error(`Vidéo refusée par Facebook${s.status?.processing_phase?.error?.message ? ` : ${s.status.processing_phase.error.message}` : ''}`.slice(0, 300));
+    if (Date.now() - t0 >= timing.readyMs) throw new Error('Vidéo : préparation trop longue, réessayez dans quelques minutes');
+    await wait(Math.min(timing.poll * (i + 1), timing.maxPoll));
+  }
+}
+export async function publishFacebookVideo(meta, text, video) {
+  const r = await uploadVideo(meta, video, { description: text, published: 'true' });
+  return { url: `https://www.facebook.com/${meta.pageId}/videos/${r.id}`, id: r.id };
+}
+export async function publishThreadsVideo(th, meta, text, video) {
+  const hosted = await hostVideo(meta, video);
+  const base = `${THREADS}/${th.userId}`;
+  const c = await call(`${base}/threads`, { method: 'POST', form: { media_type: 'VIDEO', video_url: hosted.url, text, access_token: th.token } });
+  await ready(`${THREADS}/${c.id}?${new URLSearchParams({ fields: 'status,error_message', access_token: th.token })}`, 'status', 'Vidéo');
+  const pub = await call(`${base}/threads_publish`, { method: 'POST', form: { creation_id: c.id, access_token: th.token } });
+  const link = await call(`${THREADS}/${pub.id}?${new URLSearchParams({ fields: 'permalink', access_token: th.token })}`).catch(() => ({}));
+  const visible = link.permalink ? await threadsVisible(link.permalink, th.username) : null;
+  return { url: link.permalink || `https://www.threads.net/@${th.username || ''}`, id: pub.id, visible };
+}
+
 // Jeton Threads de 60 jours : prolongé quand il reste moins de 10 jours. Renvoie le compte à jour
 // (à enregistrer par l'appelant s'il a changé), ou le même si la prolongation échoue.
 export async function freshThreads(th) {

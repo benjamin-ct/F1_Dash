@@ -4,6 +4,91 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.30 — 2026-10-17
+
+### Carte flottante
+- Menu « Calques » dans la barre de la carte flottante (icône des réglages, au survol) : noms des
+  pilotes, traînées, écarts, numéros de virage, secteurs… s'activent et se désactivent sans revenir
+  dans la fenêtre principale.
+- Plus aucun fond, même léger : le halo et la trame de points (« Fond texturé ») ne sont plus dessinés
+  sur la carte flottante, il ne reste que la piste et les voitures.
+
+### Mini-classement sans fond
+- Application de bureau : le mini-classement s'ouvre comme la carte flottante, sans cadre ni fond, au-dessus
+  de tout. Chaque ligne est une pastille translucide posée sur la vidéo. On le déplace en le glissant ; au
+  survol, une petite barre en bas change sa taille (− / +) ou le ferme ; le coin en bas à droite et
+  Ctrl + molette règlent aussi la taille.
+
+### Résultats
+- Nouvelle page **Résultats** (barre latérale, à la place d'Analyse ; menu Plus sur téléphone) : podium
+  avec écarts et place au départ, belles remontées et courses difficiles, stratégie du leader et la plus
+  courante en pneus, neutralisations, abandons, pénalités, meilleur tour, puis le classement complet
+  (grille et places gagnées, écart ou abandon, tours, arrêts, pneus utilisés, meilleur tour ; Q1, Q2, Q3
+  et écart à la pole en qualifications). Au rythme du délai TV. Sur grand écran, les cartes à gauche et le
+  classement à droite : tout tient sur un écran.
+- Sous les cartes, un graphique : en course, la **stratégie de chaque pilote** (relais colorés selon le
+  pneu, avec le nombre de tours) ; en qualifications et en essais, l'**écart de chacun au meilleur tour**.
+- Sous le classement, les **chiffres de la séance** (arrêts aux stands, pilotes classés, abandons,
+  neutralisations, temps supprimés pour les limites de piste, enquêtes, pénalités, températures) ; en bas
+  de page, des raccourcis vers le résumé à copier, le classement du championnat et la course au titre.
+- « Voir les résultats » (accueil et écran « Pas de séance en direct ») ouvre cette page.
+- Les graphiques d'analyse restent dans leurs onglets du tableau de bord (Écarts, Temps, Secteurs,
+  Comparaison, Télémétrie).
+- Le **Résumé** est maintenant visuel : les mêmes cartes (podium, remontées, pneus, neutralisations,
+  abandons, meilleur tour) ; le texte rédigé reste copiable.
+
+### Saison : Course au titre
+- Nouvelle vue « Course au titre » : qui peut encore être champion, chez les pilotes (avec leur portrait)
+  et chez les constructeurs (avec leur logo). Un pilote ou une écurie est éliminé quand ses points, plus
+  le maximum encore à prendre dans les courses et sprints restants, ne rattrapent plus le leader : il
+  passe alors en gris, avec la manche où il a été éliminé. Pour chacun : points, écart au leader, maximum
+  atteignable, et une barre (points actuels, ce qu'il peut encore marquer, position du leader).
+- En tête : courses et sprints restants, points encore à prendre ; le champion est annoncé dès que le
+  titre est joué.
+- Quand le titre peut se jouer : le premier Grand Prix où le leader peut être sacré au plus tôt et, dans
+  un petit tableau, toutes les conditions pour l'être dès le prochain Grand Prix, rival par rival : points
+  à prendre sur le week-end, et place que le rival ne doit pas dépasser si le leader gagne ou finit 2e.
+
+### Portraits des pilotes
+- Les mêmes portraits officiels de la saison partout (Duel, Radios, Course au titre), quelle que soit la
+  séance chargée : plus de photos d'années différentes d'un pilote à l'autre, et un portrait aussi pour
+  les pilotes que la F1 laisse sans photo (Lindblad) ou absents de la séance (Tsunoda).
+
+### Saison : Duels
+- La vue « Coéquipiers » devient « Duels » et occupe toute la largeur : le duel à gauche, l'écart en
+  qualification à droite (l'un sous l'autre sur un écran étroit).
+- Écurie choisie d'un clic sur son logo (toutes les écuries affichées), logos à côté des noms des pilotes.
+- Nouveau : « Pilote contre pilote ». On choisit deux pilotes de n'importe quelles écuries et on compare
+  duels en qualification et en course, points, victoires, podiums, poles, arrivées dans les points,
+  abandons, note de la saison et écart en qualification, chacun dans la couleur de son écurie.
+
+### Actu
+- L'anti-spoiler des actualités ne s'active plus que pendant une séance en direct : pendant un replay,
+  les titres restent visibles et les alertes d'actualité continuent.
+- Actus déjà lues : un article ouvert passe en « Lu » et sa carte est grisée ; le bouton « Lu » (au
+  survol de la carte) marque ou démarque une actu à la main, « Tout marquer comme lu » toute la liste.
+  Gardé sur cet appareil.
+
+### Mise en page
+- Records du circuit (onglet Secteurs) : pole et meilleur tour en course rangés en colonnes, chaque année
+  sous la même année, noms et temps alignés.
+- Saison → Classements : le graphique « Évolution des points » garde une taille normale sur grand écran
+  (textes et courbes ne sont plus agrandis avec la largeur).
+
+### Corrections
+- Duel : le nombre d'arrêts n'affiche plus « undefined » (en replay comme en direct).
+- Carte flottante : plus de messages d'alerte (arrêts, drapeaux…) par-dessus la carte, ni de son en double
+  avec la fenêtre principale.
+- Carte : les bulles d'écart (moins d'une seconde) ne sont plus coupées au bord de la carte, surtout
+  dans la carte flottante ; près du bord, elles passent de l'autre côté du tracé.
+- Thème clair : les noms des pilotes et les temps sont de nouveau lisibles dans la bulle qui apparaît au
+  survol des graphiques d'analyse (écarts, positions, temps au tour) ; textes des drapeaux de la carte
+  lisibles aussi.
+- Le Grand Prix de Bahreïn couru en Malaisie (manche 16 de 2026) s'affiche « Bahreïn (Malaisie) », et
+  « Grand Prix de Bahreïn en Malaisie » en entier, au lieu de « Bahrain Grand Prix in Malaysia ».
+- Version anglaise : le bouton « Revoir … » de l'écran « Pas de séance en direct » est traduit, ainsi que
+  « en faveur de … » sous les écarts en qualification des Duels.
+
 ## v1.27.29 — 2026-10-17
 
 ### Favoris

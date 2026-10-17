@@ -398,7 +398,7 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
       const form = opts.body instanceof URLSearchParams ? Object.fromEntries(opts.body) : {};
       if (g.pathname.endsWith('/ig1/media')) {
         assert.equal(form.media_type, 'REELS');
-        assert.equal(form.video_url, 'https://s.test/kit/benjy/reel.mp4');
+        assert.equal(form.video_url, 'https://s.test/kit/benjy/video.mp4');
         assert.equal(form.caption, 'Bienvenue au paddock');
         return new Response(JSON.stringify({ id: 'r1' }));
       }
@@ -434,7 +434,7 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
     r = await send({ network: 'youtube', src: '/kit/benjy/video.mp4', text: 'Bienvenue\nLe récap' });
     assert.equal((await r.json()).url, 'https://youtube.com/shorts/v42');
     // Reel Instagram : Instagram lit la vidéo à son adresse publique
-    r = await send({ network: 'instagram-reel', src: '/kit/benjy/reel.mp4', text: 'Bienvenue au paddock' });
+    r = await send({ network: 'instagram-reel', src: '/kit/benjy/video.mp4', text: 'Bienvenue au paddock' });
     assert.equal((await r.json()).url, 'https://www.instagram.com/reel/abc/');
     assert.equal((await send({ network: 'instagram-reel', src: 'https://ailleurs.test/v.mp4' })).status, 400);
     // Seulement les vidéos du kit, seulement TikTok et YouTube
@@ -442,6 +442,12 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
     assert.equal((await send({ network: 'tiktok', src: '/kit/../secret.mp4' })).status, 400);
     assert.equal((await send({ network: 'x', src: '/kit/benjy/video.mp4' })).status, 400);
     assert.equal((await send({ network: 'tiktok', src: '/kit/autre/video.mp4' })).status, 404);
+    // Vidéo envoyée avec un post écrit à la main : Short YouTube par la publication du Studio
+    const post = (net, file) => { const f = new FormData(); f.append('network', net); f.append('text', 'Titre\nTexte'); if (file) f.append('video', file, 'v.mp4'); return worker('https://s.test/studio/api/publish', { method: 'POST', headers: key, body: f }); };
+    r = await post('youtube', new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'video/mp4' }));
+    assert.match(await r.text(), /"done":true.*"url":"https:\/\/youtube\.com\/shorts\/v42".*"note":"Short envoyé en privé/);
+    assert.equal((await post('youtube')).status, 400);   // TikTok et YouTube : vidéo obligatoire
+    assert.equal((await post('youtube', new Blob(['x'], { type: 'image/gif' }))).status, 400);
   } finally { globalThis.fetch = realFetch; delete env.ASSETS; }
   await disableStudio({ fetchFn });
 });

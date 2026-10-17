@@ -8,7 +8,7 @@
 // (envoyés par l'appli) sont chiffrés avec cette clé (AES-GCM) : sans elle, la base ne contient
 // rien d'utilisable. Essais ratés limités par adresse et par jour.
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
-import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram } from '../shared/meta-publish.js';
+import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
@@ -16,6 +16,7 @@ import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { pushApi } from './alerts.js';
 import { packFeeds } from '../shared/feed-pack.js';
+import { cleanPostRequest, rewritePost } from './summarize.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -266,8 +267,15 @@ async function image(req, url) {
   return cached(req, u.href, { headers: { 'User-Agent': UA } }, 86400);
 }
 
-// Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour
-async function sendTo(net, vault, { text, comment, images, small = [] }, threads) {
+// Envoi sur un réseau (publication directe ou programmée). threads() : compte Threads à jour.
+// video : vidéo du créateur (Reel sur Instagram, vidéo sur Facebook et Threads ; Bluesky garde les visuels)
+async function sendTo(net, vault, { text, comment, images, small = [], video = null }, threads) {
+  if (video && net === 'instagram') return reelInstagram(vault.meta, (await hostVideo(vault.meta, video)).url, text.slice(0, 2200));
+  if (video && net === 'facebook') return withComment(() => publishFacebookVideo(vault.meta, text, video), comment, (id, t) => commentFacebook(vault.meta, id, t));
+  if (video && net === 'threads') {
+    const th = await threads();
+    return withComment(() => publishThreadsVideo(th, vault.meta, text.slice(0, 500), video), comment, (id, t) => replyThreads(th, id, t));
+  }
   if (net === 'bluesky') {
     const pics = small.slice(0, 4).map((blob) => ({ blob, width: 1600, height: 900 }));
     return withComment(() => publishBluesky(vault.bluesky, [...text].slice(0, 300).join(''), pics), comment, (id, t) => replyBluesky(vault.bluesky, id, t));
@@ -280,9 +288,12 @@ async function sendTo(net, vault, { text, comment, images, small = [] }, threads
   return withComment(() => publishThreads(th, vault.meta, text.slice(0, 500), images), comment, (id, t) => replyThreads(th, id, t));
 }
 const NETS = ['facebook', 'instagram', 'threads', 'bluesky'];
+const CLIPS = ['tiktok', 'youtube'];   // vidéo seulement : brouillon TikTok, Short YouTube
+const VIDEO_MAX = 50e6;
 const STORIES = ['instagram-story', 'facebook-story'];   // kit de lancement : publication directe seulement
 // Compte du réseau absent du coffre : raison, sinon null
 function missing(net, vault) {
+  if (CLIPS.includes(net)) return vault[net] ? null : `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »`;
   if (net === 'bluesky') return vault.bluesky ? null : 'Compte Bluesky non envoyé : connectez-le dans l\'appli';
   if (!vault.meta?.pageToken) return 'Comptes Meta non envoyés : connectez-les dans l\'appli';
   if (net === 'threads' && !vault.threads?.token) return 'Compte Threads non envoyé : connectez-le dans l\'appli';
@@ -298,17 +309,22 @@ async function publish(req, env, raw, vault) {
   const text = String(form.get('text') || '');
   const comment = String(form.get('comment') || '').trim().slice(0, 500);
   const images = form.getAll('images').filter((f) => typeof f === 'object' && f && /^image\/(png|jpeg)$/.test(f.type) && f.size < 8e6).slice(0, 20);
-  if (!NETS.includes(net) && !STORIES.includes(net)) return json({ error: 'Réseau inconnu' }, 400);
+  const v = form.get('video');
+  const video = typeof v === 'object' && v && /^video\/(mp4|quicktime)$/.test(v.type) && v.size <= VIDEO_MAX ? v : null;
+  if (v && !video) return json({ error: 'Vidéo MP4 ou MOV de 50 Mo au plus' }, 400);
+  if (!NETS.includes(net) && !STORIES.includes(net) && !CLIPS.includes(net)) return json({ error: 'Réseau inconnu' }, 400);
   if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
-  if (!images.length) return json({ error: 'Aucune image' }, 400);
+  if (CLIPS.includes(net) && !video) return json({ error: 'Aucune vidéo' }, 400);
+  if (!CLIPS.includes(net) && !images.length && !(video && net !== 'bluesky')) return json({ error: 'Aucune image' }, 400);
   const { readable, writable } = new TransformStream();
   const w = writable.getWriter();
   const line = (o) => w.write(enc.encode(`${JSON.stringify(o)}\n`));
   (async () => {
     try {
-      await line({ step: 'Envoi des images…' });
-      const r = await sendTo(net, vault, { text, comment, images, small: images }, async () => (await refresh(env, raw, vault)).threads);
-      await line({ done: true, ...resultOf(r) });
+      await line({ step: video ? 'Envoi de la vidéo…' : 'Envoi des images…' });
+      const r = CLIPS.includes(net) ? await sendClip(env, raw, vault, net, new Uint8Array(await video.arrayBuffer()), video.type, text)
+        : await sendTo(net, vault, { text, comment, images, small: images, video }, async () => (await refresh(env, raw, vault)).threads);
+      await line({ done: true, ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
     } catch (err) {
       await line({ error: String(err?.message || err).slice(0, 300) });
     } finally {
@@ -336,7 +352,7 @@ async function sendVideo(req, env, raw, vault, url) {
     } catch (err) { return json({ error: String(err?.message || err).slice(0, 300) }, 502); }
   }
   if (net !== 'tiktok' && net !== 'youtube' && net !== 'instagram-reel') return json({ error: 'Réseau inconnu' }, 400);
-  if (!/^\/kit\/[a-z]+\/(video|reel)\.mp4$/.test(src)) return json({ error: 'Vidéo inconnue' }, 400);
+  if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src)) return json({ error: 'Vidéo inconnue' }, 400);
   if (net === 'instagram-reel') {
     if (!vault.meta?.igId) return json({ error: 'Compte Instagram non envoyé : connectez-le dans l\'appli' }, 409);
     // Instagram lit lui-même la vidéo à son adresse publique
@@ -345,21 +361,25 @@ async function sendVideo(req, env, raw, vault, url) {
       return json({ ok: true, url: r.url, id: r.id ?? null, note: 'Reel publié' });
     } catch (err) { return json({ error: String(err?.message || err).slice(0, 300) }, 502); }
   }
-  if (!vault[net]) return json({ error: `Compte ${net === 'tiktok' ? 'TikTok' : 'YouTube'} non envoyé : connectez-le dans l'appli (Comptes…), puis « Renvoyer les comptes »` }, 409);
-  if (!/^\/kit\/[a-z]+\/(video|reel)\.mp4$/.test(src) || !env.ASSETS) return json({ error: 'Vidéo inconnue' }, 400);
+  if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
+  if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src) || !env.ASSETS) return json({ error: 'Vidéo inconnue' }, 400);
   const file = await env.ASSETS.fetch(new Request(new URL(src, url)));
   if (!file.ok) return json({ error: 'Vidéo du kit introuvable' }, 404);
-  const video = new Uint8Array(await file.arrayBuffer());
+  try {
+    const r = await sendClip(env, raw, vault, net, new Uint8Array(await file.arrayBuffer()), 'video/mp4', String(body?.text || ''));
+    return json({ ok: true, url: r.url || null, id: r.id ?? null, note: r.note, ...(r.pending ? { pending: true } : {}) });
+  } catch (err) { return json({ error: err.message }, 502); }
+}
+// Brouillon TikTok ou Short YouTube (jeton renouvelé au besoin, gardé dans le coffre)
+async function sendClip(env, raw, vault, net, video, mime, text) {
   try {
     const acc = await (net === 'tiktok' ? freshTiktok : freshYoutube)(vault[net]);
     if (acc !== vault[net]) await setRow(env, 'vault', await seal(raw, { ...vault, [net]: acc }));
-    const r = net === 'tiktok' ? await tiktokDraft(acc.accessToken, video, 'video/mp4') : await youtubeUpload(acc.accessToken, video, 'video/mp4', String(body?.text || ''));
-    return json({ ok: true, url: r.url || null, id: r.id ?? null, note: r.note, ...(r.pending ? { pending: true } : {}) });
+    return net === 'tiktok' ? await tiktokDraft(acc.accessToken, video, mime) : await youtubeUpload(acc.accessToken, video, mime, text);
   } catch (err) {
-    const msg = err.code === 'invalid_grant' || err.code === 'invalid_client'
+    throw new Error(err.code === 'invalid_grant' || err.code === 'invalid_client'
       ? `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-vous dans l'appli (Comptes…), puis « Renvoyer les comptes »`
-      : String(err?.message || err).slice(0, 300);
-    return json({ error: msg }, 502);
+      : String(err?.message || err).slice(0, 300));
   }
 }
 
@@ -524,6 +544,16 @@ export async function studioApi(req, env, url) {
       tiktok: vault.tiktok ? vault.tiktok.name || 'TikTok' : null, youtube: vault.youtube ? vault.youtube.name || 'YouTube' : null,
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
+  }
+  // Post écrit à la main : texte mis en forme par l'IA (titre, résumé, points clés)
+  if (path === 'rewrite' && req.method === 'POST') {
+    if (!env.AI) return json({ error: 'IA indisponible' }, 503);
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    const text = cleanPostRequest(body);
+    if (!text) return json({ error: 'Texte trop court' }, 400);
+    const r = await rewritePost(env, text);
+    return json(r.limited ? { error: 'Plafond du jour atteint, réessayez demain' } : r, r.limited ? 429 : r.error ? 502 : 200);
   }
   // Journal des publications (partagé avec l'appli)
   if (path === 'history' || path === 'history/remove') {

@@ -4,6 +4,7 @@
 // Code pur, partagé par l'appli et la page web du créateur.
 import { NEWS_DRIVERS, NEWS_TEAMS, fold, newsSimilarity } from './news.js';
 import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
+import { portraitUrl, portraitTeam } from './portraits.js';
 
 // Type de nouvelle, d'après le titre et le résumé (toutes langues des sources, sans accents)
 const KINDS = [
@@ -13,6 +14,8 @@ const KINDS = [
   ['accident', 'ACCIDENT', '#ff5252', /crash|accident|incidente|unfall|injur|blesse|infortun|verletz|hospital|hopital/],
   ['officiel', 'OFFICIEL', '#e10600', /official|officiel|ufficiale|oficial|offiziell|confirm|announce|annonce|annuncia|anuncia|statement|communique/],
 ];
+// Types au choix (post écrit à la main), « Actu F1 » compris
+export const NEWS_BADGES = [...KINDS.map(([key, label, color]) => ({ key, label, color })), { key: 'actu', label: 'ACTU F1', color: '#e10600' }];
 export function newsKind(item) {
   const t = fold(`${item.title} ${item.summary || ''}`.slice(0, 500));
   const k = KINDS.find(([, , , re]) => re.test(t));
@@ -73,6 +76,13 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
     .sort((a, b) => b.score - a.score || b.t - a.t);
 }
 
+// Très grosse info (vidéo « Breaking news ») : importance maximale, ou reprise par au moins 10 médias et
+// importante (annonce officielle, décision) ou transfert, départ, accident, pénalité
+export function isBreaking(it) {
+  const imp = it.imp || 0;
+  return imp >= 3 || ((it.sources || 1) >= 10 && (imp >= 2 || ['transfert', 'depart', 'accident', 'penalite'].includes(newsKind(it).key)));
+}
+
 // Ordre d'affichage des grosses news : « à la une » (importance, moins 1 point par tranche de 12 h
 // pour que les news fraîches passent devant) ou « récentes » (la plus récente d'abord) ; les news
 // déjà publiées (done) vont à la fin
@@ -109,6 +119,9 @@ const TEAM_COLORS = {
   ferrari: '#E80020', mercedes: '#27F4D2', mclaren: '#FF8000', redbull: '#3671C6', rb: '#6692FF', aston: '#229971',
   williams: '#64C4FF', alpine: '#0093CC', haas: '#B6BABD', audi: '#F50537', cadillac: '#C9A86A', fia: '#2b5fd9',
 };
+// Écurie de la base des portraits -> couleur ci-dessus (pilote absent de la liste de la séance)
+const SLUG_COLOR = { redbullracing: 'redbull', racingbulls: 'rb', astonmartin: 'aston', haasf1team: 'haas' };
+const seasonColor = (tla) => { const t = portraitTeam(tla); return t ? TEAM_COLORS[SLUG_COLOR[t] || t] : null; };
 const cap = (s) => String(s).replace(/(^|[\s-])\p{L}/gu, (m) => m.toUpperCase());
 
 // Pilotes et écuries cités, avec photo et couleur quand la liste des pilotes de la séance les donne
@@ -122,7 +135,7 @@ function people(tags = [], driverList = {}) {
       const d = byTla.get(k);
       drivers.push({
         tla: k, num: d?.num || k, first: d?.FirstName || '', last: d?.LastName || cap(drv[1][0]), team: d?.TeamName || '',
-        color: d?.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: d?.HeadshotUrl || null,
+        color: d?.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : seasonColor(k) || '#8b95a8', headshot: portraitUrl(k, true) || d?.HeadshotUrl || null,
       });
       continue;
     }
@@ -149,7 +162,7 @@ export function newsPost(item, { title, summary, points = [], driverList = {}, s
   const main = drivers[0]?.color || teams.find((t) => t.key !== 'fia')?.color || kind.color;
   const when = new Date(item.t || Date.now());
   return {
-    kind: 'news', final: true, news: true,
+    kind: 'news', final: true, news: true, breaking: isBreaking(item),
     badge: kind, title: String(title || item.title || '').trim(), summary: shortSummary(summary ?? item.summary),
     source: sourceName || item.srcName || item.src || '', sources: item.sources || 1, link: item.link || '',
     date: when.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),

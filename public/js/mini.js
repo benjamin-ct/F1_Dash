@@ -8,6 +8,7 @@ import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, currentStint, 
 import { prefs, isFav } from './prefs.js';
 import { trackStatusInfo } from '/shared/f1.js';
 import { connect } from './conn.js';
+import { FLOAT, floatChrome } from './ui/floatwin.js';
 
 translatePage();
 
@@ -83,6 +84,9 @@ window.addEventListener('storage', (e) => {
 window.addEventListener('storage', (e) => { if (e.key === 'paddock.restored' && e.newValue) location.reload(); });
 on('connection', () => { lastKey = ''; });
 on('scheme', () => { lastKey = ''; });
+
+// Appli de bureau : fenêtre transparente, déplacée en la glissant (barre au survol)
+if (FLOAT) floatChrome({ area: document.body, closeTitle: 'Fermer le mini-classement' });
 
 connect();
 setInterval(render, 250);

@@ -19,16 +19,27 @@ const GP = {
 };
 const baseOf = (name) => String(name || '').replace(/ Grand Prix$/i, '').replace(/^(Formula 1 )?Grand Prix (of|de) /i, '').trim();
 
-// « Australie » (en : « Australian »)
+// Grand Prix couru dans un autre pays (« Bahrain Grand Prix in Malaysia », 2026, à Sepang)
+const ABROAD = /^(.+?) Grand Prix in (.+)$/i;
+const IN_COUNTRY = { Malaysia: ['Malaisie', 'en '] };
+
+// « Australie » (en : « Australian ») ; « Bahreïn (Malaisie) »
 export function gpShort(name, en = false) {
   const base = baseOf(name);
+  const abroad = ABROAD.exec(base);
+  if (abroad) return en ? `${abroad[1]} (${abroad[2]})` : `${GP[abroad[1]]?.[0] || abroad[1]} (${IN_COUNTRY[abroad[2]]?.[0] || abroad[2]})`;
   return en ? base : GP[base]?.[0] || base;
 }
 
 // « Grand Prix d'Australie » (prefix 'GP' : « GP d'Australie ») ; en : nom d'origine (« Australian GP »)
 export function gpFull(name, en = false, prefix = 'Grand Prix') {
   const base = baseOf(name);
-  // Nom hors du commun (« Bahrain Grand Prix in Malaysia ») : gardé tel quel
+  // « Grand Prix de Bahreïn en Malaisie » ; autre nom hors du commun : gardé tel quel
+  const abroad = ABROAD.exec(base);
+  if (abroad && !en && GP[abroad[1]]) {
+    const [where, inside] = IN_COUNTRY[abroad[2]] || [abroad[2], 'à '];
+    return `${prefix} ${GP[abroad[1]][1]}${GP[abroad[1]][0]} ${inside}${where}`;
+  }
   if (!base || /grand prix/i.test(base)) return String(name || '');
   if (en) return prefix === 'GP' ? `${base} GP` : `${base} Grand Prix`;
   const [fr, de] = GP[base] || [base, /^[AEIOUÉÂ]/i.test(base) ? "d'" : 'de '];
