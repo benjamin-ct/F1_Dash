@@ -31,11 +31,13 @@ async function detailedSummary(it) {
 }
 
 // ---------- Vidéo « Breaking news » (TikTok, Reels, Shorts, story), commune aux news et aux posts écrits ----------
-const NEWS_VIDEO = `<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Vidéo « Breaking news » réservée aux infos qui font du bruit')}<div id="vidbox" ${on ? '' : 'hidden'}><div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
   <p class="hint" id="vidst">Vidéo verticale « Breaking news » pour TikTok, Reels, YouTube Shorts ou une story : titre, résumé puis points clés, avec musique. Garder l'écran allumé pendant l'enregistrement.</p>
-  <video id="vid" controls playsinline hidden></video>`;
-function bindNewsVideo(getD, name) {
+  <video id="vid" controls playsinline hidden></video></div>`;
+// onBreaking(on) : très grosse info cochée ou décochée à la main
+function bindNewsVideo(getD, name, onBreaking) {
   let clip = null;
+  $('#brk').onchange = (e) => { $('#vidbox').hidden = !e.target.checked; onBreaking(e.target.checked); };
   $('#mkvid').onclick = async () => {
     $('#mkvid').disabled = true;
     try {
@@ -59,7 +61,12 @@ function bindNewsVideo(getD, name) {
 export async function newsEditor(it, done, back) {
   const [title, summary] = await toFrench([{ text: it.title, from: it.lang }, { text: it.summary, from: it.lang }]);
   const failed = title === null || summary === null;
-  const make = async (t, s, p = '') => newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
+  let breaking = null;   // très grosse info choisie à la main (sinon : détectée)
+  const make = async (t, s, p = '') => {
+    const nd = newsPost(it, { title: t, summary: s, points: p, driverList: await latestDrivers(), sourceName: it.srcName });
+    if (breaking !== null) nd.breaking = breaking;
+    return nd;
+  };
   let d = await make(title ?? it.title, summary ?? it.summary);
   editor({
     back,
@@ -73,7 +80,7 @@ export async function newsEditor(it, done, back) {
       <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="npoints" rows="5" maxlength="1600" placeholder="Facultatif : « Résumé détaillé » ou à écrire soi-même"></textarea></label>
       ${it.link ? `<div class="row"><button class="btn small" id="nsummary">${icon('wand')}Résumé détaillé</button><span class="hint" id="nsumst"></span></div>` : ''}
       ${toggle('linkcomment', 'Lien en premier commentaire', state.linkComment, 'Facebook, Threads, Bluesky, X')}
-      ${NEWS_VIDEO}
+      ${NEWS_VIDEO(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
     data: () => d,
     caps: () => newsCaptions(d, SIG, { linkInComment: state.linkComment }),
@@ -96,7 +103,7 @@ export async function newsEditor(it, done, back) {
         } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
-      bindNewsVideo(() => d, 'breaking-news');
+      bindNewsVideo(() => d, 'breaking-news', (on) => { breaking = on; d.breaking = on; });
     },
   });
 }
@@ -105,7 +112,7 @@ export async function newsEditor(it, done, back) {
 // Pilotes et écuries reconnus dans le texte (portraits, couleurs) ; type d'info deviné ou choisi.
 export async function manualEditor(back) {
   const it = { id: `m${Date.now().toString(36)}`, cat: 'official', t: Date.now(), link: '' };
-  const f = { title: '', summary: '', points: '', kind: '', source: '', image: null };
+  const f = { title: '', summary: '', points: '', kind: '', source: '', image: null, breaking: false, video: null };
   const drivers = await latestDrivers();
   const make = () => {
     const text = `${f.title} ${f.summary} ${f.points}`;
@@ -113,6 +120,7 @@ export async function manualEditor(back) {
     const d = newsPost({ ...it, title, summary: f.summary, tags: newsTags(text) }, { title, summary: f.summary, points: f.points, driverList: drivers, sourceName: f.source.trim() });
     if (f.kind) d.badge = NEWS_BADGES.find((b) => b.key === f.kind) || d.badge;
     if (f.image) d.image = f.image;
+    d.breaking = f.breaking;
     return d;
   };
   let d = make();
@@ -129,11 +137,15 @@ export async function manualEditor(back) {
       <label class="field"><span>Source <small>(facultatif, citée en bas de l'image)</small></span><input type="text" id="msrc" maxlength="60" placeholder="Ex. : communiqué de McLaren"></label>
       <div class="field"><span>Photo <small>(facultatif : remplace les portraits des pilotes)</small></span>
         <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
+      <div class="field"><span>Vidéo <small>(facultatif : publiée avec le post, MP4 ou MOV, 50 Mo au plus)</small></span>
+        <div class="row"><label class="btn small">${icon('video')}Choisir une vidéo<input type="file" id="mvid" accept="video/mp4,video/quicktime" hidden></label><button class="btn small" id="mviddel" hidden>${icon('close')}Retirer</button><span class="hint" id="mvidst"></span></div>
+        <video id="mvidprev" controls playsinline hidden></video></div>
       <p class="hint">Les pilotes et écuries cités sont reconnus dans le texte : portraits, logos et couleurs suivent tout seuls.</p>
-      ${NEWS_VIDEO}`,
+      ${NEWS_VIDEO(false)}`,
     data: () => d,
     caps: () => newsCaptions(d, SIG),
     record: () => ({ key: `manual:${it.id}`, kind: 'manual', title: d.title }),
+    video: () => f.video,
     bind: (redraw) => {
       let tm = null;
       const upd = (now = false) => {
@@ -172,7 +184,20 @@ export async function manualEditor(back) {
         } catch { $('#mimgst').textContent = 'Image illisible'; }
       };
       $('#mimgdel').onclick = () => { f.image = null; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; upd(true); };
-      bindNewsVideo(() => d, 'breaking-news');
+      $('#mvid').onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!/^video\/(mp4|quicktime)$/.test(file.type)) { $('#mvidst').textContent = 'Vidéo MP4 ou MOV seulement'; return; }
+        if (file.size > 50e6) { $('#mvidst').textContent = `Trop lourde (${Math.round(file.size / 1e6)} Mo) : 50 Mo au plus`; return; }
+        f.video = file;
+        $('#mvidst').textContent = `${file.name} · ${(file.size / 1e6).toFixed(1).replace('.', ',')} Mo`;
+        if ($('#mvidprev').src) URL.revokeObjectURL($('#mvidprev').src);
+        $('#mvidprev').src = URL.createObjectURL(file); $('#mvidprev').hidden = false;
+        $('#mviddel').hidden = false;
+        upd(true);
+      };
+      $('#mviddel').onclick = () => { f.video = null; $('#mvid').value = ''; $('#mvidst').textContent = ''; $('#mviddel').hidden = true; $('#mvidprev').hidden = true; $('#mvidprev').removeAttribute('src'); upd(true); };
+      bindNewsVideo(() => d, 'breaking-news', (on) => { f.breaking = on; d.breaking = on; });
     },
   });
 }

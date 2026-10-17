@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bigNews, newsKind, newsKinds, sortNews, newsPost, newsCaptions, shortSummary } from '../shared/social-news.js';
+import { bigNews, newsKind, newsKinds, sortNews, newsPost, newsCaptions, shortSummary, isBreaking } from '../shared/social-news.js';
 import { slidesFor } from '../shared/social-draw.js';
 import { xLength } from '../shared/social.js';
 import { newsVideoTiming } from '../shared/social-news-video.js';
@@ -90,4 +90,14 @@ test('vidéo Breaking news : durée selon le texte, 4 points clés au plus', () 
   const court = newsVideoTiming({ ...d, points: [] });
   assert.equal(court.starts.length, 2);
   assert.ok(court.duration < 13);
+});
+
+test('très grosse info (Breaking news) : importance maximale, ou reprise partout et importante', () => {
+  const it = (o) => ({ title: 'Some news', summary: '', t: NOW, ...o });
+  assert.equal(isBreaking(it({ imp: 3 })), true);
+  assert.equal(isBreaking(it({ imp: 2, sources: 12 })), true);
+  assert.equal(isBreaking(it({ imp: 1, sources: 30, title: 'Camara signs for Haas' })), true);   // transfert
+  assert.equal(isBreaking(it({ imp: 1, sources: 35, title: 'Horner takes swipe at Steiner' })), false);
+  assert.equal(isBreaking(it({ imp: 2, sources: 4 })), false);
+  assert.equal(newsPost(it({ imp: 3, tags: [] }), {}).breaking, true);
 });

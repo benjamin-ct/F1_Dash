@@ -14,7 +14,7 @@ import { raceWeekData, weekendData, recordsData, ratingsData, teamDuelsData, rac
 import { raceFrame, raceVideoTiming } from '/shared/social-draw-season.js';
 import { makeAnimation } from '/shared/social-video.js';
 import { newsFrame, newsVideoTiming } from '/shared/social-news-video.js';
-import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, newsKind, newsKinds, sortNews, OTHER_SERIES, isBreaking } from '/shared/social-news.js';
 import { builtinNomination } from '/shared/tyres.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { postedEntry } from '/shared/post-history.js';
@@ -231,7 +231,7 @@ async function seasonSource(sig) {
 // Vidéo animée (format story) de la course ou d'une news (« Breaking news ») : enregistrée dans le navigateur
 let raceVideo = null;
 const raceVideoMaker = (d, o) => (d.post === 'racelaps' ? (opts) => makeAnimation((ctx, tt) => raceFrame(ctx, 1080, 1920, d, o, tt), raceVideoTiming(d).duration, opts)
-  : d.news ? (opts) => makeAnimation((ctx, tt) => newsFrame(ctx, 1080, 1920, d, o, tt), newsVideoTiming(d).duration, opts) : null);
+  : d.news && d.breaking ? (opts) => makeAnimation((ctx, tt) => newsFrame(ctx, 1080, 1920, d, o, tt), newsVideoTiming(d).duration, opts) : null);
 async function buildRaceVideo(dlg, btn) {
   const make = curPost && raceVideoMaker(curPost.d, curPost.o);
   if (!make) return;
@@ -263,6 +263,7 @@ let newsType = '';     // filtre par type de news ('' : toutes)
 let newsCache = null;
 const frCache = new Map();
 const edits = new Map();   // id -> { title, summary } corrigés à la main
+const breakingSet = new Map();   // id -> très grosse info cochée ou décochée à la main (vidéo Breaking news)
 
 let histCache = null;
 async function postHistory(force = false) {
@@ -307,7 +308,7 @@ async function newsSource(sig) {
   const titles = await toFrench(list.map((it) => ({ text: it.title, from: it.lang })));
   const posted = list.map((it) => postedOf.get(it));
   const bar = (sel) => `<div class="row posts-news-bar">
-      <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${posted[i] ? `✓ ${esc(t('Publiée'))} · ` : ''}${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
+      <select class="posts-news-sel" data-newspick>${list.map((it, i) => `<option value="${esc(it.id)}" ${it === sel ? 'selected' : ''}>${posted[i] ? `✓ ${esc(t('Publiée'))} · ` : ''}${isBreaking(it) ? 'BREAKING · ' : ''}${esc(newsKind(it).label)} · ${esc(titles[i] || it.title)} — ${esc(data.sources.find((s) => s.id === it.src)?.name || it.src)}, ${ago(it.t)}</option>`).join('')}</select>
       <select class="small" data-newssort title="${t('Ordre des news')}"><option value="top" ${newsSort === 'top' ? 'selected' : ''}>${t('À la une')}</option><option value="recent" ${newsSort === 'recent' ? 'selected' : ''}>${t('Plus récentes')}</option></select>
       ${kinds.length > 1 ? `<select class="small" data-newstype title="${t('Type de news')}"><option value="">${t('Tous les types')} (${big.length})</option>${kinds.map((k) => `<option value="${k.key}" ${newsType === k.key ? 'selected' : ''}>${esc(t(k.label))} (${k.n})</option>`).join('')}</select>` : ''}
       <label class="toggle small"><input type="checkbox" data-newsall ${newsAll ? 'checked' : ''}> ${t('Toutes les actus')}</label>
@@ -322,6 +323,7 @@ async function newsSource(sig) {
   const points = edits.get(it.id)?.points ?? '';
   const failed = title === null || summary === null;
   const d = newsPost(it, { title: title ?? it.title, summary: summary ?? it.summary, points, driverList: store.state?.DriverList || {}, sourceName: data.sources.find((s) => s.id === it.src)?.name || it.src });
+  if (breakingSet.has(it.id)) d.breaking = breakingSet.get(it.id);
   const done = posted[list.indexOf(it)];
   const head = `${bar(it)}
     ${done ? `<p class="posts-warn small">${icon('check')} ${esc(t('Déjà publiée le {} sur {}', new Date(done.at).toLocaleString(), Object.keys(done.nets).map((n) => NET_NAMES[n] || n).join(', ')))}</p>` : ''}
@@ -331,9 +333,10 @@ async function newsSource(sig) {
       <label class="small muted">${t('Points clés, un par ligne (images suivantes du carrousel)')}<textarea data-npoints rows="4" maxlength="1600" placeholder="${t('Facultatif : cliquez sur « Résumé détaillé » ou écrivez-les vous-même')}">${esc(points)}</textarea></label>
       <div class="row">${it.link ? `<button class="btn small" data-nsummary title="${t("Résumé de l'article en 3 à 5 points, reformulés par l'IA du serveur Paddock Live : relisez-les avant de publier")}">${icon('doc')} ${t('Résumé détaillé')}</button>` : ''}<span class="small muted" data-nsumst></span></div>
       <label class="toggle small" title="${t("Facebook, Threads et X : le lien de l'article est publié en premier commentaire plutôt que dans le texte (Instagram : pas de lien)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
-      <div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button>
+      <label class="toggle small" title="${t('Vidéo « Breaking news » réservée aux infos qui font du bruit')}"><input type="checkbox" data-breaking ${d.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
+      ${d.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button>
         <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) : titre, résumé puis points clés, avec musique. Aussi utilisée pour TikTok et YouTube à la publication.'))}</span></div>
-      <video class="posts-vid" data-rv controls playsinline hidden></video>
+      <video class="posts-vid" data-rv controls playsinline hidden></video>` : ''}
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
     </div>`;
   const record = { key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) };
@@ -643,6 +646,7 @@ function open() {
       if (e.target.matches('[data-recap]')) { recapMode = e.target.checked; render(dlg); }
       if (e.target.matches('[data-roundpick]')) { roundSel = Number(e.target.value); render(dlg); }
       if (e.target.matches('[data-linkcomment]')) { linkComment = e.target.checked; sync(); render(dlg); }
+      if (e.target.matches('[data-breaking]') && newsSel) { breakingSet.set(newsSel, e.target.checked); render(dlg); }
     });
     dlg.addEventListener('input', (e) => {
       if (!e.target.matches('[data-ntitle], [data-nsum], [data-npoints]') || !newsSel) return;

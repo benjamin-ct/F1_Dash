@@ -8,7 +8,7 @@
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { feedItems, decodeBody } from '../shared/news-collect.js';
 import { newsSimilarity } from '../shared/news.js';
-import { newsKind, sameStoryOf } from '../shared/social-news.js';
+import { newsKind, sameStoryOf, isBreaking } from '../shared/social-news.js';
 import { translateBatch } from './translate.js';
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36';
@@ -183,7 +183,7 @@ export async function newsAlerts(env, { fetchFn = fetch, now = Date.now() } = {}
   const gone = new Set();
   let sent = 0;
   for (const a of added) {
-    const message = { title: `${newsKind(a).label} · ${a.srcName}`, body: a.titleFr, id: a.id, url: `/studio/?alert=${encodeURIComponent(a.id)}` };
+    const message = { title: `${isBreaking(a) ? 'BREAKING · ' : ''}${newsKind(a).label} · ${a.srcName}`, body: a.titleFr, id: a.id, url: `/studio/?alert=${encodeURIComponent(a.id)}` };
     await Promise.all(subs.map(async (s) => {
       const r = await sendPush(keys, s, message, { fetchFn, now }).catch(() => false);
       if (r === 'gone') gone.add(s.endpoint);

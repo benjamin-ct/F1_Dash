@@ -5,7 +5,7 @@
 //
 // Chargement rapide : les listes s'affichent d'abord avec les données gardées sur le téléphone, puis
 // se mettent à jour ; l'éditeur et la Saison ne sont chargés qu'à l'ouverture (préchargés ensuite).
-import { bigNews, newsKind, newsKinds, sortNews } from '/shared/social-news.js';
+import { bigNews, newsKind, newsKinds, sortNews, isBreaking } from '/shared/social-news.js';
 import { postedEntry } from '/shared/post-history.js';
 import { pullToRefresh } from '/shared/pull-refresh.js';
 import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure, sheet, schedList, store, state, session, hasKey, setKey, forgetKey, onLogout, glide, NET_NAMES, IOS, installed } from './ui.js';
@@ -188,7 +188,7 @@ function renderNews(body, items, { at, stale = false }) {
       const k = newsKind(it);
       const posted = done.get(it);
       const read = READ.has(it.id);
-      return `<div class="nwrap"><button class="card news${posted ? ' done' : ''}${read ? ' read' : ''}" data-i="${i}"><div class="card-top"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${posted ? `<span class="pill ok">${icon('check')}Publiée</span>` : ''}<span class="grow"></span><time>${ago(it.t)}</time></div>
+      return `<div class="nwrap"><button class="card news${posted ? ' done' : ''}${read ? ' read' : ''}" data-i="${i}"><div class="card-top"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${isBreaking(it) ? '<span class="badge breaking">BREAKING</span>' : ''}${posted ? `<span class="pill ok">${icon('check')}Publiée</span>` : ''}<span class="grow"></span><time>${ago(it.t)}</time></div>
         <div class="t">${esc(knownFrench(it.title, it.lang) || it.title)}</div><div class="meta">${esc(it.srcName)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>
         <button class="readmark${read ? ' on' : ''}" data-r="${i}" aria-label="${read ? 'Marquer comme non lue' : 'Marquer comme lue'}">${icon('check')}${read ? 'Lue' : 'Lu ?'}</button></div>`;
     }).join('')}</div>` : empty(state.all ? 'Aucune actu ces dernières 48 heures.' : 'Aucune grosse news ces dernières 48 heures : essayez « Toutes ».')}`;

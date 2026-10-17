@@ -297,3 +297,52 @@ test('YouTube : connexion Google (PKCE), Short envoyé en privé, reconnexion de
     assert.deepEqual(accountsInfo().youtube, { connected: false, name: 'Benjy Paddock', configured: true });
   } finally { globalThis.fetch = realFetch; }
 });
+
+test('vidéo du créateur : déposée une fois sur la page, Reel Instagram, vidéo Threads et vidéo Facebook', async () => {
+  const realFetch = globalThis.fetch;
+  const { hostVideo, publishFacebookVideo, publishThreadsVideo, reelInstagram } = await import('../shared/meta-publish.js');
+  Object.assign(timing, { poll: 1, maxPoll: 1, readyMs: 2000, visible: [] });
+  const meta = { pageId: 'page1', pageToken: 'jp', igId: 'ig1', igUsername: 'moi' };
+  const log = [];
+  let checks = 0;
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = new URL(url);
+    const form = opts.body instanceof FormData ? Object.fromEntries([...opts.body].map(([k, v]) => [k, typeof v === 'string' ? v : `<${v.type}>`]))
+      : opts.body ? Object.fromEntries(new URLSearchParams(String(opts.body))) : {};
+    log.push({ host: u.hostname, path: u.pathname, form, query: Object.fromEntries(u.searchParams) });
+    const j = (o) => new Response(JSON.stringify(o));
+    if (u.pathname.endsWith('/page1/videos')) return j({ id: form.published === 'false' ? 'vid1' : 'vid2' });
+    if (u.pathname.endsWith('/vid1')) return j(++checks < 2 ? { status: { video_status: 'processing' } } : { status: { video_status: 'ready' }, source: 'https://video.test/v.mp4' });
+    if (u.pathname.endsWith('/media') || u.pathname.endsWith('/threads')) return j({ id: 'c1' });
+    if (u.pathname.endsWith('/c1')) return j({ status_code: 'FINISHED', status: 'FINISHED' });
+    if (u.pathname.endsWith('/media_publish') || u.pathname.endsWith('/threads_publish')) return j({ id: 'p1' });
+    if (u.pathname.endsWith('/p1')) return j({ permalink: 'https://example.test/p/1' });
+    return j({});
+  };
+  try {
+    const video = new Blob([new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112, 1, 2, 3])], { type: 'video/mp4' });
+    const h = await hostVideo(meta, video);
+    assert.equal(h.url, 'https://video.test/v.mp4');
+    const up = log.find((l) => l.path.endsWith('/page1/videos'));
+    assert.equal(up.host, 'graph-video.facebook.com');
+    assert.equal(up.form.published, 'false');
+    assert.equal(up.form.source, '<video/mp4>');
+    // Instagram et Threads juste après : rien de redéposé
+    log.length = 0;
+    await reelInstagram(meta, (await hostVideo(meta, video)).url, 'Légende');
+    const th = await publishThreadsVideo({ token: 'jt', userId: 'th1', username: 'moi' }, meta, 'Texte', video);
+    assert.equal(th.url, 'https://example.test/p/1');
+    assert.equal(log.filter((l) => l.path.endsWith('/videos')).length, 0);
+    assert.equal(log.find((l) => l.path.endsWith('/ig1/media')).form.video_url, 'https://video.test/v.mp4');
+    assert.equal(log.find((l) => l.path.endsWith('/ig1/media')).form.media_type, 'REELS');
+    const tc = log.find((l) => l.path.endsWith('/th1/threads')).form;
+    assert.deepEqual([tc.media_type, tc.video_url, tc.text], ['VIDEO', 'https://video.test/v.mp4', 'Texte']);
+    // Facebook : vidéo publiée avec le texte
+    const fb = await publishFacebookVideo(meta, 'Post', video);
+    assert.equal(fb.url, 'https://www.facebook.com/page1/videos/vid2');
+    const pub = log.findLast((l) => l.path.endsWith('/page1/videos')).form;
+    assert.deepEqual([pub.published, pub.description], ['true', 'Post']);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

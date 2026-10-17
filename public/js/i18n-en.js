@@ -2023,6 +2023,8 @@ export default {
   "Tours de cette course pas encore publiés.": "Laps of this race not published yet.",
   "Créer la vidéo animée": "Create the animated video",
   "Créer la vidéo Breaking news": "Create the Breaking news video",
+  "Très grosse info": "Huge news",
+  "Vidéo « Breaking news » réservée aux infos qui font du bruit": "« Breaking news » video, kept for the news that make headlines",
   "Vidéo verticale (story, TikTok, Reels, Shorts) : titre, résumé puis points clés, avec musique. Aussi utilisée pour TikTok et YouTube à la publication.": "Vertical video (story, TikTok, Reels, Shorts): title, summary then key points, with music. Also used for TikTok and YouTube when publishing.",
   "Vidéo verticale (story, TikTok, Reels, Shorts) de {} s : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts.": "Vertical video (story, TikTok, Reels, Shorts) of {} s: the position chart draws itself lap by lap, with safety cars, flags and key moments.",
   "Direction de course indisponible (archives de la F1) : neutralisations estimées d'après les temps au tour.": "Race control unavailable (F1 archives): neutralisations estimated from lap times.",

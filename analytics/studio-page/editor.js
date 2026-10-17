@@ -74,8 +74,8 @@ addEventListener('touchend', () => {
 
 // back : retour ; title / subtitle : en-tête ; head : réglages propres au post (HTML), au-dessus des
 // visuels ou en dessous (below) ; data : données des visuels ; caps : textes ; bind(redraw) :
-// branchement des réglages ; record : entrée du journal
-export function editor({ back, title, subtitle = '', head = '', below = false, data, caps, bind = () => {}, record }) {
+// branchement des réglages ; record : entrée du journal ; video() : vidéo du créateur jointe au post
+export function editor({ back, title, subtitle = '', head = '', below = false, data, caps, bind = () => {}, record, video = () => null }) {
   let canvases = [];
   let edited = {};          // textes retouchés à la main : gardés en changeant de format
   state.skip = new Set();   // images écartées de ce post (toutes publiées par défaut)
@@ -131,10 +131,13 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       count(k);
       $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; count(k); };
     }
-    $('#netsbox').innerHTML = `<h3 class="section">Publier sur</h3>${[['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky']].map(([k, v]) => {
+    // Avec une vidéo : Reel, vidéo Facebook et Threads, et aussi brouillon TikTok et Short YouTube (à cocher)
+    const vid = video();
+    $('#netsbox').innerHTML = `<h3 class="section">Publier sur</h3>${[['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky'], ...(vid ? [['tiktok', 'TikTok'], ['youtube', 'YouTube Shorts']] : [])].map(([k, v]) => {
       const acc = session.me?.[k];
-      return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? 'checked' : 'disabled'}></label>`;
-    }).join('')}<p class="hint">Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. X, TikTok, YouTube Shorts, story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.</p>`;
+      return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
+    }).join('')}<p class="hint">${vid ? 'Votre vidéo part en Reel sur Instagram, en vidéo sur Facebook et Threads, en brouillon sur TikTok (son et texte à finir dans l\'appli) et en privé sur YouTube. Bluesky reçoit les visuels.'
+      : 'Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. X, TikTok, YouTube Shorts, story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.'}</p>`;
     const o = await assets(d);
     const all = $$('#main canvas');
     // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
@@ -158,8 +161,8 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
         paint();
       };
     });
-    $('#go').onclick = () => publishAll(d, o, record?.());
-    $('#plan').onclick = () => schedulePanel(d, o, record?.());
+    $('#go').onclick = () => publishAll(d, o, record?.(), vid);
+    $('#plan').onclick = () => (vid ? toast('Post avec vidéo : publication tout de suite seulement, pas de programmation', 'bad') : schedulePanel(d, o, record?.()));
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
     if ($('#dl')) $('#dl').onclick = () => download(canvases);
@@ -260,11 +263,12 @@ function schedulePanel(d, o, record = null) {
 
 // Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
 // Envoi d'un post au serveur (réponse en continu : avancement, puis résultat ou erreur)
-export async function sendPost(network, text, blobs, comment = '') {
+export async function sendPost(network, text, blobs, comment = '', video = null) {
   const form = new FormData();
   form.append('network', network);
   form.append('text', text);
   blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
+  if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
   if (comment) form.append('comment', comment);
   const res = await api('publish', { method: 'POST', body: form, raw: true });
   const reader = res.body.getReader();
@@ -295,14 +299,14 @@ export function enterPage(back) {
 }
 export { goBack };
 
-async function publishAll(d, o, record = null) {
+async function publishAll(d, o, record = null, video = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
-  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n]).join(', ')} ?\n\nLes posts seront publics.`)) return;
+  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\nLes posts seront publics${video ? ' (TikTok : en brouillon ; YouTube : en privé)' : ''}.`)) return;
   const go = $('#go');
   go.disabled = true;
   $('#netsbox').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  const { ig: blobs, x: bsky } = await postImages(d, o, nets);
+  const { ig: blobs, x: bsky } = await postImages(d, o, video ? nets.filter((n) => n === 'bluesky') : nets);
   let ok = 0;
   for (const n of nets) {
     const st = $(`[data-st="${n}"]`);
@@ -311,12 +315,15 @@ async function publishAll(d, o, record = null) {
     const tick = setInterval(() => { st.textContent = `Envoi… ${Math.round((Date.now() - t0) / 1000)} s`; }, 1000);
     st.textContent = 'Envoi…';
     try {
-      const result = await sendPost(n, textOf(n), n === 'bluesky' ? bsky : blobs, commentOf(n));
+      // Vidéo : seule envoyée (sauf Bluesky, qui garde les visuels)
+      const withVideo = video && n !== 'bluesky';
+      const result = await sendPost(n, textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, commentOf(n), withVideo ? video : null);
       ok++;
       st.className = 'st ok';
       if (record) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
       st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ${icon('check')}</a>` : `Publié ${icon('check')}`)
         + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '')
+        + (result.note ? ` · ${esc(result.note)}` : '')
         + (result.visible === false ? ' <span class="err">· pas visible publiquement sur Threads : vérifiez le post (compte ou post masqué)</span>' : '');
     } catch (err) {
       st.className = 'st err';

@@ -76,6 +76,13 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
     .sort((a, b) => b.score - a.score || b.t - a.t);
 }
 
+// Très grosse info (vidéo « Breaking news ») : importance maximale, ou reprise par au moins 10 médias et
+// importante (annonce officielle, décision) ou transfert, départ, accident
+export function isBreaking(it) {
+  const imp = it.imp || 0;
+  return imp >= 3 || ((it.sources || 1) >= 10 && (imp >= 2 || ['transfert', 'depart', 'accident'].includes(newsKind(it).key)));
+}
+
 // Ordre d'affichage des grosses news : « à la une » (importance, moins 1 point par tranche de 12 h
 // pour que les news fraîches passent devant) ou « récentes » (la plus récente d'abord) ; les news
 // déjà publiées (done) vont à la fin
@@ -155,7 +162,7 @@ export function newsPost(item, { title, summary, points = [], driverList = {}, s
   const main = drivers[0]?.color || teams.find((t) => t.key !== 'fia')?.color || kind.color;
   const when = new Date(item.t || Date.now());
   return {
-    kind: 'news', final: true, news: true,
+    kind: 'news', final: true, news: true, breaking: isBreaking(item),
     badge: kind, title: String(title || item.title || '').trim(), summary: shortSummary(summary ?? item.summary),
     source: sourceName || item.srcName || item.src || '', sources: item.sources || 1, link: item.link || '',
     date: when.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),

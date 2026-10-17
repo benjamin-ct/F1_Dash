@@ -200,6 +200,7 @@ button.card:active { transform: scale(.985); background: var(--surface-2); }
 .card.hero.busy .go { display: none; }
 .eyebrow { font-size: 11.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--brand); }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; color: #0b0d12; font: 700 11.5px/1.5 'Saira Condensed', sans-serif; letter-spacing: 1.2px; }
+.badge.breaking { background: #e10600; color: #fff; margin-left: 6px; }
 .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12px; font-weight: 600; text-decoration: none; }
 .pill .ic { width: 13px; height: 13px; }
 .pill.ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
