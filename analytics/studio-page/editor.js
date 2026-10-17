@@ -131,13 +131,18 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       count(k);
       $(`#cap-${k}`).oninput = (e) => { edited[k] = e.target.value; count(k); };
     }
-    // Avec une vidéo : Reel, vidéo Facebook et Threads, et aussi brouillon TikTok et Short YouTube (à cocher)
+    // Avec une vidéo : Reel, vidéo Facebook et Threads, et aussi brouillon TikTok et Short YouTube (à cocher).
+    // Format Story : stories Instagram et Facebook (Threads et Bluesky n'en ont pas)
     const vid = video();
-    $('#netsbox').innerHTML = `<h3 class="section">Publier sur</h3>${[['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky'], ...(vid ? [['tiktok', 'TikTok'], ['youtube', 'YouTube Shorts']] : [])].map(([k, v]) => {
-      const acc = session.me?.[k];
+    const story = !vid && state.fmt === 'story';
+    const list = story ? [['instagram-story', 'Story Instagram'], ['facebook-story', 'Story Facebook']]
+      : [['instagram', 'Instagram'], ['facebook', 'Facebook'], ['threads', 'Threads'], ['bluesky', 'Bluesky'], ...(vid ? [['tiktok', 'TikTok'], ['youtube', 'YouTube Shorts']] : [])];
+    $('#netsbox').innerHTML = `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
+      const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
     }).join('')}<p class="hint">${vid ? 'Votre vidéo part en Reel sur Instagram, en vidéo sur Facebook et Threads, en brouillon sur TikTok (son et texte à finir dans l\'appli) et en privé sur YouTube. Bluesky reçoit les visuels.'
-      : 'Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. X, TikTok, YouTube Shorts, story : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.'}</p>`;
+      : story ? 'Une story par image, dans l\'ordre, visible 24 heures, sans texte. Threads et Bluesky n\'ont pas de stories ; story TikTok : « Partager » ouvre les applis du téléphone avec ces visuels.'
+        : 'Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. Stories Instagram et Facebook : choisissez le format Story. X, TikTok, YouTube Shorts : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.'}</p>`;
     const o = await assets(d);
     const all = $$('#main canvas');
     // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
@@ -162,7 +167,7 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
       };
     });
     $('#go').onclick = () => publishAll(d, o, record?.(), vid);
-    $('#plan').onclick = () => (vid ? toast('Post avec vidéo : publication tout de suite seulement, pas de programmation', 'bad') : schedulePanel(d, o, record?.()));
+    $('#plan').onclick = () => (vid || story ? toast(`${vid ? 'Post avec vidéo' : 'Stories'} : publication tout de suite seulement, pas de programmation`, 'bad') : schedulePanel(d, o, record?.()));
     $('#share').onclick = () => share(canvases, state.fmt === 'x' ? $('#cap-x').value : state.fmt === 'ig' ? $('#cap-instagram').value : '');
     // iPhone : « Partager » propose aussi « Enregistrer les images » (Photos)
     if ($('#dl')) $('#dl').onclick = () => download(canvases);
@@ -210,14 +215,15 @@ async function fitJpeg(cv, max) {
   for (const q of [0.92, 0.85, 0.75, 0.6, 0.45]) { b = await toBlob(cv, 'image/jpeg', q); if (b.size <= max) break; }
   return b;
 }
-// Visuels : format Instagram (Instagram, Facebook, Threads) ; Bluesky : 4 au format X, moins de 1 Mo
+// Visuels : format Instagram (Instagram, Facebook, Threads) ou Story (stories) ; Bluesky : 4 au format X, moins de 1 Mo
+const isStory = (n) => n.endsWith('-story');
 async function postImages(d, o, nets, maxIg = Infinity) {
   // Images gardées seulement (sommaire et numéros suivent)
   const draw = (fmt, max, n = 99) => {
     const list = chosenSlides(slidesFor(d, { fmt, follow: state.follow, question: state.question }), [...(state.skip || [])]).slice(0, n);
     return Promise.all(list.map((sl) => fitJpeg(drawSlide(document.createElement('canvas'), sl, fmt, d, { ...o, slides: list }), max)));
   };
-  return { ig: nets.some((n) => n !== 'bluesky') ? await draw('ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
+  return { ig: nets.some((n) => n !== 'bluesky') ? await draw(nets.some(isStory) ? 'story' : 'ig', maxIg) : [], x: nets.includes('bluesky') ? await draw('x', 950 * 1024, 4) : [] };
 }
 
 // Publication programmée : envoyée au serveur, publiée à l'heure même page fermée
@@ -302,7 +308,8 @@ export { goBack };
 async function publishAll(d, o, record = null, video = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
-  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\nLes posts seront publics${video ? ' (TikTok : en brouillon ; YouTube : en privé)' : ''}.`)) return;
+  const stories = nets.some(isStory);
+  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${video ? ' (TikTok : en brouillon ; YouTube : en privé)' : ''}`}.`)) return;
   const go = $('#go');
   go.disabled = true;
   $('#netsbox').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -317,10 +324,11 @@ async function publishAll(d, o, record = null, video = null) {
     try {
       // Vidéo : seule envoyée (sauf Bluesky, qui garde les visuels)
       const withVideo = video && n !== 'bluesky';
-      const result = await sendPost(n, textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, commentOf(n), withVideo ? video : null);
+      const result = await sendPost(n, stories ? '' : textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, stories ? '' : commentOf(n), withVideo ? video : null);
       ok++;
       st.className = 'st ok';
-      if (record) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
+      // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
+      if (record && !stories) api('history', { method: 'POST', body: JSON.stringify({ entry: { ...record, at: Date.now(), nets: { [n]: { id: result.id ?? null, url: result.url || null } } } }) }).catch(() => {});
       st.innerHTML = (result.url ? `<a href="${esc(result.url)}" target="_blank" rel="noopener">Publié ${icon('check')}</a>` : `Publié ${icon('check')}`)
         + (result.comment ? ' · commentaire ajouté' : result.commentError ? ` <span class="err">· commentaire refusé : ${esc(result.commentError)}</span>` : '')
         + (result.note ? ` · ${esc(result.note)}` : '')
