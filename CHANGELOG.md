@@ -17,6 +17,11 @@ l'application (Réglages → Application → Nouveautés).
 - Bouton « Suivre Paddock Live sur les réseaux » en bas de l'accueil, et « Tous nos réseaux » dans
   Réglages → Application : une page avec Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky.
 
+### Corrections
+- Redimensionnement des panneaux : la barre entre deux panneaux suit enfin la souris jusqu'au bout, et
+  le curseur à double flèche ne reste plus bloqué après le relâchement (surtout avec une deuxième
+  fenêtre ouverte, qui redessinait la disposition pendant le geste).
+
 ### Mise en page
 - Barre de gauche : le libellé « Commentaires » est resserré pour ne plus toucher les bords du bouton.
 
