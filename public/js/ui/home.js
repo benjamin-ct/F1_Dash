@@ -154,6 +154,11 @@ export function openHome() {
   document.dispatchEvent(new Event('viewchange'));
 }
 
+// Appli de bureau : fenêtres du second écran rouvertes au premier passage au tableau de bord
+export function startWindows() {
+  try { window.f1desktop?.openStartupWindows?.(); } catch { /* navigateur */ }
+}
+
 export function closeHome() {
   const view = $('#homeView');
   if (!view || view.hidden) return;
@@ -168,9 +173,11 @@ export const isHomeOpen = () => !$('#homeView')?.hidden;
 async function act(k) {
   touched = true;
   if (k === 'live' || k === 'results') { closeHome(); return; }
-  if (k === 'season') { closeHome(); (await import('./season.js')).openSeason(); return; }
-  if (k === 'news') { closeHome(); (await import('./news.js')).openNews(); return; }
-  if (k === 'replays') { closeHome(); $('#settingsBtn').click(); $('#setNav [data-sgroup="source"]')?.click(); return; }
+  // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
+  // jusqu'au lancement du replay
+  if (k === 'season') { (await import('./season.js')).openSeason(); return; }
+  if (k === 'news') { (await import('./news.js')).openNews(); return; }
+  if (k === 'replays') { $('#settingsBtn').click(); $('#setNav [data-sgroup="source"]')?.click(); return; }
   if (k === 'replay') {
     const ls = lastSession();
     // Séance absente des archives (compte F1 TV non connecté) : choix du replay dans les réglages

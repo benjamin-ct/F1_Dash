@@ -13,6 +13,12 @@ l'application (Réglages → Application → Nouveautés).
 - L'appli ne s'ouvre plus directement sur le tableau de bord de la dernière séance. Pendant une séance, elle
   s'ouvre toujours sur le Direct.
 - Bouton « Accueil » en haut de la barre latérale (en bas de l'écran sur téléphone) pour y revenir.
+- Appli de bureau : les fenêtres du second écran ne s'ouvrent plus sur l'accueil, mais seulement en passant
+  au tableau de bord (Direct, replay ou séance en cours), pour ne rien dévoiler au lancement.
+
+### Apparence
+- Nouveau bouton dans la barre latérale pour choisir l'apparence en un clic : automatique (comme le
+  système), sombre ou clair.
 
 ## v1.27.26 — 2026-10-17
 

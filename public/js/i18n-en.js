@@ -2009,4 +2009,7 @@ export default {
   "hier": "yesterday",
   "{} j {} h {} min": "{} d {} h {} min",
   "Qualifications sprint": "Sprint qualifying",
+  "Apparence : {}. Cliquer pour changer (automatique, sombre ou clair)": "Appearance: {}. Click to change (automatic, dark or light)",
+  "Apparence : automatique, sombre ou clair": "Appearance: automatic, dark or light",
+  "Auto": "Auto",
 };

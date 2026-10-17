@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('f1desktop', {
   setWindowsStart: (v) => ipcRenderer.invoke('windows-start-set', v),
   saveWindows: (layouts) => ipcRenderer.invoke('windows-save', layouts),
   restoreWindows: () => ipcRenderer.invoke('windows-restore'),
+  // Fenêtres détachées de la dernière session : rouvertes en quittant l'accueil
+  openStartupWindows: () => ipcRenderer.invoke('windows-start-open'),
   // Dispositions enregistrées à appliquer au lancement (une seule fois, fenêtre principale)
   startupLayouts: () => ipcRenderer.sendSync('windows-startup-layouts'),
   focusWindow: () => ipcRenderer.invoke('window-focus'),

@@ -108,6 +108,15 @@ function openChild(baseUrl, c) {
   return win;
 }
 
+let pendingChildren = null;   // adresse de la page : fenêtres détachées à rouvrir au premier passage au Direct
+ipcMain.handle('windows-start-open', () => {
+  if (!pendingChildren) return false;
+  const url = pendingChildren;
+  pendingChildren = null;
+  setTimeout(() => restoreChildren(url), 300);
+  return true;
+});
+
 function restoreChildren(baseUrl) {
   const st = readState();
   const mode = startMode(st);
@@ -467,8 +476,9 @@ async function start() {
   });
   const url = `http://127.0.0.1:${process.env.PORT}/`;
   setupContents(mainWindow.webContents, url);
-  // Fenêtres détachées de la dernière session, une fois la page principale prête
-  mainWindow.webContents.once('did-finish-load', () => setTimeout(() => restoreChildren(url), 800));
+  // Fenêtres détachées de la dernière session : rouvertes quand la page principale quitte l'accueil
+  // (Direct, replay, séance en cours), pas sur l'accueil (pas de résultat sur le second écran)
+  pendingChildren = url;
   // Laisse le serveur démarrer avant de charger la page.
   const load = (tries = 0) => mainWindow.loadURL(url).catch(() => tries < 20 && setTimeout(() => load(tries + 1), 250));
   setTimeout(load, 300);
