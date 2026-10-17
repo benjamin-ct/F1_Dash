@@ -28,7 +28,8 @@ export function gpShort(name, en = false) {
 // « Grand Prix d'Australie » (prefix 'GP' : « GP d'Australie ») ; en : nom d'origine (« Australian GP »)
 export function gpFull(name, en = false, prefix = 'Grand Prix') {
   const base = baseOf(name);
-  if (!base) return String(name || '');
+  // Nom hors du commun (« Bahrain Grand Prix in Malaysia ») : gardé tel quel
+  if (!base || /grand prix/i.test(base)) return String(name || '');
   if (en) return prefix === 'GP' ? `${base} GP` : `${base} Grand Prix`;
   const [fr, de] = GP[base] || [base, /^[AEIOUÉÂ]/i.test(base) ? "d'" : 'de '];
   return `${prefix} ${de}${fr}`;

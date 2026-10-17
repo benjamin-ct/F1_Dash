@@ -595,6 +595,7 @@ export function openNews(sec) {
   if (sec) section = sec;
   import('./season.js').then((m) => m.closeSeason());
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
+  import('./replays.js').then((m) => m.closeReplays());
   $('#newsView').style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
   $('#newsView').hidden = false;
   $('#newsBtn')?.classList.add('on');

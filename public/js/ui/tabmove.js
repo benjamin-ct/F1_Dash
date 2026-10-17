@@ -136,7 +136,7 @@ function endDrag(commit) {
   if (from && from !== d.target.id) tidy(from);
   save();
   emit('tabsMoved');
-  if (from !== d.target.id) toast(`Onglet « ${d.btn.textContent.trim()} » déplacé. Pour tout remettre en place : Réglages → Affichage.`, 3500, 'move');
+  if (from !== d.target.id) toast(`Onglet « ${d.btn.textContent.trim()} » déplacé. Pour tout remettre en place : Réglages → Disposition.`, 3500, 'move');
 }
 
 function onDown(e) {

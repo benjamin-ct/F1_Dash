@@ -407,6 +407,7 @@ export function openSeason(sec) {
   if (sec) section = sec;
   import('./news.js').then((m) => m.closeNews());
   import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
+  import('./replays.js').then((m) => m.closeReplays());
   $('#seasonView').style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
   $('#seasonView').hidden = false;
   animate();

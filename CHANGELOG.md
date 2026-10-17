@@ -6,6 +6,42 @@ l'application (Réglages → Application → Nouveautés).
 
 ## v1.27.28 — à venir
 
+### Accueil
+- Votre pilote favori (ou vos favoris) avec sa place, ses points et ses victoires au championnat. Juste
+  après une séance, le classement reste flouté pour ne rien gâcher : un clic sur « Afficher » le révèle.
+- Météo prévue sur le circuit pour chaque jour du prochain week-end (température et risque de pluie).
+
+### Replays
+- Nouvelle page « Replays » dans la barre de gauche : toutes les séances des archives officielles F1,
+  classées par Grand Prix et par année, et vos séances enregistrées sur cet ordinateur. Choix du départ
+  (1 min avant le départ ou début de l'enregistrement) et bouton « Revenir au direct ». Elle remplace
+  l'onglet « Source » des réglages ; la pastille LIVE / REPLAY du haut l'ouvre aussi.
+- Archives indisponibles (compte F1 TV non connecté) : un message clair avec un bouton pour connecter
+  le compte ou ouvrir vos enregistrements.
+
+### Menus et barre de gauche
+- Barre de gauche regroupée : les pages (Accueil, Direct, Analyse, Saison, Actu) d'un côté, les outils
+  (Replays, Commentaires, Résumé, Mini…) de l'autre. Le bouton micro s'appelle maintenant « Commentaires ».
+- Résumé et Mini sont grisés tant qu'aucune séance n'est chargée.
+- Barre du haut : chaque outil a son nom sous l'icône (FIA, Vitesses, Secteurs, Météo) sur les grands écrans.
+- Documents FIA : choix du Grand Prix dans la fenêtre, pour consulter les documents des courses précédentes.
+- Météo du circuit (températures, vent, pluie, radar) : maintenant dans la barre du haut, à un clic, au lieu
+  d'un onglet du panneau Stratégie.
+
+### Réglages
+- L'ancien onglet « Affichage » est séparé en deux : « Apparence » (clair / sombre, langue, logos, couleurs,
+  légendes, animations) et « Disposition » (panneaux, colonnes, onglets, fenêtres).
+- Lumières connectées rangées dans l'onglet « Application ».
+
+### Duel
+- Le duel se remplit tout seul : votre pilote favori contre celui qui le précède (ou le suit s'il est en
+  tête), sinon le leader contre le deuxième. Vous pouvez toujours choisir d'autres pilotes.
+
+### Téléphone
+- Nouvelle barre du bas à 5 boutons : Accueil, Direct, Saison, Actu et « Plus » (Replays, Commentaires,
+  Résumé, Réglages). Dans le Direct, les panneaux (Classement, Carte, Course, Duel, Analyse) se choisissent
+  dans une bande d'onglets en haut. La barre du haut perd une ligne.
+
 ### Mise en page
 - Panneaux courts (petits écrans, nombreux panneaux) : la légende se replie en un bouton « Légende »
   qui la déroule par-dessus le panneau. Les tableaux, la carte et les graphiques gagnent toute la place :
@@ -22,8 +58,6 @@ l'application (Réglages → Application → Nouveautés).
 - Apparence sombre : le champ « Votre prénom ou pseudo » des pronostics restait blanc.
 - Délai TV : le préréglage « Temps réel (0 s) » n'est plus coupé sur les écrans de 1 500 pixels ou moins.
 - Commentaires en direct : noms des canaux raccourcis (« International », « F1 Live ») pour ne plus être coupés.
-- Replays : listes et bouton grisés quand les archives de la F1 sont indisponibles (compte F1 TV non
-  connecté), et ancien message d'erreur effacé en changeant d'année.
 
 ## v1.27.27 — 2026-10-17
 
