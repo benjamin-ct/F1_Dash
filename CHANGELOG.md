@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.31 — à venir
+## v1.27.31 — 2026-10-17
 
 ### À propos
 - L'application est publiée sous licence MIT (le serveur et le Studio sous licence AGPL v3) :
