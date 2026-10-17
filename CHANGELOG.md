@@ -66,7 +66,8 @@ l'application (Réglages → Application → Nouveautés).
 - L'anti-spoiler des actualités ne s'active plus que pendant une séance en direct : pendant un replay,
   les titres restent visibles et les alertes d'actualité continuent.
 - Actus déjà lues : un article ouvert passe en « Lu » et sa carte est grisée ; le bouton « Lu » (au
-  survol de la carte) marque ou démarque une actu à la main. Gardé sur cet appareil.
+  survol de la carte) marque ou démarque une actu à la main, « Tout marquer comme lu » toute la liste.
+  Gardé sur cet appareil.
 
 ### Mise en page
 - Records du circuit (onglet Secteurs) : pole et meilleur tour en course rangés en colonnes, chaque année

@@ -175,9 +175,9 @@ function renderNews(body, items, { at, stale = false }) {
   const list = sortNews(big.filter((it) => (!state.nkind || newsKind(it).key === state.nkind) && !(state.hideRead && READ.has(it.id))), { by: state.nsort, done: (it) => done.get(it) }).slice(0, 40);
   shown = list;
   body.innerHTML = `<div class="toolbar">
-      <div class="seg" id="nsort"><button data-by="top" class="${state.nsort === 'top' ? 'on' : ''}">À la une</button><button data-by="recent" class="${state.nsort === 'recent' ? 'on' : ''}">Plus récentes</button></div>
+      <div class="seg" id="nsort"><button data-by="top" class="${state.nsort === 'top' ? 'on' : ''}">À la une</button><button data-by="recent" class="${state.nsort === 'recent' ? 'on' : ''}">Récentes</button></div>
       <label class="chip-toggle"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}><span>Toutes</span></label>
-      <label class="chip-toggle"><input type="checkbox" id="hideread" ${state.hideRead ? 'checked' : ''}><span>Masquer les lues</span></label>
+      <label class="chip-toggle"><input type="checkbox" id="hideread" ${state.hideRead ? 'checked' : ''}><span>Non lues</span></label>
     </div>
     ${kinds.length > 1 ? `<div class="chips" id="nkinds"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout <small>${big.length}</small></button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}"><i style="background:${k.color}"></i>${esc(KIND_NAMES[k.key] || k.label)} <small>${k.n}</small></button>`).join('')}</div>` : ''}
     <p class="status">${stale ? '<span class="dot"></span>Mise à jour…' : `À jour · ${new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}</p>
@@ -190,7 +190,7 @@ function renderNews(body, items, { at, stale = false }) {
       const read = READ.has(it.id);
       return `<div class="nwrap"><button class="card news${posted ? ' done' : ''}${read ? ' read' : ''}" data-i="${i}"><div class="card-top"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${isBreaking(it) ? '<span class="badge breaking">BREAKING</span>' : ''}${posted ? `<span class="pill ok">${icon('check')}Publiée</span>` : ''}<span class="grow"></span><time>${ago(it.t)}</time></div>
         <div class="t">${esc(knownFrench(it.title, it.lang) || it.title)}</div><div class="meta">${esc(it.srcName)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>
-        <button class="readmark${read ? ' on' : ''}" data-r="${i}" aria-label="${read ? 'Marquer comme non lue' : 'Marquer comme lue'}">${icon('check')}${read ? 'Lue' : 'Lu ?'}</button></div>`;
+        <button class="readmark${read ? ' on' : ''}" data-r="${i}" aria-label="${read ? 'Lue : marquer comme non lue' : 'Marquer comme lue'}" title="${read ? 'Lue : marquer comme non lue' : 'Marquer comme lue'}">${icon('check')}</button></div>`;
     }).join('')}</div>` : empty(state.all ? 'Aucune actu ces dernières 48 heures.' : 'Aucune grosse news ces dernières 48 heures : essayez « Toutes ».')}`;
   glide(body);
   translateShown(body, list);

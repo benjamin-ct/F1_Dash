@@ -136,11 +136,12 @@ body { min-height: 100vh; min-height: 100lvh; }
 .seg button:disabled { opacity: .35; cursor: default; }
 .seg.wide { display: flex; width: 100%; }
 .seg.wide button { flex: 1; padding-inline: 4px; }
-.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
 .chip-toggle { position: relative; }
 .chip-toggle input { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
-.chip-toggle span { display: inline-block; padding: 9px 15px; border: 1px solid var(--line-2); border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--text-2); cursor: pointer; }
+.chip-toggle span { display: inline-block; white-space: nowrap; padding: 9px 12px; border: 1px solid var(--line-2); border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--text-2); cursor: pointer; }
 .chip-toggle input:checked + span { background: var(--brand-wash); border-color: transparent; color: var(--brand); }
+@media (max-width: 380px) { .toolbar .seg button { padding: 9px 11px; } .chip-toggle span { padding: 9px 10px; } }
 .chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 calc(-1 * var(--gutter)) 10px; padding: 0 var(--gutter) 2px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .chips::-webkit-scrollbar { display: none; }
 .chips button { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--surface); color: var(--text-2); font: 600 13.5px 'Titillium Web', sans-serif; cursor: pointer; white-space: nowrap; }
@@ -184,11 +185,14 @@ button.card:active { transform: scale(.985); background: var(--surface-2); }
 .card.done { opacity: .6; }
 /* News lue : grisée ; pastille « Lue » / « Lu ? » en bas à droite de la carte, pour marquer à la main */
 .nwrap { position: relative; }
-.card.read { opacity: .55; }
-.readmark { position: absolute; right: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font: 600 12px/1.3 inherit; cursor: pointer; }
-.readmark .ic { width: 13px; height: 13px; }
-.readmark.on { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
-.card.news { padding-bottom: 38px; }
+/* Lue / non lue : case ronde en haut à droite de la carte (cochée en vert une fois lue) */
+.card.read > * { opacity: .5; }
+.card.news .card-top { padding-right: 38px; }
+.readmark { position: absolute; top: 9px; right: 9px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
+.readmark::before { content: ''; position: absolute; inset: 5px; border: 2px solid var(--line-2); border-radius: 50%; transition: background .2s, border-color .2s; }
+.readmark .ic { position: relative; width: 13px; height: 13px; color: transparent; transition: color .2s; }
+.readmark.on::before { background: var(--ok); border-color: var(--ok); }
+.readmark.on .ic { color: #0b0d12; }
 .card.feature { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; background: linear-gradient(120deg, var(--brand-wash), transparent 75%), var(--surface); }
 .card.feature > .ic:first-child { width: 26px; height: 26px; color: var(--brand); }
 .card.feature b { display: block; font-size: 15.5px; }

@@ -1219,7 +1219,7 @@ export default {
   "Plus belle remontée": "Best comeback",
   "Plus de données depuis 60 s, reconnexion…": "No data for 60 s, reconnecting…",
   "Plus de Grand Prix à pronostiquer cette saison.": "No more Grands Prix to predict this season.",
-  "Plus de pastille « nouveau » sur les articles déjà là": "No more “new” badge on articles already here",
+  "Tous les articles de la liste marqués lus (grisés, sans pastille « nouveau »)": "All articles in the list marked as read (greyed out, no “new” badge)",
   "Plus de places gagnées": "Most places gained",
   "Plus de podiums": "Most podiums",
   "Plus de poles": "Most poles",

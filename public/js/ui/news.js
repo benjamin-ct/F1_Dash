@@ -377,13 +377,14 @@ function render() {
   if (section === 'sources') { el.innerHTML = sourcesView(); return; }
   const favs = favTags();
   const list = groups(items.filter((it) => matches(it, favs)));
+  listed = list;
   const shown = list.slice(0, limit);
   const guard = spoilerRisk() && !revealSpoilers;
   const okSources = sources.filter((s) => s.enabled && s.ok !== false).length;
   const head = `<div class="nw-head"><div><h2>${$(`#nwNav [data-nw="${section}"]`)?.innerHTML.trim() || 'Actualités'}</h2>
       <div class="muted small">${tagFilter ? `<button class="nw-filter" data-tag-clear style="--tc:${tagColor(tagFilter)}">${esc(tagName(tagFilter))} ${icon('close')}</button> ` : ''}${okSources} sources suivies · ${list.length} sujet${list.length > 1 ? 's' : ''}${section === 'favs' && !favTags().size ? ' · aucun favori : ajoutez-en avec l\'étoile du classement' : ''}</div></div>
       <div class="nw-actions"><button class="btn small" id="nwRefresh" title="Relire toutes les sources maintenant">${icon('refresh')} Actualiser</button>
-      <button class="btn small" id="nwMarkRead" title="Plus de pastille « nouveau » sur les articles déjà là">${icon('check')} Tout marquer comme lu</button></div></div>`;
+      <button class="btn small" id="nwMarkRead" title="Tous les articles de la liste marqués lus (grisés, sans pastille « nouveau »)">${icon('check')} Tout marquer comme lu</button></div></div>`;
   const banner = guard ? `<div class="nw-guard">${icon('eye-off')} <b>Anti-spoiler</b> : séance en cours, les titres sont masqués et les alertes d'actualité suspendues.
       <button class="btn small" id="nwReveal">Afficher quand même</button></div>` : '';
   const body = shown.length
@@ -436,9 +437,12 @@ function updateBadge() {
   }
 }
 
+// Tout marquer comme lu : articles de la liste affichée marqués lus, plus de pastille « nouveau »
+let listed = [];
 function markRead() {
   lastSeen = Date.now();
   storageSet(SEEN_KEY, lastSeen);
+  setRead(listed.map((g) => g.lead.id));
   render();
 }
 
