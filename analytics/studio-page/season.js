@@ -180,7 +180,7 @@ async function seasonEditor(year, data, race, back) {
       ${video ? `${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
         <p class="hint" id="vidst">Vidéo verticale pour TikTok, Reels, YouTube Shorts ou une story : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts. Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden></video>` : ''}`,
-    data: () => d, caps: () => seasonCaptions(d, SIG),
+    data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
     record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${typeName} · ${d.gp}` }),
     bind: () => {
       if (!video) return;

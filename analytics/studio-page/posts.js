@@ -84,7 +84,7 @@ export async function newsEditor(it, done, back) {
       ${NEWS_VIDEO(d.breaking)}
       <p class="hint">${failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : 'Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Ni photo ni texte de l\'article repris, la source est citée.'}</p>`,
     data: () => d,
-    caps: () => newsCaptions(d, SIG, { linkInComment: state.linkComment }),
+    caps: (dd) => newsCaptions(dd, SIG, { linkInComment: state.linkComment }),
     record: () => ({ key: `news:${it.id}`, kind: 'news', title: d.title, srcTitle: it.title, link: it.link || '', summary: String(it.summary || '').slice(0, 300) }),
     bind: (redraw) => {
       let tm = null;
@@ -144,7 +144,7 @@ export async function manualEditor(back) {
       <p class="hint">Les pilotes et écuries cités sont reconnus dans le texte : portraits, logos et couleurs suivent tout seuls.</p>
       ${NEWS_VIDEO(false)}`,
     data: () => d,
-    caps: () => newsCaptions(d, SIG),
+    caps: (dd) => newsCaptions(dd, SIG),
     record: () => ({ key: `manual:${it.id}`, kind: 'manual', title: d.title }),
     video: () => f.video,
     bind: (redraw) => {
@@ -218,7 +218,7 @@ export async function recapEditor(back) {
     title: 'Récap de la semaine',
     subtitle: `${d.items.length} grosses news des 7 derniers jours`,
     head: '<p class="hint">Titres et résumés traduits automatiquement : relisez les visuels avant de publier.</p>',
-    data: () => d, caps: () => seasonCaptions(d, SIG),
+    data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
     record: () => ({ key: `recap:${d.date}`, kind: 'recap', title: `La semaine en F1 · ${d.date}` }),
   });
 }
@@ -285,7 +285,7 @@ export async function sessionEditor(s, back) {
       <label class="field" id="flashrow" hidden><span>Moment de la séance</span><select id="flashpick">${events.map((x, i) => `<option value="${i}">${esc(FLASH_KINDS[x.kind].label)} · ${esc(x.title)}${x.lap ? ` · tour ${x.lap}` : ''}</option>`).join('')}</select></label>
       <div id="nospoilrow">${toggle('nospoil', 'Texte sans spoiler', state.noSpoiler, 'Vainqueur absent du début du texte')}</div>`,
     data,
-    caps: () => (type === 'results' ? captions(results, SIG, { spoiler: !state.noSpoiler }) : moreCaptions(data(), SIG)),
+    caps: (dd) => (type === 'results' ? captions(dd, SIG, { spoiler: !state.noSpoiler }) : moreCaptions(dd, SIG)),
     record: () => (type === 'results' ? { key: `session:${s.path}`, kind: 'session', title: `${SESSION_FR(s.name)} · ${results.gp}` }
       : { key: `${type}:${s.path}${type === 'flash' ? `:${ev.id}` : ''}`, kind: type, title: `${type === 'flash' ? ev.title : typeName()} · ${results.gp}` }),
     bind: (redraw) => {

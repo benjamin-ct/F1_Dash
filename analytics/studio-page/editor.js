@@ -1,6 +1,6 @@
 // Studio : éditeur d'un post (visuels, textes, publication, programmation, partage), commun aux news,
 // séances et posts de la saison.
-import { slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-draw.js';
+import { slidesFor, drawSlide, slideName, chosenSlides, pointPages } from '/shared/social-draw.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { FLAG_ISO } from '/shared/flags.js';
@@ -40,6 +40,18 @@ const CAPS = [
   ['comment', () => 'Premier commentaire (Facebook, Threads, Bluesky ; X : à coller en réponse)', 2],
 ];
 const xLen = (s) => String(s || '').replace(/https?:\/\/\S+/g, 'x'.repeat(23)).length;
+// Données des textes sans ce que montraient les images écartées : points clés, infos du récap, duels
+// d'une page, faits marquants, pneus et météo
+function keptData(d, skip, fmt) {
+  if (!skip.size) return d;
+  if (d.news) return { ...d, points: pointPages(d.points, fmt).filter((_, i) => !skip.has(`essentiel-${i + 1}`)).flat() };
+  if (d.post === 'recap') return { ...d, items: d.items.filter((_, i) => !skip.has(`recap-${i + 1}`)) };
+  if (d.post === 'teamduels') return { ...d, rows: d.rows.filter((_, i) => !skip.has(`equipes-${Math.floor(i / 5) + 1}`)) };
+  if ((d.post === 'weekend' || d.post === 'raceweek') && skip.has('infos')) return { ...d, tyres: null, forecast: [] };
+  if (d.post === 'prerace' && skip.has('meteo')) return { ...d, weather: null, tyres: null };
+  if (!d.post && skip.has('faits')) return { ...d, facts: [] };
+  return d;
+}
 
 // Retour à la liste : bouton, geste « retour » de Safari (historique) et, sur l'appli installée,
 // glissement depuis le bord gauche de l'écran
@@ -73,7 +85,8 @@ addEventListener('touchend', () => {
 });
 
 // back : retour ; title / subtitle : en-tête ; head : réglages propres au post (HTML), au-dessus des
-// visuels ou en dessous (below) ; data : données des visuels ; caps : textes ; bind(redraw) :
+// visuels ou en dessous (below) ; data : données des visuels ; caps(d) : textes des données d (sans ce
+// que montrent les images écartées) ; bind(redraw) :
 // branchement des réglages ; record : entrée du journal ; video() : vidéo du créateur jointe au post
 export function editor({ back, title, subtitle = '', head = '', below = false, data, caps, bind = () => {}, record, video = () => null }) {
   let canvases = [];
@@ -104,14 +117,19 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
   if (!history.state?.editor) history.pushState({ editor: 1 }, '');
   leave = back;
 
+  // Textes : question et abonnement seulement si leur image est gardée ; retouches à la main conservées
+  const texts = (d) => {
+    let base = caps(keptData(d, state.skip, state.fmt));
+    if (state.question && !state.skip.has('question')) base = questionCaptions(base, d, SIG);
+    if (state.follow && !state.skip.has('abonnement')) base = followCaptions(base, d, SIG);
+    const c = { ...base, ...edited };
+    if (!c.bsky) c.bsky = c.x;
+    return c;
+  };
   const redraw = async (changed = false) => {
     if (changed) edited = {};
     const d = data();
-    let base = caps();
-    if (state.question) base = questionCaptions(base, d, SIG);
-    if (state.follow) base = followCaptions(base, d, SIG);
-    const c = { ...base, ...edited };
-    if (!c.bsky) c.bsky = c.x;
+    const c = texts(d);
     const slides = slidesFor(d, { fmt: state.fmt, follow: state.follow, question: state.question });
     $('#main').innerHTML = `<div class="slides ${state.fmt}">${slides.map((sl) => `<figure class="sl"><canvas data-slide="${sl}" title="${esc(slideName(sl))} : voir en grand"></canvas>
         <label class="pick"><input type="checkbox" data-pick="${sl}" ${state.skip.has(sl) ? '' : 'checked'}><span data-num></span>${esc(slideName(sl))}</label></figure>`).join('')}</div>
@@ -164,6 +182,8 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
         if (cb.checked) state.skip.delete(cb.dataset.pick); else state.skip.add(cb.dataset.pick);
         if (!chosenSlides(slides, [...state.skip]).some((s) => !state.skip.has(s))) { state.skip.delete(cb.dataset.pick); cb.checked = true; toast('Gardez au moins une image', 'bad'); }
         paint();
+        const t = texts(d);
+        for (const k of Object.keys(t)) if (!(k in edited) && $(`#cap-${k}`)) { $(`#cap-${k}`).value = t[k]; count(k); }
       };
     });
     $('#go').onclick = () => publishAll(d, o, record?.(), vid);
