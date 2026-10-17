@@ -12,6 +12,8 @@ import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure
 import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
 
 const app = $('#app');
+// Ancienne adresse (*.workers.dev) : même page sur le nom de domaine (code à entrer une fois de plus)
+if (/\.workers\.dev$/.test(location.hostname)) location.replace(`https://paddocklive.app${location.pathname}${location.search}${location.hash}`);
 const posts = () => import('./posts.js');
 const season = () => import('./season.js');
 const scrolls = {};   // position dans chaque onglet, retrouvée au retour d'un post

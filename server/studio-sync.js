@@ -8,6 +8,8 @@ import { getConfig, saveConfig, tokenInfo } from './config.js';
 import { checkCode, creatorEnabled } from './creator.js';
 
 export const STUDIO_URL = process.env.PADDOCK_STUDIO_URL ?? 'https://paddock-live-stats.paddock-live.workers.dev';
+// Adresse de la page à ouvrir dans le navigateur (l'appli garde STUDIO_URL pour ses appels)
+export const STUDIO_PAGE = process.env.PADDOCK_STUDIO_PAGE ?? 'https://paddocklive.app/studio/';
 const EVERY = 6 * 3600e3;
 
 export const studioKey = (code) => crypto.pbkdf2Sync(String(code).trim().toUpperCase(), 'paddock-live-studio', 200000, 32, 'sha256').toString('base64url');
@@ -41,7 +43,7 @@ async function post(path, body, key, fetchFn = fetch) {
 
 export function studioInfo() {
   const st = getConfig().studio;
-  return { enabled: !!st?.key, url: `${STUDIO_URL}/studio/`, at: st?.at || null, error: st?.error || null, f1tv: !!studioVault().f1tv };
+  return { enabled: !!st?.key, url: STUDIO_PAGE, at: st?.at || null, error: st?.error || null, f1tv: !!studioVault().f1tv };
 }
 
 export async function enableStudio(code, { fetchFn } = {}) {
