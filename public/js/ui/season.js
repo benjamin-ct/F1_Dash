@@ -424,43 +424,37 @@ function renderTitle() {
   const head = (l, champ, kind) => (champ
     ? `<div class="tr-champ">${icon('trophy')} ${kind === 'd' ? t('{} est champion du monde', esc(champ.name)) : t('{} est championne du monde des constructeurs', esc(champ.name))}</div>`
     : `<div class="tr-count"><b>${alive(l)}</b> ${kind === 'd' ? t('pilotes encore en lice') : t('écuries encore en lice')}</div>`);
-  // Quand le titre peut-il se jouer : au plus tôt, et toutes les conditions au prochain Grand Prix
+  // Quand le titre peut-il se jouer : au plus tôt, et toutes les conditions au prochain Grand Prix (tableau compact)
   const clinchBox = (c, kind) => {
     if (!c) return '';
-    const gp = (r) => `${esc(gpShort(r.name, EN))} <span class="muted">R${r.round}</span>`;
+    const gp = (r) => `<b>${esc(gpShort(r.name, EN))}</b> <span class="muted">R${r.round}</span>`;
     const L = esc(c.leader.name);
     const top = c.needs[0];
     const atNext = c.earliest?.round === c.next.round;
-    const early = `<div class="tr-cl-early"><div class="muted small">${t('Titre possible au plus tôt')}</div><div class="tr-big">${c.earliest ? gp(c.earliest) : t('Dernière manche')}</div>
-      ${atNext ? `<div class="tr-cl-tag">${t('Dès le prochain Grand Prix')}</div>` : top ? `<div class="muted small">${t('si {} marque le maximum à chaque manche jusque-là et {} aucun point', L, esc(top.name))}</div>` : ''}</div>`;
-    // Exemples de places à l'arrivée (week-end sans sprint, pilotes seulement)
-    const ex = (n) => {
-      if (kind !== 'd' || c.next.sprint) return '';
-      const R = esc(n.name);
-      const place = (pts) => { const p = placeForMaxPoints(pts); return p > 10 ? t('{} hors des points', R) : t('{} P{} ou plus loin', R, p); };
-      const out = [];
-      if (n.margin > 0) {
-        // Victoire du leader : le rival au mieux 2e, la condition peut être remplie d'office
-        if (placeForMaxPoints(25 - n.margin) <= 2) out.push(t('une victoire suffit'));
-        else if (25 - n.margin >= 0) out.push(`${t('en cas de victoire')} : ${place(25 - n.margin)}`);
-        if (18 - n.margin >= 0) out.push(`${t('en finissant 2e')} : ${place(18 - n.margin)}`);
-      } else if (placeForMaxPoints(-n.margin) > 1) out.push(`${t('sans marquer')} : ${place(-n.margin)}`);
-      return out.length ? `<div class="tr-cl-ex">${out.join(' · ')}</div>` : '';
+    const list = kind === 'd' ? tr.drivers : tr.constructors;
+    const who = (n) => {
+      const e = list.find((x) => x.key === n.key) || {};
+      return `<span class="tr-cl-who" style="--tc:${kind === 'd' ? color(e.team, e.teamId) : color(e.name, e.id)}" title="${esc(n.name)}">${esc(kind === 'd' ? n.code : n.name)}</span>`;
     };
-    const cond = (n) => {
-      const R = esc(n.name);
-      const txt = n.margin === 1 ? t('au moins 1 point de plus que {}', R)
-        : n.margin > 0 ? t('au moins {} points de plus que {}', n.margin, R)
-          : n.margin === 0 ? t('au moins autant de points que {}', R)
-            : n.margin === -1 ? t('pas plus de 1 point de moins que {}', R)
-              : t('pas plus de {} points de moins que {}', -n.margin, R);
-      return `<li><b>${txt}</b>${ex(n)}</li>`;
+    // Place à l'arrivée qu'il faut au rival quand le leader finit 1er (25 pts) ou 2e (18 pts)
+    const place = (n, lp, lpos) => {
+      const allowed = lp - n.margin;
+      if (allowed < 0) return '—';
+      const p = placeForMaxPoints(allowed);
+      if (p < lpos || (lpos === 1 && p <= 2)) return t('suffit');
+      return p > 10 ? t('hors des points') : t('P{} ou plus loin', p === lpos ? p + 1 : p);
     };
-    const next = `<div class="tr-cl-next"><div class="muted small">${t('Prochain Grand Prix')}</div><div class="tr-big">${gp(c.next)}${c.next.sprint ? ` <span class="muted small">${t('sprint et course cumulés')}</span>` : ''}</div>
-      ${!c.possibleNext
-    ? `<p>${t('Le titre ne peut pas encore se jouer à ce Grand Prix : il faudrait à {} {} points de plus que {}, pour {} au maximum sur le week-end.', L, top.margin, esc(top.name), c.next.max)}</p>`
-    : `<p>${t('{} remporte le titre en marquant sur le week-end :', L)}${c.needs.length > 1 ? ` <span class="muted">${t('(toutes ces conditions à la fois)')}</span>` : ''}</p><ul>${c.needs.map(cond).join('')}</ul>`}</div>`;
-    return `<div class="tr-clinch">${early}${next}</div>`;
+    const places = kind === 'd' && !c.next.sprint;
+    const gap = (m) => (m === 1 ? t('+1 pt ou plus') : m > 0 ? t('+{} pts ou plus', m) : m === 0 ? t('égalité ou mieux') : m === -1 ? t('−1 pt au pire') : t('−{} pts au pire', -m));
+    const head = `<div class="tr-cl-head"><span>${icon('trophy')} ${t(atNext ? 'Titre possible dès le prochain Grand Prix : {}' : 'Titre possible au plus tôt : {}', c.earliest ? gp(c.earliest) : t('Dernière manche'))}</span>
+      ${!atNext && top ? `<span class="muted">${t('si {} marque le maximum à chaque manche jusque-là et {} aucun point', L, esc(top.name))}</span>` : ''}</div>`;
+    const body = !c.possibleNext
+      ? `<div class="tr-cl-note">${t('Pas encore à {} : il faudrait {} points de plus que {} ({} au maximum sur le week-end).', esc(gpShort(c.next.name, EN)), top.margin, esc(top.name), c.next.max)}</div>`
+      : `<div class="tr-cl-sub">${c.needs.length > 1 ? t('Conditions pour {}, toutes à la fois', L) : t('Condition pour {}', L)}${c.next.sprint ? ` <span class="muted">· ${t('sprint et course cumulés')}</span>` : ''}</div>
+        <div class="tr-cl-scroll"><table class="tr-cl-tbl"><thead><tr><th>${t('Rival')}</th><th>${t('Sur le week-end')}</th>${places ? `<th>${t('En gagnant')}</th><th>${t('En finissant 2e')}</th>` : ''}</tr></thead>
+        <tbody>${c.needs.map((n) => `<tr><td>${who(n)}</td><td><b>${gap(n.margin)}</b></td>${places ? `<td>${place(n, 25, 1)}</td><td>${place(n, 18, 2)}</td>` : ''}</tr>`).join('')}</tbody></table></div>
+        <div class="tr-cl-note">${t('À égalité de points, le titre va au plus grand nombre de victoires.')}</div>`;
+    return `<div class="tr-clinch">${head}${body}</div>`;
   };
   const left = tr.races ? `${t('{} courses', tr.races)}${tr.sprints ? ` ${t('et {} sprints', tr.sprints)}` : ''} ${t('à disputer')}` : t('Saison terminée');
   return `<div class="tr-intro sz-box"><div><div class="muted small">${t('Reste')}</div><div class="tr-big">${left}</div></div>
@@ -472,7 +466,7 @@ function renderTitle() {
 // Explication en tête des vues qui n'en ont pas déjà une
 const HELP = {
   standings: 'Classements officiels des pilotes et des constructeurs, mis à jour après chaque course (sprints compris).',
-  title: 'Qui peut encore être champion : un pilote (ou une écurie) est éliminé quand ses points, plus le maximum encore à prendre dans les courses et sprints restants, ne rattrapent plus le leader. La barre montre ses points (plein) et ce qu\'il peut encore marquer (hachures) ; le trait vertical, les points du leader. L\'encadré indique la première manche où le leader peut être sacré, et les conditions pour y parvenir dès le prochain Grand Prix (à égalité de points, le titre revient au plus grand nombre de victoires).',
+  title: 'Qui peut encore être champion : un pilote (ou une écurie) est éliminé quand ses points, plus le maximum encore à prendre dans les courses et sprints restants, ne rattrapent plus le leader. La barre montre ses points (plein) et ce qu\'il peut encore marquer (hachures) ; le trait vertical, les points du leader.',
   drivers: 'Fiche d\'un pilote : ses chiffres clés et ses notes de la saison, sa position au départ et à l\'arrivée de chaque course, la répartition de ses arrivées, ses points comparés à la saison précédente, puis le détail course par course (qualification, grille, arrivée, points, tours en tête, meilleur tour, vitesse, arrêts).',
   ratings: 'Une note sur 100 et une lettre (S, A, B, C, D, F) pour chaque pilote : la note de la saison le compare à tous les pilotes, la note face au coéquipier le compare à son coéquipier dans la même voiture.',
   predict: 'Avant chaque Grand Prix, chacun pronostique la pole et le podium, sur cet ordinateur ou sur son téléphone (accès réseau). Les choix des autres restent cachés jusqu\'à la fermeture : début des qualifications pour la pole, départ de la course pour le podium.',

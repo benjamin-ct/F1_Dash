@@ -45,9 +45,9 @@ l'application (Réglages → Application → Nouveautés).
   atteignable, et une barre (points actuels, ce qu'il peut encore marquer, position du leader).
 - En tête : courses et sprints restants, points encore à prendre ; le champion est annoncé dès que le
   titre est joué.
-- Quand le titre peut se jouer : le premier Grand Prix où le leader peut être sacré au plus tôt, et
-  toutes les conditions pour l'être dès le prochain Grand Prix, rival par rival (points d'avance à
-  prendre sur le week-end, avec des exemples : « en cas de victoire : Russell P10 ou plus loin »).
+- Quand le titre peut se jouer : le premier Grand Prix où le leader peut être sacré au plus tôt et, dans
+  un petit tableau, toutes les conditions pour l'être dès le prochain Grand Prix, rival par rival : points
+  à prendre sur le week-end, et place que le rival ne doit pas dépasser si le leader gagne ou finit 2e.
 
 ### Saison : Duels
 - La vue « Coéquipiers » devient « Duels » et occupe toute la largeur : le duel à gauche, l'écart en
