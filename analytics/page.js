@@ -2,7 +2,6 @@
 // sont dessinés dans le navigateur à partir des chiffres intégrés à la page (aucune bibliothèque).
 
 const LOGO = `<svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2a1a"/><stop offset=".55" stop-color="#d40500"/><stop offset="1" stop-color="#8e0300"/></linearGradient></defs><rect width="512" height="512" rx="114" fill="url(#lg)"/><g transform="translate(256 256) skewX(-14) translate(-256 -256)" fill="#fff" fill-rule="evenodd"><g transform="translate(234 168) scale(0.6) translate(-241 -256)"><path d="M118 150 H262 V202 H180 V240 H248 V290 H180 V362 H118 Z"/><path d="M300 150 H364 V362 H302 V214 L276 230 V178 Z"/></g><g transform="translate(278 344) scale(0.6) translate(-256 -256)"><path d="M108 150 H200 A68 68 0 0 1 200 286 H170 V362 H108 Z M170 200 H194 A18 18 0 0 1 194 236 H170 Z"/><path d="M262 150 H324 V306 H404 V362 H262 Z"/></g></g></svg>`;
-const FAVICON = `data:image/svg+xml,${encodeURIComponent(LOGO.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '))}`;
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -18,7 +17,7 @@ a{color:inherit}button,input{font:inherit;color:inherit}
 `;
 
 const page = (title, body, nonce, extraCss = '', script = '') => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
-<title>${esc(title)}</title><link rel="icon" href="${FAVICON}">
+<title>${esc(title)}</title><link rel="icon" href="/stats-icon-512.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/stats.webmanifest"><meta name="apple-mobile-web-app-title" content="Statistiques"><meta name="theme-color" content="#07080A"><style>${CSS}${extraCss}</style></head><body>${body}${script ? `<script nonce="${nonce}">${script}</script>` : ''}</body></html>`;
 
 export function loginPage({ error = '', nonce }) {
