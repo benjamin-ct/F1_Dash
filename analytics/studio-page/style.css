@@ -305,6 +305,9 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 .login .sub { margin: 6px 0 18px; font-size: 14px; color: var(--muted); }
 .login .field, .login .check, .login .notice { text-align: left; }
 .login .btn { margin-top: 6px; }
+.to-site { display: inline-flex; align-items: center; gap: 4px; margin-top: 16px; font-size: 14px; color: var(--muted); text-decoration: none; }
+.to-site .ic { width: 16px; height: 16px; }
+.to-site:hover { color: var(--text); }
 .boot { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; color: var(--muted); }
 /* Retour par glissement depuis le bord gauche (appli installée sur l'iPhone) */
 .editing .page { transition: transform .2s; }

@@ -35,7 +35,7 @@ input:focus{border-color:var(--s1);box-shadow:0 0 0 3px var(--s1-wash)}
 button.go{width:100%;margin-top:16px;padding:12px;border:0;border-radius:10px;background:var(--brand);color:var(--brand-ink);font-weight:600;cursor:pointer}
 button.go:hover{filter:brightness(1.08)}
 .err{margin:14px 0 0;color:var(--bad);font-size:14px;display:flex;gap:6px;justify-content:center;align-items:center}
-.foot{margin-top:22px;font-size:12px;color:var(--muted)}`;
+.foot{margin-top:22px;font-size:12px;color:var(--muted)}.foot+.foot{margin-top:8px}.foot a{color:var(--ink-2);text-decoration:none}.foot a:hover{color:var(--ink)}`;
   const body = `<main><form class="box" method="post" action="/login">
 <div class="logo">${LOGO}</div>
 <h1>Statistiques Paddock Live</h1>
@@ -46,6 +46,7 @@ button.go:hover{filter:brightness(1.08)}
 <button class="go" type="submit">Ouvrir les statistiques</button>
 ${error ? `<p class="err" role="alert"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 17h.01"/></svg>${esc(error)}</p>` : ''}
 <p class="foot">Vous restez connecté 30 jours sur cet appareil.</p>
+<p class="foot"><a href="https://paddocklive.app/">← Retour au site</a></p>
 </form></main>`;
   const script = `const i=document.getElementById('key');document.querySelector('.eye').addEventListener('click',()=>{i.type=i.type==='password'?'text':'password';i.focus();});`;
   return page('Statistiques · Paddock Live', body, nonce, css, script);
@@ -117,6 +118,7 @@ details{margin-top:14px}summary{cursor:pointer;color:var(--ink-2);font-size:13px
   const body = `<header class="top"><div class="in">
 <div class="brand"><div class="logo">${LOGO}</div><div><b>Paddock Live</b><small>Statistiques d'utilisation</small></div></div>
 <nav class="seg" aria-label="Période">${periods.map(([d, l]) => `<a href="?days=${d}" class="${d === data.days ? 'on' : ''}"${d === data.days ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
+<a class="out" href="https://paddocklive.app/">← Site</a>
 <a class="out" href="/logout">Se déconnecter</a>
 </div></header>
 <main>

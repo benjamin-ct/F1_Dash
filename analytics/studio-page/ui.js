@@ -80,6 +80,7 @@ const PATHS = {
   settings: '<path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/>',
   refresh: '<path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/>',
   back: '<path d="M15 5l-7 7 7 7"/>',
+  home: '<path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-5h4v5"/>',
   next: '<path d="M9 5l7 7-7 7"/>',
   send: '<path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',

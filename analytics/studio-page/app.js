@@ -33,6 +33,7 @@ function login(error = '') {
       <label class="check"><input type="checkbox" id="keep" checked> Rester connecté sur cet appareil</label>
       ${error ? `<p class="notice bad">${icon('alert')}${esc(error)}</p>` : ''}
       <button class="btn primary wide">Entrer</button>
+      <a class="to-site" href="https://paddocklive.app/">${icon('back')}Retour au site</a>
     </form>`;
   $('#code').focus();
   $('form').onsubmit = async (e) => {
@@ -70,6 +71,7 @@ function enter(el, dir) {
 function home({ from = 'up' } = {}) {
   app.className = 'shell';
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
+      <a class="iconbtn" href="https://paddocklive.app/" aria-label="Retour au site" title="Retour au site">${icon('home')}</a>
       <button class="iconbtn" id="refresh" aria-label="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="settings" aria-label="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
     <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
