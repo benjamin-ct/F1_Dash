@@ -161,7 +161,10 @@ export function frame(ctx, W, H, d, o, title) {
     x += fw + 16;
   }
   const s1 = Math.round(Math.min(W, H) * 0.046);
-  txt(ctx, d.gp.toUpperCase(), x, top + s1 * 0.95, { size: s1, weight: 800, family: TITLE, max: W - x - pad, spacing: 0.5 });
+  // Place prise à droite par le titre de l'image : le nom du Grand Prix s'arrête avant
+  let tw = 0;
+  if (title) { ctx.font = `700 ${Math.round(s1 * 0.6)}px ${TITLE}`; tw = ctx.measureText(title.toUpperCase()).width + title.length * 3 + 30; }
+  txt(ctx, d.gp.toUpperCase(), x, top + s1 * 0.95, { size: s1, weight: 800, family: TITLE, max: W - x - pad - tw, spacing: 0.5 });
   const sub = [d.label, d.date, d.circuit].filter(Boolean).join('  ·  ').toUpperCase();
   txt(ctx, sub, pad + 28, top + s1 * 0.95 + Math.round(s1 * 0.85), { size: Math.round(s1 * 0.52), weight: 600, family: TITLE, color: C.muted, max: W - pad * 2 - 28, spacing: 1.5 });
   if (title) txt(ctx, title.toUpperCase(), W - pad, top + s1 * 0.95, { size: Math.round(s1 * 0.6), weight: 700, family: TITLE, color: C.red, align: 'right', spacing: 3 });
@@ -354,8 +357,8 @@ export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
   const gap = 24;
   const cw = (W - f.pad * 2 - gap * (cols - 1)) / cols;
   const rowsN = Math.ceil(items.length / cols);
-  const textH = land ? 0 : H > 1600 ? 520 : 300;
-  const ch = Math.min(land ? 290 : 300, (f.bottom - f.top - textH - gap * (rowsN - 1)) / Math.max(rowsN, 1));
+  const textH = land || !d.summary?.paragraphs?.length ? 0 : H > 1600 ? 520 : 300;
+  const ch = Math.min(land ? 290 : H > 1600 ? (textH ? 380 : 520) : textH ? 300 : 380, (f.bottom - f.top - textH - gap * (rowsN - 1)) / Math.max(rowsN, 1));
   items.forEach((it, i) => {
     const x = f.pad + (i % cols) * (cw + gap);
     const y = f.top + Math.floor(i / cols) * (ch + gap);
@@ -369,8 +372,9 @@ export function faits(ctx, W, H, d, o, title = 'Faits marquants') {
   });
   if (!land && d.summary?.paragraphs?.length) {
     const y = f.top + rowsN * (ch + gap) + 30;
-    const lines = Math.max(2, Math.floor((f.bottom - y) / 46));
-    wrap(ctx, d.summary.paragraphs.slice(0, 3).join(' '), f.pad, y + 30, W - f.pad * 2, 46, lines, { size: 32, weight: 400, color: C.text });
+    const lh = H > 1600 ? 52 : 46;
+    const lines = Math.max(2, Math.floor((f.bottom - y) / lh));
+    wrap(ctx, d.summary.paragraphs.slice(0, 3).join(' '), f.pad, y + 30, W - f.pad * 2, lh, lines, { size: H > 1600 ? 36 : 32, weight: 400, color: C.text });
   }
 }
 
@@ -672,7 +676,7 @@ function meteo(ctx, W, H, d, o) {
   const rowsT = Math.ceil(tiles.length / cols);
   const rT = Math.min(land ? 95 : 120, (W - f.pad * 2) / 7);
   const tyreH = d.tyres ? rT * 2 + (land ? 150 : 190) : 0;
-  const th = rowsT ? Math.max(150, Math.min(land ? 220 : 300, (f.bottom - f.top - tyreH) / rowsT - gap)) : 0;
+  const th = rowsT ? Math.max(150, Math.min(land ? 220 : H > 1600 ? 440 : 300, (f.bottom - f.top - tyreH) / rowsT - gap)) : 0;
   tiles.forEach(([k, v], i) => {
     const x = f.pad + (i % cols) * (tw + gap);
     const y = f.top + Math.floor(i / cols) * (th + gap);
@@ -706,7 +710,7 @@ function standings(ctx, W, H, d, o, title, rows) {
   const gapC = land ? 40 : 24;
   const per = Math.ceil(list.length / cols);
   const colW = (W - f.pad * 2 - (cols - 1) * gapC) / cols;
-  const rowH = Math.min(cols === 2 ? 92 : H > 1600 ? 120 : land ? 62 : 88, (f.bottom - f.top - 24) / per);
+  const rowH = Math.min(cols === 2 ? 92 : H > 1600 ? 132 : land ? 62 : 88, (f.bottom - f.top - 24) / per);
   const fs = Math.round(Math.min(rowH * 0.5, cols === 2 ? 32 : 44));
   list.forEach((r, i) => {
     const x = f.pad + Math.floor(i / per) * (colW + gapC);
@@ -721,10 +725,10 @@ function standings(ctx, W, H, d, o, title, rows) {
     teamLogo(ctx, o, r.team || r.name, lx + slot / 2, y + (rowH - 4) / 2, fs * 0.9, 'center', slot);
     const right = x + colW - fs * 0.6;
     const tx = lx + slot + fs * 0.3;
-    txt(ctx, r.label, tx, mid, { size: fs, weight: 800, family: TITLE, max: right - fs * 6.8 - tx });
+    txt(ctx, r.label, tx, mid, { size: fs, weight: 800, family: TITLE, max: right - fs * (cols === 2 ? 4.7 : 6.8) - tx });
     txt(ctx, `${r.points} pts`, right, mid, { size: Math.round(fs * 0.86), weight: 700, family: MONO, align: 'right' });
     if (r.gained) txt(ctx, `+${r.gained}`, right - fs * 4.2, mid, { size: Math.round(fs * 0.76), weight: 700, family: TITLE, color: C.green, align: 'right' });
-    if (r.move) txt(ctx, r.move > 0 ? `▲${r.move}` : `▼${-r.move}`, right - fs * 6.1, mid, { size: Math.round(fs * 0.7), weight: 700, family: TITLE, color: r.move > 0 ? C.green : C.red, align: 'right' });
+    if (r.move && cols === 1) txt(ctx, r.move > 0 ? `▲${r.move}` : `▼${-r.move}`, right - fs * 6.1, mid, { size: Math.round(fs * 0.7), weight: 700, family: TITLE, color: r.move > 0 ? C.green : C.red, align: 'right' });
   });
   txt(ctx, d.final ? 'Après la course' : 'Projection en cours de course', W - f.pad, f.bottom + 6, { size: 22, weight: 600, color: C.muted, align: 'right' });
 }
@@ -775,7 +779,7 @@ function flash(ctx, W, H, d, o) {
   const colW = land && img ? W * 0.55 : W - pad * 2;
   if (img) {
     if (land) photo(ctx, img, W * 0.6, top + 40 * u, W * 0.36, bottom - top - 20 * u, ev.driver.color, 0.25);
-    else { const ph = Math.min((bottom - y) * 0.5, bottom - y - 440 * u); y += Math.max(0, (bottom - y - ph - 440 * u) / 2); photo(ctx, img, W * 0.18, y, W * 0.64, ph, ev.driver.color, 0.3); y += ph + 40 * u; }
+    else { const ph = Math.min((bottom - y) * (H > 1600 ? 0.6 : 0.5), bottom - y - 440 * u); y += Math.max(0, (bottom - y - ph - 440 * u) / 2); photo(ctx, img, W * 0.18, y, W * 0.64, ph, ev.driver.color, 0.3); y += ph + 40 * u; }
   } else y = (top + bottom) / 2 - 190 * u;   // sans photo : bloc centré
   // Bandeau du type d'évènement
   const label = fitLines(ctx, k.label, colW, [130, 116, 104, 92, 80, 70].map((v) => Math.round(v * u)), 2, TITLE, 800);
@@ -932,7 +936,7 @@ function essentiel(ctx, W, H, d, o, page, fmt) {
   const numW = 92 * u;
   const gap = (land ? 30 : 44) * u;
   let pick = null;
-  for (const size of [52, 48, 44, 40, 36, 33, 30, 27].map((v) => Math.round(v * u))) {
+  for (const size of [68, 62, 56, 52, 48, 44, 40, 36, 33, 30, 27].map((v) => Math.round(v * u))) {
     const lh = Math.round(size * 1.32);
     const blocks = pts.map((p) => fitLines(ctx, p, colW - numW, [size], 99, BODY, 600).lines);
     const h = blocks.reduce((n, b) => n + Math.max(b.length * lh, numW * 0.75), 0) + gap * (pts.length - 1);

@@ -32,7 +32,7 @@ export function horaires(ctx, W, H, d, o) {
     });
   } else {
     const rows = d.sessions.length + days.length;
-    const unit = Math.min(H > 1600 ? 150 : 112, (f.bottom - f.top - 20) / Math.max(rows, 1));
+    const unit = Math.min(H > 1600 ? 190 : 120, (f.bottom - f.top - 20) / Math.max(rows, 1));
     let y = f.top + 10;
     for (const g of days) {
       txt(ctx, `${g.day} ${g.k}`.toUpperCase(), f.pad, y + unit * 0.62, { size: Math.round(unit * 0.32), weight: 800, family: TITLE, color: C.red, spacing: 3 });
@@ -58,7 +58,7 @@ export function infos(ctx, W, H, d, o) {
   const gap = 30;
   const bw = land ? (W - f.pad * 2 - gap * (blocks.length - 1)) / blocks.length : W - f.pad * 2;
   const full = land ? f.bottom - f.top : (f.bottom - f.top - gap * (blocks.length - 1)) / blocks.length;
-  const bh = Math.min(full, land ? 620 : 600);
+  const bh = Math.min(full, land ? 620 : H > 1600 ? 860 : 680);
   const y0 = f.top + (land ? (full - bh) / 2 : (f.bottom - f.top - blocks.length * bh - gap * (blocks.length - 1)) / 2);
   blocks.forEach((b, i) => {
     const x = land ? f.pad + i * (bw + gap) : f.pad;
@@ -66,7 +66,7 @@ export function infos(ctx, W, H, d, o) {
     panel(ctx, x, y, bw, bh);
     txt(ctx, b === 'tyres' ? 'PNEUS PIRELLI' : 'MÉTÉO PRÉVUE', x + 30, y + 56, { size: 30, weight: 800, family: TITLE, color: C.muted, spacing: 3 });
     if (b === 'tyres') {
-      const r = Math.min(bw / 9, (bh - 150) / 2.8, 110);
+      const r = Math.min(bw / 8, (bh - 150) / 2.8, 140);
       ['hard', 'medium', 'soft'].forEach((k, j) => {
         const cx = x + bw * (j + 0.5) / 3;
         const cy = y + 90 + (bh - 90) * 0.45;
@@ -205,11 +205,13 @@ export function equipes(ctx, W, H, d, o, page) {
     panel(ctx, f.pad, y, W - f.pad * 2, h);
     const col = vivid(r.color);
     ctx.fillStyle = col; ctx.fillRect(f.pad, y + 14, 8, h - 28);
-    const fs = Math.round(Math.min(h * 0.2, land ? 40 : 46));
+    const fs = Math.round(Math.min(h * 0.2, land ? 40 : H > 1600 ? 60 : 46));
     const cx = W / 2;
     txt(ctx, r.team.toUpperCase(), cx, y + fs * 1.1, { size: Math.round(fs * 0.62), weight: 700, family: TITLE, color: col, align: 'center', spacing: 3, max: W * 0.5 });
-    txt(ctx, r.a.last.toUpperCase(), f.pad + 34, y + h * 0.5, { size: fs, weight: 800, family: TITLE, max: W * 0.28 });
-    txt(ctx, r.b.last.toUpperCase(), W - f.pad - 30, y + h * 0.5, { size: fs, weight: 800, family: TITLE, align: 'right', max: W * 0.28 });
+    // Noms : jusqu'aux chiffres des barres, sans les chevaucher
+    const nameMax = (W - W * (land ? 0.3 : 0.34)) / 2 - f.pad - 34 - fs * 1.1;
+    txt(ctx, r.a.last.toUpperCase(), f.pad + 34, y + h * 0.5, { size: fs, weight: 800, family: TITLE, max: nameMax });
+    txt(ctx, r.b.last.toUpperCase(), W - f.pad - 30, y + h * 0.5, { size: fs, weight: 800, family: TITLE, align: 'right', max: nameMax });
     // Barres qualifs et course : part de chacun
     const bar = (label, a, b, by) => {
       const bw = W * (land ? 0.3 : 0.34);
@@ -302,12 +304,12 @@ export function recapCover(ctx, W, H, d, o) {
   const end = H - Math.round(Math.min(W, H) * 0.12);
   // Infos gardées dans le carrousel (images écartées : retirées du sommaire)
   const kept = o.slides ? o.slides.filter((s) => /^recap-\d+$/.test(s)).map((s) => d.items[Number(s.slice(6)) - 1]).filter(Boolean) : d.items;
-  const each = (end - ly) / Math.max(1, kept.length);
+  const each = Math.min((end - ly) / Math.max(1, kept.length), 230 * u);
   kept.forEach((it, i) => {
-    txt(ctx, String(i + 1).padStart(2, '0'), lx, ly + 40 * u, { size: Math.round(40 * u), weight: 800, family: TITLE, color: C.red });
-    txt(ctx, it.badge.label, lx + 80 * u, ly + 22 * u, { size: Math.round(20 * u), weight: 700, family: TITLE, color: it.badge.color, spacing: 3 });
-    const t = fitLines(ctx, it.title.toUpperCase(), lw - 80 * u, [Math.round(32 * u), Math.round(28 * u)], each > 120 * u ? 2 : 1, TITLE, 800);
-    t.lines.forEach((l, k) => txt(ctx, l, lx + 80 * u, ly + 58 * u + k * t.size * 1.02, { size: t.size, weight: 800, family: TITLE }));
+    txt(ctx, String(i + 1).padStart(2, '0'), lx, ly + 46 * u, { size: Math.round(48 * u), weight: 800, family: TITLE, color: C.red });
+    txt(ctx, it.badge.label, lx + 90 * u, ly + 22 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: it.badge.color, spacing: 3 });
+    const t = fitLines(ctx, it.title.toUpperCase(), lw - 90 * u, [44, 38, 32, 28].map((v) => Math.round(v * u)), each > 170 * u ? 3 : each > 120 * u ? 2 : 1, TITLE, 800);
+    t.lines.forEach((l, k) => txt(ctx, l, lx + 90 * u, ly + 64 * u + k * t.size * 1.02, { size: t.size, weight: 800, family: TITLE }));
     ly += each;
   });
   const fy = H - Math.round(Math.min(W, H) * 0.045);
@@ -318,7 +320,7 @@ export function recapCover(ctx, W, H, d, o) {
 export function recapItem(ctx, W, H, d, o, i, fmt) {
   const it = d.items[i - 1];
   if (!it) return;
-  newsSlide(ctx, W, H, it, { ...o, slides: null }, fmt);
+  newsSlide(ctx, W, H, it, { ...o, slides: [] }, fmt);
   const u = Math.min(W, H) / 1080;
   const kept = o.slides ? o.slides.filter((s) => /^recap-\d+$/.test(s)) : d.items.map((_, k) => `recap-${k + 1}`);
   txt(ctx, `${Math.max(1, kept.indexOf(`recap-${i}`) + 1)} / ${kept.length}`, W - Math.round(W * 0.055), Math.round(Math.min(W, H) * 0.06) + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
