@@ -17,6 +17,18 @@ l'application (Réglages → Application → Nouveautés).
   survol, une petite barre en bas change sa taille (− / +) ou le ferme ; le coin en bas à droite et
   Ctrl + molette règlent aussi la taille.
 
+### Résultats
+- Nouvelle page **Résultats** (barre latérale, à la place d'Analyse ; menu Plus sur téléphone) : podium
+  avec écarts et place au départ, belles remontées et courses difficiles, stratégie du leader et la plus
+  courante en pneus, neutralisations, abandons, pénalités, meilleur tour, puis le classement complet
+  (grille et places gagnées, écart ou abandon, tours, arrêts, pneus utilisés, meilleur tour ; Q1, Q2, Q3
+  et écart à la pole en qualifications). Au rythme du délai TV.
+- « Voir les résultats » (accueil et écran « Pas de séance en direct ») ouvre cette page.
+- Les graphiques d'analyse restent dans leurs onglets du tableau de bord (Écarts, Temps, Secteurs,
+  Comparaison, Télémétrie).
+- Le **Résumé** est maintenant visuel : les mêmes cartes (podium, remontées, pneus, neutralisations,
+  abandons, meilleur tour) ; le texte rédigé reste copiable.
+
 ### Saison : Duels
 - La vue « Coéquipiers » devient « Duels » et occupe toute la largeur : le duel à gauche, l'écart en
   qualification à droite (l'un sous l'autre sur un écran étroit).
@@ -36,6 +48,7 @@ l'application (Réglages → Application → Nouveautés).
   (textes et courbes ne sont plus agrandis avec la largeur).
 
 ### Corrections
+- Duel : le nombre d'arrêts n'affiche plus « undefined » (en replay comme en direct).
 - Carte : les bulles d'écart (moins d'une seconde) ne sont plus coupées au bord de la carte, surtout
   dans la carte flottante ; près du bord, elles passent de l'autre côté du tracé.
 - Thème clair : les noms des pilotes et les temps sont de nouveau lisibles dans la bulle qui apparaît au

@@ -322,7 +322,7 @@ function mobMore(btn) {
   const menu = document.createElement('div');
   menu.className = 'lpop-menu mob-more';
   menu.innerHTML = [
-    ['replays', 'history', 'Replays'], ['comm', 'mic', 'Commentaires en direct'], ['summary', 'doc', 'Résumé de la séance'],
+    ['results', 'checkered', 'Résultats de la séance'], ['replays', 'history', 'Replays'], ['comm', 'mic', 'Commentaires en direct'], ['summary', 'doc', 'Résumé de la séance'],
     ['settings', 'gear', 'Réglages'],
   ].map(([k, ic, label]) => `<button data-more="${k}">${icon(ic)} ${label}</button>`).join('');
   document.body.appendChild(menu);
@@ -333,7 +333,8 @@ function mobMore(btn) {
     const k = e.target.closest('[data-more]')?.dataset.more;
     if (!k) return;
     menu.remove();
-    if (k === 'replays') (await import('./replays.js')).openReplays();
+    if (k === 'results') { (await import('./home.js')).closeHome(); (await import('./results-view.js')).openResults(); }
+    else if (k === 'replays') (await import('./replays.js')).openReplays();
     else if (k === 'comm') $('#commBtn')?.click();
     else if (k === 'summary') $('#summaryBtn')?.click();
     else if (k === 'settings') $('#settingsBtn')?.click();
@@ -1002,7 +1003,7 @@ export function initLayout() {
     replays.closeReplays();
     if (k === 'season') season.openSeason();
     else if (k === 'news') news.openNews();
-    else { season.closeSeason(); news.closeNews(); }
+    else { season.closeSeason(); news.closeNews(); (await import('./results-view.js')).closeResults(); }
   });
   $('#mobPanels')?.addEventListener('click', (e) => { const b = e.target.closest('[data-mobp]'); if (b) showMobilePanel(b.dataset.mobp); });
   // Bouton actif de la barre du bas : suit les espaces ouverts (accueil, saison, actu, replays)

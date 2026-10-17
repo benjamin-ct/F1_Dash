@@ -2,9 +2,10 @@
 // ou à copier pour le partager.
 import { store } from '../store.js';
 import { $, esc } from '../util.js';
-import { icon, arrows } from '../icons.js';
+import { icon } from '../icons.js';
 import { toast } from './delay.js';
-import { buildSummary } from '/shared/summary.js';
+import { buildSummary, summaryFacts } from '/shared/summary.js';
+import { reportHtml, statusLabel } from './report.js';
 import { LANG, t } from '../i18n.js';
 
 function text(s) { return `${s.title}\n\n${s.paragraphs.join('\n')}`; }
@@ -25,8 +26,10 @@ function open() {
   }
   const s = buildSummary(store.state, { lang: LANG });
   dlg.dataset.text = text(s);
-  dlg.innerHTML = `<div class="sum-head"><b data-no-i18n>${icon('doc')} ${esc(s.title)}</b><button class="icon-btn" data-sum-close title="Fermer">${icon('close')}</button></div>
-    <div class="sum-body" data-no-i18n>${s.paragraphs.map((p) => `<p>${arrows(esc(p))}</p>`).join('')}</div>
+  // En cartes (podium, remontées, stratégies…) ; le texte rédigé reste copiable
+  const f = summaryFacts(store.state);
+  dlg.innerHTML = `<div class="sum-head"><b data-no-i18n>${icon('doc')} ${esc(s.title)}</b><span class="rp-status${f.final ? ' done' : ''}">${statusLabel(f)}</span><button class="icon-btn" data-sum-close title="Fermer">${icon('close')}</button></div>
+    <div class="sum-body">${reportHtml(store.state)}</div>
     <div class="sum-foot"><span class="muted small">Rédigé automatiquement à partir des données de la séance${s.final ? '' : ', au rythme de votre délai TV'}.</span>
       <button class="btn small" data-sum-copy>${icon('save')} Copier le texte</button></div>`;
   dlg.showModal();

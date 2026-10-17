@@ -238,3 +238,58 @@ function buildSummaryEn(state) {
   if (!finished) out.paragraphs.push('Provisional summary: the session isn\'t over (in step with your TV delay).');
   return out;
 }
+
+// Mêmes éléments que le résumé, en données (pour l'affichage en cartes : résumé et page Résultats)
+export function summaryFacts(state, { lang = 'fr' } = {}) {
+  const kind = sessionKindOf(state);
+  const dl = state?.DriverList || {};
+  const lines = state?.TimingData?.Lines || {};
+  const app = state?.TimingAppData?.Lines || {};
+  const stats = state?.TimingStats?.Lines || {};
+  const msgs = list(state?.RaceControlMessages?.Messages);
+  const ranked = Object.keys(lines).filter((n) => Number(lines[n]?.Position) > 0).sort((a, b) => Number(lines[a].Position) - Number(lines[b].Position));
+  const finished = ['Finished', 'Finalised', 'Ends'].includes(state?.SessionStatus?.Status);
+  const part = Number(state?.TimingData?.SessionPart) || 1;
+  const drv = (n) => ({ n, tla: dl[n]?.Tla || n, name: dl[n]?.LastName || dl[n]?.Tla || n, team: dl[n]?.TeamName || '', color: dl[n]?.TeamColour ? `#${dl[n].TeamColour}` : '#8b95a8', pos: Number(lines[n]?.Position) || null });
+  const f = { kind, final: finished, lap: state?.LapCount?.CurrentLap || null, total: state?.LapCount?.TotalLaps || null, part, top: [], ranked };
+  if (!ranked.length) return f;
+  const redFlags = msgs.filter((m) => m?.Flag === 'RED').map((m) => m.Lap || null);
+  if (kind === 'race') {
+    const leaderLaps = Number(lines[ranked[0]]?.NumberOfLaps) || 0;
+    const isOut = (n) => lines[n].Retired || (lines[n].Stopped && (!finished || (Number(lines[n].NumberOfLaps) || 0) < 0.9 * leaderLaps));
+    f.top = ranked.slice(0, 3).map((n, i) => ({ ...drv(n), gap: i ? lines[n]?.GapToLeader || '' : '', grid: Number(app[n]?.GridPos) || null }));
+    const moves = ranked.filter((n) => !isOut(n) && Number(app[n]?.GridPos) > 0)
+      .map((n) => ({ ...drv(n), from: Number(app[n].GridPos), to: Number(lines[n].Position), d: Number(app[n].GridPos) - Number(lines[n].Position) }));
+    f.up = moves.filter((m) => m.d >= 4).sort((a, b) => b.d - a.d).slice(0, 3);
+    f.down = moves.filter((m) => m.d <= -4).sort((a, b) => a.d - b.d).slice(0, 2);
+    const strat = (n) => realStints(list(app[n]?.Stints)).map((s) => s?.Compound).filter((c) => LETTER[c]);
+    f.leaderStrat = strat(ranked[0]);
+    const counts = new Map();
+    for (const n of ranked) { const st = strat(n); if (st.length) { const k = st.join('-'); counts.set(k, (counts.get(k) || 0) + 1); } }
+    const common = [...counts].sort((a, b) => b[1] - a[1])[0];
+    f.common = common && common[1] >= 4 ? { comps: common[0].split('-'), count: common[1] } : null;
+    f.sc = msgs.filter((m) => /^SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
+    f.vsc = msgs.filter((m) => /^VIRTUAL SAFETY CAR DEPLOYED/.test(m?.Message || '')).map((m) => m.Lap).filter(Boolean);
+    f.red = redFlags.filter(Boolean);
+    f.out = ranked.filter(isOut).map(drv);
+    const fl = Object.keys(stats).find((n) => stats[n]?.PersonalBestLapTime?.Position === 1);
+    if (fl && stats[fl].PersonalBestLapTime.Value) f.fastest = { ...drv(fl), time: stats[fl].PersonalBestLapTime.Value, lap: stats[fl].PersonalBestLapTime.Lap || null };
+  } else if (kind === 'quali') {
+    const best = (n) => list(lines[n]?.BestLapTimes)[part - 1]?.Value || lines[n]?.BestLapTime?.Value || '';
+    const gap = (n) => list(lines[n]?.Stats)[part - 1]?.TimeDiffToFastest || '';
+    f.top = ranked.slice(0, 3).map((n, i) => ({ ...drv(n), time: best(n), gap: i ? gap(n) : '' }));
+    // Éliminés, par partie : la dernière partie où le pilote a un temps
+    const lastPart = (n) => list(lines[n]?.BestLapTimes).reduce((k, x, i) => (x?.Value ? i + 1 : k), 0) || 1;
+    f.knocked = {};
+    for (const n of ranked.filter((x) => lines[x].KnockedOut)) (f.knocked[lastPart(n)] ||= []).push(drv(n));
+    f.red = redFlags;
+  } else {
+    f.top = ranked.slice(0, 3).map((n, i) => ({ ...drv(n), time: lines[n]?.BestLapTime?.Value || '', gap: i ? lines[n]?.TimeDiffToFastest || '' : '' }));
+    const laps = ranked.map((n) => [n, Number(lines[n]?.NumberOfLaps) || 0]).sort((a, b) => b[1] - a[1]);
+    if (laps[0]?.[1]) f.mostLaps = { ...drv(laps[0][0]), laps: laps[0][1] };
+    f.red = redFlags;
+  }
+  const name = (n) => dl[n]?.LastName || dl[n]?.Tla || null;
+  f.penalties = penalties(msgs, name, lang === 'en');
+  return f;
+}

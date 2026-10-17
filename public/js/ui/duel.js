@@ -243,7 +243,7 @@ function renderSlow(a, b) {
   rows += cmpRow('Pneus', tyre(stA), tyre(stB));
   if (kind === 'race') {
     // Vrais arrêts (changements de pneus), sans les passages par les stands sous voiture de sécurité
-    rows += cmpRow('Arrêts', realStopCount(app[a], la), realStopCount(app[b], lb));
+    rows += cmpRow('Arrêts', num(realStopCount(app[a], la)), num(realStopCount(app[b], lb)));
     rows += cmpRow('Écart leader', num(/^LAP/i.test(la.GapToLeader || '') ? 'Leader' : la.GapToLeader), num(/^LAP/i.test(lb.GapToLeader || '') ? 'Leader' : lb.GapToLeader));
   } else {
     rows += cmpRow('Tours', num(la.NumberOfLaps), num(lb.NumberOfLaps));

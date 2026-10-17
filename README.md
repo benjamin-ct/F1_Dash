@@ -24,7 +24,7 @@ Dashboard **Formule 1 en direct** pour suivre chaque Grand Prix sur votre ordina
 - **Espace Saison** : calendrier, classements, notes des pilotes (S à F), écart en qualification entre coéquipiers, statistiques par pilote, régularité, arrêts, vitesses, profils des circuits, évolutions techniques et éléments moteur (documents FIA).
 - **Replays** de toutes les sessions archivées, avec les **moments clés** cliquables (départ, drapeaux, leaders, arrêts, incidents, pénalités), disposition libre des panneaux, second écran.
 - **Mini-classement flottant** toujours au premier plan, à poser par-dessus la vidéo de la course.
-- **Résumé automatique** de la séance en français, **radar de la pluie** autour du circuit, **rappels** avant chaque séance et **calendrier** à ajouter à votre agenda.
+- **Résultats** et **résumé** de la séance en cartes (podium, remontées, stratégies, neutralisations, classement complet), **radar de la pluie** autour du circuit, **rappels** avant chaque séance et **calendrier** à ajouter à votre agenda.
 - **Pronostics entre amis** (pole et podium) avec classement de la saison, et **lumières connectées** (Philips Hue, Home Assistant) aux couleurs des drapeaux, en expérimental.
 - **En français ou en anglais** (Réglages → Affichage → Langue / Language).
 - **Sauvegarde des réglages** dans un fichier, à restaurer après une réinstallation ou sur un autre ordinateur.

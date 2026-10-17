@@ -2325,7 +2325,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 @media (max-width: 900px) { .moments-pop { right: 8px; left: 8px; width: auto; bottom: 150px; } }
 
 /* Résumé automatique de la séance */
-.summary-dlg { width: min(620px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); color: var(--text); }
+.summary-dlg { width: min(820px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--panel); color: var(--text); }
 .summary-dlg::backdrop { background: rgba(0, 0, 0, .5); }
 .sum-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 10px 18px; border-bottom: 1px solid var(--line); }
 .sum-head b { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; margin-right: auto; }
@@ -2583,6 +2583,77 @@ html.float-mini .mini-table td:first-child { border-radius: 6px 0 0 6px; }
 html.float-mini .mini-table td:last-child { border-radius: 0 6px 6px 0; }
 html.float-mini .mini-foot { left: 4px; right: 4px; bottom: 4px; }
 html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas : laisse libre le bouton INT / ÉCART */
+
+/* ---------- Résultats : séance en cartes (fenêtre Résumé et page Résultats) ---------- */
+.rp-status { flex: none; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; background: color-mix(in srgb, var(--yellow) 18%, transparent); color: var(--yellow); }
+.rp-status.done { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+.rp-podium { display: grid; grid-template-columns: 1fr 1.12fr 1fr; gap: 10px; align-items: end; margin: 6px 0 14px; }
+.rp-pod { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 16%, var(--panel)) 0%, var(--panel) 70%); border-top: 3px solid var(--tc); min-width: 0; }
+.rp-pod.p1 { order: 2; padding-top: 22px; padding-bottom: 18px; }
+.rp-pod.p2 { order: 1; }
+.rp-pod.p3 { order: 3; }
+.rp-pos { position: absolute; top: 8px; right: 10px; font: 900 26px/1 "Saira Condensed", sans-serif; color: color-mix(in srgb, var(--tc) 70%, var(--text)); opacity: .9; }
+.rp-pod.p1 .rp-pos { font-size: 34px; }
+.rp-pod-who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.rp-pod-who .team-logo { width: 30px; height: 30px; }
+.rp-pod-who > div > b { display: block; font-size: 20px; letter-spacing: .5px; line-height: 1.1; }
+.rp-pod-who > div > span { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rp-val { font: 800 17px "JetBrains Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
+.rp-lead { font-family: "Saira Condensed", sans-serif; font-size: 18px; text-transform: uppercase; letter-spacing: .6px; color: var(--tc); filter: brightness(1.15); }
+.rp-sub { font-size: 12px; min-height: 1em; }
+.rp-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.rp-tile { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.rp-tile h4 { margin: 0 0 2px; display: flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .9px; text-transform: uppercase; color: var(--muted); }
+.rp-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.rp-row > :first-child { margin-right: auto; }
+.rp-drv { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.rp-drv .team-logo { width: 20px; height: 20px; }
+.rp-delta { font-weight: 800; font-size: 12px; padding: 1px 6px; border-radius: 6px; }
+.rp-delta.up { color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
+.rp-delta.down { color: var(--red); background: color-mix(in srgb, var(--red) 14%, transparent); }
+.rp-tyres { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.rp-arr { color: var(--muted); display: inline-flex; }
+.rp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 7px; font-size: 12px; font-weight: 700; background: var(--panel-3); }
+.rp-chip.sc, .rp-chip.vsc { background: color-mix(in srgb, var(--sc) 22%, transparent); color: var(--sc); }
+.rp-chip.red { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
+.rp-chip.green { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+.rp-chip.out { opacity: .85; }
+.rp-best { font: 800 24px "JetBrains Mono", Consolas, monospace; color: var(--purple); }
+.rp-best.plain { color: var(--text); }
+.rp-tile.fl { border-color: color-mix(in srgb, var(--purple) 45%, var(--border)); }
+/* Page Résultats */
+.results-view .sz-main { max-width: 1280px; margin: 0 auto; width: 100%; }
+.rp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.rp-head h2 { margin: 2px 0 0; font-size: 24px; }
+.rp-class { margin-top: 14px; }
+.rp-table-wrap { overflow-x: auto; }
+.rp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rp-table th { text-align: left; font-size: 10.5px; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.rp-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.rp-table tr.out td { opacity: .55; }
+.rp-c-pos { width: 34px; font: 800 14px "Saira Condensed", sans-serif; color: var(--muted); }
+.rp-c-drv { display: flex; align-items: center; gap: 7px; }
+.rp-c-drv .team-logo { width: 20px; height: 20px; }
+.rp-num { font-family: "JetBrains Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
+.rp-c-tyres { display: flex; gap: 3px; }
+.rp-purple { color: var(--purple); font-weight: 800; }
+.rp-dnf { color: var(--red); font-family: inherit; font-weight: 700; }
+/* Fenêtre Résumé : cartes */
+.summary-dlg .sum-body { padding: 12px 18px; }
+@media (max-width: 640px) {
+  .rp-podium { gap: 6px; }
+  .rp-pod { padding: 10px 8px; gap: 4px; }
+  .rp-pod.p1 { padding-top: 16px; padding-bottom: 12px; }
+  .rp-pod-who { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .rp-pod-who .team-logo { width: 22px; height: 22px; }
+  .rp-pod-who > div > b { font-size: 16px; }
+  .rp-pod-who > div > span { display: none; }
+  .rp-pos, .rp-pod.p1 .rp-pos { font-size: 18px; top: 6px; right: 7px; }
+  .rp-val { font-size: 13px; }
+  .rp-lead { font-size: 14px; }
+  .rp-sub { font-size: 10.5px; }
+}
 
 /* ---------- Réglages : rubriques à gauche, contenu en cartes, recherche ---------- */
 #settingsModal.set-modal { width: min(1040px, calc(100vw - 48px)); height: min(740px, calc(100vh - 48px)); max-height: none; overflow: hidden;

@@ -22,7 +22,7 @@
     <img class="rail-logo" src="/logo.svg" alt="Paddock Live">
     <button class="rail-btn" data-rail="home" title="Accueil : prochaine séance, dernière séance sans spoiler, actualités"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/></svg><small>Accueil</small></button>
     <button class="rail-btn" data-rail="live" title="Direct : tableau de bord de la séance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><small>Direct</small></button>
-    <button class="rail-btn" data-rail="ana" title="Analyse : graphiques, comparaison des tours (plein écran ; Échap pour revenir)"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7"/></svg><small>Analyse</small></button>
+    <button class="rail-btn" data-rail="results" title="Résultats de la séance : podium, remontées, stratégies, neutralisations, abandons, meilleur tour et classement complet"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h13l-2 4 2 4H5"/><path d="M9 4v8M13 4v8" opacity=".5"/></svg><small>Résultats</small></button>
     <button class="rail-btn" data-rail="season" title="Saison : calendrier, classements, résultats, statistiques"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><small>Saison</small></button>
     <button class="rail-btn" data-rail="news" title="Actu : toute l'actualité de la F1 (F1, FIA, écuries, pilotes, médias du monde entier), traduite, avec alertes"><svg viewBox="0 0 24 24"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12h7M7 15h4"/></svg><small>Actu</small></button>
     <div class="rail-div" aria-hidden="true"></div>
@@ -209,6 +209,10 @@
       <div class="muted small sz-src">F1, FIA, chaînes officielles des écuries et des pilotes, médias en 8 langues</div>
     </aside>
     <div class="sz-main" id="nwContent"></div>
+  </div>
+
+  <div class="season-view results-view" id="resultsView" hidden>
+    <div class="sz-main" id="resContent"></div>
   </div>
 
   <nav class="mob-panels" id="mobPanels" hidden aria-label="Panneaux"></nav>

@@ -10,6 +10,7 @@ import { gpShort, sessionLabel } from '/shared/gp-names.js';
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
 import { teamKey } from '/shared/news.js';
+import { openResults } from './results-view.js';
 
 let schedule = null;   // [{ race, round, label, t }]
 let archive = null;    // dernière séance rejouable { meeting, name, path, t }
@@ -188,7 +189,7 @@ function render() {
         <div class="hm-title">${esc(gp(ls.meeting))} : ${esc(sessionName(ls.name))}</div>
         <div class="muted">${esc(ago(ls.t))} · résultat masqué</div>
         <div class="hm-actions"><button class="btn btn-accent" data-home="replay">${icon('play')} Revoir en replay</button>
-          <button class="btn" data-home="results" title="Ouvre le tableau de bord avec l'état final de la séance (résultat visible)">${icon('checkered')} Voir les résultats</button></div></section>`
+          <button class="btn" data-home="results" title="Page Résultats : podium, remontées, stratégies, abandons et classement complet de la séance (résultat visible)">${icon('checkered')} Voir les résultats</button></div></section>`
     : '';
   view.querySelector('.hm-main').innerHTML = `<h1 class="hm-hello">Paddock Live</h1>
     <div class="hm-grid">${card}${last}</div>
@@ -262,8 +263,8 @@ async function act(k) {
   if (k === 'editfav') { editFav = !editFav; renderFav(); return; }
   if (k.startsWith('favd:')) { toggleDriver(k.slice(5)); return; }
   if (k.startsWith('favt:')) { toggleTeamFav(k.slice(5)); return; }
-  if (k === 'results') resultsOpen = true;
-  if (k === 'live' || k === 'results') { closeHome(); noLiveCheck(); return; }
+  if (k === 'results') { resultsOpen = true; closeHome(); noLiveCheck(); openResults(); return; }
+  if (k === 'live') { closeHome(); noLiveCheck(); return; }
   // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
   // jusqu'au lancement du replay
   if (k === 'season') { (await import('./season.js')).openSeason(); return; }
@@ -339,7 +340,7 @@ function noLiveCheck(show = true) {
     <p class="muted small">Le tableau de bord s'ouvre tout seul au début de la séance.</p>
     <div class="nl-actions">
       ${ls ? `<button class="btn btn-accent" data-nl="replay">${icon('play')} ${esc(t('Revoir {} : {}', gp(ls.meeting), sessionName(ls.name)))}</button>` : ''}
-      <button class="btn" data-nl="results" title="Tableau de bord avec l'état final de la dernière séance (résultat visible)">${icon('checkered')} Voir les résultats</button>
+      <button class="btn" data-nl="results" title="Page Résultats de la dernière séance : podium, remontées, stratégies et classement complet (résultat visible)">${icon('checkered')} Voir les résultats</button>
       <button class="btn" data-nl="replays">${icon('history')} Toutes les séances</button>
     </div>`;
 }
@@ -350,7 +351,7 @@ export function initNoLive() {
   view.addEventListener('click', (e) => {
     const b = e.target.closest('[data-nl]');
     if (!b) return;
-    if (b.dataset.nl === 'results') { resultsOpen = true; noLiveCheck(); } else act(b.dataset.nl);
+    if (b.dataset.nl === 'results') { resultsOpen = true; noLiveCheck(); openResults(); } else act(b.dataset.nl);
   });
   // Vues ouvertes ou fermées, source changée, séance qui démarre : écran affiché ou retiré aussitôt
   const mo = new MutationObserver(() => noLiveCheck());

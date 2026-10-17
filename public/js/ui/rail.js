@@ -1,11 +1,12 @@
-// Barre de navigation latérale (Accueil, Direct, Analyse, Saison, Replays, Radios,
+// Barre de navigation latérale (Accueil, Direct, Résultats, Saison, Replays, Radios,
 // Réglages). Elle reprend les actions des boutons du haut, masqués.
 import { $, $$ } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
 import { openNews, closeNews } from './news.js';
 import { openHome, closeHome, homeTouched, startWindows } from './home.js';
 import { openReplays, closeReplays } from './replays.js';
-import { unmaximize, showPanelLarge, setFreeLayout, isFreeLayout, saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
+import { openResults, closeResults, isResultsOpen } from './results-view.js';
+import { unmaximize, setFreeLayout, isFreeLayout, saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { prefs, setPref } from '../prefs.js';
@@ -51,14 +52,10 @@ function openSettings(group) {
 
 const ACTIONS = {
   home: () => openHome(),
-  live: () => { homeTouched(); closeHome(); closeReplays(); closeSeason(); closeNews(); unmaximize(); },
-  ana: () => {
-    homeTouched();
-    closeHome();
-    closeReplays();
-    closeSeason();
-    closeNews();
-    if (showPanelLarge('analysis') === 'elsewhere') toast('Analyse affichée en grand dans l\'autre fenêtre (second écran)');
+  live: () => { homeTouched(); closeHome(); closeReplays(); closeSeason(); closeNews(); closeResults(); unmaximize(); },
+  results: () => {
+    if (isResultsOpen()) { closeResults(); return; }
+    homeTouched(); closeHome(); closeReplays(); closeSeason(); closeNews(); openResults();
   },
   season: () => { closeNews(); closeReplays(); if ($('#seasonView').hidden) openSeason(); else closeSeason(); },
   news: () => { closeReplays(); if ($('#newsView').hidden) openNews(); else closeNews(); },
@@ -102,16 +99,16 @@ function layoutMenu(btn) {
   setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
 }
 
-// Élément actif : Saison ouverte, Analyse en grand, sinon Direct
+// Élément actif : page ouverte (Accueil, Replays, Actu, Saison, Résultats), sinon Direct
 function sync() {
   const season = !$('#seasonView').hidden;
   const news = !$('#newsView').hidden;
   const home = !$('#homeView')?.hidden;
   const replays = !$('#replayView')?.hidden;
-  const ana = $('.p-analysis')?.classList.contains('maximized');
-  const cur = home ? 'home' : replays ? 'replay' : news ? 'news' : season ? 'season' : ana ? 'ana' : 'live';
+  const results = isResultsOpen();
+  const cur = home ? 'home' : replays ? 'replay' : news ? 'news' : season ? 'season' : results ? 'results' : 'live';
   // Tableau de bord affiché : fenêtres du second écran rouvertes (pas sur l'accueil)
-  if (cur === 'live' || cur === 'ana') startWindows();
+  if (cur === 'live') startWindows();
   for (const b of $$('#rail [data-rail]')) {
     const k = b.dataset.rail;
     b.classList.toggle('on', k === cur);
@@ -131,13 +128,13 @@ export function initRail() {
   const mo = new MutationObserver(sync);
   mo.observe($('#seasonView'), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('#newsView'), { attributes: true, attributeFilter: ['hidden'] });
-  for (const id of ['#homeView', '#replayView']) if ($(id)) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
+  for (const id of ['#homeView', '#replayView', '#resultsView']) if ($(id)) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('.grid'), { attributes: true, attributeFilter: ['class'] });
   mo.observe($('#commBtn'), { attributes: true, attributeFilter: ['class'] });
   sync();
   schemeButton();
   // Résumé et mini-classement : grisés tant qu'aucune séance n'est chargée
-  const noSession = () => { const off = !store.state.SessionInfo; for (const k of ['summary', 'mini']) { const b = $(`#rail [data-rail="${k}"]`); if (b) b.disabled = off; } };
+  const noSession = () => { const off = !store.state.SessionInfo; for (const k of ['summary', 'mini', 'results']) { const b = $(`#rail [data-rail="${k}"]`); if (b) b.disabled = off; } };
   noSession();
   setInterval(noSession, 2000);
   on('prefs', (k) => { if (k === 'scheme') schemeButton(); });
