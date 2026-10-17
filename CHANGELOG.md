@@ -13,6 +13,20 @@ l'application (Réglages → Application → Nouveautés).
   victoires au classement des constructeurs, et leurs actualités sont mises en avant (filtre « Favoris »
   et alertes d'actualités). Elles se règlent aussi dans Réglages → Alertes & favoris.
 
+### Moins d'onglets
+- Les onglets proches sont réunis : « Écarts » (race trace et positions), « Temps » (tours et rythme) et
+  « Direction de course » (messages, enquêtes et limites de piste). Un petit sélecteur en haut de chacun
+  passe d'une vue à l'autre ; les pastilles des enquêtes et des limites de piste y restent visibles.
+- Les onglets inutiles pour la séance chargée sont masqués tout seuls : en qualifications et en essais,
+  plus d'Écarts, de Pneus tour par tour, de Stratégie, de Simulateur, de Bagarres ni de Championnat ; en
+  course, plus de Comparaison des tours. Ils reviennent à la séance suivante.
+
+### Pas de séance en direct
+- Sans séance en cours, « Direct » affiche un écran d'attente au lieu du tableau de bord de la dernière
+  séance : prochaine séance avec compte à rebours, et boutons pour revoir la dernière séance en replay,
+  voir ses résultats ou parcourir toutes les séances. Le tableau de bord revient tout seul au début de
+  la séance suivante.
+
 ### Réseaux sociaux
 - Bouton « Suivre Paddock Live sur les réseaux » en bas de l'accueil, et « Tous nos réseaux » dans
   Réglages → Application : une page avec Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky.
@@ -21,6 +35,7 @@ l'application (Réglages → Application → Nouveautés).
 - Redimensionnement des panneaux : la barre entre deux panneaux suit enfin la souris jusqu'au bout, et
   le curseur à double flèche ne reste plus bloqué après le relâchement (surtout avec une deuxième
   fenêtre ouverte, qui redessinait la disposition pendant le geste).
+- Après avoir glissé un onglet, le clic suivant n'est plus ignoré.
 - Déplacer un onglet d'un panneau à l'autre ne recharge plus les autres panneaux : la Direction de
   course garde sa liste et sa position de lecture.
 

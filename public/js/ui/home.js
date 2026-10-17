@@ -19,6 +19,7 @@ let weather = null;    // { key, days } : météo prévue du prochain Grand Prix
 let showFav = false;   // carte du favori dévoilée (peut contenir le dernier résultat)
 let editFav = false;   // choix des pilotes et écuries favoris ouvert sur l'accueil
 let touched = false;   // l'utilisateur a quitté l'accueil : plus d'ouverture ou de fermeture automatique
+let resultsOpen = false;   // résultats de la dernière séance demandés : tableau de bord même sans direct
 
 // Durée approximative d'une séance (fenêtre « en cours »)
 const LONG = /course|race|grand prix/i;
@@ -215,8 +216,7 @@ async function news() {
 }
 
 // Entre la barre du haut et, sur téléphone, la barre de navigation du bas
-function place() {
-  const view = $('#homeView');
+function place(view = $('#homeView')) {
   const nav = $('#mobNav');
   view.style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
   view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : '';
@@ -262,7 +262,8 @@ async function act(k) {
   if (k === 'editfav') { editFav = !editFav; renderFav(); return; }
   if (k.startsWith('favd:')) { toggleDriver(k.slice(5)); return; }
   if (k.startsWith('favt:')) { toggleTeamFav(k.slice(5)); return; }
-  if (k === 'live' || k === 'results') { closeHome(); return; }
+  if (k === 'results') resultsOpen = true;
+  if (k === 'live' || k === 'results') { closeHome(); noLiveCheck(); return; }
   // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
   // jusqu'au lancement du replay
   if (k === 'season') { (await import('./season.js')).openSeason(); return; }
@@ -275,6 +276,7 @@ async function act(k) {
     try {
       await api('/api/replay', { method: 'POST', body: { path: ls.path, startOffsetMs: 0 } });
       closeHome();
+      $('#noLiveView').hidden = true;
       toast(`Chargement du replay : ${gp(ls.meeting)} — ${sessionName(ls.name)}`, 4000);
     } catch (err) { toast(err.message, 5000); }
   }
@@ -300,6 +302,7 @@ export function initHome() {
   });
   on('prefs', (k) => { if ((k === 'favs' || k === 'favTeams') && isHomeOpen()) renderFav(); });
   Promise.all([loadSchedule(), loadArchive()]).then(() => {
+    noLiveCheck();
     if (!touched && liveNow() && isHomeOpen()) { closeHome(); return; }
     render();
   });
@@ -307,3 +310,52 @@ export function initHome() {
 
 // Navigation ailleurs (Direct, Saison, Actu…) : l'accueil ne se rouvre ni ne se ferme plus tout seul
 export function homeTouched() { touched = true; }
+
+// ---------- Pas de séance en direct ----------
+// Le tableau de bord n'apparaît qu'en direct, en replay, ou quand on demande les résultats de la
+// dernière séance : sinon un écran d'attente (prochaine séance, replay, résultats).
+const COVERS = ['#homeView', '#seasonView', '#newsView', '#replayView'];
+let noLiveKey = '';
+function noLiveCheck() {
+  const view = $('#noLiveView');
+  if (!view) return;
+  const st = store.state.SessionStatus?.Status;
+  const running = st === 'Started' || st === 'Aborted' || !!liveNow();
+  if (running) resultsOpen = false;
+  const covered = COVERS.some((s) => $(s) && !$(s).hidden);
+  const show = !!schedule && !running && !covered && !resultsOpen && store.status?.mode !== 'replay';
+  if (!show) { view.hidden = true; return; }
+  if (view.hidden) { place(view); view.hidden = false; noLiveKey = ''; }
+  const nx = nextSession(), ls = lastSession();
+  const key = `${nx?.t}|${ls?.t}|${nx ? countdown(nx.t - Date.now()) : ''}`;
+  if (key === noLiveKey) return;
+  noLiveKey = key;
+  $('#noLiveBox').innerHTML = `<div class="nl-icon">${icon('signal')}</div>
+    <h2>Pas de séance en direct</h2>
+    ${nx ? `<p class="nl-next">Prochaine séance : <b>${esc(gp(nx.race))} : ${esc(nx.label)}</b><br><span class="muted">${esc(when(nx.t))}</span></p>
+      <div class="nl-count">${countdown(nx.t - Date.now())}</div>` : '<p class="muted">Saison terminée.</p>'}
+    <p class="muted small">Le tableau de bord s'ouvre tout seul au début de la séance.</p>
+    <div class="nl-actions">
+      ${ls ? `<button class="btn btn-accent" data-nl="replay">${icon('play')} Revoir ${esc(gp(ls.meeting))} : ${esc(sessionName(ls.name))}</button>` : ''}
+      <button class="btn" data-nl="results" title="Tableau de bord avec l'état final de la dernière séance (résultat visible)">${icon('checkered')} Voir les résultats</button>
+      <button class="btn" data-nl="replays">${icon('history')} Toutes les séances</button>
+    </div>`;
+}
+
+export function initNoLive() {
+  const view = $('#noLiveView');
+  if (!view || new URLSearchParams(location.search).has('win')) return;
+  view.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-nl]');
+    if (!b) return;
+    if (b.dataset.nl === 'results') { resultsOpen = true; noLiveCheck(); } else act(b.dataset.nl);
+  });
+  // Vues ouvertes ou fermées, source changée, séance qui démarre : écran affiché ou retiré aussitôt
+  const mo = new MutationObserver(noLiveCheck);
+  for (const s of COVERS) if ($(s)) mo.observe($(s), { attributes: true, attributeFilter: ['hidden'] });
+  on('status', noLiveCheck);
+  on('events', (events) => { if (events.some(([t]) => t === 'SessionStatus' || t === 'SessionInfo')) noLiveCheck(); });
+  addEventListener('resize', () => { if (!view.hidden) place(view); });
+  setInterval(noLiveCheck, 5000);
+  noLiveCheck();
+}

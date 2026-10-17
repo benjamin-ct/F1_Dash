@@ -253,7 +253,15 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 
 .tabs { justify-content: flex-start; flex-wrap: wrap; gap: 4px; padding: 5px 8px; }
 .tab { white-space: nowrap; flex: none; background: none; border: none; color: var(--muted); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; }
-.tab.active { background: var(--panel-3); color: var(--text); }
+.tab:is(.active, .group-on) { background: var(--panel-3); color: var(--text); }
+/* Onglets inutiles pour la séance chargée (qualifs, essais, course) */
+.tab.sess-off { display: none; }
+/* Sélecteur des onglets regroupés (Écarts / Positions, Tours / Rythme, Messages / Enquêtes / Limites) */
+.tab-seg { display: inline-flex; flex: none; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel-2); }
+.tab-seg.alone { margin: 6px 12px; }
+.tab-seg button { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.tab-seg button:hover { color: var(--text-2); }
+.tab-seg button.on { background: var(--panel-3); color: var(--text); cursor: default; }
 .tabpane { display: none; }
 .tabpane.active { display: block; }
 
@@ -1619,7 +1627,7 @@ body.solo #muteBtn { display: none; }
 [data-theme="pitwall"] .panel-head.tabs { padding: 7px 10px; gap: 2px; }
 [data-theme="pitwall"] .tab { font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); padding: 5px 10px; border-radius: 6px; }
 [data-theme="pitwall"] .tab:hover { color: var(--text-2); background: var(--panel-2); }
-[data-theme="pitwall"] .tab.active { background: var(--panel-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+[data-theme="pitwall"] .tab:is(.active, .group-on) { background: var(--panel-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
 [data-theme="pitwall"] .tabs .panel-ctrl { background: var(--panel); }
 [data-theme="pitwall"] .panel-legend { background: var(--panel); border-top-color: var(--line); }
 
@@ -2452,6 +2460,17 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 
 /* ---- Page d'accueil (sans spoiler) ---- */
 .home-view { overflow-y: auto; }
+/* Pas de séance en direct : écran d'attente à la place du tableau de bord */
+.nolive-view { align-items: center; justify-content: center; overflow-y: auto; padding: 24px 16px; }
+.nl-box { max-width: 560px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.nl-box h2 { margin: 4px 0; font-size: 24px; font-weight: 900; }
+.nl-box p { margin: 0; }
+.nl-icon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--panel-2); border: 1px solid var(--border); color: var(--muted); }
+.nl-icon .ic { width: 26px; height: 26px; }
+.nl-next { font-size: 15px; line-height: 1.5; }
+.nl-count { font-size: 30px; font-weight: 900; color: var(--accent); font-variant-numeric: tabular-nums; margin: 2px 0 6px; }
+.nl-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+.nl-actions .btn { display: inline-flex; align-items: center; gap: 7px; }
 .hm-main { width: 100%; max-width: 1100px; margin: 0 auto; padding: 22px 24px 40px; display: flex; flex-direction: column; gap: 14px; }
 .hm-hello { margin: 0 0 2px; font-size: 26px; font-weight: 900; letter-spacing: .2px; }
 .hm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
