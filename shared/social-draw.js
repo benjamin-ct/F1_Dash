@@ -194,15 +194,14 @@ export function photo(ctx, img, x, y, w, h, color, fade = 0) {
   ctx.drawImage(off, dx, dy);
 }
 
-// Portrait détouré (tête et épaules) dans un carré de côté 2r centré sur (cx, cy) : halo et trait aux
-// couleurs de l'écurie, bas fondu ; sans photo, le trigramme
+// Portrait détouré (tête et épaules) dans un carré de côté 2r centré sur (cx, cy) : halo aux couleurs
+// de l'écurie, bas fondu ; sans photo, le trigramme
 export function driverPhoto(ctx, img, cx, cy, r, color, label) {
   const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
   g.addColorStop(0, alpha(color, 0.45)); g.addColorStop(1, alpha(color, 0));
   ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
   if (img) photo(ctx, img, cx - r, cy - r, r * 2, r * 2, color, 0.22);
   else if (label) txt(ctx, label, cx, cy + r * 0.2, { size: Math.round(r * 0.6), weight: 800, family: TITLE, align: 'center' });
-  rr(ctx, cx - r * 0.6, cy + r - Math.max(4, r * 0.05), r * 1.2, Math.max(4, r * 0.05), 3); ctx.fillStyle = vivid(color); ctx.fill();
 }
 
 // ---------- Diapositives ----------
