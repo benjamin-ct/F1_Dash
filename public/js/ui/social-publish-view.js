@@ -111,6 +111,7 @@ const HELP = {
   tiktok: ['developers.tiktok.com → Manage apps : créez une app avec Login Kit (plateforme Desktop) et Content Posting API.',
     'Login Kit : ajoutez l\'adresse de redirection {}.',
     'Autorisations user.info.basic et video.upload ; ajoutez votre compte TikTok comme utilisateur de test (sandbox).',
+    'Publication directe depuis la page web (téléphone) : activez aussi « Direct Post » (autorisation video.publish) dans Content Posting API, cochez « Publication directe » ci-dessous et reconnectez-vous. Tant que TikTok n\'a pas validé votre app (audit), les vidéos restent visibles par vous seul.',
     'Collez client key et client secret, enregistrez, puis « Se connecter à TikTok ».'],
   youtube: ['console.cloud.google.com : créez un projet, puis API et services → Bibliothèque : activez « YouTube Data API v3 ».',
     'Écran de consentement OAuth (Google Auth Platform) : type « Externe », votre adresse e-mail, puis ajoutez votre compte Google (celui de la chaîne) dans « Utilisateurs test ».',
@@ -155,6 +156,7 @@ async function accountsDialog(onChange, open = null) {
       ${Object.keys(FIELDS).map((k) => `<details class="posts-acc" data-net="${k}" ${k === open ? 'open' : ''}><summary><b>${TITLES[k]}</b> ${status(k)}</summary>
         <ol class="small">${HELP[k].map((h) => `<li>${esc(t(h, redirect))}</li>`).join('')}</ol>
         ${FIELDS[k].map(([f, l]) => `<label class="small">${esc(t(l))}<input type="password" data-f="${f}" autocomplete="off" spellcheck="false"></label>`).join('')}
+        ${k === 'tiktok' ? `<label class="toggle small"><input type="checkbox" data-f="direct" ${info.tiktok?.direct ? 'checked' : ''}> ${t('Publication directe (Direct Post activé dans votre app TikTok)')}</label>` : ''}
         <div class="row"><button class="btn small btn-accent" data-save>${t('Enregistrer et vérifier')}</button>
           ${OAUTH[k] ? `<button class="btn small ${info[k]?.configured && !info[k]?.connected ? 'btn-accent' : ''}" data-login ${info[k]?.configured ? '' : 'disabled'}>${t('Se connecter à {}', OAUTH[k])}</button>` : ''}
           <button class="btn small" data-remove>${t('Déconnecter')}</button></div></details>`).join('')}
@@ -202,7 +204,7 @@ async function accountsDialog(onChange, open = null) {
       btn.disabled = true;
       if (btn.dataset.save !== undefined) {
         const body = { network };
-        for (const i of box.querySelectorAll('[data-f]')) body[i.dataset.f] = i.value;
+        for (const i of box.querySelectorAll('[data-f]')) body[i.dataset.f] = i.type === 'checkbox' ? i.checked : i.value;
         await api('/api/social/accounts', body);
         toast(k === 'tiktok' ? t('Clés TikTok vérifiées : cliquez sur « Se connecter à TikTok »') : k === 'youtube' ? t('Clés enregistrées : cliquez sur « Se connecter à YouTube »') : t('Compte enregistré'), OAUTH[k] ? 6000 : 2500, 'check');
       } else if (btn.dataset.remove !== undefined) {

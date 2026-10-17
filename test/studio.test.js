@@ -449,5 +449,31 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
     assert.equal((await post('youtube')).status, 400);   // TikTok et YouTube : vidéo obligatoire
     assert.equal((await post('youtube', new Blob(['x'], { type: 'image/gif' }))).status, 400);
   } finally { globalThis.fetch = realFetch; delete env.ASSETS; }
+
+  // Publication directe sur TikTok : compte relu, réglages vérifiés, puis publiée
+  const sent = [];
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    if (u.endsWith('/post/publish/creator_info/query/')) {
+      return new Response(JSON.stringify({ data: { creator_nickname: 'Benjy Paddock', creator_username: 'benjypaddock', privacy_level_options: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY', 'AUTRE'], comment_disabled: false, duet_disabled: true, stitch_disabled: false, max_video_post_duration_sec: 600 }, error: { code: 'ok' } }));
+    }
+    if (u.endsWith('/post/publish/video/init/')) { sent.push(JSON.parse(opts.body)); return new Response(JSON.stringify({ data: { upload_url: 'https://up.test/tt', publish_id: 'd1' }, error: { code: 'ok' } })); }
+    if (u === 'https://up.test/tt') return new Response(null, { status: 201 });
+    if (u.endsWith('/post/publish/status/fetch/')) return new Response(JSON.stringify({ data: { status: 'PUBLISH_COMPLETE', publicaly_available_post_id: [7123] }, error: { code: 'ok' } }));
+    throw new Error(`inattendu : ${u}`);
+  };
+  try {
+    const info = await (await worker('https://s.test/studio/api/tiktok-creator', { headers: key })).json();
+    assert.deepEqual(info, { nickname: 'Benjy Paddock', username: 'benjypaddock', avatar: '', privacy: ['PUBLIC_TO_EVERYONE', 'SELF_ONLY'], comment: true, duet: false, stitch: true, maxDuration: 600 });
+    const direct = (o) => { const f = new FormData(); f.append('network', 'tiktok'); f.append('text', 'Texte'); f.append('video', new Blob([new Uint8Array([1, 2, 3])], { type: 'video/mp4' }), 'v.mp4'); f.append('tiktok', JSON.stringify(o)); return worker('https://s.test/studio/api/publish', { method: 'POST', headers: key, body: f }); };
+    // Visibilité obligatoire, contenu de marque jamais privé
+    assert.equal((await direct({ title: 'x' })).status, 400);
+    assert.equal((await direct({ privacy: 'SELF_ONLY', brandContent: true })).status, 400);
+    assert.equal(sent.length, 0);
+    const r = await direct({ title: 'Mon titre #F1', privacy: 'PUBLIC_TO_EVERYONE', comment: true, brandOrganic: true, username: 'benjypaddock' });
+    assert.match(await r.text(), /"done":true.*"url":"https:\/\/www\.tiktok\.com\/@benjypaddock\/video\/7123"/);
+    assert.deepEqual(sent[0].post_info, { title: 'Mon titre #F1', privacy_level: 'PUBLIC_TO_EVERYONE', disable_comment: false, disable_duet: true, disable_stitch: true, brand_organic_toggle: true, brand_content_toggle: false });
+    assert.equal(sent[0].source_info.video_size, 3);
+  } finally { globalThis.fetch = realFetch; }
   await disableStudio({ fetchFn });
 });

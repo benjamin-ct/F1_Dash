@@ -9,7 +9,7 @@ import { circuitInfo } from '/shared/circuits-info.js';
 import { editionOf, recordsOf, recordYears } from '/shared/circuit-records.js';
 import { parseRaceControl, raceSessionPath } from '/shared/race-story.js';
 import { makeAnimation } from '/shared/social-video.js';
-import { $, $$, esc, api, icon, store, skeleton, toast, state, session, SIG, musicField, bindMusic } from './ui.js';
+import { $, $$, esc, api, icon, store, skeleton, toast, state, session, SIG, musicField, bindMusic, clipFile } from './ui.js';
 import { latestDrivers } from './data.js';
 import { editor, assets } from './editor.js';
 
@@ -172,6 +172,7 @@ async function seasonEditor(year, data, race, back) {
   const video = state.stype === 'racelaps';
   const typeName = STYPES.find(([k]) => k === state.stype)[1];
   let clip = null;
+  let file = null;   // vidéo prête en MP4, jointe au post
   editor({
     back,
     title: typeName,
@@ -180,9 +181,10 @@ async function seasonEditor(year, data, race, back) {
       ${video ? `${musicField('race', 'depart')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo (${Math.round(raceVideoTiming(d).duration)} s)</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
         <p class="hint" id="vidst">Vidéo verticale pour TikTok, Reels, YouTube Shorts ou une story : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts. Garder l'écran allumé pendant l'enregistrement.</p>
         <video id="vid" controls playsinline hidden></video>` : ''}`,
-    data: () => d, caps: () => seasonCaptions(d, SIG),
+    data: () => d, caps: (dd) => seasonCaptions(dd, SIG),
     record: () => ({ key: `${state.stype}:${year}-${race.round}`, kind: state.stype, title: `${typeName} · ${d.gp}` }),
-    bind: () => {
+    video: () => file,
+    bind: (redraw) => {
       if (!video) return;
       const track = bindMusic('race');
       $('#mkvid').onclick = async () => {
@@ -192,7 +194,8 @@ async function seasonEditor(year, data, race, back) {
           clip = await makeAnimation((ctx, t) => raceFrame(ctx, 1080, 1920, d, o, t), raceVideoTiming(d).duration, { music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
           $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
           $('#sharevid').disabled = false;
-          $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)`;
+          $('#vidst').textContent = `Vidéo prête (${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo)${(file = clipFile(clip, `course-${race.round}`)) ? ' · cochez TikTok, Instagram… dans « Publier sur » pour la publier' : ' · format WebM : à partager seulement (publication en MP4)'}`;
+          redraw();
         } catch (err) { $('#vidst').textContent = err.message; } finally { $('#mkvid').disabled = false; }
       };
       $('#sharevid').onclick = async () => {

@@ -10,7 +10,7 @@
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram, hostVideo, publishFacebookVideo, publishThreadsVideo } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
-import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload } from '../shared/video-publish.js';
+import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload, tiktokCreator, tiktokDirect, TIKTOK_PRIVACY } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
@@ -316,13 +316,16 @@ async function publish(req, env, raw, vault) {
   if (missing(net, vault)) return json({ error: missing(net, vault) }, 409);
   if (CLIPS.includes(net) && !video) return json({ error: 'Aucune vidéo' }, 400);
   if (!CLIPS.includes(net) && !images.length && !(video && net !== 'bluesky')) return json({ error: 'Aucune image' }, 400);
+  // TikTok : publication directe si la page envoie ses réglages, sinon brouillon
+  const direct = net === 'tiktok' && form.get('tiktok') ? tiktokOptions(form.get('tiktok')) : null;
+  if (direct?.error) return json({ error: direct.error }, 400);
   const { readable, writable } = new TransformStream();
   const w = writable.getWriter();
   const line = (o) => w.write(enc.encode(`${JSON.stringify(o)}\n`));
   (async () => {
     try {
       await line({ step: video ? 'Envoi de la vidéo…' : 'Envoi des images…' });
-      const r = CLIPS.includes(net) ? await sendClip(env, raw, vault, net, new Uint8Array(await video.arrayBuffer()), video.type, text)
+      const r = CLIPS.includes(net) ? await sendClip(env, raw, vault, net, new Uint8Array(await video.arrayBuffer()), video.type, text, direct)
         : await sendTo(net, vault, { text, comment, images, small: images, video }, async () => (await refresh(env, raw, vault)).threads);
       await line({ done: true, ...resultOf(r), ...(r.note ? { note: r.note } : {}) });
     } catch (err) {
@@ -371,16 +374,36 @@ async function sendVideo(req, env, raw, vault, url) {
   } catch (err) { return json({ error: err.message }, 502); }
 }
 // Brouillon TikTok ou Short YouTube (jeton renouvelé au besoin, gardé dans le coffre)
-async function sendClip(env, raw, vault, net, video, mime, text) {
+// direct : réglages d'une publication directe sur TikTok (sinon brouillon)
+async function sendClip(env, raw, vault, net, video, mime, text, direct = null) {
   try {
-    const acc = await (net === 'tiktok' ? freshTiktok : freshYoutube)(vault[net]);
-    if (acc !== vault[net]) await setRow(env, 'vault', await seal(raw, { ...vault, [net]: acc }));
-    return net === 'tiktok' ? await tiktokDraft(acc.accessToken, video, mime) : await youtubeUpload(acc.accessToken, video, mime, text);
+    const acc = await clipAccount(env, raw, vault, net);
+    if (net === 'youtube') return await youtubeUpload(acc.accessToken, video, mime, text);
+    return direct ? await tiktokDirect(acc.accessToken, video, mime, direct) : await tiktokDraft(acc.accessToken, video, mime);
   } catch (err) {
     throw new Error(err.code === 'invalid_grant' || err.code === 'invalid_client'
       ? `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-vous dans l'appli (Comptes…), puis « Renvoyer les comptes »`
       : String(err?.message || err).slice(0, 300));
   }
+}
+
+// Compte TikTok ou YouTube aux jetons à jour (gardés par le serveur s'ils ont été renouvelés)
+async function clipAccount(env, raw, vault, net) {
+  const acc = await (net === 'tiktok' ? freshTiktok : freshYoutube)(vault[net]);
+  if (acc !== vault[net]) await setRow(env, 'vault', await seal(raw, { ...vault, [net]: acc }));
+  return acc;
+}
+// Réglages de publication directe TikTok envoyés par la page : vérifiés, sinon raison du refus
+function tiktokOptions(raw) {
+  let o;
+  try { o = JSON.parse(String(raw || '')); } catch { return { error: 'Réglages TikTok illisibles' }; }
+  if (!o || typeof o !== 'object') return { error: 'Réglages TikTok illisibles' };
+  if (!TIKTOK_PRIVACY.includes(o.privacy)) return { error: 'Choisissez qui peut voir la vidéo sur TikTok' };
+  if (o.brandContent && o.privacy === 'SELF_ONLY') return { error: 'Un contenu de marque ne peut pas être privé sur TikTok' };
+  const title = String(o.title || '');
+  if (title.length > 2200) return { error: 'Texte TikTok trop long (2 200 caractères au plus)' };
+  return { title, privacy: o.privacy, comment: o.comment === true, duet: o.duet === true, stitch: o.stitch === true, brandOrganic: o.brandOrganic === true, brandContent: o.brandContent === true,
+    username: /^[\w.]{1,64}$/.test(o.username || '') ? o.username : '' };
 }
 
 // ---------- Publications programmées ----------
@@ -612,6 +635,16 @@ export async function studioApi(req, env, url) {
     return publish(req, env, a.raw, vault);
   }
   if (path === 'video' && req.method === 'POST') return sendVideo(req, env, a.raw, vault, url);
+  // Compte TikTok relu avant une publication directe : nom, visibilités et interactions permises, durée maximale
+  if (path === 'tiktok-creator' && req.method === 'GET') {
+    if (!vault.tiktok) return json({ error: missing('tiktok', vault) }, 409);
+    try {
+      return json(await tiktokCreator((await clipAccount(env, a.raw, vault, 'tiktok')).accessToken));
+    } catch (err) {
+      const m = String(err?.message || err);
+      return json({ error: /scope/i.test(m) ? 'Publication directe pas encore autorisée : activez « Direct Post » (video.publish) dans votre app TikTok, cochez « Publication directe » dans l\'appli (Comptes…, TikTok), reconnectez TikTok puis « Renvoyer les comptes »' : m.slice(0, 300), scope: /scope/i.test(m) }, 502);
+    }
+  }
   // Alertes des grosses news sur le téléphone (abonnements, dernières alertes)
   const pushed = await pushApi(path, req, env);
   if (pushed) return pushed;

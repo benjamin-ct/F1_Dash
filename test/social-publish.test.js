@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 process.env.PADDOCK_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'paddock-social-'));
-const { oauth1, accountsInfo, saveAccount, publish, timing, youtubeLoginUrl, youtubeCallback, youtubeSnippet } = await import('../server/social-publish.js');
+const { oauth1, accountsInfo, saveAccount, publish, timing, youtubeLoginUrl, youtubeCallback, youtubeSnippet, tiktokLoginUrl } = await import('../server/social-publish.js');
 const { saveConfig } = await import('../server/config.js');
 
 test('X : signature OAuth 1.0a (exemple de la documentation de X)', () => {
@@ -218,7 +218,7 @@ test('TikTok : clés vérifiées à l\'enregistrement, connexion effacée si l\'
     await assert.rejects(saveAccount('tiktok', { clientKey: 'cle', clientSecret: 'faux' }), /Clés refusées par TikTok/);
     assert.equal(accountsInfo().tiktok.configured, false);
     await saveAccount('tiktok', { clientKey: 'cle', clientSecret: 'bon' });
-    assert.deepEqual(accountsInfo().tiktok, { connected: false, name: '', configured: true });
+    assert.deepEqual(accountsInfo().tiktok, { connected: false, name: '', configured: true, direct: false });
     // Compte connecté puis clés d'une autre app : il faut se reconnecter
     const { getConfig } = await import('../server/config.js');
     saveConfig({ social: { ...getConfig().social, tiktok: { ...getConfig().social.tiktok, refreshToken: 'r', name: 'Moi' } } });
@@ -226,6 +226,11 @@ test('TikTok : clés vérifiées à l\'enregistrement, connexion effacée si l\'
     assert.equal(accountsInfo().tiktok.connected, true);
     await saveAccount('tiktok', { clientKey: 'autre', clientSecret: 'bon' });
     assert.equal(accountsInfo().tiktok.connected, false);
+    // Publication directe : autorisation video.publish demandée seulement si elle est cochée
+    assert.equal(new URL(tiktokLoginUrl('http://127.0.0.1:4321')).searchParams.get('scope'), 'user.info.basic,video.upload');
+    await saveAccount('tiktok', { clientKey: 'autre', clientSecret: 'bon', direct: true });
+    assert.equal(accountsInfo().tiktok.direct, true);
+    assert.equal(new URL(tiktokLoginUrl('http://127.0.0.1:4321')).searchParams.get('scope'), 'user.info.basic,video.upload,video.publish');
   } finally { globalThis.fetch = realFetch; }
 });
 
