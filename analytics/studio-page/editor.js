@@ -6,6 +6,7 @@ import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { FLAG_ISO } from '/shared/flags.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
 import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
+import { tiktokPanel, tiktokProblem, tiktokChoice, TIKTOK_PRIVACY } from './tiktok.js';
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
 const imgCache = new Map();
@@ -158,9 +159,21 @@ export function editor({ back, title, subtitle = '', head = '', below = false, d
     $('#netsbox').innerHTML = `<h3 class="section">Publier sur</h3>${list.map(([k, v]) => {
       const acc = session.me?.[k.replace('-story', '')];
       return `<label class="switch net"><span><b>${v}</b><small>${esc(acc || 'non connecté')}</small><em class="st" data-st="${k}"></em></span><input type="checkbox" role="switch" data-net="${k}" ${acc ? (k === 'tiktok' || k === 'youtube' ? '' : 'checked') : 'disabled'}></label>`;
-    }).join('')}<p class="hint">${vid ? 'Votre vidéo part en Reel sur Instagram, en vidéo sur Facebook et Threads, en brouillon sur TikTok (son et texte à finir dans l\'appli) et en privé sur YouTube. Bluesky reçoit les visuels.'
+    }).join('')}${vid ? '<div id="tkbox" class="tkbox" hidden></div>' : ''}<p class="hint">${vid ? 'Votre vidéo part en Reel sur Instagram, en vidéo sur Facebook et Threads, sur TikTok (brouillon ou publication directe, réglages ci-dessus) et en privé sur YouTube. Bluesky reçoit les visuels.'
       : story ? 'Une story par image, dans l\'ordre, visible 24 heures, sans texte. Threads et Bluesky n\'ont pas de stories ; story TikTok : « Partager » ouvre les applis du téléphone avec ces visuels.'
         : 'Instagram, Facebook et Threads reçoivent les visuels au format Instagram, Bluesky les 4 premiers au format X. Stories Instagram et Facebook : choisissez le format Story. X, TikTok, YouTube Shorts : « Partager » ouvre les applis du téléphone avec les visuels du format choisi.'}</p>`;
+    // TikTok coché : réglages (brouillon ou publication directe) ; publication bloquée tant qu'ils manquent
+    const tk = $('[data-net="tiktok"]');
+    if (vid && tk) {
+      const check = () => {
+        const why = tk.checked ? tiktokProblem() : null;
+        $('#go').disabled = !!why;
+        $('#go').title = why || '';
+      };
+      const show = () => { $('#tkbox').hidden = !tk.checked; if (tk.checked) tiktokPanel($('#tkbox'), vid, textOf('tiktok'), check); else check(); };
+      tk.onchange = show;
+      show();
+    }
     const o = await assets(d);
     const all = $$('#main canvas');
     // Images gardées : redessinées (sommaire, points, numéros) ; écartées : grisées, sans numéro
@@ -289,10 +302,12 @@ function schedulePanel(d, o, record = null) {
 
 // Publication : visuels au format Instagram (JPEG), un réseau après l'autre, progression affichée
 // Envoi d'un post au serveur (réponse en continu : avancement, puis résultat ou erreur)
-export async function sendPost(network, text, blobs, comment = '', video = null) {
+// tiktok : réglages d'une publication directe sur TikTok (sinon brouillon)
+export async function sendPost(network, text, blobs, comment = '', video = null, tiktok = null) {
   const form = new FormData();
   form.append('network', network);
   form.append('text', text);
+  if (tiktok) form.append('tiktok', JSON.stringify(tiktok));
   blobs.forEach((b, i) => form.append('images', b, `image-${i + 1}.jpg`));
   if (video) form.append('video', video, video.type === 'video/quicktime' ? 'video.mov' : 'video.mp4');
   if (comment) form.append('comment', comment);
@@ -329,7 +344,10 @@ async function publishAll(d, o, record = null, video = null) {
   const nets = checkedNets();
   if (!nets.length) { toast('Cochez au moins un réseau', 'bad'); return; }
   const stories = nets.some(isStory);
-  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${video ? ' (TikTok : en brouillon ; YouTube : en privé)' : ''}`}.`)) return;
+  // TikTok : publication directe avec les réglages choisis, sinon brouillon ; rien n'est envoyé sans confirmation
+  const tk = nets.includes('tiktok') ? tiktokChoice() : null;
+  if (nets.includes('tiktok') && tiktokProblem()) { toast(tiktokProblem(), 'bad'); return; }
+  if (!confirm(`Publier maintenant sur : ${nets.map((n) => NET_NAMES[n] || n).join(', ')} ?\n\n${stories ? 'Les stories seront publiques pendant 24 heures' : `Les posts seront publics${[nets.includes('tiktok') && `TikTok : ${tk ? `publication directe, visible par : ${TIKTOK_PRIVACY[tk.privacy]}` : 'en brouillon'}`, nets.includes('youtube') && 'YouTube : en privé'].filter(Boolean).map((x, i, a) => `${i ? ' ; ' : ' ('}${x}${i === a.length - 1 ? ')' : ''}`).join('')}`}.`)) return;
   const go = $('#go');
   go.disabled = true;
   $('#netsbox').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -344,7 +362,7 @@ async function publishAll(d, o, record = null, video = null) {
     try {
       // Vidéo : seule envoyée (sauf Bluesky, qui garde les visuels)
       const withVideo = video && n !== 'bluesky';
-      const result = await sendPost(n, stories ? '' : textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, stories ? '' : commentOf(n), withVideo ? video : null);
+      const result = await sendPost(n, stories ? '' : textOf(n), n === 'bluesky' ? bsky : withVideo ? [] : blobs, stories ? '' : commentOf(n), withVideo ? video : null, n === 'tiktok' ? tk : null);
       ok++;
       st.className = 'st ok';
       // Stories (24 heures) : pas dans l'historique, qui garde le post du fil
@@ -358,6 +376,6 @@ async function publishAll(d, o, record = null, video = null) {
       st.textContent = err.message;
     } finally { clearInterval(tick); }
   }
-  go.disabled = false;
+  go.disabled = !!(nets.includes('tiktok') && tiktokProblem());
   toast(ok === nets.length ? 'Publié partout' : ok ? `Publié sur ${ok} réseau${ok > 1 ? 'x' : ''} sur ${nets.length}` : 'Rien n\'a été publié', ok === nets.length ? 'ok' : 'bad');
 }

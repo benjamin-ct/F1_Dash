@@ -4,6 +4,14 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.32 — à venir
+
+### Publication sur TikTok
+- Publication directe sur TikTok depuis la page web (téléphone), en plus du brouillon : activez
+  « Direct Post » (autorisation video.publish) dans votre app TikTok, cochez « Publication directe »
+  dans Comptes…, TikTok, puis reconnectez-vous. Tant que TikTok n'a pas validé votre app (audit), les
+  vidéos publiées restent visibles par vous seul.
+
 ## v1.27.31 — 2026-10-17
 
 ### À propos
