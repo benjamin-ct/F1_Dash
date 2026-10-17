@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.29 — à venir
+## v1.27.29 — 2026-10-17
 
 ### Favoris
 - Pilotes et écuries favoris se choisissent maintenant depuis l'accueil : bouton « Modifier » (ou « Choisir
