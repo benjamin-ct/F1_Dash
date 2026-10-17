@@ -20,7 +20,7 @@ import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KIN
 import { postedEntry } from '/shared/post-history.js';
 import { circuitInfo } from '/shared/circuits-info.js';
 import { loadTeamLogos } from '/shared/team-logos.js';
-import { openPublish } from './social-publish-view.js';
+import { openPublish, musicSelect, musicEvent, endPreview } from './social-publish-view.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 
 const SIG_KEY = 'paddock.postSignature';
@@ -219,7 +219,7 @@ async function seasonSource(sig) {
     if (laps.error || !laps.total) return { head: head + msg(laps.error || t('Tours de cette course pas encore publiés.'), true) };
     d = raceLapsData(race, laps, { year, live, rcm: rc?.messages?.length ? rc.messages : null });
     const sec = Math.round(raceVideoTiming(d).duration);
-    extra = `<div class="row posts-news-bar"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo animée')}</button>
+    extra = `<div class="row posts-news-bar"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo animée')}</button> ${musicSelect('race')}
       <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) de {} s : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts.', sec))}</span></div>
       ${d.story.estimated ? msg(t('Direction de course indisponible (archives de la F1) : neutralisations estimées d\'après les temps au tour.')) : ''}
       <video class="posts-vid" data-rv controls playsinline hidden></video>`;
@@ -238,7 +238,7 @@ async function buildRaceVideo(dlg, btn) {
   const st = $('[data-rvst]', dlg);
   btn.disabled = true;
   try {
-    const v = await make({ music: 'gen', onProgress: (p) => { st.textContent = t('Enregistrement de la vidéo… {} %', Math.round(p * 100)); } });
+    const v = await make({ music: 'gen', track: $('[data-vtrack]', dlg)?.value, onProgress: (p) => { st.textContent = t('Enregistrement de la vidéo… {} %', Math.round(p * 100)); } });
     if (raceVideo?.url) URL.revokeObjectURL(raceVideo.url);
     raceVideo = { ...v, url: URL.createObjectURL(v.blob), folder: folderOf(curPost.d), name: curPost.d.news ? 'video-breaking-news' : 'video-course' };
     const el = $('[data-rv]', dlg);
@@ -334,7 +334,7 @@ async function newsSource(sig) {
       <div class="row">${it.link ? `<button class="btn small" data-nsummary title="${t("Résumé de l'article en 3 à 5 points, reformulés par l'IA du serveur Paddock Live : relisez-les avant de publier")}">${icon('doc')} ${t('Résumé détaillé')}</button>` : ''}<span class="small muted" data-nsumst></span></div>
       <label class="toggle small" title="${t("Facebook, Threads et X : le lien de l'article est publié en premier commentaire plutôt que dans le texte (Instagram : pas de lien)")}"><input type="checkbox" data-linkcomment ${linkComment ? 'checked' : ''}> ${t("Lien de l'article en premier commentaire")}</label>
       <label class="toggle small" title="${t('Vidéo « Breaking news » réservée aux infos qui font du bruit')}"><input type="checkbox" data-breaking ${d.breaking ? 'checked' : ''}> ${t('Très grosse info')}</label>
-      ${d.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button>
+      ${d.breaking ? `<div class="row"><button class="btn small btn-accent" data-racevideo>${icon('video')} ${t('Créer la vidéo Breaking news')}</button> ${musicSelect('news')}
         <button class="btn small" data-racevideosave disabled>${icon('save')} ${t('Enregistrer la vidéo')}</button><span class="small muted" data-rvst>${esc(t('Vidéo verticale (story, TikTok, Reels, Shorts) : titre, résumé puis points clés, avec musique. Aussi utilisée pour TikTok et YouTube à la publication.'))}</span></div>
       <video class="posts-vid" data-rv controls playsinline hidden></video>` : ''}
       <p class="small muted">${icon('info')} ${t(failed ? 'Traduction indisponible : textes en version originale, à traduire à la main.' : "Titre et résumé traduits automatiquement : relisez-les et corrigez-les si besoin. Les photos et le texte de l'article ne sont jamais repris, la source est citée.")}</p>
@@ -613,7 +613,9 @@ function open() {
       $('[data-nospoil]', dlg).closest('label').hidden = mode !== 'session' || postType !== 'results';
       storageSet(OPT_KEY, { fmt, photos: withPhotos, noSpoiler, mode, linkComment, postType, follow, question: withQuestion, seasonType });
     };
+    dlg.addEventListener('close', endPreview);
     dlg.addEventListener('click', async (e) => {
+      if (musicEvent(e)) return;
       if (e.target === dlg || e.target.closest('[data-close]')) { dlg.close(); return; }
       const m = e.target.closest('[data-mode]')?.dataset.mode;
       if (m && m !== mode) { mode = m; sync(); render(dlg); }
@@ -638,6 +640,7 @@ function open() {
     // News : choix de la nouvelle, toutes les actus, titre et résumé corrigés à la main
     let te = null;
     dlg.addEventListener('change', (e) => {
+      if (musicEvent(e)) return;
       if (e.target.matches('[data-newspick]')) { newsSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-flashpick]')) { flashSel = e.target.value; render(dlg); }
       if (e.target.matches('[data-newsall]')) { newsAll = e.target.checked; render(dlg); }

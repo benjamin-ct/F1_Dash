@@ -10,7 +10,7 @@ import { CHAMPIONSHIP, parseSeasons, parseDocumentList, pickEvent } from '/share
 import { gridDocument, parseStartingGrid } from '/shared/fia-grid.js';
 import { extractArticle } from '/shared/article.js';
 import { recapData, seasonCaptions } from '/shared/social-season.js';
-import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES } from './ui.js';
+import { $, $$, esc, api, ago, icon, toggle, glide, state, SIG, NET_NAMES, musicField, bindMusic } from './ui.js';
 import { toFrench, freshNews, cachedNews, latestDrivers, loadState, rememberDrivers, SESSION_FR } from './data.js';
 import { editor, assets } from './editor.js';
 import { makeAnimation } from '/shared/social-video.js';
@@ -31,12 +31,13 @@ async function detailedSummary(it) {
 }
 
 // ---------- Vidéo « Breaking news » (TikTok, Reels, Shorts, story), commune aux news et aux posts écrits ----------
-const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Vidéo « Breaking news » réservée aux infos qui font du bruit')}<div id="vidbox" ${on ? '' : 'hidden'}><div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Vidéo « Breaking news » réservée aux infos qui font du bruit')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
   <p class="hint" id="vidst">Vidéo verticale « Breaking news » pour TikTok, Reels, YouTube Shorts ou une story : titre, résumé puis points clés, avec musique. Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video></div>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
 function bindNewsVideo(getD, name, onBreaking) {
   let clip = null;
+  const track = bindMusic('news');
   $('#brk').onchange = (e) => { $('#vidbox').hidden = !e.target.checked; onBreaking(e.target.checked); };
   $('#mkvid').onclick = async () => {
     $('#mkvid').disabled = true;
@@ -44,7 +45,7 @@ function bindNewsVideo(getD, name, onBreaking) {
       const d = getD();
       const o = await assets(d);
       const { duration } = newsVideoTiming(d);
-      clip = await makeAnimation((ctx, t) => newsFrame(ctx, 1080, 1920, d, o, t), duration, { music: 'gen', onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
+      clip = await makeAnimation((ctx, t) => newsFrame(ctx, 1080, 1920, d, o, t), duration, { music: 'gen', track: track(), onProgress: (p) => { $('#vidst').textContent = `Enregistrement… ${Math.round(p * 100)} %`; } });
       $('#vid').src = URL.createObjectURL(clip.blob); $('#vid').hidden = false;
       $('#sharevid').disabled = false;
       $('#vidst').textContent = `Vidéo prête : ${Math.round(duration)} s, ${(clip.blob.size / 1e6).toFixed(1).replace('.', ',')} Mo`;

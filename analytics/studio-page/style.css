@@ -447,3 +447,4 @@ details.cap[open] textarea { animation: in-up .3s var(--ease); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
 }
+#vtrack { flex: 1; width: auto; min-width: 0; }

@@ -4,6 +4,8 @@
 // Fabriquée image par image (WebCodecs) : 30 images par seconde exactes, quel que soit le temps de
 // dessin de chaque image. Navigateur sans WebCodecs : enregistrée en temps réel (MediaRecorder).
 
+import { playTrack } from './social-music.js';
+
 const W = 1080;
 const H = 1920;
 
@@ -13,47 +15,6 @@ function pickMime(withAudio) {
     : ['video/mp4;codecs=avc1.640028', 'video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm'];
   // MP4 seulement en H.264 (lu partout) ; sinon WebM, accepté aussi par TikTok
   return list.find((m) => window.MediaRecorder?.isTypeSupported?.(m)) || '';
-}
-
-// Musique électro générée (118 BPM) : grosse caisse, caisse claire, charleston, basse et nappe
-function generatedMusic(ac, out, duration) {
-  const bpm = 118;
-  const beat = 60 / bpm;
-  const t0 = ac.currentTime + 0.05;
-  const noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
-  const nd = noise.getChannelData(0);
-  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
-  const env = (g, t, peak, len) => { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + len); };
-  const kick = (t) => {
-    const o = ac.createOscillator(); const g = ac.createGain();
-    o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.18);
-    env(g, t, 0.9, 0.32); o.connect(g).connect(out); o.start(t); o.stop(t + 0.35);
-  };
-  const hiss = (t, freq, peak, len, type = 'highpass') => {
-    const s = ac.createBufferSource(); s.buffer = noise;
-    const f = ac.createBiquadFilter(); f.type = type; f.frequency.value = freq;
-    const g = ac.createGain(); env(g, t, peak, len);
-    s.connect(f).connect(g).connect(out); s.start(t, Math.random() * 0.5); s.stop(t + len + 0.02);
-  };
-  const note = (t, freq, len, type, peak, cutoff) => {
-    const o = ac.createOscillator(); o.type = type; o.frequency.value = freq;
-    const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff;
-    const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.02); g.gain.setValueAtTime(peak, t + len * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-    o.connect(f).connect(g).connect(out); o.start(t); o.stop(t + len + 0.05);
-  };
-  const hz = (m) => 440 * 2 ** ((m - 69) / 12);
-  const bars = [[45, 57, 60, 64], [41, 53, 57, 60], [48, 55, 60, 64], [43, 55, 59, 62]];   // Lam, Fa, Do, Sol
-  const beats = Math.ceil(duration / beat) + 1;
-  for (let b = 0; b < beats; b++) {
-    const t = t0 + b * beat;
-    const chord = bars[Math.floor(b / 4) % 4];
-    kick(t);
-    hiss(t + beat / 2, 7000, 0.18, 0.05);
-    if (b % 2 === 1) hiss(t, 1800, 0.35, 0.16, 'bandpass');
-    note(t, hz(chord[0]), beat / 2 * 0.9, 'sawtooth', 0.22, 700);
-    note(t + beat / 2, hz(chord[0] + 12), beat / 2 * 0.9, 'sawtooth', 0.16, 900);
-    if (b % 4 === 0) for (const m of chord.slice(1)) note(t, hz(m), beat * 4, 'triangle', 0.05, 2400);
-  }
 }
 
 // WebM de l'enregistreur du navigateur : sans durée dans l'en-tête (lecteurs et TikTok la voient
@@ -101,7 +62,7 @@ export function webmWithDuration(buf, ms) {
 }
 
 // Musique de la vidéo, calculée d'avance (fondu d'entrée et de sortie comme en temps réel)
-async function renderMusic(music, file, duration, rate = 48000) {
+async function renderMusic(music, file, track, duration, rate = 48000) {
   const ac = new OfflineAudioContext(2, Math.ceil(duration * rate), rate);
   const master = ac.createGain();
   master.gain.setValueAtTime(0.0001, 0);
@@ -114,7 +75,7 @@ async function renderMusic(music, file, duration, rate = 48000) {
     src.buffer = await ac.decodeAudioData(await file.arrayBuffer());
     src.loop = src.buffer.duration < duration;
     src.connect(master); src.start();
-  } else generatedMusic(ac, master, duration);
+  } else playTrack(ac, master, track, duration);
   return ac.startRendering();
 }
 
@@ -138,7 +99,7 @@ async function pickPlan(withAudio) {
 
 // Vidéo fabriquée image par image : chaque image dessinée puis encodée, sans limite de temps.
 // null si le navigateur ne sait pas faire (enregistrement en temps réel à la place).
-async function encodeFrames(paint, duration, { music, file, onProgress }) {
+async function encodeFrames(paint, duration, { music, file, track, onProgress }) {
   const withAudio = music !== 'none';
   const plan = await pickPlan(withAudio);
   if (!plan) return null;
@@ -152,7 +113,7 @@ async function encodeFrames(paint, duration, { music, file, onProgress }) {
   let failure = null;
   const fail = (e) => { failure = failure || e; };
   if (withAudio) {
-    const buf = await renderMusic(music, file, duration);
+    const buf = await renderMusic(music, file, track, duration);
     const enc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: fail });
     enc.configure({ codec: plan.audio[0], sampleRate: 48000, numberOfChannels: 2, bitrate: 192e3 });
     const step = 4800;
@@ -199,7 +160,7 @@ export async function makeAnimation(paint, duration, opts = {}) {
 }
 
 // Enregistrement en temps réel (navigateur sans WebCodecs)
-async function recordLive(paint, duration, { music = 'gen', file = null, onProgress } = {}) {
+async function recordLive(paint, duration, { music = 'gen', file = null, track, onProgress } = {}) {
   if (!window.MediaRecorder) throw new Error('Enregistrement vidéo indisponible dans ce navigateur');
   const out = document.createElement('canvas');
   out.width = W; out.height = H;
@@ -221,7 +182,7 @@ async function recordLive(paint, duration, { music = 'gen', file = null, onProgr
       const src = ac.createBufferSource();
       src.buffer = buf; src.loop = buf.duration < duration;
       src.connect(master); src.start();
-    } else generatedMusic(ac, master, duration);
+    } else playTrack(ac, master, track, duration);
     tracks.push(...dest.stream.getAudioTracks());
   }
   const mimeType = pickMime(tracks.length > 1);
