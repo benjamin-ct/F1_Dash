@@ -1931,6 +1931,8 @@ body.solo .tb-tools { display: none; }
 [data-theme="pitwall"] .rail-btn { width: 64px; height: 54px; border-radius: 12px; }
 [data-theme="pitwall"] .rail-btn svg { width: 22px; height: 22px; margin-top: -12px; }
 [data-theme="pitwall"] .rail-btn small { bottom: 6px; font-family: var(--font-cond); font-size: 10.5px; letter-spacing: .9px; }
+/* « Commentaires » : le mot le plus long, resserré pour garder une marge de chaque côté */
+[data-theme="pitwall"] .rail-btn small.rail-long { font-size: 9.5px; letter-spacing: .2px; }
 [data-theme="pitwall"] .rail-btn.on { background: var(--panel-3); }
 [data-theme="pitwall"] .rail-btn.on::before { left: -6px; top: 14px; bottom: 14px; }
 
@@ -2509,3 +2511,7 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-fav-pos { font-size: 20px; font-weight: 900; color: var(--accent); }
 .hm-blur { filter: blur(7px); user-select: none; pointer-events: none; }
 .hm-fav .btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; }
+.hm-fav .hm-kicker .btn { margin-top: 0; text-transform: none; letter-spacing: 0; }
+.hm-fav-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.hm-fav-edit .fav-list { gap: 6px; }
+.hm-fav-edit .fav { padding: 4px 11px; font-size: 13px; font-weight: 600; }

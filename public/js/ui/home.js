@@ -2,13 +2,14 @@
 // résultat (replay depuis le début ou tableau de bord), dernières actualités, raccourcis.
 // Ouverte au lancement quand aucune séance n'est en cours ; pendant une séance, l'appli s'ouvre
 // directement sur le Direct.
-import { $, $$, esc, api } from '../util.js';
+import { $, $$, esc, api, drivers } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { LOCALE, EN } from '../i18n.js';
 import { gpShort, sessionLabel } from '/shared/gp-names.js';
 import { toast } from './delay.js';
-import { prefs } from '../prefs.js';
+import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
+import { teamKey } from '/shared/news.js';
 
 let schedule = null;   // [{ race, round, label, t }]
 let archive = null;    // dernière séance rejouable { meeting, name, path, t }
@@ -16,6 +17,7 @@ let timer = 0;
 let standings = null;  // classement du championnat (carte du favori)
 let weather = null;    // { key, days } : météo prévue du prochain Grand Prix
 let showFav = false;   // carte du favori dévoilée (peut contenir le dernier résultat)
+let editFav = false;   // choix des pilotes et écuries favoris ouvert sur l'accueil
 let touched = false;   // l'utilisateur a quitté l'accueil : plus d'ouverture ou de fermeture automatique
 
 // Durée approximative d'une séance (fenêtre « en cours »)
@@ -97,26 +99,69 @@ function weatherHtml(nx) {
   return `<div class="hm-wx">${days.map((d) => `<span title="Météo prévue sur le circuit"><b>${esc(new Date(`${d.date}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'short' }))}</b> ${Math.round(d.tmax)}° ${d.rain != null ? `<small>${icon('rain')} ${d.rain} %</small>` : ''}</span>`).join('')}</div>`;
 }
 
-// Pilote favori : position et points au championnat. Masqué juste après une séance (il peut
-// dévoiler le résultat) tant qu'on ne demande pas à le voir.
+// Pilotes et écuries favoris : position et points au championnat. Masqué juste après une séance (il
+// peut dévoiler le résultat) tant qu'on ne demande pas à le voir. Les favoris se choisissent ici aussi.
 async function loadStandings() {
   if (standings) return;
-  standings = { drivers: [] };
+  standings = { drivers: [], constructors: [] };
   try { standings = await api(`/api/season?year=${new Date().getFullYear()}`); } catch { /* hors ligne */ }
-  render();
+  renderFav();
 }
+
+// Numéro de course : celui de la séance chargée (le champion porte le n° 1), sinon le numéro permanent
+const driverNums = (d) => [Object.entries(drivers(store.state)).find(([, x]) => x.Tla === d.code)?.[0], d.number && String(d.number)].filter(Boolean);
+const isFavDriver = (d) => driverNums(d).some((n) => prefs.favs.includes(n));
+const teamsOf = (cs) => cs.map((c) => ({ ...c, key: teamKey(c.id, c.name) })).filter((c, i, all) => c.key && all.findIndex((x) => x.key === c.key) === i);
+const pts = (x) => `${x.points} pts${x.wins ? ` · ${x.wins} victoire${x.wins > 1 ? 's' : ''}` : ''}`;
+const byName = (a, b) => a.localeCompare(b, LOCALE);
+
+function favEditor(ds, teams) {
+  if (!ds.length && !teams.length) return '<div class="hm-fav-edit muted small">Classement indisponible pour l\'instant : les favoris se choisissent aussi avec l\'étoile du classement du Direct.</div>';
+  const dChips = [...ds].sort((a, b) => byName(a.last || a.name, b.last || b.name))
+    .map((d) => `<button class="fav${isFavDriver(d) ? ' on' : ''}" data-home="favd:${esc(d.code)}" title="${esc(d.team)}">${esc(d.name)}</button>`).join('');
+  const tChips = [...teams].sort((a, b) => byName(a.name, b.name))
+    .map((c) => `<button class="fav${prefs.favTeams.includes(c.key) ? ' on' : ''}" data-home="favt:${esc(c.key)}">${esc(c.name)}</button>`).join('');
+  return `<div class="hm-fav-edit"><div class="small muted">Pilotes</div><div class="fav-list">${dChips}</div>
+    <div class="small muted">Écuries</div><div class="fav-list">${tChips}</div>
+    <div class="small muted">Vos favoris sont mis en avant dans le classement, les alertes et les actualités.</div></div>`;
+}
+
 function favHtml() {
-  const favs = prefs.favs.map((n) => standings?.drivers?.find((d) => String(d.number) === String(n))).filter(Boolean).slice(0, 2);
-  if (!prefs.favs.length) {
-    return `<section class="hm-card hm-fav"><div class="hm-kicker">Mon favori</div><div class="muted">Choisissez un pilote favori avec l'étoile du classement, ou dans Réglages → Alertes & favoris : il apparaîtra ici avec sa place au championnat.</div></section>`;
+  const ds = standings?.drivers || [];
+  const teams = teamsOf(standings?.constructors || []);
+  const favD = ds.filter(isFavDriver);
+  const favT = teams.filter((c) => prefs.favTeams.includes(c.key));
+  const count = favD.length + favT.length;
+  const edit = `<button class="btn small" data-home="editfav">${icon(editFav ? 'check' : 'star')} ${editFav ? 'Terminé' : count ? 'Modifier' : 'Choisir mes favoris'}</button>`;
+  const head = `<div class="hm-kicker">${count === 1 ? 'Mon favori au championnat' : 'Mes favoris au championnat'} ${edit}</div>`;
+  if (!count) {
+    return `<section class="hm-card hm-fav" id="hmFav">${head}${editFav ? favEditor(ds, teams)
+      : '<div class="muted">Ajoutez vos pilotes et écuries favoris : ils apparaîtront ici avec leur place au championnat.</div>'}</section>`;
   }
-  if (!favs.length) return '';
   const recent = lastSession() && Date.now() - lastSession().t < 72 * 3600e3;
   const hide = recent && !showFav;
-  return `<section class="hm-card hm-fav"><div class="hm-kicker">${favs.length > 1 ? 'Mes favoris au championnat' : 'Mon favori au championnat'}</div>
-    <div class="hm-favs${hide ? ' hm-blur' : ''}">${favs.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b>${esc(d.name)}</b><span class="muted">${esc(d.team)}</span>
-      <span class="muted">${d.points} pts${d.wins ? ` · ${d.wins} victoire${d.wins > 1 ? 's' : ''}` : ''}</span></div>`).join('')}</div>
-    ${hide ? `<button class="btn small" data-home="showfav">${icon('eye-off')} Afficher (peut dévoiler le dernier résultat)</button>` : ''}</section>`;
+  const rows = [
+    ...favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b>${esc(d.name)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`),
+    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b>${esc(c.name)}</b><span class="muted">Constructeurs</span><span class="muted">${pts(c)}</span></div>`),
+  ];
+  return `<section class="hm-card hm-fav" id="hmFav">${head}
+    <div class="hm-favs${hide ? ' hm-blur' : ''}">${rows.join('')}</div>
+    ${hide ? `<button class="btn small" data-home="showfav">${icon('eye-off')} Afficher (peut dévoiler le dernier résultat)</button>` : ''}
+    ${editFav ? favEditor(ds, teams) : ''}</section>`;
+}
+
+// Carte des favoris seule (choix d'un favori, classement reçu) : le reste de l'accueil ne bouge pas
+function renderFav() {
+  const box = $('#hmFav');
+  if (box) box.outerHTML = favHtml();
+}
+
+function toggleDriver(code) {
+  const d = standings?.drivers?.find((x) => x.code === code);
+  if (!d) return;
+  const nums = driverNums(d);
+  if (isFavDriver(d)) setPref('favs', prefs.favs.filter((n) => !nums.includes(n)));
+  else toggleFav(nums[0]);
 }
 
 function render() {
@@ -212,7 +257,10 @@ export const isHomeOpen = () => !$('#homeView')?.hidden;
 
 async function act(k) {
   touched = true;
-  if (k === 'showfav') { showFav = true; render(); return; }
+  if (k === 'showfav') { showFav = true; renderFav(); return; }
+  if (k === 'editfav') { editFav = !editFav; renderFav(); return; }
+  if (k.startsWith('favd:')) { toggleDriver(k.slice(5)); return; }
+  if (k.startsWith('favt:')) { toggleTeamFav(k.slice(5)); return; }
   if (k === 'live' || k === 'results') { closeHome(); return; }
   // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
   // jusqu'au lancement du replay
@@ -249,6 +297,7 @@ export function initHome() {
     if (s?.mode === 'replay' && mode !== 'replay') closeHome();
     mode = s?.mode;
   });
+  on('prefs', (k) => { if ((k === 'favs' || k === 'favTeams') && isHomeOpen()) renderFav(); });
   Promise.all([loadSchedule(), loadArchive()]).then(() => {
     if (!touched && liveNow() && isHomeOpen()) { closeHome(); return; }
     render();

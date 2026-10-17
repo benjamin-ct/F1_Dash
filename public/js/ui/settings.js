@@ -3,7 +3,8 @@
 import { store, serverNow, on } from '../store.js';
 import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, storageSet } from '../util.js';
 import { toast } from './delay.js';
-import { prefs, setPref, toggleFav } from '../prefs.js';
+import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
+import { NEWS_TEAMS } from '/shared/news.js';
 import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { icon } from '../icons.js';
 import { LANG, LOCALE, EN } from '../i18n.js';
@@ -173,8 +174,12 @@ export function initSettings() {
     const b = e.target.closest('[data-fav]');
     if (b) { toggleFav(b.dataset.fav); renderFavs(); }
   });
+  $('#favTeamList').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-fav-team]');
+    if (b) toggleTeamFav(b.dataset.favTeam);
+  });
   // La liste des pilotes peut arriver après l'ouverture de la fenêtre : on la rafraîchit.
-  on('prefs', (k) => { if (k === 'favs' && modal.open) renderFavs(); });
+  on('prefs', (k) => { if ((k === 'favs' || k === 'favTeams') && modal.open) renderFavs(); });
   setInterval(() => { if (modal.open && !$('#favList .fav')) renderFavs(); }, 1000);
 
   // Application de bureau : connexion F1 TV intégrée (le cookie est lu directement par l'appli).
@@ -332,6 +337,8 @@ export function initSettings() {
 }
 
 function renderFavs() {
+  $('#favTeamList').innerHTML = NEWS_TEAMS.filter(([k]) => k !== 'fia')
+    .map(([k, name]) => `<button class="fav ${(prefs.favTeams || []).includes(k) ? 'on' : ''}" data-fav-team="${k}">${esc(name)}</button>`).join('');
   const dl = drivers(store.state);
   const nums = orderedNumbers(store.state).filter((n) => dl[n]);
   $('#favList').innerHTML = nums.length

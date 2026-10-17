@@ -168,6 +168,7 @@ function favTags() {
     if (d.Tla) out.add(d.Tla);
     for (const t of newsTags(d.TeamName || '')) out.add(t);
   }
+  for (const k of prefs.favTeams || []) out.add(k);
   return out;
 }
 
@@ -486,7 +487,7 @@ on('news', (list) => {
 });
 
 on('prefs', (k) => {
-  if (k === 'favs' && open()) scheduleRender();
+  if ((k === 'favs' || k === 'favTeams') && open()) scheduleRender();
   if ((k === 'newsTranslate' || k === 'cloudTranslate') && store.isHost !== false) shareNewsLang();
 });
 

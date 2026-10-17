@@ -130,6 +130,15 @@ const nameRe = (names) => new RegExp(`(?:^|[^a-z0-9])(?:${names.map((n) => escap
 const DRIVER_RES = NEWS_DRIVERS.map(([k, names]) => [k, nameRe(names)]);
 const TEAM_RES = NEWS_TEAMS.map(([k, , names]) => [k, nameRe(names)]);
 
+// Écurie des classements (identifiant et nom de Jolpica, ou nom de la F1) -> clé ci-dessus
+const TEAM_IDS = { red_bull: 'redbull', rb: 'rb', racing_bulls: 'rb', aston_martin: 'aston', sauber: 'audi', kick_sauber: 'audi' };
+export function teamKey(id, name = '') {
+  const k = TEAM_IDS[id] || NEWS_TEAMS.find(([key]) => key === id)?.[0];
+  if (k) return k;
+  const tags = newsTags(name).filter((t) => NEWS_TEAMS.some(([key]) => key === t && key !== 'fia'));
+  return tags[0] || null;
+}
+
 export function newsTags(text) {
   const t = fold(text);
   const out = [];
