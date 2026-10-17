@@ -21,6 +21,12 @@ l'application (Réglages → Application → Nouveautés).
 - L'anti-spoiler des actualités ne s'active plus que pendant une séance en direct : pendant un replay,
   les titres restent visibles et les alertes d'actualité continuent.
 
+### Mise en page
+- Records du circuit (onglet Secteurs) : pole et meilleur tour en course rangés en colonnes, chaque année
+  sous la même année, noms et temps alignés.
+- Saison → Classements : le graphique « Évolution des points » garde une taille normale sur grand écran
+  (textes et courbes ne sont plus agrandis avec la largeur).
+
 ### Corrections
 - Carte : les bulles d'écart (moins d'une seconde) ne sont plus coupées au bord de la carte, surtout
   dans la carte flottante ; près du bord, elles passent de l'autre côté du tracé.

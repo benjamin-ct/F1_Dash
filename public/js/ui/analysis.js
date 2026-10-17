@@ -394,11 +394,11 @@ function recordsStrip(rows, dl) {
   const lastRef = race ? last.fastest : last.pole;
   const best = rows.filter((r) => r.best > 0).sort((a, b) => a.best - b.best)[0];
   const cmp = (r) => (best && r ? ` <span class="${best.best <= r.time ? 'sec-better' : 'sec-worse'}">${best.best <= r.time ? '−' : '+'}${Math.abs(best.best - r.time).toFixed(3)} s</span>` : '');
-  const item = (e, kind) => (e[kind] ? `<span class="rec-i"><b>${e.year}</b> <i style="background:#${esc(e[kind].color || '888')}"></i>${esc(e[kind].tla)} ${fmtLap(e[kind].time)}</span>` : '');
-  return `<div class="rec-strip">
+  const item = (e, kind) => (e[kind] ? `<span class="rec-i"><b>${e.year}</b><i style="background:#${esc(e[kind].color || '888')}"></i><span class="rec-t">${esc(e[kind].tla)}</span>${fmtLap(e[kind].time)}</span>` : '<span></span>');
+  return `<div class="rec-strip" style="--n:${records.editions.length}">
     <div class="rec-row"><span class="rec-k">Pole</span>${records.editions.map((e) => item(e, 'pole')).join('')}</div>
     <div class="rec-row"><span class="rec-k">Meilleur tour en course</span>${records.editions.map((e) => item(e, 'fastest')).join('')}</div>
-    ${best ? `<div class="rec-row rec-now"><span class="rec-k">Cette séance</span><span class="rec-i"><i style="background:${teamColor(dl[best.n])}"></i>${esc(dl[best.n]?.Tla || best.n)} ${fmtLap(best.best)}</span>
+    ${best ? `<div class="rec-row rec-now"><span class="rec-k">Cette séance</span><span class="rec-i"><i style="background:${teamColor(dl[best.n])}"></i><span class="rec-t">${esc(dl[best.n]?.Tla || best.n)}</span>${fmtLap(best.best)}</span>
       ${lastRef ? `<span class="muted">vs ${race ? 'meilleur tour' : 'pole'} ${last.year} :</span>${cmp(lastRef)}` : ''}
       ${ref && ref.year !== last.year ? `<span class="muted">· vs meilleur ${race ? 'tour' : 'pole'} (${ref.year}) :</span>${cmp(ref)}` : ''}</div>` : ''}
   </div>`;

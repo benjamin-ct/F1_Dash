@@ -1788,10 +1788,14 @@ body.solo .grid .panel-head { padding-right: 116px; }
 #anaLapCanvas { cursor: pointer; }
 .cmp-lap { max-width: 170px; }
 /* Secteurs : références du circuit (éditions précédentes) */
-.rec-strip { padding: 8px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
-.rec-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
-.rec-k { min-width: 150px; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-.rec-i { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+/* Records : une colonne par édition, alignée d'une ligne à l'autre */
+.rec-strip { padding: 8px 10px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 190px repeat(var(--n, 4), max-content); align-items: center; gap: 5px 18px; font-size: 12.5px; overflow-x: auto; }
+.rec-row { display: contents; }
+.rec-row.rec-now { display: flex; grid-column: 1 / -1; align-items: center; gap: 4px 10px; flex-wrap: wrap; }
+.rec-now .rec-k { width: 190px; margin-right: 8px; flex: none; }
+.rec-k { font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.rec-i { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rec-t { display: inline-block; min-width: 2.4em; }
 .rec-i b { color: var(--muted); font-weight: 600; }
 .rec-i i { width: 3px; height: 12px; border-radius: 2px; background: var(--c, #888); }
 .rec-now { color: var(--text); font-weight: 600; }

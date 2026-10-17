@@ -246,7 +246,9 @@ function renderStandings() {
     seen.add(d.teamId);
     return { label: d.code, color: color(d.team, d.teamId), dashed, points: pr.get(d.code) || [] };
   });
-  return `<section class="sz-box"><h3>Évolution des points — 10 premiers</h3>${lineChartSvg(top)}</section>
+  // Dessiné à la largeur réelle de la page : textes et traits gardent leur taille (pas étirés)
+  const w = Math.max(600, ($('#szContent')?.clientWidth || 934) - 34);
+  return `<section class="sz-box"><h3>Évolution des points — 10 premiers</h3>${lineChartSvg(top, { w, h: 280 })}</section>
     <div class="sz-grid2">
       <section class="sz-box"><h3>Pilotes</h3>${standingsTable(data.drivers, 'd')}</section>
       <section class="sz-box"><h3>Constructeurs</h3>${standingsTable(data.constructors, 'c')}</section>
