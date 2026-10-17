@@ -251,3 +251,6 @@ export function bindMusic(kind) {
   addEventListener('popstate', end, { once: true });
   return () => $('#vtrack').value;
 }
+
+// Vidéo fabriquée sur place, jointe au post si elle est en MP4 (format accepté par tous les réseaux)
+export const clipFile = (clip, name) => (clip?.mime.includes('mp4') ? new File([clip.blob], `${name}.mp4`, { type: 'video/mp4' }) : null);
