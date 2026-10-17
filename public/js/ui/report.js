@@ -11,7 +11,7 @@ const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b)
 function gapText(g) {
   const v = String(g || '').trim();
   const laps = /^\+?(\d+)\s*L(?:APS?)?$/i.exec(v);
-  if (laps) return t('+{} tour(s)', laps[1]);
+  if (laps) return Number(laps[1]) === 1 ? t('+1 tour') : t('+{} tours', laps[1]);
   return /^\+?\d/.test(v) ? `+${v.replace('+', '').replace('.', DEC)} s` : esc(v);
 }
 const lapsText = (laps) => laps.map((l) => t('T{}', l)).join(', ');
@@ -57,7 +57,7 @@ export function reportHtml(state) {
     if (f.down.length) tiles.push(tile(`${icon('arrow-down', 'ic-s')} ${t('Course difficile')}`, f.down.map((m) => move(m, false)).join('')));
     if (f.leaderStrat.length) {
       const stops = f.leaderStrat.length - 1;
-      tiles.push(tile(t('Stratégie de {}', f.top[0].name), `<div class="rp-tyres">${tyres(f.leaderStrat)}</div><div class="muted small">${stops ? t('{} arrêt(s)', stops) : t('Aucun arrêt')}</div>`));
+      tiles.push(tile(t('Stratégie de {}', f.top[0].name), `<div class="rp-tyres">${tyres(f.leaderStrat)}</div><div class="muted small">${stops === 1 ? t('1 arrêt') : stops ? t('{} arrêts', stops) : t('Aucun arrêt')}</div>`));
     }
     if (f.common) tiles.push(tile(t('Stratégie la plus courante'), `<div class="rp-tyres">${tyres(f.common.comps)}</div><div class="muted small">${t('{} pilotes', f.common.count)}</div>`));
     const neut = [
@@ -86,7 +86,7 @@ export function classificationHtml(state) {
   const app = state?.TimingAppData?.Lines || {};
   const stats = state?.TimingStats?.Lines || {};
   if (!f.ranked.length) return '';
-  const name = (n) => `<td class="rp-c-drv">${teamMark(dl[n] || {})}<b>${esc(dl[n]?.Tla || n)}</b> <span class="muted">${esc(dl[n]?.LastName || '')}</span></td>`;
+  const name = (n) => `<td><span class="rp-c-drv">${teamMark(dl[n] || {})}<b>${esc(dl[n]?.Tla || n)}</b> <span class="muted">${esc(dl[n]?.LastName || '')}</span></span></td>`;
   let head, rows;
   if (f.kind === 'race') {
     const outSet = new Set((f.out || []).map((d) => d.n));
@@ -99,7 +99,7 @@ export function classificationHtml(state) {
       return `<tr class="${outSet.has(n) ? 'out' : ''}"><td class="rp-c-pos">${pos}</td>${name(n)}
         <td>${grid ? `${grid}${d ? ` <span class="rp-delta ${d > 0 ? 'up' : 'down'}">${d > 0 ? '+' : ''}${d}</span>` : ''}` : '—'}</td>
         <td class="rp-num">${gap}</td><td class="rp-num">${esc(l.NumberOfLaps ?? '—')}</td><td class="rp-num">${realStopCount(app[n], l)}</td>
-        <td class="rp-c-tyres">${realStints(list(app[n]?.Stints)).map((s) => tyreBadge(s?.Compound)).join('')}</td>
+        <td><span class="rp-c-tyres">${realStints(list(app[n]?.Stints)).map((s) => tyreBadge(s?.Compound)).join('')}</span></td>
         <td class="rp-num ${pb?.Position === 1 ? 'rp-purple' : ''}">${esc(pb?.Value || '—')}</td></tr>`;
     });
   } else if (f.kind === 'quali') {

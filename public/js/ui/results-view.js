@@ -27,8 +27,8 @@ function render() {
   main.innerHTML = `<div class="rp-head"><div><div class="muted small">${t('Résultats')}</div>
       <h2>${gpShort(info.Meeting?.Name || '', EN)} : ${sessionLabel(info.Name || '', EN)}</h2></div>
       <span class="rp-status${f.final ? ' done' : ''}">${statusLabel(f)}</span></div>
-    ${reportHtml(store.state)}
-    <section class="sz-box rp-class"><h3>${t('Classement')}</h3>${classificationHtml(store.state)}</section>
+    <div class="rp-layout"><div class="rp-left">${reportHtml(store.state)}</div>
+      <section class="sz-box rp-class"><h3>${t('Classement')}</h3>${classificationHtml(store.state)}</section></div>
     ${f.final ? '' : `<p class="muted small">${t('Résultats provisoires : la séance n\'est pas terminée (au rythme de votre délai TV).')}</p>`}`;
 }
 

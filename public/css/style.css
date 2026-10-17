@@ -2546,7 +2546,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 
 /* ---------- Carte flottante (application de bureau) : la carte seule, sans fond ni fenêtre ---------- */
 html.float-map, html.float-map body { background: transparent !important; overflow: hidden; }
-html.float-map body > :not(.grid):not(.float-bar):not(.float-resize):not(.toast) { display: none !important; }
+html.float-map body > :not(.grid):not(.float-bar):not(.float-resize) { display: none !important; }
+/* Carte et mini-classement flottants : pas de messages (alertes de course, arrêts…) par-dessus la vidéo */
+html:is(.float-map, .float-mini) .toast { display: none !important; }
 html.float-map .grid { position: fixed; inset: 0; padding: 0 !important; margin: 0; background: transparent !important; display: block !important; }
 html.float-map .grid .panel:not(.p-map), html.float-map .grid :is(.lsplit-v, .lsplit-h) { display: none !important; }
 html.float-map .grid .lcol { background: transparent !important; }
@@ -2601,7 +2603,9 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .rp-val { font: 800 17px "JetBrains Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
 .rp-lead { font-family: "Saira Condensed", sans-serif; font-size: 18px; text-transform: uppercase; letter-spacing: .6px; color: var(--tc); filter: brightness(1.15); }
 .rp-sub { font-size: 12px; min-height: 1em; }
-.rp-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+/* Cartes : chaque ligne remplie (les dernières s'élargissent au lieu de laisser un trou) */
+.rp-tiles { display: flex; flex-wrap: wrap; gap: 10px; }
+.rp-tiles > .rp-tile { flex: 1 1 210px; }
 .rp-tile { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .rp-tile h4 { margin: 0 0 2px; display: flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: .9px; text-transform: uppercase; color: var(--muted); }
 .rp-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
@@ -2623,20 +2627,25 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .rp-best.plain { color: var(--text); }
 .rp-tile.fl { border-color: color-mix(in srgb, var(--purple) 45%, var(--border)); }
 /* Page Résultats */
-.results-view .sz-main { max-width: 1280px; margin: 0 auto; width: 100%; }
+.results-view .sz-main { max-width: 1800px; margin: 0 auto; width: 100%; }
+/* Grand écran : séance en cartes à gauche, classement à droite */
+.rp-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 14px; align-items: start; }
+.rp-layout .rp-podium { margin-top: 0; }
+@media (max-width: 1300px) { .rp-layout { grid-template-columns: minmax(0, 1fr); } }
 .rp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .rp-head h2 { margin: 2px 0 0; font-size: 24px; }
-.rp-class { margin-top: 14px; }
+.rp-class { margin: 0; }
+.rp-class h3 { margin-top: 0; }
 .rp-table-wrap { overflow-x: auto; }
 .rp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rp-table th { text-align: left; font-size: 10.5px; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .rp-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .rp-table tr.out td { opacity: .55; }
 .rp-c-pos { width: 34px; font: 800 14px "Saira Condensed", sans-serif; color: var(--muted); }
-.rp-c-drv { display: flex; align-items: center; gap: 7px; }
+.rp-c-drv { display: inline-flex; align-items: center; gap: 7px; vertical-align: middle; }
 .rp-c-drv .team-logo { width: 20px; height: 20px; }
 .rp-num { font-family: "JetBrains Mono", Consolas, monospace; font-variant-numeric: tabular-nums; }
-.rp-c-tyres { display: flex; gap: 3px; }
+.rp-c-tyres { display: inline-flex; gap: 3px; vertical-align: middle; }
 .rp-purple { color: var(--purple); font-weight: 800; }
 .rp-dnf { color: var(--red); font-family: inherit; font-weight: 700; }
 /* Fenêtre Résumé : cartes */

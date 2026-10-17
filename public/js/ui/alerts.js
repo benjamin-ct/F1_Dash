@@ -5,6 +5,7 @@ import { $, esc, drivers } from '../util.js';
 import { prefs, setPref, isFav } from '../prefs.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
+import { FLOAT } from './floatwin.js';
 
 let audio = null;
 
@@ -126,6 +127,8 @@ function onEvents(events) {
 }
 
 export function initAlerts() {
+  // Carte flottante : pas d'alertes (message et son déjà donnés par la fenêtre principale)
+  if (FLOAT) return;
   on('reset', () => { lastTrack = String(store.state.TrackStatus?.Status || ''); });
   on('events', onEvents);
   // Téléphones et tablettes : le son n'est autorisé qu'après un premier appui sur l'écran

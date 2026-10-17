@@ -22,7 +22,8 @@ l'application (Réglages → Application → Nouveautés).
   avec écarts et place au départ, belles remontées et courses difficiles, stratégie du leader et la plus
   courante en pneus, neutralisations, abandons, pénalités, meilleur tour, puis le classement complet
   (grille et places gagnées, écart ou abandon, tours, arrêts, pneus utilisés, meilleur tour ; Q1, Q2, Q3
-  et écart à la pole en qualifications). Au rythme du délai TV.
+  et écart à la pole en qualifications). Au rythme du délai TV. Sur grand écran, les cartes à gauche et le
+  classement à droite : tout tient sur un écran.
 - « Voir les résultats » (accueil et écran « Pas de séance en direct ») ouvre cette page.
 - Les graphiques d'analyse restent dans leurs onglets du tableau de bord (Écarts, Temps, Secteurs,
   Comparaison, Télémétrie).
@@ -49,6 +50,8 @@ l'application (Réglages → Application → Nouveautés).
 
 ### Corrections
 - Duel : le nombre d'arrêts n'affiche plus « undefined » (en replay comme en direct).
+- Carte flottante : plus de messages d'alerte (arrêts, drapeaux…) par-dessus la carte, ni de son en double
+  avec la fenêtre principale.
 - Carte : les bulles d'écart (moins d'une seconde) ne sont plus coupées au bord de la carte, surtout
   dans la carte flottante ; près du bord, elles passent de l'autre côté du tracé.
 - Thème clair : les noms des pilotes et les temps sont de nouveau lisibles dans la bulle qui apparaît au
