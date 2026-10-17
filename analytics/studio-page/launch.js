@@ -271,6 +271,23 @@ function bind(x) {
         if (x.draft === 'tiktok') { try { await navigator.clipboard.writeText(area.value); } catch { /* presse-papiers refusé */ } }
         st.className = 'st ok';
         st.innerHTML = `${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Envoyé ${icon('check')}</a>` : `Envoyé ${icon('check')}`} ${esc(r.note || '')}${x.draft === 'tiktok' ? ' (texte copié)' : ''}`;
+        // TikTok encore en train de traiter la vidéo : nouvelle lecture de l'état à la demande
+        if (r.pending && r.id) {
+          const again = document.createElement('button');
+          again.className = 'btn small';
+          again.textContent = 'Vérifier l\'état';
+          again.onclick = async () => {
+            again.disabled = true;
+            try {
+              const s = await api('video', { method: 'POST', body: JSON.stringify({ network: 'tiktok-status', id: r.id }) });
+              st.className = 'st ok';
+              st.textContent = s.note;
+              if (s.pending) st.append(' ', again);
+            } catch (err) { st.className = 'st err'; st.textContent = err.message; }
+            again.disabled = false;
+          };
+          st.append(' ', again);
+        }
         toast({ tiktok: 'Brouillon envoyé dans TikTok', youtube: 'Short envoyé en privé', 'instagram-reel': 'Reel publié' }[x.draft], 'ok');
         if (x.draft === 'instagram-reel') { setDone(acc, x.id, true); setTimeout(render, 1500); }
       } catch (err) {

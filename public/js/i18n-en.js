@@ -1981,5 +1981,4 @@ export default {
   "Paddock Live est un projet indépendant, non affilié à la Formula 1, à la FIA ni aux équipes. F1 et FORMULA 1 sont des marques de Formula One Licensing B.V.": "Paddock Live is an independent project, not affiliated with Formula 1, the FIA or the teams. F1 and FORMULA 1 are trademarks of Formula One Licensing B.V.",
   "Brouillon reçu par TikTok : ouvrez la notification dans TikTok (Boîte de réception → Notifications système) pour ajouter un son et publier": "Draft received by TikTok: open the notification in TikTok (Inbox → System notifications) to add a sound and post",
   "Vidéo envoyée : ouvrez la notification dans TikTok (Boîte de réception → Notifications système) pour ajouter un son et publier": "Video sent: open the notification in TikTok (Inbox → System notifications) to add a sound and post",
-  "Vidéo envoyée, encore en traitement chez TikTok : la notification arrivera dans quelques minutes (Boîte de réception → Notifications système)": "Video sent, still being processed by TikTok: the notification will arrive in a few minutes (Inbox → System notifications)",
 };

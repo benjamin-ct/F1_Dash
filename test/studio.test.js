@@ -424,6 +424,13 @@ test('page du créateur : vidéo du kit envoyée par le serveur (brouillon TikTo
     // Refus de TikTok après l'envoi : la raison est donnée
     assert.equal(r.status, 502);
     assert.match((await r.json()).error, /trop de brouillons en attente/);
+    // État relu plus tard : encore en traitement (avec l'état de TikTok), puis reçu
+    let st = await (await send({ network: 'tiktok-status', id: 'pid9' })).json();
+    assert.equal(st.pending, true);
+    assert.match(st.note, /état TikTok : PROCESSING_UPLOAD/);
+    st = await (await send({ network: 'tiktok-status', id: 'pid9' })).json();
+    assert.match(st.note, /Brouillon reçu par TikTok/);
+    assert.equal((await send({ network: 'tiktok-status', id: '../x y' })).status, 400);
     r = await send({ network: 'youtube', src: '/kit/benjy/video.mp4', text: 'Bienvenue\nLe récap' });
     assert.equal((await r.json()).url, 'https://youtube.com/shorts/v42');
     // Reel Instagram : Instagram lit la vidéo à son adresse publique

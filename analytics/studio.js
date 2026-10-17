@@ -10,7 +10,7 @@
 import { DEFAULT_SOURCES, feedUrl } from '../shared/news-sources.js';
 import { publishFacebook, publishInstagram, publishThreads, freshThreads, commentFacebook, replyThreads, withComment, storyInstagram, storyFacebook, reelInstagram } from '../shared/meta-publish.js';
 import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
-import { freshTiktok, freshYoutube, tiktokDraft, youtubeUpload } from '../shared/video-publish.js';
+import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
 import { pushApi } from './alerts.js';
@@ -317,6 +317,16 @@ async function sendVideo(req, env, raw, vault, url) {
   try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
   const net = String(body?.network || '');
   const src = String(body?.src || '');
+  // État d'un brouillon TikTok déjà envoyé (encore en traitement au premier coup d'œil)
+  if (net === 'tiktok-status') {
+    const id = String(body?.id || '');
+    if (!vault.tiktok || !/^[\w.~-]{1,120}$/.test(id)) return json({ error: 'Envoi inconnu' }, 400);
+    try {
+      const acc = await freshTiktok(vault.tiktok);
+      if (acc !== vault.tiktok) await setRow(env, 'vault', await seal(raw, { ...vault, tiktok: acc }));
+      return json({ ok: true, ...tiktokOutcome(id, await tiktokStatus(acc.accessToken, id)) });
+    } catch (err) { return json({ error: String(err?.message || err).slice(0, 300) }, 502); }
+  }
   if (net !== 'tiktok' && net !== 'youtube' && net !== 'instagram-reel') return json({ error: 'Réseau inconnu' }, 400);
   if (!/^\/kit\/[a-z]+\/video\.mp4$/.test(src)) return json({ error: 'Vidéo inconnue' }, 400);
   if (net === 'instagram-reel') {
@@ -336,7 +346,7 @@ async function sendVideo(req, env, raw, vault, url) {
     const acc = await (net === 'tiktok' ? freshTiktok : freshYoutube)(vault[net]);
     if (acc !== vault[net]) await setRow(env, 'vault', await seal(raw, { ...vault, [net]: acc }));
     const r = net === 'tiktok' ? await tiktokDraft(acc.accessToken, video, 'video/mp4') : await youtubeUpload(acc.accessToken, video, 'video/mp4', String(body?.text || ''));
-    return json({ ok: true, url: r.url || null, id: r.id ?? null, note: r.note });
+    return json({ ok: true, url: r.url || null, id: r.id ?? null, note: r.note, ...(r.pending ? { pending: true } : {}) });
   } catch (err) {
     const msg = err.code === 'invalid_grant' || err.code === 'invalid_client'
       ? `Connexion ${net === 'tiktok' ? 'TikTok' : 'YouTube'} expirée : reconnectez-vous dans l'appli (Comptes…), puis « Renvoyer les comptes »`
