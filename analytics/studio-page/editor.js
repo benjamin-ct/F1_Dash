@@ -4,6 +4,7 @@ import { slidesFor, drawSlide, slideName, chosenSlides } from '/shared/social-dr
 import { openImageViewer } from '/shared/image-viewer.js';
 import { followCaptions, questionCaptions } from '/shared/social-follow.js';
 import { FLAG_ISO } from '/shared/flags.js';
+import { loadTeamLogos } from '/shared/team-logos.js';
 import { $, $$, esc, api, icon, toast, toggle, sheet, schedList, glide, state, session, SIG, NET_NAMES, IOS, installed } from './ui.js';
 
 // ---------- Images (photos des pilotes, drapeaux) par le relais du serveur ----------
@@ -25,7 +26,8 @@ export async function assets(d) {
   const photos = {};
   if (state.photos) await Promise.all((d.rows || []).slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
-  return { photos, flag: iso ? await loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`) : null, signature: SIG };
+  const [flag, logos] = await Promise.all([iso ? loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`) : null, loadTeamLogos(loadImage)]);
+  return { photos, flag, logos, signature: SIG };
 }
 
 const FORMATS = [['ig', 'Instagram'], ['story', 'Story'], ['x', 'X']];

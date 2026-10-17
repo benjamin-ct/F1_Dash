@@ -18,6 +18,7 @@ import { builtinNomination } from '/shared/tyres.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { postedEntry } from '/shared/post-history.js';
 import { circuitInfo } from '/shared/circuits-info.js';
+import { loadTeamLogos } from '/shared/team-logos.js';
 import { openPublish } from './social-publish-view.js';
 import { openImageViewer } from '/shared/image-viewer.js';
 
@@ -71,8 +72,11 @@ async function assets(d) {
     await Promise.all(d.rows.slice(0, 3).map(async (r) => { photos[r.num] = await headshot(r.headshot); }));
   }
   const iso = d.iso || FLAG_ISO[String(d.country || '').toUpperCase()];
-  const flag = iso ? await loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`, true) : null;
-  return { photos, flag };
+  const [flag, logos] = await Promise.all([
+    iso ? loadImage(`https://flagcdn.com/${d.post === 'raceweek' ? 'w1280' : 'w160'}/${iso}.png`, true) : null,
+    loadTeamLogos((u) => loadImage(photoUrl({ HeadshotUrl: u }))),
+  ]);
+  return { photos, flag, logos };
 }
 
 const POST_FOLDER = { prerace: 'Avant-course', champ: 'Championnat', flash: 'Flash' };

@@ -1,7 +1,7 @@
 // Visuels des posts de saison (mode créateur) : horaires du week-end, pneus et météo, records du
 // circuit, notes des pilotes, duels entre coéquipiers, positions tour par tour, récap de la semaine,
 // et images de la vidéo animée de la course. Mêmes outils de dessin que les autres posts.
-import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, background, frame, newsSlide } from './social-draw.js';
+import { C, TITLE, BODY, MONO, MEDAL, rr, txt, fitLines, vivid, background, frame, newsSlide, teamLogo } from './social-draw.js';
 import { lapStr } from './social-season.js';
 
 const dec = (v, n = 1) => (v == null ? '—' : Number(v).toFixed(n).replace('.', ','));
@@ -176,11 +176,13 @@ export function notes(ctx, W, H, d, o) {
     const y = f.top - 6 + (i % per) * rowH;
     if (i % 2 === 0) { rr(ctx, x, y, colW, rowH - 4, 8); ctx.fillStyle = C.panel; ctx.fill(); }
     const mid = y + rowH / 2 + fs * 0.34;
-    ctx.fillStyle = vivid(r.color); ctx.fillRect(x + 12, y + rowH * 0.2, 6, rowH * 0.56);
-    txt(ctx, r.code, x + 32, mid, { size: fs, weight: 800, family: TITLE });
-    txt(ctx, r.classified ? `P${r.pos}` : 'AB.', x + 32 + fs * 2.6, mid, { size: Math.round(fs * 0.7), weight: 700, family: MONO, color: C.muted });
+    ctx.fillStyle = vivid(r.color); ctx.fillRect(x, y + 6, 5, rowH - 16);
+    teamLogo(ctx, o, r.team, x + 18 + fs * 0.55, y + (rowH - 4) / 2, fs * 0.85, 'center', fs * 1.1);
+    const cx0 = x + 30 + fs * 1.1;
+    txt(ctx, r.code, cx0, mid, { size: fs, weight: 800, family: TITLE });
+    txt(ctx, r.classified ? `P${r.pos}` : 'AB.', cx0 + fs * 2.5, mid, { size: Math.round(fs * 0.7), weight: 700, family: MONO, color: C.muted });
     // Barre de la note (de 3 à 10)
-    const bx = x + 32 + fs * 4.6;
+    const bx = cx0 + fs * 4.5;
     const bw = colW - (bx - x) - fs * 2.6;
     rr(ctx, bx, y + rowH * 0.38, bw, rowH * 0.24, rowH * 0.12); ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
     rr(ctx, bx, y + rowH * 0.38, Math.max(rowH * 0.24, bw * (r.note - 3) / 7), rowH * 0.24, rowH * 0.12); ctx.fillStyle = noteColor(r.note); ctx.fill();
@@ -310,8 +312,8 @@ export function recapCover(ctx, W, H, d, o) {
   });
   const fy = H - Math.round(Math.min(W, H) * 0.045);
   ctx.fillStyle = C.line; ctx.fillRect(pad, fy - Math.round(Math.min(W, H) * 0.04), W - pad * 2, 2);
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, spacing: 1 });
-  txt(ctx, `${kept.length} INFO${kept.length > 1 ? 'S' : ''} À RETENIR`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.022), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
+  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
+  txt(ctx, `${kept.length} INFO${kept.length > 1 ? 'S' : ''} À RETENIR`, W - pad, fy, { size: Math.round(Math.min(W, H) * 0.025), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }
 export function recapItem(ctx, W, H, d, o, i, fmt) {
   const it = d.items[i - 1];
@@ -788,6 +790,6 @@ export function raceweek(ctx, W, H, d, o) {
   }
   if (withPrev && d.prev) txt(ctx, `VAINQUEUR ${d.prev.year} : ${d.prev.name.toUpperCase()}`, tx, y + 20 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, align, spacing: 2 * u, max: colW });
   // Pied
-  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.026), weight: 700, family: TITLE, spacing: 1 });
+  txt(ctx, o.signature || '@BenjyPaddock', pad, fy, { size: Math.round(Math.min(W, H) * 0.032), weight: 700, family: TITLE, spacing: 1 });
   txt(ctx, 'HEURE DE PARIS', W - pad, fy, { size: Math.round(Math.min(W, H) * 0.02), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 2 });
 }

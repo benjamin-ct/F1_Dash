@@ -2,6 +2,7 @@
 import { parseLapTime, parseUtc } from '/shared/f1.js';
 import { onLight } from '/shared/colors.js';
 import { portraitUrl } from '/shared/portraits.js';
+import { teamLogoUrl } from '/shared/team-logos.js';
 import { DEC, LOCALE } from './i18n.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -81,21 +82,6 @@ export function teamColor(driver) {
 }
 
 
-// Logos officiels (version blanche) des écuries, servis par formula1.com
-const TEAM_LOGOS = [
-  [/racing bulls|visa|alphatauri|\brb\b/i, '2026/racingbulls/2026racingbulls'],
-  [/red bull/i, '2026/redbullracing/2026redbullracing'],
-  [/ferrari/i, '2026/ferrari/2026ferrari'],
-  [/mclaren/i, '2026/mclaren/2026mclaren'],
-  [/mercedes/i, '2026/mercedes/2026mercedes'],
-  [/aston/i, '2026/astonmartin/2026astonmartin'],
-  [/williams/i, '2026/williams/2026williams'],
-  [/alpine/i, '2026/alpine/2026alpine'],
-  [/haas/i, '2026/haasf1team/2026haasf1team'],
-  [/sauber|kick/i, '2025/kicksauber/2025kicksauber'],
-  [/audi/i, '2026/audi/2026audi'],
-  [/cadillac/i, '2026/cadillac/2026cadillac'],
-];
 let teamLogos = true;
 export function setTeamLogos(v) { teamLogos = !!v; }
 let logoColor = true;
@@ -103,8 +89,7 @@ export function setLogoColor(v) { logoColor = !!v; }
 
 // Logo en couleurs officielles (sur pastille claire : certains sont noirs) ou version blanche
 export function teamLogo(teamName, color = logoColor) {
-  const hit = teamName && TEAM_LOGOS.find(([re]) => re.test(teamName));
-  return hit ? `https://media.formula1.com/image/upload/c_fit,h_64/q_auto/v1740000000/common/f1/${hit[1]}logo${color ? '' : 'white'}.webp` : null;
+  return teamLogoUrl(teamName, { white: !color });
 }
 
 // Repère d'écurie d'un pilote : logo officiel (réglage « logos »), sinon barre de couleur.
