@@ -33,6 +33,12 @@ l'application (Réglages → Application → Nouveautés).
   légendes, animations) et « Disposition » (panneaux, colonnes, onglets, fenêtres).
 - Lumières connectées rangées dans l'onglet « Application ».
 
+### Statistiques anonymes
+- La question sur les statistiques d'utilisation n'ouvre plus une fenêtre qui bloque l'écran au premier
+  lancement : un petit bandeau dans le coin propose « Oui », « Non merci » ou « Détails », sans gêner
+  l'appli. La croix le referme pour cette fois : il revient au lancement suivant tant qu'aucune réponse
+  n'est donnée.
+
 ### Duel
 - Le duel se remplit tout seul : votre pilote favori contre celui qui le précède (ou le suit s'il est en
   tête), sinon le leader contre le deuxième. Vous pouvez toujours choisir d'autres pilotes.

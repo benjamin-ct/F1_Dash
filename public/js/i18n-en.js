@@ -1819,7 +1819,6 @@ export default {
   "Rien qui permette de vous identifier : ni compte F1 TV, ni identifiant, ni contenu, et l'adresse IP n'est pas conservée. Seuls des totaux par jour sont envoyés.": "Nothing that can identify you: no F1 TV account, no identifier, no content, and the IP address is not kept. Only daily totals are sent.",
   "Aider à améliorer Paddock Live ?": "Help improve Paddock Live?",
   "Modifiable à tout moment dans Réglages → Application.": "You can change this at any time in Settings → App.",
-  "Oui, envoyer les statistiques": "Yes, send statistics",
   "Merci ! Statistiques anonymes activées": "Thank you! Anonymous statistics enabled",
   "Envoyer des statistiques d'utilisation anonymes": "Send anonymous usage statistics",
   "Pour savoir quelles fonctions servent le plus ou le moins : panneaux, onglets et fonctions utilisés, version de l'appli, système, ordinateur ou téléphone, direct ou replay, erreurs rencontrées. Ni compte F1 TV, ni identifiant, ni contenu ; l'adresse IP n'est pas conservée.": "To learn which features are used the most or the least: panels, tabs and features used, app version, system, computer or phone, live or replay, errors encountered. No F1 TV account, no identifier, no content; the IP address is not kept.",
@@ -2059,4 +2058,10 @@ export default {
   "La F1 ne donne pas accès aux archives officielles de {}": "F1 does not give access to the official {} archives",
   "archives officielles de la F1 injoignables ({}) ; nouvel essai dans quelques minutes": "official F1 archives unreachable ({}); retrying in a few minutes",
   "Archives officielles de la F1 injoignables ({}) ; nouvel essai dans quelques minutes": "Official F1 archives unreachable ({}); retrying in a few minutes",
+  "Statistiques anonymes": "Anonymous statistics",
+  "Plus tard": "Later",
+  "Envoyer des statistiques d'utilisation anonymes : fonctions utilisées et erreurs rencontrées.": "Send anonymous usage statistics: features used and errors encountered.",
+  "Détails": "Details",
+  "Moins de détails": "Fewer details",
+  "Oui": "Yes",
 };

@@ -480,10 +480,19 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .creator-dlg { width: min(360px, calc(100vw - 32px)); }
 .creator-form { padding: 16px; display: grid; gap: 8px; }
 .creator-form input { padding: 8px 10px; font-size: 15px; }
-.stats-dlg { width: min(520px, calc(100vw - 32px)); }
-.stats-body { padding: 14px 16px 16px; }
-.stats-body p { margin: 0 0 10px; }
-.stats-body .stats-actions { justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.stats-bar { position: fixed; right: 16px; bottom: 16px; z-index: 1200; width: min(360px, calc(100vw - 32px)); padding: 12px 14px;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, .35); animation: stats-in .25s ease-out; }
+.stats-bar-head { display: flex; align-items: center; gap: 7px; padding-right: 26px; }
+.stats-bar-head .ic { color: var(--accent); }
+.stats-bar p { margin: 6px 0 0; }
+.stats-bar .stats-more { max-height: 40vh; overflow-y: auto; }
+.stats-bar .stats-actions { justify-content: flex-end; gap: 6px; margin-top: 10px; }
+.stats-bar .stats-details { margin-right: auto; }
+.stats-later { position: absolute; top: 8px; right: 8px; }
+@keyframes stats-in { from { opacity: 0; transform: translateY(10px); } }
+@media (max-width: 900px) { .stats-bar { right: 8px; left: 8px; width: auto; bottom: calc(76px + env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: reduce) { .stats-bar { animation: none; } }
+:root[data-motion="off"] .stats-bar { animation: none; }
 .modal-body { padding: 12px 16px 16px; }
 .sync-steps { margin: 0 0 8px; padding-left: 20px; line-height: 1.55; }
 .autosync { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; background: var(--panel-2); }
