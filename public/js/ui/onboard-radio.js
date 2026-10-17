@@ -34,7 +34,6 @@ const feeds = new Map();                 // pilote -> écoute en cours
 let isCapturer = !navigator.locks;
 let reconciling = false;
 
-export const onboardEntries = () => entries;
 export const onboardStatus = () => status;
 
 function setStatus(s) {

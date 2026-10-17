@@ -3,13 +3,8 @@
 // post (premier commentaire). Partagé par l'appli et la page web du créateur.
 const XRPC = 'https://bsky.social/xrpc';
 export const BSKY_MAX_IMAGE = 976 * 1024;
-export const BSKY_MAX_TEXT = 300;
 
 const enc = new TextEncoder();
-export const graphemes = (s) => {
-  try { return [...new Intl.Segmenter('fr', { granularity: 'grapheme' }).segment(String(s || ''))].length; } catch { return [...String(s || '')].length; }
-};
-
 async function xrpc(method, { token, json, body, type, query } = {}) {
   const url = `${XRPC}/${method}${query ? `?${new URLSearchParams(query)}` : ''}`;
   const res = await fetch(url, {

@@ -933,8 +933,6 @@ function checkProfile() {
   switchProfile(profileFor(prefs.layoutMode, kind));
 }
 
-export const currentProfile = () => profile;
-
 // Boutons de panneau (poignée, agrandir, envoyer, masquer) centrés sur la hauteur de la première ligne de l'en-tête (titre, outils ou
 // onglets), quelle que soit sa hauteur réelle (thème, boutons « Calques », onglets sur 2 lignes)
 function alignCtrl(head) {

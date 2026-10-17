@@ -87,8 +87,6 @@ const P = {
   dot: '<circle cx="12" cy="12" r="4.5" fill="currentColor" stroke="none"/>',
 };
 
-export const ICON_NAMES = Object.keys(P);
-
 export function icon(name, cls = '') {
   if (!P[name]) return '';
   return `<svg class="ic i-${name}${cls ? ` ${cls}` : ''}" aria-hidden="true"><use href="#i-${name}"/></svg>`;

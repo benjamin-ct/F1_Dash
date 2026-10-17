@@ -182,5 +182,3 @@ export function openCompareLap(num, lap) {
   document.querySelector('[data-tab="compare"]')?.click();
   renderCompare(true);
 }
-
-export const compareVersion = () => versionOf(['TimingData', 'DriverList', '__reset']);

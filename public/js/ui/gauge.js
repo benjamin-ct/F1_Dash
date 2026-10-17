@@ -27,7 +27,6 @@ export function animate(id, fn) {
   jobs.set(id, fn);
   if (!raf) raf = requestAnimationFrame(frame);
 }
-export const stopAnimate = (id) => jobs.delete(id);
 
 function arc(cx, cy, r, a0, a1) {
   const pt = (a) => [cx + r * Math.sin((a * Math.PI) / 180), cy - r * Math.cos((a * Math.PI) / 180)];

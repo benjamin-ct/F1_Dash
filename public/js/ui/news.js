@@ -625,8 +625,6 @@ export function closeNews() {
   markRead();
 }
 
-export const isNewsOpen = open;
-
 // Dernières actualités (page d'accueil) : titre traduit si besoin, source, date
 export async function latestNews(n = 4) {
   await load();
