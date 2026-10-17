@@ -24,6 +24,9 @@ l'application (Réglages → Application → Nouveautés).
 ### Corrections
 - Carte : les bulles d'écart (moins d'une seconde) ne sont plus coupées au bord de la carte, surtout
   dans la carte flottante ; près du bord, elles passent de l'autre côté du tracé.
+- Thème clair : les noms des pilotes et les temps sont de nouveau lisibles dans la bulle qui apparaît au
+  survol des graphiques d'analyse (écarts, positions, temps au tour) ; textes des drapeaux de la carte
+  lisibles aussi.
 - Version anglaise : le bouton « Revoir … » de l'écran « Pas de séance en direct » est traduit.
 
 ## v1.27.29 — 2026-10-17

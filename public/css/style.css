@@ -879,7 +879,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .mf-banner.red { background: var(--red); color: #fff; animation: pulse 1s infinite; }
 .mf-banner.sc { background: var(--sc, #ffb020); color: #1d1200; animation: pulse 1.2s infinite; }
 .mf-banner.vsc { background: transparent; color: var(--sc, #ffb020); border: 2px dashed var(--sc, #ffb020); }
-.mf-item { font-size: 12px; background: rgba(0, 0, 0, .82); border-left: 3px solid #f5c518; border-radius: 4px; padding: 2px 8px; color: var(--text); }
+.mf-item { font-size: 12px; background: rgba(0, 0, 0, .82); border-left: 3px solid #f5c518; border-radius: 4px; padding: 2px 8px; color: #F1F3F6; }   /* pastille toujours sombre, aussi en thème clair */
 .mf-item.dy { border-left-color: #ff9f1a; }
 .mf-item b { color: #f5c518; }
 .mf-item.dy b { color: #ff9f1a; }
@@ -968,7 +968,7 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .tabpane.ana-pane.active { display: flex; flex-direction: column; height: 100%; }
 .ana-chart { position: relative; flex: 1; min-height: 160px; }
 .ana-chart canvas { position: absolute; inset: 0; cursor: crosshair; }
-.ana-tip { position: absolute; z-index: 5; pointer-events: none; background: rgba(8, 8, 10, .95); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 11.5px; min-width: 150px; max-height: calc(100% - 8px); overflow: hidden; }
+.ana-tip { position: absolute; z-index: 5; pointer-events: none; background: var(--panel); color: var(--text); box-shadow: 0 8px 24px rgba(0, 0, 0, .28); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 11.5px; min-width: 150px; max-height: calc(100% - 8px); overflow: hidden; }
 .ana-tip b { display: block; margin-bottom: 3px; }
 .ana-tip div { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 .ana-tip div i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
