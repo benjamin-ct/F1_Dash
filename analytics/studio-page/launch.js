@@ -259,7 +259,7 @@ function bind(x) {
       const st = $('[data-st]', box);
       const who = session.me?.[x.who || x.draft];
       if (!confirm({
-        tiktok: `Envoyer la vidéo en brouillon sur TikTok (${who}) ?\n\nRien n'est publié : ouvrez ensuite la notification dans TikTok pour ajouter le son, coller le texte et publier.`,
+        tiktok: `Envoyer la vidéo en brouillon sur TikTok (${who}) ?\n\nRien n'est publié : ouvrez ensuite la notification dans TikTok (Boîte de réception → Notifications système) pour ajouter le son, coller le texte et publier.`,
         youtube: `Envoyer la vidéo en privé sur YouTube (${who}) ?\n\nTant que votre projet Google n'a pas passé l'audit de l'API YouTube, YouTube la verrouille en privé (impossible de la rendre publique).`,
         'instagram-reel': `Publier maintenant le Reel sur Instagram (${who}) ?\n\nLe Reel sera public. La préparation de la vidéo par Instagram prend une à deux minutes.`,
       }[x.draft])) return;

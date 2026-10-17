@@ -42,13 +42,34 @@ export async function freshYoutube(y) {
   return youtubeTokens(y, await googleOAuth({ client_id: y.clientId, client_secret: y.clientSecret, grant_type: 'refresh_token', refresh_token: y.refreshToken }));
 }
 
-// Brouillon TikTok (boîte de réception de l'appli TikTok) ; video : octets (Uint8Array ou Buffer)
+// Brouillon TikTok (boîte de réception de l'appli TikTok) ; video : octets (Uint8Array ou Buffer).
+// Après l'envoi, TikTok traite la vidéo : son état est relu (reçue, refusée et pourquoi, ou encore en
+// traitement) pour ne pas annoncer un brouillon qui n'arrivera jamais.
+export const draftTiming = { poll: 3000, max: 45000 };
+const TIKTOK_FAIL = {
+  file_format_check_failed: 'format de la vidéo refusé', duration_check_failed: 'durée de la vidéo refusée',
+  frame_rate_check_failed: 'nombre d\'images par seconde refusé', picture_size_check_failed: 'taille de l\'image refusée',
+  spam_risk_too_many_pending_share: 'trop de brouillons en attente dans TikTok : publiez ou supprimez les précédents',
+  spam_risk_user_banned_from_posting: 'compte TikTok privé de publication pour le moment',
+  spam_risk: 'envoi bloqué par TikTok (trop d\'envois rapprochés)', app_version_check_failed: 'appli TikTok trop ancienne : mettez-la à jour',
+};
 export async function tiktokDraft(token, video, mime = 'video/mp4') {
   if (!video?.length) throw new Error('Vidéo manquante');
-  const init = await call(`${TIKTOK}/post/publish/inbox/video/init/`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, json: { source_info: { source: 'FILE_UPLOAD', video_size: video.length, chunk_size: video.length, total_chunk_count: 1 } } });
+  const auth = { Authorization: `Bearer ${token}` };
+  const init = await call(`${TIKTOK}/post/publish/inbox/video/init/`, { method: 'POST', headers: auth, json: { source_info: { source: 'FILE_UPLOAD', video_size: video.length, chunk_size: video.length, total_chunk_count: 1 } } });
   const res = await fetch(init.data.upload_url, { method: 'PUT', headers: { 'Content-Type': mime, 'Content-Range': `bytes 0-${video.length - 1}/${video.length}` }, body: video, signal: AbortSignal.timeout(300000) });
   if (!res.ok) throw new Error(`Envoi de la vidéo refusé (HTTP ${res.status})`);
-  return { url: null, note: 'Brouillon envoyé : ouvrez la notification dans TikTok pour ajouter un son et publier' };
+  const inbox = 'ouvrez la notification dans TikTok (Boîte de réception → Notifications système) pour ajouter un son et publier';
+  const id = init.data.publish_id;
+  if (!id) return { url: null, note: `Vidéo envoyée : ${inbox}` };
+  for (const t0 = Date.now(); Date.now() - t0 < draftTiming.max;) {
+    await new Promise((r) => setTimeout(r, draftTiming.poll));
+    let s;
+    try { s = (await call(`${TIKTOK}/post/publish/status/fetch/`, { method: 'POST', headers: auth, json: { publish_id: id } }))?.data || {}; } catch { continue; }
+    if (s.status === 'FAILED') throw new Error(`TikTok a refusé la vidéo : ${TIKTOK_FAIL[s.fail_reason] || s.fail_reason || 'raison inconnue'}`);
+    if (s.status === 'SEND_TO_USER_INBOX' || s.status === 'PUBLISH_COMPLETE') return { url: null, id, note: `Brouillon reçu par TikTok : ${inbox}` };
+  }
+  return { url: null, id, note: `Vidéo envoyée, encore en traitement chez TikTok : la notification arrivera dans quelques minutes (Boîte de réception → Notifications système)` };
 }
 
 // Titre (1re ligne, 100 caractères) et description : YouTube refuse les chevrons
