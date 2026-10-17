@@ -6,6 +6,7 @@ const ICONS = {
   site: '<path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/>',
   download: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
   instagram: '<rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="12" cy="12" r="3.6"/><circle cx="16.6" cy="7.4" r=".9" fill="currentColor" stroke="none"/>',
+  facebook: '<rect x="4" y="4" width="16" height="16" rx="5"/><path d="M13.5 20v-7h2.3l.4-2.6h-2.7V8.9c0-.8.3-1.3 1.4-1.3h1.4V5.3c-.3 0-1.1-.1-2-.1-2 0-3.4 1.2-3.4 3.5v1.7H8.6V13h2.3v7"/>',
   tiktok: '<path d="M14 4v10.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M14 4c.4 2.4 2 4 4.5 4.2"/>',
   youtube: '<rect x="3" y="6" width="18" height="12" rx="4"/><path d="M10.5 9.5v5l4.3-2.5z" fill="currentColor" stroke="none"/>',
   x: '<path d="M5 4l14 16M19 4L5 20"/>',
@@ -23,6 +24,7 @@ export const PAGES = {
     main: [['download', 'Télécharger l\'appli (gratuite)', 'Windows, macOS, Linux', 'https://paddocklive.app/#telecharger'], ['site', 'Le site', 'paddocklive.app', 'https://paddocklive.app/']],
     nets: [
       ['instagram', 'Instagram', '@paddockliveapp', 'https://www.instagram.com/paddockliveapp/'],
+      ['facebook', 'Facebook', 'paddockliveapp', 'https://www.facebook.com/paddockliveapp'],
       ['tiktok', 'TikTok', '@paddockliveapp', 'https://www.tiktok.com/@paddockliveapp'],
       ['youtube', 'YouTube', '@paddockliveapp', 'https://www.youtube.com/@paddockliveapp'],
       ['x', 'X', '@paddockliveapp', 'https://x.com/paddockliveapp'],
@@ -38,6 +40,7 @@ export const PAGES = {
     main: [],
     nets: [
       ['instagram', 'Instagram', '@benjypaddock', 'https://www.instagram.com/benjypaddock/'],
+      ['facebook', 'Facebook', 'benjypaddock', 'https://www.facebook.com/benjypaddock'],
       ['tiktok', 'TikTok', '@benjypaddock', 'https://www.tiktok.com/@benjypaddock'],
       ['youtube', 'YouTube', '@benjypaddock', 'https://www.youtube.com/@benjypaddock'],
       ['x', 'X', '@benjypaddock', 'https://x.com/benjypaddock'],
@@ -105,7 +108,7 @@ h1 { margin: 0; font: 800 34px/1.05 'Saira Condensed', 'Arial Narrow', sans-seri
 .tx b { font-weight: 700; }
 .tx small { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ic-other { background: linear-gradient(135deg, #e10600, #8a0400); } .ic-other .mono { font-size: 19px; }
-.ic-instagram { color: #ff4f8b; } .ic-tiktok { color: #25f4ee; } .ic-youtube { color: #ff3b30; } .ic-threads, .ic-x { color: #f2f1ee; } .ic-bluesky { color: #4f9bff; }
+.ic-instagram { color: #ff4f8b; } .ic-facebook { color: #4f8cff; } .ic-tiktok { color: #25f4ee; } .ic-youtube { color: #ff3b30; } .ic-threads, .ic-x { color: #f2f1ee; } .ic-bluesky { color: #4f9bff; }
 .sep { width: 100%; margin: 14px 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 footer { margin-top: 22px; font-size: 13px; color: var(--muted); text-align: center; }
 footer a { color: var(--muted); }
