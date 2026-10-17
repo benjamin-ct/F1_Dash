@@ -2594,7 +2594,7 @@ html.float-map:hover :is(.float-bar, .float-resize), html.float-moving :is(.floa
   margin: 0; padding: 11px 0; border-top: 1px solid var(--border); }
 #settingsModal .set-block h4 + .row:has(> .toggle:only-child), #settingsModal .set-block h4 + .row:has(> label.small:only-child > select) { border-top: 0; padding-top: 2px; }
 #settingsModal .set-block .row > .toggle:only-child { flex: 1; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 18px; font-size: 13.5px; }
-#settingsModal .set-block .row > label.small:only-child:has(> select) { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 13.5px; }
+#settingsModal .set-block .row > label.small:only-child:has(> select) { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 13.5px; }
 #settingsModal .set-block .row > label.small:only-child > select { flex: 0 1 auto; width: auto; min-width: 0; max-width: 58%; }
 .set-status { padding: 10px 12px; margin: 0 0 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border); line-height: 1.5; }
 .set-status:empty { display: none; }
@@ -2680,7 +2680,13 @@ html.float-map:hover :is(.float-bar, .float-resize), html.float-moving :is(.floa
   .pv-item { width: auto; flex: none; }
   .pv-lbl small { display: none; }
   .pv-opts { width: 100%; }
-  .pv-head { flex-wrap: wrap; padding: 12px 14px; }
+  .pv-head { flex-wrap: wrap; padding: 12px 14px; row-gap: 10px; }
+  .pv-head > div:first-child { flex-basis: 100%; }
+  .pv-actions { width: 100%; }
+  .pv-actions .btn { flex: 1; justify-content: center; }
+  .pv-opts { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+  .pv-opts .toggle { font-size: 12.5px; }
+  .pv-sig { grid-column: 1 / -1; }
   .pv-head p { display: none; }
   .pv-head h3 { font-size: 18px; }
   .pv-opts .toggle { padding: 6px 0; }
