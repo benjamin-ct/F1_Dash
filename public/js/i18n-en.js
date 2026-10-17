@@ -1557,7 +1557,7 @@ export default {
   "Déjà publiée le {} sur {}": "Already posted on {} to {}",
   "4 visuels au format X (gratuit)": "4 images in X format (free)",
   "Gratuit : dans Bluesky, Paramètres → Confidentialité et sécurité → Mots de passe d'application → « Ajouter un mot de passe d'application ».": "Free: in Bluesky, Settings → Privacy and security → App passwords → “Add app password”.",
-  "Collez ici votre identifiant (ex. benjypaddock.bsky.social) et ce mot de passe d'application (jamais votre mot de passe principal).": "Paste your handle here (e.g. benjypaddock.bsky.social) and this app password (never your main password).",
+  "Collez ici votre identifiant (ex. benjy.paddocklive.app ou pseudo.bsky.social) et ce mot de passe d'application (jamais votre mot de passe principal).": "Paste your handle here (e.g. benjy.paddocklive.app or name.bsky.social) and this app password (never your main password).",
   "Identifiant Bluesky": "Bluesky handle",
   "Mot de passe d'application": "App password",
   "Texte Bluesky (300 caractères max.)": "Bluesky text (300 characters max.)",

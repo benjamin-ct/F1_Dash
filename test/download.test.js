@@ -35,3 +35,17 @@ test('nom de domaine : racine = site de l\'appli, www redirigé, workers.dev inc
   r = await worker.fetch(new Request('https://paddock-live-stats.paddock-live.workers.dev/'), env);
   assert.notEqual(await r.text(), 'site:/site/');
 });
+
+test('ancienne adresse workers.dev : connexion et statistiques renvoyées sur le nom de domaine, appels de l\'appli inchangés', async () => {
+  const { default: worker } = await import('../analytics/worker.js');
+  const env = { SITE_ORIGIN: 'https://paddocklive.app', STATS_KEY: 'k' };
+  const W = 'https://paddock-live-stats.paddock-live.workers.dev';
+  let r = await worker.fetch(new Request(`${W}/`), env);
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get('location'), 'https://paddocklive.app/login');
+  r = await worker.fetch(new Request(`${W}/stats?days=30`), env);
+  assert.equal(r.headers.get('location'), 'https://paddocklive.app/stats?days=30');
+  // Envoi des statistiques de l'appli : pas de redirection
+  r = await worker.fetch(new Request(`${W}/e`, { method: 'POST', body: '{}' }), env);
+  assert.notEqual(r.status, 302);
+});

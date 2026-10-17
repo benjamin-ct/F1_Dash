@@ -62,7 +62,8 @@ Le vainqueur, le podium, le classement et les faits marquants de chaque Grand Pr
   },
   paddocklive: {
     name: 'Paddock Live',
-    match: /paddocklive/i,
+    // « benjy.paddocklive.app » (pseudo Bluesky de Benjy Paddock) contient aussi « paddocklive »
+    match: /^(?!.*benjy).*paddocklive/i,
     ig: 4, x: 4, story: 4,
     text: {
       instagram: `Voici Paddock Live.
@@ -97,7 +98,7 @@ Abonne-toi pour suivre le lancement. Les récaps de chaque course : @BenjyPaddoc
 
 Chronos, carte GPS, radios d'équipe traduites, pneus et stratégie en direct, calés sur ta TV. Zéro spoiler.
 
-Abonne-toi pour suivre le lancement. Les récaps de chaque course : @benjypaddock.bsky.social
+Abonne-toi pour suivre le lancement. Les récaps de chaque course : @benjy.paddocklive.app
 
 #F1 #PaddockLive`,
       tiktok: 'Le mur des stands à la maison : chronos, carte GPS, radios et stratégie en direct, calés sur ta TV. Zéro spoiler. Abonne-toi pour le lancement #F1 #Formula1 #F1TikTok #PaddockLive',
@@ -117,7 +118,7 @@ const NETS = [
   { id: 'facebook', name: 'Facebook', media: 'ig', text: 'instagram', api: 'facebook', hint: 'Carrousel' },
   { id: 'threads', name: 'Threads', media: 'ig', text: 'threads', api: 'threads', hint: 'Carrousel' },
   { id: 'bluesky', name: 'Bluesky', media: 'x', text: 'bluesky', api: 'bluesky', hint: '4 images au plus', max: 300 },
-  { id: 'x', name: 'X', media: 'x', text: 'x', hint: 'Images à joindre au post', max: 280, intent: 'https://x.com/intent/post?text=' },
+  { id: 'x', name: 'X', media: 'x', text: 'x', hint: 'Ouvrir X met le texte et copie la 1re image : collez-la dans le post, puis les suivantes', max: 280, intent: 'https://x.com/intent/post?text=' },
   { id: 'tiktok', name: 'TikTok', media: 'video', text: 'tiktok', draft: 'tiktok', hint: 'Vidéo verticale : envoyée en brouillon, son et texte à ajouter dans TikTok' },
   { id: 'reels', name: 'Reels Instagram', media: 'reel', text: 'reels', draft: 'instagram-reel', who: 'instagram', hint: 'Même vidéo, en Reel (montré aussi dans le fil)' },
   { id: 'youtube', name: 'YouTube Shorts', media: 'video', text: 'youtube', draft: 'youtube', hint: '1re ligne = titre (100 caractères au plus). Envoyé en privé : verrouillé tant que l\'audit de l\'API YouTube n\'est pas passé' },
@@ -141,9 +142,14 @@ async function fileOf(url) {
 }
 const fileName = (url) => url.split('/').slice(-2).join('-');
 
+// Téléphone : feuille de partage du système ; ordinateur : fichiers téléchargés (Windows proposerait
+// sinon son propre panneau de partage, qui ne mène pas aux réseaux)
+const MOBILE = IOS || /Android/i.test(navigator.userAgent);
+const PASTE = /Mac/.test(navigator.platform) ? 'Cmd+V' : 'Ctrl+V';
+
 async function share(urls, text) {
   const list = await Promise.all(urls.map(async (u) => new File([await fileOf(u)], fileName(u), { type: u.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg' })));
-  if (navigator.canShare?.({ files: list })) {
+  if (MOBILE && navigator.canShare?.({ files: list })) {
     if (text) { try { await navigator.clipboard.writeText(text); } catch { /* presse-papiers refusé */ } }
     try { await navigator.share({ files: list }); } catch { /* partage annulé */ }
     if (text) toast('Texte copié : collez-le dans le post');
@@ -156,6 +162,17 @@ async function share(urls, text) {
     setTimeout(() => { a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }, i * 250);
   }
   if (text) { try { await navigator.clipboard.writeText(text); toast('Fichiers enregistrés, texte copié'); } catch { toast('Fichiers enregistrés'); } }
+}
+
+// Image du kit dans le presse-papiers (PNG, seul format d'image accepté) : à coller dans le post
+async function copyImage(url) {
+  const bmp = await createImageBitmap(await fileOf(url));
+  const c = document.createElement('canvas');
+  c.width = bmp.width;
+  c.height = bmp.height;
+  c.getContext('2d').drawImage(bmp, 0, 0);
+  const png = await new Promise((ok, ko) => c.toBlob((b) => (b ? ok(b) : ko(new Error('Image illisible'))), 'image/png'));
+  await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
 }
 
 let acc = 'benjy';
@@ -211,9 +228,18 @@ function block(x, a, isDone) {
     </section>`;
 }
 
+// Post publié par le kit : ajouté au journal des publications (statistiques), carrousel et Reel de
+// chaque compte en deux entrées
+const logKit = (kit, net, kind, r) => api('history', { method: 'POST', body: JSON.stringify({ entry: {
+  key: `kit-${kit}-${kind}`, at: Date.now(), kind: 'session',
+  title: `Kit de démarrage${kind === 'reel' ? ' : Reel' : ''} (${ACCOUNTS[kit].name})`,
+  nets: { [net]: { id: r.id ?? null, url: r.url || null } },
+} }) }).catch(() => {});
+
 function bind(x) {
   const box = $(`[data-net="${x.id}"]`);
   const area = $('[data-text]', box);
+  const kit = acc;
   const media = mediaOf(acc, x.media);
   const count = () => {
     const c = $('[data-count]', box);
@@ -233,7 +259,26 @@ function bind(x) {
     b.classList.add('busy');
     try { await share(media, area?.value || ''); } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); }
   };
-  if ($('[data-intent]', box)) $('[data-intent]', box).onclick = () => { open(x.intent + encodeURIComponent(area.value), '_blank', 'noopener'); };
+  // Ordinateur : le lien de X ne prend que le texte ; les images sont copiées une à une pour être
+  // collées dans le post (la 1re avant d'ouvrir X, les suivantes avec le bouton affiché ici)
+  const pasteStep = async (i) => {
+    const st = $('[data-st]', box);
+    try { await copyImage(media[i]); } catch {
+      st.className = 'st err';
+      st.textContent = 'Copie de l\'image refusée par le navigateur : utilisez « Enregistrer » puis glissez les images dans le post.';
+      return;
+    }
+    st.className = 'st ok';
+    st.innerHTML = `Image ${i + 1} sur ${media.length} copiée : cliquez dans le post puis ${PASTE}.${i + 1 < media.length ? ` <button class="btn small" data-next>${icon('copy')}Copier l'image ${i + 2}</button>` : ''}`;
+    const next = $('[data-next]', st);
+    if (next) next.onclick = () => pasteStep(i + 1);
+  };
+  if ($('[data-intent]', box)) {
+    $('[data-intent]', box).onclick = async () => {
+      if (!MOBILE && media.length && !media[0].endsWith('.mp4')) await pasteStep(0);
+      open(x.intent + encodeURIComponent(area.value), '_blank', 'noopener');
+    };
+  }
   $$('[data-story]', box).forEach((btn) => {
     btn.onclick = async () => {
       const st = $('[data-st]', box);
@@ -290,7 +335,7 @@ function bind(x) {
           st.append(' ', again);
         }
         toast({ tiktok: 'Brouillon envoyé dans TikTok', youtube: 'Short envoyé en privé', 'instagram-reel': 'Reel publié' }[x.draft], 'ok');
-        if (x.draft === 'instagram-reel') { setDone(acc, x.id, true); setTimeout(render, 1500); }
+        if (x.draft === 'instagram-reel') { logKit(kit, 'instagram', 'reel', r); setDone(acc, x.id, true); setTimeout(render, 1500); }
       } catch (err) {
         st.className = 'st err';
         st.textContent = err.message;
@@ -308,6 +353,7 @@ function bind(x) {
       try {
         const imgs = await Promise.all(media.slice(0, x.id === 'bluesky' ? 4 : 10).map(fileOf));
         const r = await sendPost(x.api, area.value, imgs);
+        logKit(kit, x.api, 'post', r);
         st.className = 'st ok';
         st.innerHTML = r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Publié ${icon('check')}</a>` : `Publié ${icon('check')}`;
         markDone();

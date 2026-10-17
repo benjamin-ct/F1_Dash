@@ -27,5 +27,7 @@ crons = ["* * * * *"]
 binding = "AI"
 
 [vars]
+# Adresse officielle : les pages ouvertes sur *.workers.dev (connexion, statistiques, Studio) y renvoient
+SITE_ORIGIN = "https://paddocklive.app"
 AI_DAILY_LIMIT = "20000"
 ASR_DAILY_LIMIT = "3000"

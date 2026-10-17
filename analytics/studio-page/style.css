@@ -198,6 +198,8 @@ button.card:active { transform: scale(.985); background: var(--surface-2); }
 .pill.ok { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
 .pill.bad { background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
 .section { margin: 22px 4px 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.section-row { margin: 22px 4px 8px; flex-wrap: nowrap; }
+.section-row .section { margin: 0; }
 .group { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
 .row-item { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--text); font: inherit; text-align: left; }
 .row-item:first-child { border-top: 0; }
@@ -305,6 +307,9 @@ dialog.sheet .group, dialog.sheet input { background: rgba(255, 255, 255, .05); 
 .login .sub { margin: 6px 0 18px; font-size: 14px; color: var(--muted); }
 .login .field, .login .check, .login .notice { text-align: left; }
 .login .btn { margin-top: 6px; }
+.to-site { display: inline-flex; align-items: center; gap: 4px; margin-top: 16px; font-size: 14px; color: var(--muted); text-decoration: none; }
+.to-site .ic { width: 16px; height: 16px; }
+.to-site:hover { color: var(--text); }
 .boot { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; color: var(--muted); }
 /* Retour par glissement depuis le bord gauche (appli installée sur l'iPhone) */
 .editing .page { transition: transform .2s; }

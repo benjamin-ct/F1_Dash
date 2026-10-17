@@ -12,6 +12,8 @@ import { $, $$, esc, api, ago, fmtN, icon, LOGO, toast, skeleton, empty, failure
 import { cachedNews, freshNews, toFrench, knownFrench, cachedSessions, seasonSessions, SESSION_FR } from './data.js';
 
 const app = $('#app');
+// Ancienne adresse (*.workers.dev) : même page sur le nom de domaine (code à entrer une fois de plus)
+if (/\.workers\.dev$/.test(location.hostname)) location.replace(`https://paddocklive.app${location.pathname}${location.search}${location.hash}`);
 const posts = () => import('./posts.js');
 const season = () => import('./season.js');
 const scrolls = {};   // position dans chaque onglet, retrouvée au retour d'un post
@@ -33,6 +35,7 @@ function login(error = '') {
       <label class="check"><input type="checkbox" id="keep" checked> Rester connecté sur cet appareil</label>
       ${error ? `<p class="notice bad">${icon('alert')}${esc(error)}</p>` : ''}
       <button class="btn primary wide">Entrer</button>
+      <a class="to-site" href="https://paddocklive.app/">${icon('back')}Retour au site</a>
     </form>`;
   $('#code').focus();
   $('form').onsubmit = async (e) => {
@@ -70,6 +73,7 @@ function enter(el, dir) {
 function home({ from = 'up' } = {}) {
   app.className = 'shell';
   app.innerHTML = `<header class="appbar"><div class="brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="grow"></span>
+      <a class="iconbtn" href="https://paddocklive.app/" aria-label="Retour au site" title="Retour au site">${icon('home')}</a>
       <button class="iconbtn" id="refresh" aria-label="Actualiser">${icon('refresh')}</button><button class="iconbtn" id="settings" aria-label="Réglages">${icon('settings')}</button></header>
     <main class="page" id="body"></main>
     <nav class="tabbar" style="--i:${tabIndex(state.tab)}"><div class="side-brand">${LOGO}<span>Paddock <b>Studio</b></span></div><span class="lens"></span>${TABS.map(([k, v, ic]) => `<button data-tab="${k}" class="${state.tab === k ? 'on' : ''}">${icon(ic)}<span>${v}</span></button>`).join('')}</nav>`;
@@ -241,7 +245,7 @@ function renderStats(body, r, stale) {
   body.innerHTML = `${f.length ? `<div class="tiles">${f.map(([n, v]) => `<div class="tile"><b>${fmtN(v)}</b><small>abonnés ${esc(NET_NAMES[n] || n)}</small></div>`).join('')}</div>` : ''}
     ${stale ? '<p class="status"><span class="dot"></span>Mise à jour…</p>' : ''}
     <div id="schedlist"></div>
-    <h3 class="section">Posts publiés</h3>
+    <div class="row section-row"><h3 class="section grow">Posts publiés</h3><button class="btn small" id="statsimport" title="Ajoute aux statistiques les posts des 30 derniers jours publiés à la main ou depuis le kit de démarrage">${icon('refresh')}Retrouver mes posts</button></div>
     ${(r.posts || []).length ? `<div class="list">${r.posts.map((p) => `<div class="card post"><div class="card-top"><time>${esc(new Date(p.at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</time><span class="grow"></span><button class="iconbtn small" data-statsremove="${esc(p.key)}" aria-label="Retirer des statistiques" title="Retirer des statistiques">${icon('close')}</button></div><div class="t">${esc(p.title || 'Post')}</div>
       ${Object.entries(p.nets).map(([n, x]) => {
         const s = p.stats?.[n];
@@ -250,6 +254,22 @@ function renderStats(body, r, stale) {
         return `<div class="net-stats"><span class="net">${name}</span><div class="metrics">${vals}</div></div>`;
       }).join('')}</div>`).join('')}</div>` : empty('Aucun post publié pour le moment.', 'chart')}`;
   schedList($('#schedlist', body));
+  // Posts publiés hors du Studio : relus sur les comptes reliés
+  $('#statsimport', body).onclick = async (e) => {
+    const b = e.currentTarget;
+    b.classList.add('busy');
+    b.disabled = true;
+    try {
+      const imp = await api('history/import', { method: 'POST' });
+      const fails = Object.keys(imp.errors || {}).map((n) => NET_NAMES[n] || n);
+      toast(`${imp.added ? `${imp.added} post${imp.added > 1 ? 's' : ''} ajouté${imp.added > 1 ? 's' : ''}` : 'Aucun nouveau post trouvé'}${fails.length ? ` (illisible : ${fails.join(', ')})` : ''}`, imp.added ? 'ok' : undefined);
+      if (imp.added) {
+        const next = await api('stats');
+        store.set('stats', next);
+        renderStats(body, next, false);
+      }
+    } catch (err) { toast(err.message, 'bad'); } finally { b.classList.remove('busy'); b.disabled = false; }
+  };
   // Post supprimé sur les réseaux : retiré des statistiques (ici et dans l'appli)
   $$('[data-statsremove]', body).forEach((b) => {
     b.onclick = async () => {

@@ -2,7 +2,6 @@
 // sont dessinés dans le navigateur à partir des chiffres intégrés à la page (aucune bibliothèque).
 
 const LOGO = `<svg viewBox="0 0 512 512" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2a1a"/><stop offset=".55" stop-color="#d40500"/><stop offset="1" stop-color="#8e0300"/></linearGradient></defs><rect width="512" height="512" rx="114" fill="url(#lg)"/><g transform="translate(256 256) skewX(-14) translate(-256 -256)" fill="#fff" fill-rule="evenodd"><g transform="translate(234 168) scale(0.6) translate(-241 -256)"><path d="M118 150 H262 V202 H180 V240 H248 V290 H180 V362 H118 Z"/><path d="M300 150 H364 V362 H302 V214 L276 230 V178 Z"/></g><g transform="translate(278 344) scale(0.6) translate(-256 -256)"><path d="M108 150 H200 A68 68 0 0 1 200 286 H170 V362 H108 Z M170 200 H194 A18 18 0 0 1 194 236 H170 Z"/><path d="M262 150 H324 V306 H404 V362 H262 Z"/></g></g></svg>`;
-const FAVICON = `data:image/svg+xml,${encodeURIComponent(LOGO.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '))}`;
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -18,7 +17,7 @@ a{color:inherit}button,input{font:inherit;color:inherit}
 `;
 
 const page = (title, body, nonce, extraCss = '', script = '') => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
-<title>${esc(title)}</title><link rel="icon" href="${FAVICON}">
+<title>${esc(title)}</title><link rel="icon" href="/stats-icon-512.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/stats.webmanifest"><meta name="apple-mobile-web-app-title" content="Statistiques"><meta name="theme-color" content="#07080A"><style>${CSS}${extraCss}</style></head><body>${body}${script ? `<script nonce="${nonce}">${script}</script>` : ''}</body></html>`;
 
 export function loginPage({ error = '', nonce }) {
@@ -36,7 +35,7 @@ input:focus{border-color:var(--s1);box-shadow:0 0 0 3px var(--s1-wash)}
 button.go{width:100%;margin-top:16px;padding:12px;border:0;border-radius:10px;background:var(--brand);color:var(--brand-ink);font-weight:600;cursor:pointer}
 button.go:hover{filter:brightness(1.08)}
 .err{margin:14px 0 0;color:var(--bad);font-size:14px;display:flex;gap:6px;justify-content:center;align-items:center}
-.foot{margin-top:22px;font-size:12px;color:var(--muted)}`;
+.foot{margin-top:22px;font-size:12px;color:var(--muted)}.foot+.foot{margin-top:8px}.foot a{color:var(--ink-2);text-decoration:none}.foot a:hover{color:var(--ink)}`;
   const body = `<main><form class="box" method="post" action="/login">
 <div class="logo">${LOGO}</div>
 <h1>Statistiques Paddock Live</h1>
@@ -47,6 +46,7 @@ button.go:hover{filter:brightness(1.08)}
 <button class="go" type="submit">Ouvrir les statistiques</button>
 ${error ? `<p class="err" role="alert"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v6M12 17h.01"/></svg>${esc(error)}</p>` : ''}
 <p class="foot">Vous restez connecté 30 jours sur cet appareil.</p>
+<p class="foot"><a href="https://paddocklive.app/">← Retour au site</a></p>
 </form></main>`;
   const script = `const i=document.getElementById('key');document.querySelector('.eye').addEventListener('click',()=>{i.type=i.type==='password'?'text':'password';i.focus();});`;
   return page('Statistiques · Paddock Live', body, nonce, css, script);
@@ -118,6 +118,7 @@ details{margin-top:14px}summary{cursor:pointer;color:var(--ink-2);font-size:13px
   const body = `<header class="top"><div class="in">
 <div class="brand"><div class="logo">${LOGO}</div><div><b>Paddock Live</b><small>Statistiques d'utilisation</small></div></div>
 <nav class="seg" aria-label="Période">${periods.map(([d, l]) => `<a href="?days=${d}" class="${d === data.days ? 'on' : ''}"${d === data.days ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav>
+<a class="out" href="https://paddocklive.app/">← Site</a>
 <a class="out" href="/logout">Se déconnecter</a>
 </div></header>
 <main>
