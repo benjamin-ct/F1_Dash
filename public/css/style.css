@@ -2404,3 +2404,39 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .nwr-sum-h { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
 .nwr .nwr-sum p { margin: 0; font-size: 16px; }
 .nwr-vo-note { margin: 0 0 10px; }
+
+/* ---- Page d'accueil (sans spoiler) ---- */
+.home-view { overflow-y: auto; }
+.hm-main { width: 100%; max-width: 1100px; margin: 0 auto; padding: 22px 24px 40px; display: flex; flex-direction: column; gap: 14px; }
+.hm-hello { margin: 0 0 2px; font-size: 26px; font-weight: 900; letter-spacing: .2px; }
+.hm-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+.hm-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
+.hm-next, .hm-live { background: linear-gradient(135deg, #d4110a, #7d0703); border-color: #e21a12; color: #fff; }
+.hm-next .muted, .hm-live .muted { color: rgba(255, 255, 255, .8); }
+.hm-kicker { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; opacity: .85; }
+.hm-live .hm-kicker { justify-content: flex-start; }
+.hm-dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: hm-pulse 1.4s ease-in-out infinite; }
+@keyframes hm-pulse { 50% { opacity: .3; } }
+.hm-title { font-size: 20px; font-weight: 800; }
+.hm-round { background: rgba(0, 0, 0, .3); border-radius: 5px; padding: 1px 6px; font-size: 12px; vertical-align: 3px; margin-right: 2px; }
+.hm-count { font-size: 34px; font-weight: 900; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.hm-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.hm-actions .btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.hm-next .btn { background: rgba(0, 0, 0, .25); border-color: rgba(255, 255, 255, .35); color: #fff; }
+.hm-live .btn-accent { background: #fff; border-color: #fff; color: #b30900; }
+.hm-list { display: flex; flex-direction: column; }
+.hm-news-item { display: flex; flex-direction: column; gap: 2px; text-align: left; background: none; border: 0; border-top: 1px solid var(--line); padding: 9px 2px; color: var(--text); font: inherit; cursor: pointer; }
+.hm-news-item:first-child { border-top: 0; }
+.hm-news-item:hover .hm-news-t { color: var(--accent-2); }
+.hm-news-t { font-weight: 600; }
+.hm-go { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.hm-go button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; color: var(--text); font: inherit; cursor: pointer; text-align: left; }
+.hm-go button:hover { border-color: var(--muted); background: var(--panel-2); }
+.hm-go .ic { width: 20px; height: 20px; color: var(--accent); margin-bottom: 4px; }
+.hm-go small { color: var(--muted); font-size: 12px; }
+@media (max-width: 700px) {
+  .hm-main { padding: 14px 12px 90px; }
+  .hm-grid { grid-template-columns: 1fr; }
+  .hm-go { grid-template-columns: repeat(2, 1fr); }
+  .hm-count { font-size: 28px; }
+}

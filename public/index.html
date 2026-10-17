@@ -19,6 +19,7 @@
   <!-- Nouveau design : barre de navigation latérale (fenêtre principale, grand écran) -->
   <nav class="rail" id="rail" aria-label="Navigation">
     <img class="rail-logo" src="/logo.svg" alt="Paddock Live">
+    <button class="rail-btn" data-rail="home" title="Accueil : prochaine séance, dernière séance sans spoiler, actualités"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/></svg><small>Accueil</small></button>
     <button class="rail-btn" data-rail="live" title="Direct : tableau de bord de la séance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><small>Direct</small></button>
     <button class="rail-btn" data-rail="ana" title="Analyse : graphiques, comparaison des tours (plein écran ; Échap pour revenir)"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7"/></svg><small>Analyse</small></button>
     <button class="rail-btn" data-rail="season" title="Saison : calendrier, classements, résultats, statistiques"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><small>Saison</small></button>
@@ -144,6 +145,10 @@
       <div class="muted small sz-src">Données : Jolpica (Ergast) et archives officielles F1 Live Timing, documents FIA</div>
     </aside>
     <div class="sz-main" id="szContent"></div>
+  </div>
+
+  <div class="season-view home-view" id="homeView" hidden>
+    <div class="hm-main"></div>
   </div>
 
   <div class="season-view news-view" id="newsView" hidden>

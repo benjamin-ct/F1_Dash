@@ -1,8 +1,9 @@
-// Barre de navigation latérale (Direct, Analyse, Saison, Replays, Radios,
+// Barre de navigation latérale (Accueil, Direct, Analyse, Saison, Replays, Radios,
 // Réglages). Elle reprend les actions des boutons du haut, masqués.
 import { $, $$ } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
 import { openNews, closeNews } from './news.js';
+import { openHome, closeHome, homeTouched } from './home.js';
 import { unmaximize, showPanelLarge, setFreeLayout, isFreeLayout, saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
@@ -13,8 +14,11 @@ function openSettings(group) {
 }
 
 const ACTIONS = {
-  live: () => { closeSeason(); closeNews(); unmaximize(); },
+  home: () => openHome(),
+  live: () => { homeTouched(); closeHome(); closeSeason(); closeNews(); unmaximize(); },
   ana: () => {
+    homeTouched();
+    closeHome();
     closeSeason();
     closeNews();
     if (showPanelLarge('analysis') === 'elsewhere') toast('Analyse affichée en grand dans l\'autre fenêtre (second écran)');
@@ -64,8 +68,9 @@ function layoutMenu(btn) {
 function sync() {
   const season = !$('#seasonView').hidden;
   const news = !$('#newsView').hidden;
+  const home = !$('#homeView')?.hidden;
   const ana = $('.p-analysis')?.classList.contains('maximized');
-  const cur = news ? 'news' : season ? 'season' : ana ? 'ana' : 'live';
+  const cur = home ? 'home' : news ? 'news' : season ? 'season' : ana ? 'ana' : 'live';
   for (const b of $$('#rail [data-rail]')) {
     const k = b.dataset.rail;
     b.classList.toggle('on', k === cur);
@@ -85,6 +90,7 @@ export function initRail() {
   const mo = new MutationObserver(sync);
   mo.observe($('#seasonView'), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('#newsView'), { attributes: true, attributeFilter: ['hidden'] });
+  if ($('#homeView')) mo.observe($('#homeView'), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('.grid'), { attributes: true, attributeFilter: ['class'] });
   mo.observe($('#commBtn'), { attributes: true, attributeFilter: ['class'] });
   sync();
