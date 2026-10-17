@@ -172,11 +172,11 @@ function favTags() {
   return out;
 }
 
-// Anti-spoiler : pendant un replay ou une séance en cours, les titres sont masqués et les alertes
-// suspendues (ils pourraient révéler un résultat pas encore vu)
+// Anti-spoiler : pendant une séance en direct, les titres sont masqués et les alertes suspendues (ils
+// pourraient révéler un résultat pas encore vu à la TV). Pas pendant un replay d'une séance passée.
 function spoilerRisk() {
   if (prefs.spoilers || prefs.newsSpoilers === false) return false;
-  if (store.status?.source?.mode === 'replay') return true;
+  if (store.status?.source?.mode === 'replay') return false;
   const st = store.state.SessionStatus?.Status;
   return st === 'Started' || st === 'Aborted';
 }
@@ -374,7 +374,7 @@ function render() {
       <div class="muted small">${tagFilter ? `<button class="nw-filter" data-tag-clear style="--tc:${tagColor(tagFilter)}">${esc(tagName(tagFilter))} ${icon('close')}</button> ` : ''}${okSources} sources suivies · ${list.length} sujet${list.length > 1 ? 's' : ''}${section === 'favs' && !favTags().size ? ' · aucun favori : ajoutez-en avec l\'étoile du classement' : ''}</div></div>
       <div class="nw-actions"><button class="btn small" id="nwRefresh" title="Relire toutes les sources maintenant">${icon('refresh')} Actualiser</button>
       <button class="btn small" id="nwMarkRead" title="Plus de pastille « nouveau » sur les articles déjà là">${icon('check')} Tout marquer comme lu</button></div></div>`;
-  const banner = guard ? `<div class="nw-guard">${icon('eye-off')} <b>Anti-spoiler</b> : ${store.status?.source?.mode === 'replay' ? 'replay' : 'séance'} en cours, les titres sont masqués et les alertes d'actualité suspendues.
+  const banner = guard ? `<div class="nw-guard">${icon('eye-off')} <b>Anti-spoiler</b> : séance en cours, les titres sont masqués et les alertes d'actualité suspendues.
       <button class="btn small" id="nwReveal">Afficher quand même</button></div>` : '';
   const body = shown.length
     ? `<div class="nw-list${guard ? ' guarded' : ''}${Date.now() < cascadeUntil ? ' cascade' : ''}">${shown.map((g, i) => card(g, favs, i)).join('')}</div>${list.length > limit ? '<button class="btn nw-more" id="nwMore">Voir plus</button>' : ''}`

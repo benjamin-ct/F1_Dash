@@ -17,6 +17,10 @@ l'application (Réglages → Application → Nouveautés).
   survol, une petite barre en bas change sa taille (− / +) ou le ferme ; le coin en bas à droite et
   Ctrl + molette règlent aussi la taille.
 
+### Actu
+- L'anti-spoiler des actualités ne s'active plus que pendant une séance en direct : pendant un replay,
+  les titres restent visibles et les alertes d'actualité continuent.
+
 ### Corrections
 - Carte : les bulles d'écart (moins d'une seconde) ne sont plus coupées au bord de la carte, surtout
   dans la carte flottante ; près du bord, elles passent de l'autre côté du tracé.
