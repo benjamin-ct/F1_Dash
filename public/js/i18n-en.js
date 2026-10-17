@@ -2070,4 +2070,9 @@ export default {
   "Choisir mes favoris": "Pick my favourites",
   "Ajoutez vos pilotes et écuries favoris : ils apparaîtront ici avec leur place au championnat.": "Add your favourite drivers and teams: they will show up here with their championship position.",
   "{} pts": "{} pts",
+  "Suivre Paddock Live": "Follow Paddock Live",
+  "Tous nos réseaux": "All our social networks",
+  "Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky": "Instagram, Facebook, TikTok, YouTube, X, Threads and Bluesky",
+  "{} Suivre Paddock Live sur les réseaux {}": "{} Follow Paddock Live on social media {}",
+  "Suivre Paddock Live sur les réseaux": "Follow Paddock Live on social media",
 };

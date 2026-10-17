@@ -13,6 +13,10 @@ l'application (Réglages → Application → Nouveautés).
   victoires au classement des constructeurs, et leurs actualités sont mises en avant (filtre « Favoris »
   et alertes d'actualités). Elles se règlent aussi dans Réglages → Alertes & favoris.
 
+### Réseaux sociaux
+- Bouton « Suivre Paddock Live sur les réseaux » en bas de l'accueil, et « Tous nos réseaux » dans
+  Réglages → Application : une page avec Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky.
+
 ### Mise en page
 - Barre de gauche : le libellé « Commentaires » est resserré pour ne plus toucher les bords du bouton.
 

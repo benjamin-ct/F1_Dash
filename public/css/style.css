@@ -2477,6 +2477,9 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-go { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
 .hm-go button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; color: var(--text); font: inherit; cursor: pointer; text-align: left; }
 .hm-go button:hover { border-color: var(--muted); background: var(--panel-2); }
+.hm-follow { align-self: center; display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; color: var(--text-2); font-size: 13px; font-weight: 600; text-decoration: none; }
+.hm-follow:hover { color: var(--text); background: var(--panel-2); }
+.hm-follow .ic { width: 15px; height: 15px; }
 .hm-go .ic { width: 20px; height: 20px; color: var(--accent); margin-bottom: 4px; }
 .hm-go small { color: var(--muted); font-size: 12px; }
 @media (max-width: 700px) {

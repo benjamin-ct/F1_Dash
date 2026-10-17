@@ -28,6 +28,7 @@ const P = {
   undo: '<path d="M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3"/>',
   refresh: '<path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.7M20 3.5v5.2h-5.2"/>',
   external: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  share: '<circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1"/>',
   'window-in': '<path d="M11 13l-7 7M4 14v6h6M8 10V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-5"/>',
   window: '<rect x="3" y="7" width="14" height="12" rx="1.5"/><path d="M7 7V4.5A1.5 1.5 0 0 1 8.5 3h11A1.5 1.5 0 0 1 21 4.5V14a1.5 1.5 0 0 1-1.5 1.5H17"/>',
   home: '<path d="M3 11l9-7 9 7M5.5 9.5V20h5v-6h3v6h5V9.5"/>',

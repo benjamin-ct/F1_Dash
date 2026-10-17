@@ -198,7 +198,8 @@ function render() {
       <button data-home="season">${icon('trophy')}<b>Saison</b><small>Calendrier, classements</small></button>
       <button data-home="news">${icon('news')}<b>Actu</b><small>Toute l'actualité</small></button>
       <button data-home="replays">${icon('history')}<b>Replays</b><small>Rejouer une séance</small></button>
-    </nav>`;
+    </nav>
+    <a class="hm-follow" href="https://paddocklive.app/liens/" target="_blank" rel="noopener">${icon('share')} Suivre Paddock Live sur les réseaux ${icon('arrow-right', 'ic-s')}</a>`;
   news();
   if (nx && !live) loadWeather(nx);
   loadStandings();
