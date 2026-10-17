@@ -1217,6 +1217,13 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .tr-count, .tr-champ { margin: -4px 0 12px; font-size: 14px; color: var(--text-2); }
 .tr-count b { font-size: 18px; color: var(--text); }
 .tr-champ { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 9px; font-weight: 800; color: #1d1500; background: var(--yellow); }
+.tr-clinch { display: grid; grid-template-columns: minmax(200px, 1fr) 2fr; gap: 10px 24px; margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); border-left: 3px solid var(--yellow); background: var(--panel-2, var(--panel)); }
+.tr-clinch .tr-big .muted { font-weight: 600; }
+.tr-clinch p { margin: 6px 0 4px; font-size: 13px; color: var(--text-2); }
+.tr-clinch ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.tr-cl-ex { font-size: 12px; color: var(--muted); }
+.tr-cl-tag { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11.5px; font-weight: 800; color: #1d1500; background: var(--yellow); }
+@media (max-width: 700px) { .tr-clinch { grid-template-columns: 1fr; } }
 .tr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
 .tr-card { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); border-left: 3px solid var(--tc); background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 12%, var(--panel)) 0%, var(--panel) 60%); transition: opacity .2s, filter .2s; }
 .tr-card.out { opacity: .5; filter: grayscale(1); background: var(--panel); }
@@ -2588,7 +2595,7 @@ html.float-map .p-map { position: fixed !important; z-index: 1; inset: 0 !import
 html.float-map .p-map > :not(.panel-body) { display: none !important; }
 html.float-map .map-wrap { position: absolute; inset: 0; background: transparent !important; cursor: grab; }
 html.float-moving, html.float-moving * { cursor: grabbing !important; }
-html.float-map :is(.map-zoom, .map-legend, .map-ribbon) { display: none !important; }
+html.float-map :is(.map-zoom, .map-legend, .map-ribbon), html.float-map label:has(#mapGrid) { display: none !important; }
 /* Barre d'outils et coin de redimensionnement : visibles au survol seulement */
 .float-bar { position: fixed; top: 6px; right: 6px; z-index: 50; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 10px;
   background: rgba(10, 11, 14, .72); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, .12); opacity: 0; transition: opacity .15s; }

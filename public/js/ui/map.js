@@ -759,7 +759,8 @@ const bg = { canvas: null, key: '', flagZones: [] };
 
 function drawBackground(now, red, sc, vsc, scMode, flags, lay) {
   const pts = xf.screen;
-  if ($('#mapGrid').checked) drawBackdrop();
+  // Carte flottante : aucun fond, seulement la piste et les voitures
+  if ($('#mapGrid').checked && !document.documentElement.classList.contains('float-map')) drawBackdrop();
   // Drapeau rouge : toute la carte en rouge
   if (red) {
     const pulse = 0.16 + 0.06 * Math.sin(now / 260);

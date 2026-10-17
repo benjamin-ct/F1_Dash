@@ -5,7 +5,7 @@
 import { $, esc, api, teamColor, teamLogo, photoUrl } from '../util.js';
 import { store } from '../store.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge } from './season-stats.js';
-import { driverRatings, qualiGaps, titleRace } from '/shared/season-calc.js';
+import { driverRatings, qualiGaps, titleRace, placeForMaxPoints } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
@@ -424,17 +424,55 @@ function renderTitle() {
   const head = (l, champ, kind) => (champ
     ? `<div class="tr-champ">${icon('trophy')} ${kind === 'd' ? t('{} est champion du monde', esc(champ.name)) : t('{} est championne du monde des constructeurs', esc(champ.name))}</div>`
     : `<div class="tr-count"><b>${alive(l)}</b> ${kind === 'd' ? t('pilotes encore en lice') : t('écuries encore en lice')}</div>`);
+  // Quand le titre peut-il se jouer : au plus tôt, et toutes les conditions au prochain Grand Prix
+  const clinchBox = (c, kind) => {
+    if (!c) return '';
+    const gp = (r) => `${esc(gpShort(r.name, EN))} <span class="muted">R${r.round}</span>`;
+    const L = esc(c.leader.name);
+    const top = c.needs[0];
+    const atNext = c.earliest?.round === c.next.round;
+    const early = `<div class="tr-cl-early"><div class="muted small">${t('Titre possible au plus tôt')}</div><div class="tr-big">${c.earliest ? gp(c.earliest) : t('Dernière manche')}</div>
+      ${atNext ? `<div class="tr-cl-tag">${t('Dès le prochain Grand Prix')}</div>` : top ? `<div class="muted small">${t('si {} marque le maximum à chaque manche jusque-là et {} aucun point', L, esc(top.name))}</div>` : ''}</div>`;
+    // Exemples de places à l'arrivée (week-end sans sprint, pilotes seulement)
+    const ex = (n) => {
+      if (kind !== 'd' || c.next.sprint) return '';
+      const R = esc(n.name);
+      const place = (pts) => { const p = placeForMaxPoints(pts); return p > 10 ? t('{} hors des points', R) : t('{} P{} ou plus loin', R, p); };
+      const out = [];
+      if (n.margin > 0) {
+        // Victoire du leader : le rival au mieux 2e, la condition peut être remplie d'office
+        if (placeForMaxPoints(25 - n.margin) <= 2) out.push(t('une victoire suffit'));
+        else if (25 - n.margin >= 0) out.push(`${t('en cas de victoire')} : ${place(25 - n.margin)}`);
+        if (18 - n.margin >= 0) out.push(`${t('en finissant 2e')} : ${place(18 - n.margin)}`);
+      } else if (placeForMaxPoints(-n.margin) > 1) out.push(`${t('sans marquer')} : ${place(-n.margin)}`);
+      return out.length ? `<div class="tr-cl-ex">${out.join(' · ')}</div>` : '';
+    };
+    const cond = (n) => {
+      const R = esc(n.name);
+      const txt = n.margin === 1 ? t('au moins 1 point de plus que {}', R)
+        : n.margin > 0 ? t('au moins {} points de plus que {}', n.margin, R)
+          : n.margin === 0 ? t('au moins autant de points que {}', R)
+            : n.margin === -1 ? t('pas plus de 1 point de moins que {}', R)
+              : t('pas plus de {} points de moins que {}', -n.margin, R);
+      return `<li><b>${txt}</b>${ex(n)}</li>`;
+    };
+    const next = `<div class="tr-cl-next"><div class="muted small">${t('Prochain Grand Prix')}</div><div class="tr-big">${gp(c.next)}${c.next.sprint ? ` <span class="muted small">${t('sprint et course cumulés')}</span>` : ''}</div>
+      ${!c.possibleNext
+    ? `<p>${t('Le titre ne peut pas encore se jouer à ce Grand Prix : il faudrait à {} {} points de plus que {}, pour {} au maximum sur le week-end.', L, top.margin, esc(top.name), c.next.max)}</p>`
+    : `<p>${t('{} remporte le titre en marquant sur le week-end :', L)}${c.needs.length > 1 ? ` <span class="muted">${t('(toutes ces conditions à la fois)')}</span>` : ''}</p><ul>${c.needs.map(cond).join('')}</ul>`}</div>`;
+    return `<div class="tr-clinch">${early}${next}</div>`;
+  };
   const left = tr.races ? `${t('{} courses', tr.races)}${tr.sprints ? ` ${t('et {} sprints', tr.sprints)}` : ''} ${t('à disputer')}` : t('Saison terminée');
   return `<div class="tr-intro sz-box"><div><div class="muted small">${t('Reste')}</div><div class="tr-big">${left}</div></div>
       <div><div class="muted small">${t('Points encore à prendre')}</div><div class="tr-big">${tr.maxD} <span class="muted small">${t('par pilote')}</span> · ${tr.maxC} <span class="muted small">${t('par écurie')}</span></div></div></div>
-    <section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>
-    <section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`;
+    <section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}${clinchBox(tr.clinchD, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>
+    <section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}${clinchBox(tr.clinchC, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`;
 }
 
 // Explication en tête des vues qui n'en ont pas déjà une
 const HELP = {
   standings: 'Classements officiels des pilotes et des constructeurs, mis à jour après chaque course (sprints compris).',
-  title: 'Qui peut encore être champion : un pilote (ou une écurie) est éliminé quand ses points, plus le maximum encore à prendre dans les courses et sprints restants, ne rattrapent plus le leader. La barre montre ses points (plein) et ce qu\'il peut encore marquer (hachures) ; le trait vertical, les points du leader.',
+  title: 'Qui peut encore être champion : un pilote (ou une écurie) est éliminé quand ses points, plus le maximum encore à prendre dans les courses et sprints restants, ne rattrapent plus le leader. La barre montre ses points (plein) et ce qu\'il peut encore marquer (hachures) ; le trait vertical, les points du leader. L\'encadré indique la première manche où le leader peut être sacré, et les conditions pour y parvenir dès le prochain Grand Prix (à égalité de points, le titre revient au plus grand nombre de victoires).',
   drivers: 'Fiche d\'un pilote : ses chiffres clés et ses notes de la saison, sa position au départ et à l\'arrivée de chaque course, la répartition de ses arrivées, ses points comparés à la saison précédente, puis le détail course par course (qualification, grille, arrivée, points, tours en tête, meilleur tour, vitesse, arrêts).',
   ratings: 'Une note sur 100 et une lettre (S, A, B, C, D, F) pour chaque pilote : la note de la saison le compare à tous les pilotes, la note face au coéquipier le compare à son coéquipier dans la même voiture.',
   predict: 'Avant chaque Grand Prix, chacun pronostique la pole et le podium, sur cet ordinateur ou sur son téléphone (accès réseau). Les choix des autres restent cachés jusqu\'à la fermeture : début des qualifications pour la pole, départ de la course pour le podium.',

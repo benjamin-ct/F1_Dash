@@ -10,6 +10,8 @@ l'application (Réglages → Application → Nouveautés).
 - Menu « Calques » dans la barre de la carte flottante (icône des réglages, au survol) : noms des
   pilotes, traînées, écarts, numéros de virage, secteurs… s'activent et se désactivent sans revenir
   dans la fenêtre principale.
+- Plus aucun fond, même léger : le halo et la trame de points (« Fond texturé ») ne sont plus dessinés
+  sur la carte flottante, il ne reste que la piste et les voitures.
 
 ### Mini-classement sans fond
 - Application de bureau : le mini-classement s'ouvre comme la carte flottante, sans cadre ni fond, au-dessus
@@ -43,6 +45,9 @@ l'application (Réglages → Application → Nouveautés).
   atteignable, et une barre (points actuels, ce qu'il peut encore marquer, position du leader).
 - En tête : courses et sprints restants, points encore à prendre ; le champion est annoncé dès que le
   titre est joué.
+- Quand le titre peut se jouer : le premier Grand Prix où le leader peut être sacré au plus tôt, et
+  toutes les conditions pour l'être dès le prochain Grand Prix, rival par rival (points d'avance à
+  prendre sur le week-end, avec des exemples : « en cas de victoire : Russell P10 ou plus loin »).
 
 ### Saison : Duels
 - La vue « Coéquipiers » devient « Duels » et occupe toute la largeur : le duel à gauche, l'écart en

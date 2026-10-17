@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { qualiGap, qualiGaps, driverRatings, grade, lapsLed, similarCircuits, titleRace } from '../shared/season-calc.js';
+import { qualiGap, qualiGaps, driverRatings, grade, lapsLed, similarCircuits, titleRace, placeForMaxPoints } from '../shared/season-calc.js';
 
 const res = (code, teamId, pos, points, grid = pos, posText = String(pos)) => ({ code, name: code, last: code, team: teamId, teamId, pos, posText, points, grid });
 const q = (code, teamId, pos, times) => ({ code, teamId, pos, q: times });
@@ -90,4 +90,28 @@ test('course au titre : éliminés quand points + maximum restant < leader, manc
   assert.equal(t.champion, null);
   // Meilleur tour (1 point) compté de 2019 à 2024
   assert.equal(titleRace(data, 2022).maxD, 26);
+});
+
+test('course au titre : au plus tôt et conditions au prochain GP', () => {
+  const pts = (o) => Object.entries(o).map(([code, points]) => ({ code, teamId: code, points }));
+  const data = {
+    races: [
+      { round: 1, name: 'GP A', results: pts({ AAA: 25, BBB: 0 }), sprintResults: [] },
+      { round: 2, name: 'GP B', results: pts({ AAA: 25, BBB: 0 }), sprintResults: [] },
+      { round: 3, name: 'GP C', results: [], sprintResults: [] },
+      { round: 4, name: 'GP D', results: [], sprintResults: [] },
+    ],
+    drivers: [{ pos: 1, code: 'AAA', name: 'A', points: 50, teamId: 'AAA' }, { pos: 2, code: 'BBB', name: 'B', points: 30, teamId: 'BBB' }, { pos: 3, code: 'CCC', name: 'C', points: 10, teamId: 'CCC' }],
+    constructors: [],
+  };
+  const c = titleRace(data, 2026).clinchD;
+  assert.equal(c.leader.code, 'AAA');
+  // Après le GP C il reste 25 points : AAA doit avoir 26 d'avance, il en a 20 -> 6 de plus que BBB au GP C
+  assert.equal(c.next.name, 'GP C');
+  // CCC (40 pts de retard) : AAA peut lui céder jusqu'à 14 points au GP C
+  assert.deepEqual(c.needs.map((n) => [n.code, n.margin]), [['BBB', 6], ['CCC', -14]]);
+  assert.equal(c.possibleNext, true);
+  assert.equal(c.earliest.name, 'GP C');
+  assert.equal(placeForMaxPoints(25 - 6), 2, 'si AAA gagne, BBB doit finir 2e (18 pts) ou plus loin');
+  assert.equal(placeForMaxPoints(0), 11);
 });

@@ -233,8 +233,40 @@ export function titleRace(data, year) {
   const drivers = run('d', (data?.drivers || []).map((d) => ({ ...d, key: d.code })), (x) => x.code);
   const constructors = run('c', (data?.constructors || []).map((c) => ({ ...c, key: c.id })), (x) => x.teamId);
   const champ = (list) => (list.filter((e) => e.alive).length === 1 && done.length ? list.find((e) => e.alive) : null);
+  // Quand le titre peut-il se jouer ? Au plus tôt : le leader marque le maximum à chaque manche et son
+  // premier poursuivant rien. Au prochain GP : le leader doit y marquer au moins « margin » points de
+  // plus que chaque rival (négatif : il peut en perdre jusqu'à -margin-1 ; égalité de points :
+  // départage au nombre de victoires, non compté ici). Rivaux que le week-end ne peut pas sauver exclus.
+  const clinch = (list, kind) => {
+    const alive = list.filter((e) => e.alive).sort((a, b) => b.points - a.points);
+    if (alive.length < 2 || !future.length) return null;
+    const [leader, ...rivals] = alive;
+    const tot = left(kind, done.length);
+    let s = 0, earliest = null;
+    for (const r of future) {
+      s += maxRound[kind](r);
+      if (leader.points + s - rivals[0].points > tot - s) { earliest = r; break; }
+    }
+    const next = future[0], max = maxRound[kind](next), after = tot - max;
+    const needs = rivals.map((r) => ({ key: r.key, code: r.code, name: r.name, points: r.points, margin: after - (leader.points - r.points) + 1 })).filter((n) => n.margin > -max);
+    return {
+      leader: { key: leader.key, code: leader.code, name: leader.name, points: leader.points },
+      earliest: earliest ? { round: earliest.round, name: earliest.name } : null,
+      next: { round: next.round, name: next.name, sprint: !!next.sprint, max },
+      possibleNext: needs.every((n) => n.margin <= max), needs,
+    };
+  };
   return {
     drivers, constructors, champion: champ(drivers), champTeam: champ(constructors),
+    clinchD: champ(drivers) ? null : clinch(drivers, 'd'), clinchC: champ(constructors) ? null : clinch(constructors, 'c'),
     races: future.length, sprints: future.filter((r) => r.sprint).length, maxD: left('d', done.length), maxC: left('c', done.length),
   };
+}
+
+// Points d'une place à l'arrivée d'une course (barème depuis 2010, sans le point du meilleur tour)
+export const RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+// Meilleure place qui rapporte au plus « pts » points (11 = hors des points)
+export function placeForMaxPoints(pts) {
+  const i = RACE_POINTS.findIndex((p) => p <= pts);
+  return i < 0 ? 11 : i + 1;
 }
