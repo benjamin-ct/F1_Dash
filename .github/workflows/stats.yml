@@ -42,6 +42,10 @@ on:
       - 'shared/circuits-info.js'
       - 'shared/circuit-records.js'
       - 'shared/f1.js'
+      - 'shared/portraits.js'
+      - 'shared/team-logos.js'
+      - 'shared/gp-names.js'
+      - 'shared/*-muxer.js'
       - 'scripts/build-studio.mjs'
       - '.github/workflows/stats.yml'
 
