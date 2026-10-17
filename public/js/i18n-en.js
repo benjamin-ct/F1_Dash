@@ -2039,7 +2039,7 @@ export default {
   "Électro": "Electro",
   "Électro entraînante (la musique d'origine)": "Upbeat electro (the original music)",
   "Très grosse info": "Huge news",
-  "Vidéo « Breaking news » réservée aux infos qui font du bruit": "« Breaking news » video, kept for the news that make headlines",
+  "Visuel et vidéo « Breaking news », réservés aux infos qui font du bruit": "« Breaking news » visual and video, kept for the news that make headlines",
   "Vidéo verticale (story, TikTok, Reels, Shorts) : titre, résumé puis points clés, avec musique. Aussi utilisée pour TikTok et YouTube à la publication.": "Vertical video (story, TikTok, Reels, Shorts): title, summary then key points, with music. Also used for TikTok and YouTube when publishing.",
   "Vidéo verticale (story, TikTok, Reels, Shorts) de {} s : le graphique des positions se dessine tour après tour, avec safety cars, drapeaux et moments forts.": "Vertical video (story, TikTok, Reels, Shorts) of {} s: the position chart draws itself lap by lap, with safety cars, flags and key moments.",
   "Direction de course indisponible (archives de la F1) : neutralisations estimées d'après les temps au tour.": "Race control unavailable (F1 archives): neutralisations estimated from lap times.",

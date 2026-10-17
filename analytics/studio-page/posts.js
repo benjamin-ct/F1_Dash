@@ -31,7 +31,7 @@ async function detailedSummary(it) {
 }
 
 // ---------- Vidéo « Breaking news » (TikTok, Reels, Shorts, story), commune aux news et aux posts écrits ----------
-const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Vidéo « Breaking news » réservée aux infos qui font du bruit')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
+const NEWS_VIDEO = (on) => `${toggle('brk', 'Très grosse info', on, 'Visuel et vidéo « Breaking news », réservés aux infos qui font du bruit')}<div id="vidbox" ${on ? '' : 'hidden'}>${musicField('news', 'flash')}<div class="row"><button class="btn" id="mkvid">${icon('video')}Créer la vidéo</button><button class="btn" id="sharevid" disabled>${icon('share')}Partager</button></div>
   <p class="hint" id="vidst">Vidéo verticale « Breaking news » pour TikTok, Reels, YouTube Shorts ou une story : titre, résumé puis points clés, avec musique. Garder l'écran allumé pendant l'enregistrement.</p>
   <video id="vid" controls playsinline hidden></video></div>`;
 // onBreaking(on) : très grosse info cochée ou décochée à la main
@@ -104,7 +104,7 @@ export async function newsEditor(it, done, back) {
         } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
-      bindNewsVideo(() => d, 'breaking-news', (on) => { breaking = on; d.breaking = on; });
+      bindNewsVideo(() => d, 'breaking-news', (on) => { breaking = on; d.breaking = on; redraw(true); });
     },
   });
 }
@@ -198,7 +198,7 @@ export async function manualEditor(back) {
         upd(true);
       };
       $('#mviddel').onclick = () => { f.video = null; $('#mvid').value = ''; $('#mvidst').textContent = ''; $('#mviddel').hidden = true; $('#mvidprev').hidden = true; $('#mvidprev').removeAttribute('src'); upd(true); };
-      bindNewsVideo(() => d, 'breaking-news', (on) => { f.breaking = on; d.breaking = on; });
+      bindNewsVideo(() => d, 'breaking-news', (on) => { f.breaking = on; upd(true); });
     },
   });
 }

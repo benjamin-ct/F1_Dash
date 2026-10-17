@@ -320,7 +320,7 @@ export function recapCover(ctx, W, H, d, o) {
 export function recapItem(ctx, W, H, d, o, i, fmt) {
   const it = d.items[i - 1];
   if (!it) return;
-  newsSlide(ctx, W, H, it, { ...o, slides: [] }, fmt);
+  newsSlide(ctx, W, H, { ...it, breaking: false }, { ...o, slides: [] }, fmt);
   const u = Math.min(W, H) / 1080;
   const kept = o.slides ? o.slides.filter((s) => /^recap-\d+$/.test(s)) : d.items.map((_, k) => `recap-${k + 1}`);
   txt(ctx, `${Math.max(1, kept.indexOf(`recap-${i}`) + 1)} / ${kept.length}`, W - Math.round(W * 0.055), Math.round(Math.min(W, H) * 0.06) + 46 * u, { size: Math.round(34 * u), weight: 700, family: MONO, color: C.muted, align: 'right' });
