@@ -204,7 +204,11 @@ export default {
     // Site de l'appli : liens de téléchargement vers la dernière version ; sur un nom de domaine
     // à soi (pas *.workers.dev), la racine affiche le site au lieu de la page des statistiques
     if (req.method === 'GET' && url.pathname.startsWith('/download/')) return download(url.pathname);
-    if (req.method === 'GET' && url.pathname === '/' && !url.hostname.endsWith('.workers.dev') && env.ASSETS) {
+    const ownDomain = !url.hostname.endsWith('.workers.dev') && url.hostname !== 'localhost';
+    // www.paddocklive.app -> paddocklive.app (même chemin ; les fichiers du site, servis avant le
+    // Worker, restent aussi lisibles sur www)
+    if (ownDomain && url.hostname.startsWith('www.')) return Response.redirect(`https://${url.hostname.slice(4)}${url.pathname}${url.search}`, 301);
+    if (req.method === 'GET' && url.pathname === '/' && ownDomain && env.ASSETS) {
       return env.ASSETS.fetch(new Request(new URL('/site/', url), req));
     }
     if (req.method === 'POST' && url.pathname === '/e') {
