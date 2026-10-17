@@ -289,7 +289,8 @@ function renderMobile(grid) {
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v, .lstash')) el.remove();
   const nav = $('#mobNav');
   nav.hidden = false;
-  nav.innerHTML = tabs.map(([id, label]) => `<button data-mob="${id}" class="${id === mobTab ? 'active' : ''}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${MOB_SVG[id] || ''}</svg><span class="mn-l">${label}</span></button>`).join('');
+  // Téléphone : l'accueil en premier (pas de barre latérale)
+  nav.innerHTML = `<button data-mob="home"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/></svg><span class="mn-l">Accueil</span></button>` + tabs.map(([id, label]) => `<button data-mob="${id}" class="${id === mobTab ? 'active' : ''}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${MOB_SVG[id] || ''}</svg><span class="mn-l">${label}</span></button>`).join('');
   nav.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
@@ -898,7 +899,15 @@ export function initLayout() {
     if (e.key === 'Escape' && $('.grid').classList.contains('has-max') && !document.querySelector('dialog[open]')) unmaximize();
   });
   window.addEventListener('resize', () => render());
-  $('#mobNav')?.addEventListener('click', (e) => { const b = e.target.closest('[data-mob]'); if (b) showMobilePanel(b.dataset.mob); });
+  $('#mobNav')?.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-mob]');
+    if (!b) return;
+    const home = await import('./home.js');
+    if (b.dataset.mob === 'home') { home.openHome(); return; }
+    home.homeTouched();
+    home.closeHome();
+    showMobilePanel(b.dataset.mob);
+  });
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {

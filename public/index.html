@@ -19,6 +19,7 @@
   <!-- Nouveau design : barre de navigation latérale (fenêtre principale, grand écran) -->
   <nav class="rail" id="rail" aria-label="Navigation">
     <img class="rail-logo" src="/logo.svg" alt="Paddock Live">
+    <button class="rail-btn" data-rail="home" title="Accueil : prochaine séance, dernière séance sans spoiler, actualités"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/></svg><small>Accueil</small></button>
     <button class="rail-btn" data-rail="live" title="Direct : tableau de bord de la séance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/></svg><small>Direct</small></button>
     <button class="rail-btn" data-rail="ana" title="Analyse : graphiques, comparaison des tours (plein écran ; Échap pour revenir)"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-7"/></svg><small>Analyse</small></button>
     <button class="rail-btn" data-rail="season" title="Saison : calendrier, classements, résultats, statistiques"><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/></svg><small>Saison</small></button>
@@ -29,6 +30,7 @@
     <button class="rail-btn" data-rail="mini" id="miniBtn" title="Mini-classement : petite fenêtre toujours au premier plan, à poser par-dessus la vidéo de la course"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><rect x="12" y="11" width="7" height="7" rx="1"/></svg><small>Mini</small></button>
     <button class="rail-btn" data-rail="posts" id="postsBtn" hidden title="Posts pour les réseaux sociaux : visuels et textes prêts à publier (mode créateur)"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg><small>Posts</small></button>
     <div class="rail-sp"></div>
+    <button class="rail-btn" data-rail="scheme" title="Apparence : automatique, sombre ou clair"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><small>Auto</small></button>
     <button class="rail-btn" data-rail="reset" title="Disposition des panneaux : rangés en colonnes ou placés librement, réinitialisation"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 4v16M3 10h7"/></svg><small>Dispo.</small></button>
     <button class="rail-btn" data-rail="settings" title="Réglages : source, compte F1 TV, affichage, alertes, application"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><small>Réglages</small></button>
   </nav>
@@ -144,6 +146,10 @@
       <div class="muted small sz-src">Données : Jolpica (Ergast) et archives officielles F1 Live Timing, documents FIA</div>
     </aside>
     <div class="sz-main" id="szContent"></div>
+  </div>
+
+  <div class="season-view home-view" id="homeView" hidden>
+    <div class="hm-main"></div>
   </div>
 
   <div class="season-view news-view" id="newsView" hidden>

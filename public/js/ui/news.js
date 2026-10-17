@@ -594,6 +594,7 @@ async function openReader(id) {
 export function openNews(sec) {
   if (sec) section = sec;
   import('./season.js').then((m) => m.closeSeason());
+  import('./home.js').then((m) => { m.homeTouched(); m.closeHome(); });
   $('#newsView').style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
   $('#newsView').hidden = false;
   $('#newsBtn')?.classList.add('on');
@@ -623,6 +624,13 @@ export function closeNews() {
 }
 
 export const isNewsOpen = open;
+
+// Dernières actualités (page d'accueil) : titre traduit si besoin, source, date
+export async function latestNews(n = 4) {
+  await load();
+  return items.filter((it) => srcById[it.src]?.enabled !== false && it.kind !== 'video').sort((a, b) => b.t - a.t).slice(0, n)
+    .map((it) => ({ id: it.id, title: titleOf(it).text, link: safeUrl(it.link), src: srcById[it.src]?.name || it.src, when: ago(it.t) }));
+}
 
 export function initNews() {
   if (store.isHost !== false) shareNewsLang();

@@ -4,6 +4,22 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.27 — 2026-10-17
+
+### Accueil
+- Nouvelle page d'accueil au lancement, sans spoiler : compte à rebours de la prochaine séance (avec ajout à
+  l'agenda), dernière séance sans son résultat (« Revoir en replay » depuis le début, ou « Voir les résultats »),
+  dernières actualités et raccourcis vers le Direct, la Saison, l'Actu et les Replays.
+- L'appli ne s'ouvre plus directement sur le tableau de bord de la dernière séance. Pendant une séance, elle
+  s'ouvre toujours sur le Direct.
+- Bouton « Accueil » en haut de la barre latérale (en bas de l'écran sur téléphone) pour y revenir.
+- Appli de bureau : les fenêtres du second écran ne s'ouvrent plus sur l'accueil, mais seulement en passant
+  au tableau de bord (Direct, replay ou séance en cours), pour ne rien dévoiler au lancement.
+
+### Apparence
+- Nouveau bouton dans la barre latérale pour choisir l'apparence en un clic : automatique (comme le
+  système), sombre ou clair.
+
 ## v1.27.26 — 2026-10-17
 
 ### Divers

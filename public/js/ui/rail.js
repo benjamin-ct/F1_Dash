@@ -1,11 +1,47 @@
-// Barre de navigation latérale (Direct, Analyse, Saison, Replays, Radios,
+// Barre de navigation latérale (Accueil, Direct, Analyse, Saison, Replays, Radios,
 // Réglages). Elle reprend les actions des boutons du haut, masqués.
 import { $, $$ } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
 import { openNews, closeNews } from './news.js';
+import { openHome, closeHome, homeTouched, startWindows } from './home.js';
 import { unmaximize, showPanelLarge, setFreeLayout, isFreeLayout, saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
+import { prefs, setPref } from '../prefs.js';
+import { on } from '../store.js';
+
+// Apparence : automatique (comme le système), sombre ou clair
+const SCHEMES = [
+  ['auto', 'Auto', 'Automatique (comme le système)', '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>'],
+  ['dark', 'Sombre', 'Sombre', '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'],
+  ['light', 'Clair', 'Clair', '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'],
+];
+const schemeOf = () => SCHEMES.find(([k]) => k === (prefs.scheme || 'auto')) || SCHEMES[0];
+function schemeButton() {
+  const b = $('#rail [data-rail="scheme"]');
+  if (!b) return;
+  const [, short, long, svg] = schemeOf();
+  b.innerHTML = `<svg viewBox="0 0 24 24">${svg}</svg><small>${short}</small>`;
+  b.title = `Apparence : ${long}. Cliquer pour changer (automatique, sombre ou clair)`;
+}
+function schemeMenu(btn) {
+  document.querySelector('.lpop-menu')?.remove();
+  const cur = prefs.scheme || 'auto';
+  const menu = document.createElement('div');
+  menu.className = 'lpop-menu rail-menu';
+  menu.innerHTML = SCHEMES.map(([k, , long, svg]) => `<button data-s="${k}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${svg}</svg> ${long}${k === cur ? icon('check', 'ic-on') : ''}</button>`).join('');
+  const r = btn.getBoundingClientRect();
+  menu.style.left = `${r.right + 8}px`;
+  document.body.appendChild(menu);
+  menu.style.top = `${Math.max(8, Math.min(r.top - 20, innerHeight - menu.offsetHeight - 8))}px`;
+  menu.addEventListener('click', (e) => {
+    const k = e.target.closest('[data-s]')?.dataset.s;
+    if (!k) return;
+    menu.remove();
+    setPref('scheme', k);
+  });
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
+}
 
 function openSettings(group) {
   $('#settingsBtn').click();
@@ -13,8 +49,11 @@ function openSettings(group) {
 }
 
 const ACTIONS = {
-  live: () => { closeSeason(); closeNews(); unmaximize(); },
+  home: () => openHome(),
+  live: () => { homeTouched(); closeHome(); closeSeason(); closeNews(); unmaximize(); },
   ana: () => {
+    homeTouched();
+    closeHome();
     closeSeason();
     closeNews();
     if (showPanelLarge('analysis') === 'elsewhere') toast('Analyse affichée en grand dans l\'autre fenêtre (second écran)');
@@ -24,6 +63,7 @@ const ACTIONS = {
   replay: () => openSettings('source'),
   radio: () => $('#commBtn').click(),
   reset: (btn) => layoutMenu(btn),
+  scheme: (btn) => schemeMenu(btn),
   settings: () => openSettings(),
 };
 
@@ -64,8 +104,11 @@ function layoutMenu(btn) {
 function sync() {
   const season = !$('#seasonView').hidden;
   const news = !$('#newsView').hidden;
+  const home = !$('#homeView')?.hidden;
   const ana = $('.p-analysis')?.classList.contains('maximized');
-  const cur = news ? 'news' : season ? 'season' : ana ? 'ana' : 'live';
+  const cur = home ? 'home' : news ? 'news' : season ? 'season' : ana ? 'ana' : 'live';
+  // Tableau de bord affiché : fenêtres du second écran rouvertes (pas sur l'accueil)
+  if (cur === 'live' || cur === 'ana') startWindows();
   for (const b of $$('#rail [data-rail]')) {
     const k = b.dataset.rail;
     b.classList.toggle('on', k === cur);
@@ -85,7 +128,10 @@ export function initRail() {
   const mo = new MutationObserver(sync);
   mo.observe($('#seasonView'), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('#newsView'), { attributes: true, attributeFilter: ['hidden'] });
+  if ($('#homeView')) mo.observe($('#homeView'), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('.grid'), { attributes: true, attributeFilter: ['class'] });
   mo.observe($('#commBtn'), { attributes: true, attributeFilter: ['class'] });
   sync();
+  schemeButton();
+  on('prefs', (k) => { if (k === 'scheme') schemeButton(); });
 }
