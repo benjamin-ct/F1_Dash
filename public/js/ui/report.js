@@ -1,6 +1,6 @@
 // Séance en cartes (podium, remontées, stratégies, neutralisations, abandons, meilleur tour) et
 // classement complet : fenêtre « Résumé » et page Résultats. Au rythme du délai TV (état affiché).
-import { esc, teamMark, tyreBadge } from '../util.js';
+import { esc, teamMark, tyreBadge, compoundInfo } from '../util.js';
 import { icon } from '../icons.js';
 import { t, EN, DEC } from '../i18n.js';
 import { summaryFacts } from '/shared/summary.js';
@@ -123,8 +123,48 @@ export function classificationHtml(state) {
   return `<div class="rp-table-wrap"><table class="rp-table"><thead><tr>${head}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 }
 
+// 83.456 -> « 1:23.456 »
+const fmtSec = (v) => `${Math.floor(v / 60)}:${(v % 60).toFixed(3).padStart(6, '0')}`;
+
 // « 1:23.456 » -> secondes
 function sec(v) {
   const m = /^(?:(\d+):)?(\d+(?:\.\d+)?)$/.exec(String(v || '').trim());
   return m ? (Number(m[1]) || 0) * 60 + Number(m[2]) : NaN;
+}
+
+// Graphique sous les cartes (page Résultats) : en course, la stratégie de chaque pilote (relais
+// colorés par pneu, longueur = tours) ; en qualifications et en essais, l'écart au meilleur temps.
+export function chartHtml(state) {
+  const f = summaryFacts(state);
+  const dl = state?.DriverList || {};
+  const lines = state?.TimingData?.Lines || {};
+  const app = state?.TimingAppData?.Lines || {};
+  if (!f.ranked.length) return '';
+  const label = (n) => `<span class="rp-bar-who">${teamMark(dl[n] || {})}<b>${esc(dl[n]?.Tla || n)}</b></span>`;
+  if (f.kind === 'race') {
+    const total = Number(f.total) || Math.max(...f.ranked.map((n) => Number(lines[n]?.NumberOfLaps) || 0), 1);
+    const rows = f.ranked.map((n) => {
+      const stints = realStints(list(app[n]?.Stints));
+      const segs = stints.map((s) => {
+        const laps = Math.max(0, (Number(s?.TotalLaps) || 0) - (Number(s?.StartLaps) || 0));
+        const ci = compoundInfo(s?.Compound);
+        return laps ? `<i style="width:${(laps / total) * 100}%;--tc:${ci.color}" title="${esc(ci.name)} · ${t('{} tours', laps)}">${laps >= 6 ? `${ci.letter} ${laps}` : ''}</i>` : '';
+      }).join('');
+      return `<div class="rp-bar-row">${label(n)}<div class="rp-stints">${segs}</div></div>`;
+    }).join('');
+    return `<section class="rp-tile rp-chart"><h4>${t('Stratégies')}</h4>${rows}
+      <div class="muted small">${t('Chaque bloc = un relais : pneu et nombre de tours. Pilotes dans leur ordre final.')}</div></section>`;
+  }
+  // Qualifications et essais : écart au meilleur tour de la séance (en qualifs : le meilleur des parties)
+  const best = (n) => Math.min(...[lines[n]?.BestLapTime?.Value, ...list(lines[n]?.BestLapTimes).map((x) => x?.Value)].map(sec).filter((v) => v > 0));
+  const times = f.ranked.map((n) => [n, best(n)]).filter(([, v]) => Number.isFinite(v));
+  if (!times.length) return '';
+  const top = Math.min(...times.map(([, v]) => v));
+  const max = Math.max(...times.map(([, v]) => v - top), 0.001);
+  const rows = times.map(([n, v]) => {
+    const g = v - top;
+    const col = (dl[n]?.TeamColour && `#${dl[n].TeamColour}`) || '#8b95a8';
+    return `<div class="rp-bar-row">${label(n)}<div class="rp-gapbar"><i style="width:${Math.max(1.5, (g / max) * 100)}%;background:${col}"></i></div><span class="rp-num rp-gapv">${g ? `+${g.toFixed(3).replace('.', DEC)}` : fmtSec(v)}</span></div>`;
+  }).join('');
+  return `<section class="rp-tile rp-chart"><h4>${t('Écarts au meilleur tour de la séance')}</h4>${rows}</section>`;
 }

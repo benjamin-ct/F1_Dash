@@ -24,6 +24,8 @@ l'application (Réglages → Application → Nouveautés).
   (grille et places gagnées, écart ou abandon, tours, arrêts, pneus utilisés, meilleur tour ; Q1, Q2, Q3
   et écart à la pole en qualifications). Au rythme du délai TV. Sur grand écran, les cartes à gauche et le
   classement à droite : tout tient sur un écran.
+- Sous les cartes, un graphique : en course, la **stratégie de chaque pilote** (relais colorés selon le
+  pneu, avec le nombre de tours) ; en qualifications et en essais, l'**écart de chacun au meilleur tour**.
 - « Voir les résultats » (accueil et écran « Pas de séance en direct ») ouvre cette page.
 - Les graphiques d'analyse restent dans leurs onglets du tableau de bord (Écarts, Temps, Secteurs,
   Comparaison, Télémétrie).

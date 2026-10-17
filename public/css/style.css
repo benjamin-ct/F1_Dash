@@ -2626,6 +2626,16 @@ html.float-mini .float-bar { top: auto; bottom: 4px; right: 24px; }   /* en bas 
 .rp-best { font: 800 24px "JetBrains Mono", Consolas, monospace; color: var(--purple); }
 .rp-best.plain { color: var(--text); }
 .rp-tile.fl { border-color: color-mix(in srgb, var(--purple) 45%, var(--border)); }
+/* Page Résultats : graphique sous les cartes (stratégies ou écarts) */
+.rp-chart { margin-top: 10px; gap: 4px; }
+.rp-bar-row { display: flex; align-items: center; gap: 8px; height: 20px; }
+.rp-bar-who { display: inline-flex; align-items: center; gap: 5px; width: 62px; flex: none; font-size: 12px; }
+.rp-bar-who .team-logo { width: 16px; height: 16px; }
+.rp-stints { flex: 1; display: flex; gap: 2px; height: 14px; }
+.rp-stints i { display: grid; place-items: center; height: 100%; border-radius: 3px; background: color-mix(in srgb, var(--tc) 30%, var(--panel-3)); border: 1px solid color-mix(in srgb, var(--tc) 75%, transparent); color: var(--text); font: 700 9.5px/1 "JetBrains Mono", Consolas, monospace; font-style: normal; overflow: hidden; white-space: nowrap; }
+.rp-gapbar { flex: 1; height: 10px; border-radius: 5px; background: var(--panel-3); overflow: hidden; }
+.rp-gapbar i { display: block; height: 100%; border-radius: 5px; opacity: .85; }
+.rp-gapv { width: 64px; text-align: right; font-size: 12px; flex: none; }
 /* Page Résultats */
 .results-view .sz-main { max-width: 1800px; margin: 0 auto; width: 100%; }
 /* Grand écran : séance en cartes à gauche, classement à droite */
