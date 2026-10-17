@@ -235,12 +235,12 @@ export const musicField = (kind, def) => {
 // Branche la liste et l'écoute (15 s) ; renvoie le morceau choisi
 export function bindMusic(kind) {
   let stop = null;
-  const end = () => { stop?.(); stop = null; if ($('#vlisten')) $('#vlisten').innerHTML = `${icon('play')}Écouter`; };
+  const label = (st) => { if ($('#vlisten')) $('#vlisten').innerHTML = st === 'loading' ? `${icon('stop')}Préparation…` : st === 'playing' ? `${icon('stop')}Arrêter` : `${icon('play')}Écouter`; };
+  const end = () => { stop?.(); stop = null; label('ended'); };
   const listen = () => {
     end();
-    const me = stop = previewTrack($('#vtrack').value, 15);
-    $('#vlisten').innerHTML = `${icon('stop')}Arrêter`;
-    setTimeout(() => { if (stop === me) end(); }, 15000);
+    const me = stop = previewTrack($('#vtrack').value, (st) => { if (stop !== me) return; if (st === 'ended') end(); else label(st); });
+    label('loading');
   };
   $('#vtrack').onchange = (e) => {
     store.set(`track.${kind}`, e.target.value);

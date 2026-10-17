@@ -2023,6 +2023,7 @@ export default {
   "Tours de cette course pas encore publiés.": "Laps of this race not published yet.",
   "Créer la vidéo animée": "Create the animated video",
   "Créer la vidéo Breaking news": "Create the Breaking news video",
+  "Préparation…": "Preparing…",
   "Musique fabriquée sur place, libre de droits": "Music made on the spot, royalty-free",
   "Feux de départ": "Lights out",
   "Tension des feux, moteur qui hurle, puis ça part fort": "Tension on the grid, screaming engine, then it takes off",

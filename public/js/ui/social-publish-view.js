@@ -81,9 +81,12 @@ export function musicEvent(e) {
   const btn = e.type === 'click' && e.target.closest('[data-vlisten]');
   if (!btn) return false;
   if (stopPreview) { endPreview(); return true; }
-  const me = stopPreview = previewTrack(btn.previousElementSibling.value, 15);
-  btn.innerHTML = `${icon('stop')} ${t('Arrêter')}`;
-  setTimeout(() => { if (stopPreview === me) endPreview(); }, 15000);
+  const me = stopPreview = previewTrack(btn.previousElementSibling.value, (st) => {
+    if (stopPreview !== me) return;
+    if (st === 'ended') endPreview();
+    else btn.innerHTML = `${icon('stop')} ${t('Arrêter')}`;
+  });
+  btn.innerHTML = `${icon('stop')} ${t('Préparation…')}`;
   return true;
 }
 export { endPreview };

@@ -221,14 +221,50 @@ export function playTrack(ac, out, id, duration, t0 = ac.currentTime + 0.05) {
   for (let b = 0; b * B < duration; b++) PLAY[tr.id](k, b, t0 + b * B, B);
 }
 
-// Écoute d'un morceau avant de le choisir : renvoie de quoi l'arrêter
-export function previewTrack(id, seconds = 15) {
-  const ac = new AudioContext();
-  const g = ac.createGain();
-  g.gain.setValueAtTime(0.8, 0); g.gain.setValueAtTime(0.8, seconds - 0.8); g.gain.linearRampToValueAtTime(0, seconds);
-  g.connect(ac.destination);
-  playTrack(ac, g, id, seconds);
-  const stop = () => { ac.close().catch(() => {}); };
-  setTimeout(stop, seconds * 1000 + 200);
-  return stop;
+// ---------- Écoute d'un morceau avant de le choisir ----------
+// Calculé d'avance (15 s), puis joué comme un fichier audio : sur iPhone, le son fabriqué en direct est
+// coupé en mode silencieux et peut rester bloqué ; un fichier joué par un élément <audio> passe.
+// Morceau calculé gardé pour les écoutes suivantes.
+function wavUrl(chans, rate) {
+  const n = chans[0].length; const k = chans.length;
+  const v = new DataView(new ArrayBuffer(44 + n * k * 2));
+  const str = (o, x) => [...x].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); v.setUint32(4, 36 + n * k * 2, true); str(8, 'WAVEfmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, k, true); v.setUint32(24, rate, true); v.setUint32(28, rate * k * 2, true);
+  v.setUint16(32, k * 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n * k * 2, true);
+  for (let i = 0; i < n; i++) for (let c = 0; c < k; c++) v.setInt16(44 + (i * k + c) * 2, Math.max(-1, Math.min(1, chans[c][i])) * 32767, true);
+  return URL.createObjectURL(new Blob([v], { type: 'audio/wav' }));
+}
+const previews = new Map();
+function previewUrl(id, seconds) {
+  if (!previews.has(id)) {
+    const ac = new OfflineAudioContext(2, Math.ceil(seconds * 44100), 44100);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.8, 0); g.gain.setValueAtTime(0.8, seconds - 0.8); g.gain.linearRampToValueAtTime(0, seconds);
+    g.connect(ac.destination);
+    playTrack(ac, g, id, seconds);
+    previews.set(id, ac.startRendering().then((b) => wavUrl([b.getChannelData(0), b.getChannelData(1)], 44100)));
+    previews.get(id).catch(() => previews.delete(id));
+  }
+  return previews.get(id);
+}
+let player = null;
+let silence = null;
+// onState : 'playing' quand le son part (après le calcul), 'ended' (fin ou erreur). Renvoie de quoi arrêter.
+export function previewTrack(id, onState = () => {}, seconds = 15) {
+  player ||= new Audio();
+  silence ||= wavUrl([new Float32Array(441)], 44100);
+  const p = player;
+  // Lecture lancée tout de suite (dans le geste de l'utilisateur), sinon l'iPhone refuse la vraie ensuite
+  p.onended = null; p.pause(); p.src = silence; p.play().catch(() => {});
+  let stopped = false;
+  previewUrl(id, seconds)
+    .then((url) => {
+      if (stopped) return;
+      p.src = url;
+      p.onended = () => onState('ended');
+      return p.play().then(() => onState('playing'));
+    })
+    .catch(() => { if (!stopped) onState('ended'); });
+  return () => { stopped = true; p.onended = null; p.pause(); };
 }
