@@ -1211,6 +1211,20 @@ body.tab-dragging, body.tab-dragging * { cursor: grabbing !important; user-selec
 .sz-pu-key.at { background: color-mix(in srgb, var(--orange) 22%, transparent); }
 .sz-pu-key.over { background: color-mix(in srgb, var(--red) 30%, transparent); }
 .sz-h2h-pick { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+/* Duel : écurie choisie par son logo, ou pilote contre pilote ; deux colonnes sur grand écran */
+.sz-team-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; margin-bottom: 12px; }
+.sz-team-btn { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text-2); font: inherit; font-size: 12.5px; font-weight: 700; text-align: left; cursor: pointer; }
+.sz-team-btn > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sz-team-btn:hover { border-color: var(--tc); color: var(--text); }
+.sz-team-btn.on { border-color: var(--tc); box-shadow: inset 0 0 0 1px var(--tc); background: color-mix(in srgb, var(--tc) 10%, var(--panel)); color: var(--text); }
+.sz-team-btn .team-logo, .sz-team-btn .drv-bar { flex: none; }
+.sz-team-btn .team-logo { width: 26px; height: 26px; }
+.sz-h2h-drivers { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.sz-h2h-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.sz-h2h-layout .sz-h2h { max-width: none; }
+.sz-h2h-who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.sz-h2h-who .team-logo { width: 28px; height: 28px; }
+@media (max-width: 1100px) { .sz-h2h-layout { grid-template-columns: minmax(0, 1fr); } }
 .sz-wrap td { white-space: normal; }
 .sz-wrap td:first-child { white-space: nowrap; }
 

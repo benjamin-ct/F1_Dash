@@ -17,6 +17,14 @@ l'application (Réglages → Application → Nouveautés).
   survol, une petite barre en bas change sa taille (− / +) ou le ferme ; le coin en bas à droite et
   Ctrl + molette règlent aussi la taille.
 
+### Saison : Duels
+- La vue « Coéquipiers » devient « Duels » et occupe toute la largeur : le duel à gauche, l'écart en
+  qualification à droite (l'un sous l'autre sur un écran étroit).
+- Écurie choisie d'un clic sur son logo (toutes les écuries affichées), logos à côté des noms des pilotes.
+- Nouveau : « Pilote contre pilote ». On choisit deux pilotes de n'importe quelles écuries et on compare
+  duels en qualification et en course, points, victoires, podiums, poles, arrivées dans les points,
+  abandons, note de la saison et écart en qualification, chacun dans la couleur de son écurie.
+
 ### Actu
 - L'anti-spoiler des actualités ne s'active plus que pendant une séance en direct : pendant un replay,
   les titres restent visibles et les alertes d'actualité continuent.

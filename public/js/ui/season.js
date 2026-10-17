@@ -2,7 +2,7 @@
 // séance, calendrier, classements avec évolution des points, résultats et records, duels entre
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
-import { $, esc, api, teamColor } from '../util.js';
+import { $, esc, api, teamColor, teamLogo } from '../util.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge } from './season-stats.js';
 import { driverRatings, qualiGaps } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
@@ -276,6 +276,8 @@ function renderResults() {
 }
 
 let h2hTeam = null;
+let h2hMode = 'team';     // 'team' (coéquipiers) | 'drivers' (pilote contre pilote)
+let h2hA = null, h2hB = null;
 
 // Écart en qualification entre les deux coéquipiers, manche par manche
 function qualiGapBox(g, A, B, ca) {
@@ -307,15 +309,37 @@ function qualiGapBox(g, A, B, ca) {
     <div class="muted small">Barre vers le haut : ${esc(A.last)} plus rapide ; vers le bas : ${esc(B.last)}.</div></section>`;
 }
 
+// Logo de l'écurie (pastille de sa couleur), sinon barre de couleur
+function logoMark(team, teamId) {
+  const url = teamLogo(team);
+  return url ? `<span class="team-logo color" style="--tc:${color(team, teamId)};background-image:url('${url}')"></span>` : bar(team, teamId);
+}
+
+// Duel : deux coéquipiers (choix de l'écurie par son logo) ou deux pilotes quelconques
 function renderH2H() {
   const teams = data.constructors.map((c) => ({ id: c.id, name: c.name }));
   h2hTeam ||= teams[0]?.id;
-  // Pilotes de l'écurie (le plus de courses)
-  const count = new Map();
-  for (const r of data.races) for (const x of [...r.results, ...r.quali]) if (x.teamId === h2hTeam) count.set(x.code, { d: x, n: (count.get(x.code)?.n || 0) + 1 });
-  const pair = [...count.values()].sort((a, b) => b.n - a.n).slice(0, 2).map((x) => x.d);
-  if (pair.length < 2) return `<div class="note">Pas assez de données pour cette écurie.</div>`;
-  const [A, B] = pair;
+  let A, B;
+  if (h2hMode === 'drivers') {
+    const all = data.drivers;
+    h2hA = all.some((d) => d.code === h2hA) ? h2hA : all[0]?.code;
+    h2hB = all.some((d) => d.code === h2hB) && h2hB !== h2hA ? h2hB : all.find((d) => d.code !== h2hA)?.code;
+    A = all.find((d) => d.code === h2hA);
+    B = all.find((d) => d.code === h2hB);
+  } else {
+    // Pilotes de l'écurie (le plus de courses)
+    const count = new Map();
+    for (const r of data.races) for (const x of [...r.results, ...r.quali]) if (x.teamId === h2hTeam) count.set(x.code, { d: x, n: (count.get(x.code)?.n || 0) + 1 });
+    [A, B] = [...count.values()].sort((a, b) => b.n - a.n).slice(0, 2).map((x) => x.d);
+  }
+  const mode = `<div class="tab-seg sz-h2h-mode"><button type="button" data-h2h-mode="team" class="${h2hMode === 'team' ? 'on' : ''}">Coéquipiers</button><button type="button" data-h2h-mode="drivers" class="${h2hMode === 'drivers' ? 'on' : ''}">Pilote contre pilote</button></div>`;
+  const opts = (sel) => data.drivers.map((d) => `<option value="${esc(d.code)}" ${d.code === sel ? 'selected' : ''}>${esc(d.name || d.code)}</option>`).join('');
+  const pick = h2hMode === 'drivers'
+    ? `<div class="sz-h2h-drivers"><label class="small">Pilote A <select id="szH2hA">${opts(h2hA)}</select></label><label class="small">Pilote B <select id="szH2hB">${opts(h2hB)}</select></label></div>`
+    : `<div class="sz-team-pick">${teams.map((t) => `<button type="button" class="sz-team-btn${t.id === h2hTeam ? ' on' : ''}" data-h2h-team="${esc(t.id)}" style="--tc:${color(t.name, t.id)}">${logoMark(t.name, t.id)}<span>${esc(t.name)}</span></button>`).join('')}</div>`;
+  const top = `<div class="sz-h2h-pick">${mode}</div>${pick}`;
+  if (!A || !B) return `${top}<div class="note">${h2hMode === 'drivers' ? 'Pas assez de données pour ces pilotes.' : 'Pas assez de données pour cette écurie.'}</div>`;
+  const mates = A.teamId === B.teamId;
   const stat = (fn) => [fn(A.code), fn(B.code)];
   const races = data.races.filter(done);
   const q = { a: 0, b: 0 }, rr = { a: 0, b: 0 };
@@ -341,20 +365,25 @@ function renderH2H() {
     ['Abandons', stat((c) => sum(c, (r, k) => (res(r, k) && !/^\d+$/.test(res(r, k).posText) ? 1 : 0)))],
   ];
   const ca = color(A.team, A.teamId);
+  // Pilote B dans la couleur de son écurie (gris entre coéquipiers : même couleur que A)
+  const cb = mates ? '' : color(B.team, B.teamId);
   const gaps = qualiGaps(races, A.code, B.code);
   const rt = ratingsFor(data, stats?.year === data.year ? stats : null);
   const ra = rt.find((e) => e.code === A.code), rb = rt.find((e) => e.code === B.code);
-  return `<div class="sz-h2h-pick"><label class="small">Écurie <select id="szTeam">${teams.map((t) => `<option value="${t.id}" ${t.id === h2hTeam ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label></div>
-    <section class="sz-box sz-h2h"><div class="sz-h2h-head"><b style="color:${ca}">${esc(A.name)}</b><span class="sz-vs">VS</span><b>${esc(B.name)}</b></div>
+  const note = (e) => (!e ? '—' : mates ? gradeBadge(e.mate, e.mateGrade) : gradeBadge(e.season, e.seasonGrade));
+  return `${top}
+    <div class="sz-h2h-layout">
+    <section class="sz-box sz-h2h"><div class="sz-h2h-head"><span class="sz-h2h-who">${logoMark(A.team, A.teamId)}<b style="color:${ca}">${esc(A.name)}</b></span><span class="sz-vs">VS</span><span class="sz-h2h-who b"><b ${cb ? `style="color:${cb}"` : ''}>${esc(B.name)}</b>${logoMark(B.team, B.teamId)}</span></div>
       ${rows.map(([label, [a, b]]) => {
         const tot = a + b || 1;
         const better = label === 'Abandons' ? (a < b ? 'a' : b < a ? 'b' : '') : (a > b ? 'a' : b > a ? 'b' : '');
         return `<div class="sz-h2h-row"><div class="sz-h2h-label">${label}</div>
-          <div class="sz-h2h-bar"><span class="${better === 'a' ? 'win' : ''}">${a}</span><div class="sz-h2h-track"><i class="a" style="width:${(a / tot) * 50}%;background:${ca}"></i><i class="b" style="width:${(b / tot) * 50}%"></i></div><span class="${better === 'b' ? 'win' : ''}">${b}</span></div></div>`;
+          <div class="sz-h2h-bar"><span class="${better === 'a' ? 'win' : ''}">${a}</span><div class="sz-h2h-track"><i class="a" style="width:${(a / tot) * 50}%;background:${ca}"></i><i class="b" style="width:${(b / tot) * 50}%${cb ? `;background:${cb}` : ''}"></i></div><span class="${better === 'b' ? 'win' : ''}">${b}</span></div></div>`;
       }).join('')}
-      <div class="sz-h2h-row"><div class="sz-h2h-label">Note face au coéquipier</div><div class="sz-h2h-bar sz-h2h-grades"><span>${ra ? gradeBadge(ra.mate, ra.mateGrade) : '—'}</span><div></div><span>${rb ? gradeBadge(rb.mate, rb.mateGrade) : '—'}</span></div></div>
+      <div class="sz-h2h-row"><div class="sz-h2h-label">${mates ? 'Note face au coéquipier' : 'Note de la saison'}</div><div class="sz-h2h-bar sz-h2h-grades"><span>${note(ra)}</span><div></div><span>${note(rb)}</span></div></div>
     </section>
     ${qualiGapBox(gaps, A, B, ca)}
+    </div>
     <p class="muted small">Duel en course : meilleure place à l'arrivée quand les deux pilotes ont couru (un abandon compte comme une défaite). Écart en qualification : dans la dernière partie disputée par les deux (Q3, sinon Q2, sinon Q1) ; les écarts de plus de 3 % (incident, piste qui change) sont montrés en transparence mais pas comptés.</p>`;
 }
 
@@ -435,10 +464,16 @@ export function initSeason() {
   $('#seasonBtn').addEventListener('click', () => ($('#seasonView').hidden ? openSeason() : closeSeason()));
   $('#szClose').addEventListener('click', closeSeason);
   $('#szNav').addEventListener('click', (e) => { const b = e.target.closest('[data-sz]'); if (b) { section = b.dataset.sz; animate(); render(); } });
-  $('#szContent').addEventListener('click', (e) => { const b = e.target.closest('[data-szgo]'); if (b) { section = b.dataset.szgo; animate(); render(); } });
+  $('#szContent').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-szgo]');
+    if (b) { section = b.dataset.szgo; animate(); render(); return; }
+    const t = e.target.closest('[data-h2h-team]'), m = e.target.closest('[data-h2h-mode]');
+    if (t) { h2hTeam = t.dataset.h2hTeam; render(); } else if (m) { h2hMode = m.dataset.h2hMode; render(); }
+  });
   $('#szContent').addEventListener('change', (e) => {
     const id = e.target.id;
-    if (id === 'szTeam') h2hTeam = e.target.value;
+    if (id === 'szH2hA') h2hA = e.target.value;
+    else if (id === 'szH2hB') h2hB = e.target.value;
     else if (id === 'szDriver') drvCode = e.target.value;
     else if (id === 'szSpeedPt') speedPt = e.target.value;
     else if (id === 'szCircSort') circSort = e.target.value;
