@@ -168,3 +168,30 @@ export function chartHtml(state) {
   }).join('');
   return `<section class="rp-tile rp-chart"><h4>${t('Écarts au meilleur tour de la séance')}</h4>${rows}</section>`;
 }
+
+// Chiffres de la séance (page Résultats, sous le classement) : arrêts, limites de piste, enquêtes,
+// neutralisations, abandons, météo
+export function numbersHtml(state) {
+  const f = summaryFacts(state);
+  if (!f.ranked.length) return '';
+  const lines = state?.TimingData?.Lines || {};
+  const app = state?.TimingAppData?.Lines || {};
+  const msgs = list(state?.RaceControlMessages?.Messages).map((m) => String(m?.Message || ''));
+  const w = state?.WeatherData || {};
+  const items = [];
+  if (f.kind === 'race') {
+    items.push([f.ranked.reduce((s, n) => s + realStopCount(app[n], lines[n]), 0), t('arrêts aux stands')]);
+    items.push([f.ranked.length - f.out.length, t('pilotes classés')]);
+    items.push([f.out.length, t('abandons')]);
+    items.push([f.sc.length + f.vsc.length + f.red.length, t('neutralisations')]);
+  } else {
+    items.push([f.ranked.reduce((s, n) => s + (Number(lines[n]?.NumberOfLaps) || 0), 0), t('tours bouclés')]);
+  }
+  items.push([msgs.filter((m) => /(TIME|LAP) DELETED/.test(m)).length, t('temps supprimés (limites de piste)')]);
+  items.push([msgs.filter((m) => /UNDER INVESTIGATION/.test(m)).length, t('enquêtes des commissaires')]);
+  items.push([f.penalties.length, t('pénalités')]);
+  if (w.TrackTemp) items.push([`${String(w.TrackTemp).replace('.', DEC)}°`, t('piste')]);
+  if (w.AirTemp) items.push([`${String(w.AirTemp).replace('.', DEC)}°`, t('air')]);
+  return `<section class="sz-box rp-numbers"><h3>${t('Chiffres de la séance')}</h3>
+    <div class="rp-num-grid">${items.map(([v, l]) => `<div><b>${esc(v)}</b><span>${l}</span></div>`).join('')}</div></section>`;
+}

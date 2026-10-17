@@ -6,7 +6,8 @@ import { store, versionOf } from '../store.js';
 import { t, EN } from '../i18n.js';
 import { gpShort, sessionLabel } from '/shared/gp-names.js';
 import { summaryFacts } from '/shared/summary.js';
-import { reportHtml, classificationHtml, chartHtml, statusLabel } from './report.js';
+import { reportHtml, classificationHtml, chartHtml, numbersHtml, statusLabel } from './report.js';
+import { icon } from '../icons.js';
 
 let timer = null;
 let lastKey = '';
@@ -28,8 +29,11 @@ function render() {
       <h2>${gpShort(info.Meeting?.Name || '', EN)} : ${sessionLabel(info.Name || '', EN)}</h2></div>
       <span class="rp-status${f.final ? ' done' : ''}">${statusLabel(f)}</span></div>
     <div class="rp-layout"><div class="rp-left">${reportHtml(store.state)}${chartHtml(store.state)}</div>
-      <section class="sz-box rp-class"><h3>${t('Classement')}</h3>${classificationHtml(store.state)}</section></div>
-    ${f.final ? '' : `<p class="muted small">${t('Résultats provisoires : la séance n\'est pas terminée (au rythme de votre délai TV).')}</p>`}`;
+      <div class="rp-right"><section class="sz-box rp-class"><h3>${t('Classement')}</h3>${classificationHtml(store.state)}</section>${numbersHtml(store.state)}</div></div>
+    <div class="rp-foot">${f.final ? `<span class="muted small">${t('Résultats définitifs de la séance.')}</span>` : `<span class="muted small">${t('Résultats provisoires : la séance n\'est pas terminée (au rythme de votre délai TV).')}</span>`}
+      <div class="rp-foot-actions"><button class="btn small" data-res="summary">${icon('doc')} ${t('Résumé à copier')}</button>
+        <button class="btn small" data-res="standings">${icon('trophy')} ${t('Classement du championnat')}</button>
+        <button class="btn small" data-res="title">${icon('star')} ${t('Course au titre')}</button></div></div>`;
 }
 
 export function openResults() {
@@ -55,6 +59,12 @@ export function closeResults() {
 export const isResultsOpen = () => !$('#resultsView')?.hidden;
 
 export function initResults() {
+  // Pied de page : résumé à copier, classement du championnat, course au titre
+  $('#resContent')?.addEventListener('click', async (e) => {
+    const k = e.target.closest('[data-res]')?.dataset.res;
+    if (k === 'summary') $('#summaryBtn')?.click();
+    else if (k) { closeResults(); (await import('./season.js')).openSeason(k); }
+  });
   // Une autre page s'ouvre (Accueil, Saison, Actu, Replays) : la page Résultats se ferme
   const mo = new MutationObserver(() => {
     if (['#homeView', '#seasonView', '#newsView', '#replayView'].some((id) => $(id) && !$(id).hidden)) closeResults();

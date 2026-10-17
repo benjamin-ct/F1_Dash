@@ -26,6 +26,9 @@ l'application (Réglages → Application → Nouveautés).
   classement à droite : tout tient sur un écran.
 - Sous les cartes, un graphique : en course, la **stratégie de chaque pilote** (relais colorés selon le
   pneu, avec le nombre de tours) ; en qualifications et en essais, l'**écart de chacun au meilleur tour**.
+- Sous le classement, les **chiffres de la séance** (arrêts aux stands, pilotes classés, abandons,
+  neutralisations, temps supprimés pour les limites de piste, enquêtes, pénalités, températures) ; en bas
+  de page, des raccourcis vers le résumé à copier, le classement du championnat et la course au titre.
 - « Voir les résultats » (accueil et écran « Pas de séance en direct ») ouvre cette page.
 - Les graphiques d'analyse restent dans leurs onglets du tableau de bord (Écarts, Temps, Secteurs,
   Comparaison, Télémétrie).
