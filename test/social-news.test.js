@@ -98,6 +98,8 @@ test('très grosse info (Breaking news) : importance maximale, ou reprise partou
   assert.equal(isBreaking(it({ imp: 2, sources: 12 })), true);
   assert.equal(isBreaking(it({ imp: 1, sources: 30, title: 'Camara signs for Haas' })), true);   // transfert
   assert.equal(isBreaking(it({ imp: 1, sources: 35, title: 'Horner takes swipe at Steiner' })), false);
+  assert.equal(isBreaking(it({ imp: 1, sources: 13, title: 'Russell handed engine penalty' })), true);   // pénalité
+  assert.equal(isBreaking(it({ imp: 1, sources: 6, title: 'Russell handed engine penalty' })), false);
   assert.equal(isBreaking(it({ imp: 2, sources: 4 })), false);
   assert.equal(newsPost(it({ imp: 3, tags: [] }), {}).breaking, true);
 });

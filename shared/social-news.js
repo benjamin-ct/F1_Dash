@@ -77,10 +77,10 @@ export function bigNews(items, { now = Date.now(), hours = 48, all = false } = {
 }
 
 // Très grosse info (vidéo « Breaking news ») : importance maximale, ou reprise par au moins 10 médias et
-// importante (annonce officielle, décision) ou transfert, départ, accident
+// importante (annonce officielle, décision) ou transfert, départ, accident, pénalité
 export function isBreaking(it) {
   const imp = it.imp || 0;
-  return imp >= 3 || ((it.sources || 1) >= 10 && (imp >= 2 || ['transfert', 'depart', 'accident'].includes(newsKind(it).key)));
+  return imp >= 3 || ((it.sources || 1) >= 10 && (imp >= 2 || ['transfert', 'depart', 'accident', 'penalite'].includes(newsKind(it).key)));
 }
 
 // Ordre d'affichage des grosses news : « à la une » (importance, moins 1 point par tranche de 12 h
