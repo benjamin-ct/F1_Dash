@@ -2209,4 +2209,7 @@ export default {
   "Paysage 16:9": "Landscape 16:9",
   "Vues, abonnés, meilleurs posts": "Views, followers, top posts",
   "Tout enregistrer": "Save all",
+  "Lu": "Read",
+  "Marquer comme lu": "Mark as read",
+  "Marquer comme non lu": "Mark as unread",
 };

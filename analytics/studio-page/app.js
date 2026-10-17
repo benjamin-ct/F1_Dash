@@ -162,6 +162,9 @@ async function translateShown(body, list) {
 }
 
 let shown = [];
+// News déjà lues (ouvertes, ou marquées à la main) : les 2 000 dernières, sur cet appareil
+const READ = new Set(store.get('read')?.v || []);
+const setRead = (id, on = true) => { if (on) READ.add(id); else READ.delete(id); store.set('read', [...READ].slice(-2000)); };
 const KIND_NAMES = { transfert: 'Transferts', penalite: 'Pénalités', depart: 'Départs', accident: 'Accidents', officiel: 'Officiel', actu: 'Actu F1' };
 function renderNews(body, items, { at, stale = false }) {
   const big = bigNews(items, { all: state.all });
@@ -169,11 +172,12 @@ function renderNews(body, items, { at, stale = false }) {
   // Tri (à la une ou récentes), filtre par type, news déjà publiées en dernier
   const kinds = newsKinds(big);
   if (state.nkind && !kinds.some((k) => k.key === state.nkind)) state.nkind = null;
-  const list = sortNews(big.filter((it) => !state.nkind || newsKind(it).key === state.nkind), { by: state.nsort, done: (it) => done.get(it) }).slice(0, 40);
+  const list = sortNews(big.filter((it) => (!state.nkind || newsKind(it).key === state.nkind) && !(state.hideRead && READ.has(it.id))), { by: state.nsort, done: (it) => done.get(it) }).slice(0, 40);
   shown = list;
   body.innerHTML = `<div class="toolbar">
       <div class="seg" id="nsort"><button data-by="top" class="${state.nsort === 'top' ? 'on' : ''}">À la une</button><button data-by="recent" class="${state.nsort === 'recent' ? 'on' : ''}">Plus récentes</button></div>
       <label class="chip-toggle"><input type="checkbox" id="all" ${state.all ? 'checked' : ''}><span>Toutes</span></label>
+      <label class="chip-toggle"><input type="checkbox" id="hideread" ${state.hideRead ? 'checked' : ''}><span>Masquer les lues</span></label>
     </div>
     ${kinds.length > 1 ? `<div class="chips" id="nkinds"><button data-k="" class="${state.nkind ? '' : 'on'}">Tout <small>${big.length}</small></button>${kinds.map((k) => `<button data-k="${k.key}" class="${state.nkind === k.key ? 'on' : ''}"><i style="background:${k.color}"></i>${esc(KIND_NAMES[k.key] || k.label)} <small>${k.n}</small></button>`).join('')}</div>` : ''}
     <p class="status">${stale ? '<span class="dot"></span>Mise à jour…' : `À jour · ${new Date(at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}</p>
@@ -182,17 +186,21 @@ function renderNews(body, items, { at, stale = false }) {
     ${list.length ? `<div class="list">${list.map((it, i) => {
       const k = newsKind(it);
       const posted = done.get(it);
-      return `<button class="card news${posted ? ' done' : ''}" data-i="${i}"><div class="card-top"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${posted ? `<span class="pill ok">${icon('check')}Publiée</span>` : ''}<span class="grow"></span><time>${ago(it.t)}</time></div>
-        <div class="t">${esc(knownFrench(it.title, it.lang) || it.title)}</div><div class="meta">${esc(it.srcName)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>`;
+      const read = READ.has(it.id);
+      return `<div class="nwrap"><button class="card news${posted ? ' done' : ''}${read ? ' read' : ''}" data-i="${i}"><div class="card-top"><span class="badge" style="background:${k.color}">${esc(k.label)}</span>${posted ? `<span class="pill ok">${icon('check')}Publiée</span>` : ''}<span class="grow"></span><time>${ago(it.t)}</time></div>
+        <div class="t">${esc(knownFrench(it.title, it.lang) || it.title)}</div><div class="meta">${esc(it.srcName)}${it.sources > 1 ? ` · ${it.sources} médias` : ''}</div></button>
+        <button class="readmark${read ? ' on' : ''}" data-r="${i}" aria-label="${read ? 'Marquer comme non lue' : 'Marquer comme lue'}">${icon('check')}${read ? 'Lue' : 'Lu ?'}</button></div>`;
     }).join('')}</div>` : empty(state.all ? 'Aucune actu ces dernières 48 heures.' : 'Aucune grosse news ces dernières 48 heures : essayez « Toutes ».')}`;
   glide(body);
   translateShown(body, list);
   $('#all', body).onchange = (e) => { state.all = e.target.checked; renderNews(body, items, { at, stale }); };
+  $('#hideread', body).onchange = (e) => { state.hideRead = e.target.checked; renderNews(body, items, { at, stale }); };
+  $$('[data-r]', body).forEach((b) => { b.onclick = () => { const y = scrollY; setRead(list[Number(b.dataset.r)].id, !b.classList.contains('on')); renderNews(body, items, { at, stale }); scrollTo(0, y); }; });
   $$('#nsort [data-by]', body).forEach((b) => { b.onclick = () => { state.nsort = b.dataset.by; renderNews(body, items, { at, stale }); }; });
   $$('#nkinds [data-k]', body).forEach((b) => { b.onclick = () => { state.nkind = b.dataset.k || null; renderNews(body, items, { at, stale }); }; });
   $('#recap', body).onclick = (e) => open(e.currentTarget, async () => (await posts()).recapEditor(back));
   $('#launch', body).onclick = (e) => open(e.currentTarget, async () => (await import('./launch.js')).launchKit(back));
-  $$('[data-i]', body).forEach((b) => { b.onclick = () => open(b, async () => (await posts()).newsEditor(list[Number(b.dataset.i)], done.get(list[Number(b.dataset.i)]), back)); });
+  $$('[data-i]', body).forEach((b) => { b.onclick = () => { setRead(list[Number(b.dataset.i)].id); open(b, async () => (await posts()).newsEditor(list[Number(b.dataset.i)], done.get(list[Number(b.dataset.i)]), back)); }; });
 }
 
 // ---------- Séances (archives de la F1), regroupées par Grand Prix ----------

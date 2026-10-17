@@ -182,6 +182,13 @@ button.card:active { transform: scale(.985); background: var(--surface-2); }
 .card-top > .ic { width: 16px; height: 16px; }
 .card time { font-variant-numeric: tabular-nums; }
 .card.done { opacity: .6; }
+/* News lue : grisée ; pastille « Lue » / « Lu ? » en bas à droite de la carte, pour marquer à la main */
+.nwrap { position: relative; }
+.card.read { opacity: .55; }
+.readmark { position: absolute; right: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font: 600 12px/1.3 inherit; cursor: pointer; }
+.readmark .ic { width: 13px; height: 13px; }
+.readmark.on { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.card.news { padding-bottom: 38px; }
 .card.feature { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; background: linear-gradient(120deg, var(--brand-wash), transparent 75%), var(--surface); }
 .card.feature > .ic:first-child { width: 26px; height: 26px; color: var(--brand); }
 .card.feature b { display: block; font-size: 15.5px; }

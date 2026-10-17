@@ -22,6 +22,7 @@ const LANG_LABEL = { en: 'Anglais', fr: 'Français', es: 'Espagnol', it: 'Italie
 const TEAM_NAME = Object.fromEntries(NEWS_TEAMS.map(([k, name]) => [k, name]));
 const SEEN_KEY = 'paddock.newsSeen';
 const ALERTED_KEY = 'paddock.newsAlerted';
+const READ_KEY = 'paddock.newsRead';
 const PAGE = 60;
 
 let items = [];                // du plus récent au plus ancien
@@ -218,6 +219,13 @@ function matches(it, favs) {
 
 // Nouveau : publié et arrivé depuis la dernière visite de l'espace Actu
 const isUnread = (it) => it.seen > lastSeen && it.t > lastSeen;
+// Actus déjà lues (ouvertes, ou marquées à la main) : les 2 000 dernières, sur cet appareil
+const readIds = new Set(storageGet(READ_KEY, []));
+const isRead = (g) => [g.lead, ...g.others].some((x) => readIds.has(x.id));
+function setRead(ids, on = true) {
+  for (const id of ids) if (on) readIds.add(id); else readIds.delete(id);
+  storageSet(READ_KEY, [...readIds].slice(-2000));
+}
 
 // ---- Affichage ----
 const ago = (t) => {
@@ -245,18 +253,20 @@ function card(g, favs, i = -1) {
   const src = srcById[it.src] || { name: it.src };
   const title = titleOf(it);
   const sum = prefs.newsTranslate && it.lang !== LANG ? tr(it.summary) : null;
-  const unread = isUnread(it);
+  const read = isRead(g);
+  const unread = !read && isUnread(it);
   const fav = (it.tags || []).some((t) => favs.has(t));
   const level = g.imp >= 3 ? '<span class="nw-imp major">Majeur</span>' : g.imp >= 2 ? '<span class="nw-imp">Important</span>' : '';
   const hot = g.sources >= 3 ? `<span class="nw-hot" title="Sujet repris par ${g.sources} sources">${icon('fire')} ${g.sources} sources</span>` : '';
   const img = it.img ? `<img class="nw-img" src="${safeUrl(it.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('.nw-thumb').remove()">` : '';
   const others = g.others.length ? `<details class="nw-others"><summary>Repris par ${g.others.length} autre${g.others.length > 1 ? 's' : ''} source${g.others.length > 1 ? 's' : ''}</summary>
     ${g.others.map((o) => `<a href="${safeUrl(o.link)}" target="_blank" rel="noopener" data-read="${esc(o.id)}"><b>${esc(srcById[o.src]?.name || o.src)}</b> <span class="nw-lang">${esc(o.lang.toUpperCase())}</span> <span data-no-i18n>${esc(titleOf(o).text)}</span> <span class="muted">· ${ago(o.t)}</span></a>`).join('')}</details>` : '';
-  return `<article data-i="${i}" class="nw-card${justArrived.has(it.id) ? ' arrived' : ''}${unread ? ' unread' : ''}${g.imp >= 2 ? ' imp' : ''}${fav ? ' fav' : ''}${it.kind === 'video' ? ' video' : ''}">
+  const readBtn = `<button class="nw-readbtn${read ? ' on' : ''}" data-readtoggle="${esc([it.id, ...g.others.map((o) => o.id)].join(' '))}" title="${read ? 'Marquer comme non lu' : 'Marquer comme lu'}">${icon('check')}${read ? ' Lu' : ''}</button>`;
+  return `<article data-i="${i}" class="nw-card${read ? ' read' : ''}${justArrived.has(it.id) ? ' arrived' : ''}${unread ? ' unread' : ''}${g.imp >= 2 ? ' imp' : ''}${fav ? ' fav' : ''}${it.kind === 'video' ? ' video' : ''}">
     ${img ? `<a class="nw-thumb" href="${safeUrl(it.link)}" target="_blank" rel="noopener" tabindex="-1" aria-hidden="true" data-read="${esc(it.id)}">${img}${it.kind === 'video' ? `<span class="nw-play">${icon('play')}</span>` : ''}</a>` : ''}
     <div class="nw-body">
       <div class="nw-meta"><span class="nw-src nw-c-${esc(it.cat)}">${esc(src.name)}</span><span class="nw-cat">${CAT_LABEL[it.cat] || ''}</span>
-        <span class="nw-lang" title="Langue d'origine : ${esc(LANG_LABEL[it.lang] || it.lang)}">${esc(it.lang.toUpperCase())}</span><span class="nw-time" title="${esc(new Date(it.t).toLocaleString(LOCALE))}">${ago(it.t)}</span>${level}${hot}${fav ? `<span class="nw-favmark" title="Concerne un de vos favoris">${icon('star-fill')}</span>` : ''}</div>
+        <span class="nw-lang" title="Langue d'origine : ${esc(LANG_LABEL[it.lang] || it.lang)}">${esc(it.lang.toUpperCase())}</span><span class="nw-time" title="${esc(new Date(it.t).toLocaleString(LOCALE))}">${ago(it.t)}</span>${level}${hot}${fav ? `<span class="nw-favmark" title="Concerne un de vos favoris">${icon('star-fill')}</span>` : ''}${readBtn}</div>
       <a class="nw-title" data-no-i18n href="${safeUrl(it.link)}" target="_blank" rel="noopener" data-read="${esc(it.id)}" ${title.translated ? `title="${esc(it.title)}"` : ''}>${esc(title.text)}</a>
       ${title.pending ? '<div class="nw-trans muted">Traduction en cours…</div>' : title.translated ? '<div class="nw-trans muted" title="Traduit automatiquement sur cet ordinateur">Traduit · <button class="nw-vo" data-vo>VO</button></div>' : ''}
       <div class="nw-vo-text" hidden>${esc(it.title)}</div>
@@ -510,6 +520,7 @@ function closeReader() {
   readerEl.hidden = true;
   readerEl.innerHTML = '';
   $('#nwContent').hidden = false;
+  render();   // l'actu ouverte passe en « Lu »
   $('#nwContent').scrollTop = readerScroll;
 }
 
@@ -520,6 +531,7 @@ const readerTranslate = (text, from) => (cloudOn()
 async function openReader(id) {
   const it = items.find((x) => x.id === id);
   if (!it) return false;
+  setRead([id]);
   if (!readerEl) {
     readerEl = document.createElement('div');
     readerEl.className = 'sz-main nw-reader';
@@ -662,6 +674,8 @@ export function initNews() {
     if (e.target.closest('#nwRefresh')) { api('/api/news/refresh', { method: 'POST' }).catch(() => {}); toast('Lecture de toutes les sources…'); setTimeout(reload, 15000); return; }
     if (e.target.closest('#nwMarkRead')) { markRead(); return; }
     if (e.target.closest('#nwReveal')) { revealSpoilers = true; render(); return; }
+    const rt = e.target.closest('[data-readtoggle]');
+    if (rt) { setRead(rt.dataset.readtoggle.split(' '), !rt.classList.contains('on')); render(); return; }
     const tagBtn = e.target.closest('[data-tag]');
     if (tagBtn) { tagFilter = tagFilter === tagBtn.dataset.tag ? null : tagBtn.dataset.tag; limit = PAGE; render(); $('#nwContent').scrollTop = 0; return; }
     if (e.target.closest('[data-tag-clear]')) { tagFilter = null; render(); return; }
@@ -709,7 +723,9 @@ export function initNews() {
   // Articles, vidéos et publications ouverts dans l'appli (Ctrl / Cmd / clic milieu : dans le navigateur)
   $('#newsView').addEventListener('click', (e) => {
     const a = e.target.closest('a[data-read]');
-    if (!a || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
+    if (!a) return;
+    setRead([a.dataset.read]);
+    if (e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) { a.closest('.nw-card')?.classList.add('read'); return; }
     if (items.some((x) => x.id === a.dataset.read)) { e.preventDefault(); openReader(a.dataset.read); }
   });
   // Liste chargée au démarrage : pastille du nombre de nouveautés
