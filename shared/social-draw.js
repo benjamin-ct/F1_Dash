@@ -541,6 +541,29 @@ export const lightColor = (hex) => {
   return 0.2126 * (v >> 16) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255) > 150;
 };
 
+// Très grosse info (« Breaking news », image et vidéo) : liseré rouge tout autour (k < 1 : en train de
+// se dessiner) et étiquette « ● BREAKING » calée à droite sur x, en haut sur y, de hauteur h ; dot :
+// opacité du point (qui clignote dans la vidéo). Renvoie la largeur de l'étiquette.
+export function breakingFrame(ctx, W, H, u, k = 1) {
+  const lw = 14 * u;
+  ctx.save();
+  ctx.strokeStyle = C.red; ctx.lineWidth = lw;
+  if (k < 1) { const per = 2 * (W + H); ctx.setLineDash([per * Math.max(0, k), per]); }
+  ctx.strokeRect(lw / 2, lw / 2, W - lw, H - lw);
+  ctx.restore();
+}
+export function breakingTag(ctx, x, y, h, dot = 1) {
+  const size = Math.round(h * 0.6);
+  const sp = size * 0.18;
+  ctx.font = `800 ${size}px ${TITLE}`;
+  const w = ctx.measureText('BREAKING').width + 8 * sp + h * 1.25;
+  rr(ctx, x - w, y, w, h, h * 0.14); ctx.fillStyle = C.red; ctx.fill();
+  ctx.fillStyle = `rgba(255,255,255,${dot})`;
+  ctx.beginPath(); ctx.arc(x - w + h * 0.45, y + h / 2, h * 0.15, 0, Math.PI * 2); ctx.fill();
+  txt(ctx, 'BREAKING', x - h * 0.32, y + h * 0.71, { size, weight: 800, family: TITLE, color: '#fff', align: 'right', spacing: sp });
+  return w;
+}
+
 export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   background(ctx, W, H, d.color);
   const land = W > H;
@@ -553,32 +576,17 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   const pagesAll = pointPages(d.points, fmt);
   const more = keptPages(o, 'essentiel', pagesAll.map((_, i) => i + 1)).reduce((n, k) => n + (pagesAll[k - 1]?.length || 0), 0);
   const scroll = more && fmt !== 'x';
-  if (d.breaking) {
-    // Très grosse info : bandeau rouge « BREAKING NEWS » sur toute la largeur, date à droite
-    const bh = Math.round(top + 84 * u);
-    ctx.fillStyle = C.red; ctx.fillRect(0, 0, W, bh);
-    ctx.save();
-    ctx.beginPath(); ctx.rect(0, 0, W, bh); ctx.clip();
-    ctx.fillStyle = 'rgba(255,255,255,0.07)';
-    for (let x = -bh; x < W; x += 60 * u) { ctx.beginPath(); ctx.moveTo(x, bh); ctx.lineTo(x + 26 * u, bh); ctx.lineTo(x + 26 * u + bh * 0.5, 0); ctx.lineTo(x + bh * 0.5, 0); ctx.fill(); }
-    ctx.restore();
-    ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, bh, W, 6 * u);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(pad + 12 * u, top + 30 * u, 12 * u, 0, Math.PI * 2); ctx.fill();
-    txt(ctx, 'BREAKING NEWS', pad + 40 * u, top + 52 * u, { size: Math.round(64 * u), weight: 800, family: TITLE, color: '#fff', spacing: 4, max: W - pad * 2 - (scroll ? 330 : 270) * u });
-    if (!scroll) txt(ctx, d.date.toUpperCase(), W - pad, top + 46 * u, { size: Math.round(26 * u), weight: 700, family: TITLE, color: 'rgba(255,255,255,0.85)', align: 'right', spacing: 2 });
-  } else {
-    // En-tête : Actu F1 et date
-    ctx.fillStyle = C.red;
-    ctx.fillRect(pad, top, 10, Math.round(64 * u));
-    txt(ctx, 'ACTU F1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
-    txt(ctx, d.date.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
-  }
+  // En-tête : Actu F1 et date ; très grosse info : liseré rouge et étiquette « BREAKING » à droite
+  ctx.fillStyle = C.red;
+  ctx.fillRect(pad, top, 10, Math.round(64 * u));
+  txt(ctx, 'ACTU F1', pad + 28, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
+  txt(ctx, d.date.toUpperCase(), pad + 28, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
+  if (d.breaking) { breakingFrame(ctx, W, H, u); breakingTag(ctx, W - pad, top + 2 * u, 58 * u); }
   if (scroll) {
     const ax = W - pad;
-    const ay = top + 38 * u;
+    const ay = top + (d.breaking ? 92 : 38) * u;   // sous l'étiquette « BREAKING »
     ctx.save();
-    ctx.strokeStyle = d.breaking ? '#fff' : C.red; ctx.lineWidth = 5 * u; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = C.red; ctx.lineWidth = 5 * u; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (const k of [0, 1]) {
       const cx = ax - k * 18 * u;
       ctx.beginPath(); ctx.moveTo(cx - 14 * u, ay - 13 * u); ctx.lineTo(cx, ay); ctx.lineTo(cx - 14 * u, ay + 13 * u); ctx.stroke();
@@ -591,13 +599,13 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   const withPhoto = d.drivers.filter((p) => o.photos?.[p.num]);
   const x = pad;
   let colW = W - pad * 2;
-  let areaTop = top + (d.breaking ? 130 : 110) * u;
+  let areaTop = top + 110 * u;
   let centered = false;
   const custom = d.image?.width ? d.image : null;   // photo importée : à la place des portraits
-  const sideTop = top + (d.breaking ? 120 : 40) * u;   // visuel à droite (format X), sous le bandeau
+  const side = top + (d.breaking ? 80 : 40) * u;   // visuel à droite (format X), sous l'étiquette « BREAKING »
   if (custom && land) {
     colW = W * 0.54;
-    coverPhoto(ctx, custom, W * 0.6, sideTop, W * 0.36, bottom - sideTop + 20 * u);
+    coverPhoto(ctx, custom, W * 0.6, side, W * 0.36, bottom - side + 20 * u);
     centered = true;
   } else if (custom) {
     const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);
@@ -605,8 +613,8 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
     areaTop += ph + 30 * u;
   } else if (land) {
     colW = W * 0.54;
-    if (withPhoto.length === 1) photo(ctx, o.photos[withPhoto[0].num], W * 0.6, sideTop, W * 0.36, bottom - sideTop + 20 * u, withPhoto[0].color, 0.25);
-    else if (d.drivers.length) d.drivers.forEach((p, i) => driverPhoto(ctx, o.photos?.[p.num], W * 0.79, sideTop + (90 + i * 230) * u + (3 - d.drivers.length) * 115 * u, 100 * u, p.color, p.tla));
+    if (withPhoto.length === 1) photo(ctx, o.photos[withPhoto[0].num], W * 0.6, side, W * 0.36, bottom - side + 20 * u, withPhoto[0].color, 0.25);
+    else if (d.drivers.length) d.drivers.forEach((p, i) => driverPhoto(ctx, o.photos?.[p.num], W * 0.79, side + (90 + i * 230) * u + (3 - d.drivers.length) * 115 * u, 100 * u, p.color, p.tla));
     centered = true;
   } else if (withPhoto.length === 1) {
     const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);

@@ -1,15 +1,15 @@
 // Vidéo « Breaking news » (mode créateur) : animation verticale 1080 × 1920 tirée des données d'un post
-// news (newsPost), enregistrée dans le navigateur par makeAnimation. Quatre temps : intro « BREAKING
-// NEWS », l'info (photo, type, titre, résumé), les points clés un par un, puis « Abonnez-vous ».
-// Bandeau défilant au-dessus de la zone couverte par les légendes de TikTok et des Reels.
-import { C, TITLE, BODY, rr, txt, fitLines, vivid, alpha, lightColor, background, photo, coverPhoto, driverPhoto } from './social-draw.js';
+// news (newsPost), enregistrée dans le navigateur par makeAnimation. Quatre temps : intro « BREAKING »,
+// l'info (photo, type, titre, résumé), les points clés un par un, puis « Abonnez-vous ». Même style que
+// l'image : liseré rouge tout autour, étiquette « ● BREAKING » en haut à droite.
+import { C, TITLE, BODY, rr, txt, fitLines, vivid, alpha, lightColor, background, photo, coverPhoto, driverPhoto, breakingFrame, breakingTag } from './social-draw.js';
 
 const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const out3 = (x) => 1 - (1 - clamp01(x)) ** 3;
 const words = (s) => String(s || '').split(/\s+/).filter(Boolean).length;
 const INTRO = 1.8;
 const OUTRO = 2.8;
-const WIPE = 0.5;   // passage d'un temps à l'autre : bande rouge qui balaie l'écran
+const FADE = 0.4;   // passage d'un temps à l'autre : fondu par le noir
 
 // Durées : le temps de lire (environ 3,5 mots par seconde) ; 4 points clés au plus
 export function newsVideoTiming(d) {
@@ -21,18 +21,6 @@ export function newsVideoTiming(d) {
   return { pts, main, starts, duration: starts.at(-1) + OUTRO };
 }
 
-// Bande rouge inclinée qui traverse l'écran ; k de 0 à 1, l'écran entièrement couvert à k = 0,5
-function wipe(ctx, W, H, k) {
-  if (k <= 0 || k >= 1) return;
-  const sk = W * 0.35;
-  const bw = W + sk * 2;
-  const x = -bw - sk + (W + bw + sk * 2) * k;
-  ctx.fillStyle = C.red;
-  ctx.beginPath(); ctx.moveTo(x + sk, 0); ctx.lineTo(x + bw + sk, 0); ctx.lineTo(x + bw, H); ctx.lineTo(x, H); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.moveTo(x + bw + sk, 0); ctx.lineTo(x + bw + sk + W * 0.03, 0); ctx.lineTo(x + bw + W * 0.03, H); ctx.lineTo(x + bw, H); ctx.closePath(); ctx.fill();
-}
-
 // Étiquette du type de nouvelle ; renvoie sa largeur
 function chip(ctx, b, x, y, u, size = 34) {
   ctx.font = `700 ${Math.round(size * u)}px ${TITLE}`;
@@ -42,79 +30,43 @@ function chip(ctx, b, x, y, u, size = 34) {
   return w;
 }
 
-// En-tête (Actu F1, date ; à droite : point rouge qui clignote, signature)
+const blink = (t) => 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2.2));   // point qui clignote
+
+// En-tête (Actu F1, date ; à droite : étiquette « BREAKING », signature dessous)
 function header(ctx, W, d, o, u, t) {
   const pad = 60 * u; const top = 120 * u;
   ctx.fillStyle = C.red; ctx.fillRect(pad, top, 10 * u, 64 * u);
   txt(ctx, 'ACTU F1', pad + 28 * u, top + 30 * u, { size: Math.round(34 * u), weight: 800, family: TITLE, spacing: 4 });
   txt(ctx, d.date.toUpperCase(), pad + 28 * u, top + 62 * u, { size: Math.round(24 * u), weight: 600, family: TITLE, color: C.muted, spacing: 2 });
-  const s = txt(ctx, 'BREAKING NEWS', W - pad, top + 30 * u, { size: Math.round(32 * u), weight: 800, family: TITLE, color: C.text, align: 'right', spacing: 3 });
-  ctx.font = `800 ${s}px ${TITLE}`;
-  const tw = ctx.measureText('BREAKING NEWS').width + 13 * 3;
-  ctx.fillStyle = alpha('#e10600', 0.35 + 0.65 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2.2)));
-  ctx.beginPath(); ctx.arc(W - pad - tw - 22 * u, top + 19 * u, 11 * u, 0, Math.PI * 2); ctx.fill();
-  txt(ctx, o.signature || '@BenjyPaddock', W - pad, top + 62 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 1 });
+  breakingTag(ctx, W - pad, top, 54 * u, blink(t));
+  txt(ctx, o.signature || '@BenjyPaddock', W - pad, top + 92 * u, { size: Math.round(24 * u), weight: 700, family: TITLE, color: C.muted, align: 'right', spacing: 1 });
 }
 
-// Bandeau défilant « BREAKING » : type, titre et signature en boucle
-function ticker(ctx, W, d, o, u, y, t, k) {
-  const h = 76 * u;
-  y += (1 - out3(k)) * 220 * u;
-  ctx.fillStyle = 'rgba(11,13,18,0.92)'; ctx.fillRect(0, y, W, h);
-  ctx.fillStyle = C.red; ctx.fillRect(0, y, W, 5 * u);
-  const msg = `${d.badge.label}  ·  ${d.title.toUpperCase()}  ·  ${(o.signature || '@BenjyPaddock').toUpperCase()}  ·  `;
-  const size = Math.round(34 * u);
-  ctx.font = `700 ${size}px ${TITLE}`;
-  const mw = ctx.measureText(msg).width + msg.length * 2;
-  const lw = 250 * u;
-  ctx.save();
-  ctx.beginPath(); ctx.rect(lw, y, W - lw, h); ctx.clip();
-  const off = (t * 150 * u) % mw;
-  for (let x = lw + 24 * u - off; x < W; x += mw) txt(ctx, msg, x, y + h * 0.66, { size, weight: 700, family: TITLE, spacing: 2 });
-  ctx.restore();
-  ctx.fillStyle = C.red;
-  ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(lw, y); ctx.lineTo(lw - 22 * u, y + h); ctx.lineTo(0, y + h); ctx.closePath(); ctx.fill();
-  txt(ctx, 'BREAKING', 28 * u, y + h * 0.68, { size: Math.round(38 * u), weight: 800, family: TITLE, color: '#fff', spacing: 3 });
-}
-
-// Intro : « BREAKING NEWS » qui claque, éclair blanc, type d'info et date
+// Intro : le liseré se dessine, la grande étiquette « BREAKING » arrive au centre, puis le type d'info
+// et la date
 function intro(ctx, W, H, d, u, s) {
   background(ctx, W, H, C.red);
-  const cy = H * 0.44;
-  // Grande bande rouge inclinée qui entre par la gauche
-  const kb = out3(s / 0.35);
-  ctx.save();
-  ctx.translate(W / 2, cy); ctx.rotate(-0.12);
-  ctx.fillStyle = C.red; ctx.fillRect(-W * 1.2 + (1 - kb) * -W * 1.5, 30 * u, W * 2.4, 190 * u);
-  ctx.restore();
-  // BREAKING : du très grand vers sa taille, en fondu
-  const kt = out3((s - 0.1) / 0.4);
+  const cy = H * 0.42;
+  const kt = out3((s - 0.15) / 0.45);
   if (kt > 0) {
     ctx.save();
     ctx.globalAlpha = kt;
-    ctx.translate(W / 2, cy - 20 * u); ctx.rotate(-0.12); ctx.scale(1.6 - 0.6 * kt, 1.6 - 0.6 * kt);
-    txt(ctx, 'BREAKING', 0, 0, { size: Math.round(230 * u), weight: 800, family: TITLE, align: 'center', max: W * 0.9, spacing: 4 });
+    ctx.translate(W / 2, cy); ctx.scale(1.25 - 0.25 * kt, 1.25 - 0.25 * kt);
+    ctx.font = `800 ${Math.round(150 * 0.6 * u)}px ${TITLE}`;
+    const h = 150 * u;
+    const w = ctx.measureText('BREAKING').width + 8 * 0.18 * 0.6 * h + h * 1.25;
+    breakingTag(ctx, w / 2, -h / 2, h, blink(s));
     ctx.restore();
   }
-  const kn = out3((s - 0.35) / 0.35);
-  if (kn > 0) {
-    ctx.save();
-    ctx.translate(W / 2 + (1 - kn) * W, cy + 150 * u); ctx.rotate(-0.12);
-    txt(ctx, 'NEWS', 0, 0, { size: Math.round(170 * u), weight: 800, family: TITLE, color: '#fff', align: 'center', spacing: 30 * u });
-    ctx.restore();
-  }
-  const kc = out3((s - 0.75) / 0.4);
+  const kc = out3((s - 0.65) / 0.4);
   if (kc > 0) {
     ctx.save(); ctx.globalAlpha = kc;
     ctx.font = `700 ${Math.round(40 * u)}px ${TITLE}`;
     const w = ctx.measureText(d.badge.label).width + 6 * d.badge.label.length * u + 44 * u;
-    chip(ctx, d.badge, (W - w) / 2, cy + 330 * u + (1 - kc) * 40 * u, u, 40);
-    txt(ctx, d.date.toUpperCase(), W / 2, cy + 470 * u + (1 - kc) * 40 * u, { size: Math.round(34 * u), weight: 600, family: TITLE, color: C.muted, align: 'center', spacing: 4 });
+    chip(ctx, d.badge, (W - w) / 2, cy + 150 * u + (1 - kc) * 40 * u, u, 40);
+    txt(ctx, d.date.toUpperCase(), W / 2, cy + 290 * u + (1 - kc) * 40 * u, { size: Math.round(34 * u), weight: 600, family: TITLE, color: C.muted, align: 'center', spacing: 4 });
     ctx.restore();
   }
-  // Éclair à l'arrivée de « NEWS »
-  const fl = clamp01(1 - Math.abs(s - 0.45) / 0.18);
-  if (fl > 0) { ctx.fillStyle = `rgba(255,255,255,${0.55 * fl})`; ctx.fillRect(0, 0, W, H); }
 }
 
 // Mise en page de l'info : visuel, titre au plus grand corps qui laisse place au résumé
@@ -288,7 +240,6 @@ export function newsFrame(ctx, W, H, d, o, t) {
   const u = W / 1080;
   const n = tm.pts.length;
   const pd = { ...d, points: tm.pts };
-  const tickY = H - 470 * u;
   if (t < INTRO) intro(ctx, W, H, d, u, t);
   else if (t < tm.starts[1]) mainScene(ctx, W, H, d, o, u, t - INTRO, tm.main);
   else if (t < tm.starts.at(-1)) {
@@ -297,12 +248,12 @@ export function newsFrame(ctx, W, H, d, o, t) {
   } else outro(ctx, W, H, d, o, u, t - tm.starts.at(-1));
   if (t >= INTRO && t < tm.starts.at(-1)) {
     header(ctx, W, d, o, u, t);
-    ticker(ctx, W, d, o, u, tickY, t, (t - INTRO) / 0.5);
-    if (d.source) txt(ctx, `SOURCE : ${d.source.toUpperCase()}`, W / 2, tickY + 140 * u, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.muted, align: 'center', spacing: 2, max: W - 120 * u });
+    if (d.source) txt(ctx, `SOURCE : ${d.source.toUpperCase()}`, W / 2, H - 430 * u, { size: Math.round(26 * u), weight: 700, family: TITLE, color: C.muted, align: 'center', spacing: 2, max: W - 120 * u });
   }
-  // Passages : intro → info, info → points, points → fin
+  // Passages : intro → info, info → points, points → fin (fondu par le noir)
   for (const b of [INTRO, tm.starts[1], tm.starts.at(-1)].filter((v, k, a) => a.indexOf(v) === k)) {
-    const k = (t - (b - WIPE / 2)) / WIPE;
-    if (k > 0 && k < 1) wipe(ctx, W, H, k);
+    const k = 1 - Math.abs(t - b) / (FADE / 2);
+    if (k > 0) { ctx.fillStyle = `rgba(11,13,18,${k})`; ctx.fillRect(0, 0, W, H); }
   }
+  breakingFrame(ctx, W, H, u, t < INTRO ? out3(t / 0.7) : 1);
 }
