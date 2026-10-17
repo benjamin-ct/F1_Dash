@@ -4,6 +4,7 @@
 // et compte dans le plafond quotidien partagé avec la traduction.
 import { MODEL } from './translate.js';
 import { badScript } from '../shared/translation-check.js';
+import { fold } from '../shared/news.js';
 
 const TAG = 'sum1';          // dans la clé du cache : changer les consignes = nouveaux résumés
 export const MAX_INPUT = 12000;
@@ -35,7 +36,7 @@ export function cleanSummaryRequest(body) {
   return { title, text };
 }
 
-const words = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[\p{L}\p{N}]+/gu) || [];
+const words = (s) => fold(s).match(/[\p{L}\p{N}]+/gu) || [];
 // Passage de l'article repris mot pour mot dans un point (article en français surtout). text : texte
 // de l'article, ou ses suites de mots déjà calculées (copyRuns)
 export function copyRuns(text) {

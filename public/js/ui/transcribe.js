@@ -168,10 +168,6 @@ function describe() {
   return txt ? `Actif · ${txt}` : 'Actif';
 }
 
-export function currentQuality() {
-  return effective.asr;
-}
-
 // Radios à transcrire / traduire (les plus récentes d'abord) : [{ url, who }]
 export function requestTranscripts(items) {
   if (!enabled) return;

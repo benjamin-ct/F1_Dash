@@ -289,12 +289,17 @@ function renderStats(body, r, stale) {
 function settings() {
   const me = session.me || {};
   const accounts = [['Instagram', me.instagram], ['Facebook', me.facebook], ['Threads', me.threads], ['Bluesky', me.bluesky], ['F1 TV (archives des séances)', me.f1tv ? 'connecté' : null]];
-  const dlg = sheet('Réglages', `<h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
+  const pages = [['Paddock Live', 'https://paddocklive.app/liens/'], ['Benjy Paddock', 'https://paddocklive.app/benjy/']];
+  const dlg = sheet('Réglages', `<h3 class="section">Mes pages de liens</h3><div class="group">${pages.map(([n, u]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(u.replace('https://', ''))}</small></span>
+      <a class="btn small" href="${esc(u)}" target="_blank" rel="noopener">${icon('link')}Ouvrir</a><button class="btn small" data-copy="${esc(u)}">${icon('copy')}Copier</button></div>`).join('')}</div>
+    <p class="hint">Tous les réseaux sur une seule page : le lien à mettre en bio.</p>
+    <h3 class="section">Comptes</h3><div class="group">${accounts.map(([n, v]) => `<div class="row-item static"><span class="grow"><b>${esc(n)}</b><small>${esc(v || 'non connecté')}</small></span><span class="state ${v ? 'on' : ''}"></span></div>`).join('')}</div>
     <p class="hint">Comptes envoyés par l'appli de bureau (Posts → Publier… → Comptes…).</p>
     <h3 class="section">Alertes des grosses news</h3><div id="alerts"></div>
     <button class="btn danger wide" id="out">${icon('logout')}Se déconnecter de cet appareil</button>
     <p class="hint center">Version du Studio : ${esc(VERSION)}</p>`);
   alertsBlock($('#alerts', dlg));
+  $$('[data-copy]', dlg).forEach((b) => { b.onclick = () => navigator.clipboard.writeText(b.dataset.copy).then(() => toast('Lien copié', 'ok'), () => toast('Copie impossible', 'bad')); });
   $('#out', dlg).onclick = () => { dlg.close(); forgetKey(); login(); };
 }
 

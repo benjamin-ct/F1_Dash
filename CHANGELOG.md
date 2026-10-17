@@ -4,6 +4,61 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.29 — 2026-10-17
+
+### Favoris
+- Pilotes et écuries favoris se choisissent maintenant depuis l'accueil : bouton « Modifier » (ou « Choisir
+  mes favoris ») sur la carte des favoris, puis un clic sur les pilotes et les écuries.
+- Nouveau : écuries favorites. Elles apparaissent sur l'accueil avec leur place, leurs points et leurs
+  victoires au classement des constructeurs, et leurs actualités sont mises en avant (filtre « Favoris »
+  et alertes d'actualités). Elles se règlent aussi dans Réglages → Alertes & favoris.
+
+### Nouveaux Réglages
+- Réglages entièrement redessinés : rubriques à gauche avec un résumé de chacune, titre de la rubrique
+  en haut, réglages rangés en cartes et en listes (texte à gauche, interrupteur ou menu à droite).
+- Recherche dans tous les réglages : tapez un mot (délai, langue, favoris, téléphone…) pour afficher
+  les réglages correspondants, quelle que soit leur rubrique.
+- Nouvelle rubrique « À propos » (nouveautés, réseaux, informations légales).
+- Compte F1 TV plus simple : l'état de la connexion en tête, les méthodes manuelles (navigateur, jeton)
+  repliées dans l'application de bureau.
+- Sur téléphone : réglages en plein écran, rubriques en bande défilante en haut.
+
+### Carte flottante
+- Application de bureau : bouton « Flottante » dans le panneau Carte. Le circuit part dans une fenêtre
+  sans cadre et sans fond, toujours au-dessus des autres (par-dessus la vidéo, même en plein écran).
+  On la déplace en la glissant ; au survol, une petite barre change sa taille (− / +), recadre le
+  circuit, la remet dans la fenêtre principale ou la ferme ; le coin en bas à droite et Ctrl + molette
+  règlent aussi la taille. Elle se rouvre à sa place au lancement suivant.
+
+### Moins d'onglets
+- Les onglets proches sont réunis : « Écarts » (race trace et positions), « Temps » (tours et rythme) et
+  « Direction de course » (messages, enquêtes et limites de piste). Un petit sélecteur en haut de chacun
+  passe d'une vue à l'autre ; les pastilles des enquêtes et des limites de piste y restent visibles.
+- Les onglets inutiles pour la séance chargée sont masqués tout seuls : en qualifications et en essais,
+  plus d'Écarts, de Pneus tour par tour, de Stratégie, de Simulateur, de Bagarres ni de Championnat ; en
+  course, plus de Comparaison des tours. Ils reviennent à la séance suivante.
+
+### Pas de séance en direct
+- Sans séance en cours, « Direct » affiche un écran d'attente au lieu du tableau de bord de la dernière
+  séance : prochaine séance avec compte à rebours, et boutons pour revoir la dernière séance en replay,
+  voir ses résultats ou parcourir toutes les séances. Le tableau de bord revient tout seul au début de
+  la séance suivante.
+
+### Réseaux sociaux
+- Bouton « Suivre Paddock Live sur les réseaux » en bas de l'accueil, et « Tous nos réseaux » dans
+  Réglages → Application : une page avec Instagram, Facebook, TikTok, YouTube, X, Threads et Bluesky.
+
+### Corrections
+- Redimensionnement des panneaux : la barre entre deux panneaux suit enfin la souris jusqu'au bout, et
+  le curseur à double flèche ne reste plus bloqué après le relâchement (surtout avec une deuxième
+  fenêtre ouverte, qui redessinait la disposition pendant le geste).
+- Après avoir glissé un onglet, le clic suivant n'est plus ignoré.
+- Déplacer un onglet d'un panneau à l'autre ne recharge plus les autres panneaux : la Direction de
+  course garde sa liste et sa position de lecture.
+
+### Mise en page
+- Barre de gauche : le libellé « Commentaires » est resserré pour ne plus toucher les bords du bouton.
+
 ## v1.27.28 — 2026-10-17
 
 ### Accueil

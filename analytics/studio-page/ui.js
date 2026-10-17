@@ -50,8 +50,18 @@ export function forgetKey() {
   for (const k of ['news', 'stats', 'sessions', 'me', 'history']) store.del(k);
 }
 
+// Lectures limitées à 30 secondes : une requête bloquée (application mise en pause par l'iPhone,
+// réseau perdu) échoue au lieu de laisser la page en chargement pour toujours. Les envois (vidéos,
+// publications) n'ont pas de limite.
+const READ_TIMEOUT = 30e3;
 export async function api(path, { method = 'GET', body, raw = false } = {}) {
-  const res = await fetch(`/studio/api/${path}`, { method, body, headers: { 'X-Studio-Key': key || '' } });
+  const signal = method === 'GET' && AbortSignal.timeout ? AbortSignal.timeout(READ_TIMEOUT) : undefined;
+  let res;
+  try {
+    res = await fetch(`/studio/api/${path}`, { method, body, signal, headers: { 'X-Studio-Key': key || '' } });
+  } catch (err) {
+    throw err?.name === 'TimeoutError' ? new Error('Le serveur ne répond pas (réseau lent ou coupé) : réessayez') : err;
+  }
   if (res.status === 401) { forgetKey(); logoutHook(); throw new Error('Code incorrect'); }
   if (raw) {
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erreur ${res.status}`);

@@ -2,13 +2,14 @@
 // résultat (replay depuis le début ou tableau de bord), dernières actualités, raccourcis.
 // Ouverte au lancement quand aucune séance n'est en cours ; pendant une séance, l'appli s'ouvre
 // directement sur le Direct.
-import { $, $$, esc, api } from '../util.js';
+import { $, $$, esc, api, drivers } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { LOCALE, EN } from '../i18n.js';
 import { gpShort, sessionLabel } from '/shared/gp-names.js';
 import { toast } from './delay.js';
-import { prefs } from '../prefs.js';
+import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
+import { teamKey } from '/shared/news.js';
 
 let schedule = null;   // [{ race, round, label, t }]
 let archive = null;    // dernière séance rejouable { meeting, name, path, t }
@@ -16,7 +17,9 @@ let timer = 0;
 let standings = null;  // classement du championnat (carte du favori)
 let weather = null;    // { key, days } : météo prévue du prochain Grand Prix
 let showFav = false;   // carte du favori dévoilée (peut contenir le dernier résultat)
+let editFav = false;   // choix des pilotes et écuries favoris ouvert sur l'accueil
 let touched = false;   // l'utilisateur a quitté l'accueil : plus d'ouverture ou de fermeture automatique
+let resultsOpen = false;   // résultats de la dernière séance demandés : tableau de bord même sans direct
 
 // Durée approximative d'une séance (fenêtre « en cours »)
 const LONG = /course|race|grand prix/i;
@@ -97,26 +100,69 @@ function weatherHtml(nx) {
   return `<div class="hm-wx">${days.map((d) => `<span title="Météo prévue sur le circuit"><b>${esc(new Date(`${d.date}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'short' }))}</b> ${Math.round(d.tmax)}° ${d.rain != null ? `<small>${icon('rain')} ${d.rain} %</small>` : ''}</span>`).join('')}</div>`;
 }
 
-// Pilote favori : position et points au championnat. Masqué juste après une séance (il peut
-// dévoiler le résultat) tant qu'on ne demande pas à le voir.
+// Pilotes et écuries favoris : position et points au championnat. Masqué juste après une séance (il
+// peut dévoiler le résultat) tant qu'on ne demande pas à le voir. Les favoris se choisissent ici aussi.
 async function loadStandings() {
   if (standings) return;
-  standings = { drivers: [] };
+  standings = { drivers: [], constructors: [] };
   try { standings = await api(`/api/season?year=${new Date().getFullYear()}`); } catch { /* hors ligne */ }
-  render();
+  renderFav();
 }
+
+// Numéro de course : celui de la séance chargée (le champion porte le n° 1), sinon le numéro permanent
+const driverNums = (d) => [Object.entries(drivers(store.state)).find(([, x]) => x.Tla === d.code)?.[0], d.number && String(d.number)].filter(Boolean);
+const isFavDriver = (d) => driverNums(d).some((n) => prefs.favs.includes(n));
+const teamsOf = (cs) => cs.map((c) => ({ ...c, key: teamKey(c.id, c.name) })).filter((c, i, all) => c.key && all.findIndex((x) => x.key === c.key) === i);
+const pts = (x) => `${x.points} pts${x.wins ? ` · ${x.wins} victoire${x.wins > 1 ? 's' : ''}` : ''}`;
+const byName = (a, b) => a.localeCompare(b, LOCALE);
+
+function favEditor(ds, teams) {
+  if (!ds.length && !teams.length) return '<div class="hm-fav-edit muted small">Classement indisponible pour l\'instant : les favoris se choisissent aussi avec l\'étoile du classement du Direct.</div>';
+  const dChips = [...ds].sort((a, b) => byName(a.last || a.name, b.last || b.name))
+    .map((d) => `<button class="fav${isFavDriver(d) ? ' on' : ''}" data-home="favd:${esc(d.code)}" title="${esc(d.team)}">${esc(d.name)}</button>`).join('');
+  const tChips = [...teams].sort((a, b) => byName(a.name, b.name))
+    .map((c) => `<button class="fav${prefs.favTeams.includes(c.key) ? ' on' : ''}" data-home="favt:${esc(c.key)}">${esc(c.name)}</button>`).join('');
+  return `<div class="hm-fav-edit"><div class="small muted">Pilotes</div><div class="fav-list">${dChips}</div>
+    <div class="small muted">Écuries</div><div class="fav-list">${tChips}</div>
+    <div class="small muted">Vos favoris sont mis en avant dans le classement, les alertes et les actualités.</div></div>`;
+}
+
 function favHtml() {
-  const favs = prefs.favs.map((n) => standings?.drivers?.find((d) => String(d.number) === String(n))).filter(Boolean).slice(0, 2);
-  if (!prefs.favs.length) {
-    return `<section class="hm-card hm-fav"><div class="hm-kicker">Mon favori</div><div class="muted">Choisissez un pilote favori avec l'étoile du classement, ou dans Réglages → Alertes & favoris : il apparaîtra ici avec sa place au championnat.</div></section>`;
+  const ds = standings?.drivers || [];
+  const teams = teamsOf(standings?.constructors || []);
+  const favD = ds.filter(isFavDriver);
+  const favT = teams.filter((c) => prefs.favTeams.includes(c.key));
+  const count = favD.length + favT.length;
+  const edit = `<button class="btn small" data-home="editfav">${icon(editFav ? 'check' : 'star')} ${editFav ? 'Terminé' : count ? 'Modifier' : 'Choisir mes favoris'}</button>`;
+  const head = `<div class="hm-kicker">${count === 1 ? 'Mon favori au championnat' : 'Mes favoris au championnat'} ${edit}</div>`;
+  if (!count) {
+    return `<section class="hm-card hm-fav" id="hmFav">${head}${editFav ? favEditor(ds, teams)
+      : '<div class="muted">Ajoutez vos pilotes et écuries favoris : ils apparaîtront ici avec leur place au championnat.</div>'}</section>`;
   }
-  if (!favs.length) return '';
   const recent = lastSession() && Date.now() - lastSession().t < 72 * 3600e3;
   const hide = recent && !showFav;
-  return `<section class="hm-card hm-fav"><div class="hm-kicker">${favs.length > 1 ? 'Mes favoris au championnat' : 'Mon favori au championnat'}</div>
-    <div class="hm-favs${hide ? ' hm-blur' : ''}">${favs.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b>${esc(d.name)}</b><span class="muted">${esc(d.team)}</span>
-      <span class="muted">${d.points} pts${d.wins ? ` · ${d.wins} victoire${d.wins > 1 ? 's' : ''}` : ''}</span></div>`).join('')}</div>
-    ${hide ? `<button class="btn small" data-home="showfav">${icon('eye-off')} Afficher (peut dévoiler le dernier résultat)</button>` : ''}</section>`;
+  const rows = [
+    ...favD.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b>${esc(d.name)}</b><span class="muted">${esc(d.team)}</span><span class="muted">${pts(d)}</span></div>`),
+    ...favT.map((c) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${c.pos}</span><b>${esc(c.name)}</b><span class="muted">Constructeurs</span><span class="muted">${pts(c)}</span></div>`),
+  ];
+  return `<section class="hm-card hm-fav" id="hmFav">${head}
+    <div class="hm-favs${hide ? ' hm-blur' : ''}">${rows.join('')}</div>
+    ${hide ? `<button class="btn small" data-home="showfav">${icon('eye-off')} Afficher (peut dévoiler le dernier résultat)</button>` : ''}
+    ${editFav ? favEditor(ds, teams) : ''}</section>`;
+}
+
+// Carte des favoris seule (choix d'un favori, classement reçu) : le reste de l'accueil ne bouge pas
+function renderFav() {
+  const box = $('#hmFav');
+  if (box) box.outerHTML = favHtml();
+}
+
+function toggleDriver(code) {
+  const d = standings?.drivers?.find((x) => x.code === code);
+  if (!d) return;
+  const nums = driverNums(d);
+  if (isFavDriver(d)) setPref('favs', prefs.favs.filter((n) => !nums.includes(n)));
+  else toggleFav(nums[0]);
 }
 
 function render() {
@@ -153,7 +199,8 @@ function render() {
       <button data-home="season">${icon('trophy')}<b>Saison</b><small>Calendrier, classements</small></button>
       <button data-home="news">${icon('news')}<b>Actu</b><small>Toute l'actualité</small></button>
       <button data-home="replays">${icon('history')}<b>Replays</b><small>Rejouer une séance</small></button>
-    </nav>`;
+    </nav>
+    <a class="hm-follow" href="https://paddocklive.app/liens/" target="_blank" rel="noopener">${icon('share')} Suivre Paddock Live sur les réseaux ${icon('arrow-right', 'ic-s')}</a>`;
   news();
   if (nx && !live) loadWeather(nx);
   loadStandings();
@@ -169,8 +216,7 @@ async function news() {
 }
 
 // Entre la barre du haut et, sur téléphone, la barre de navigation du bas
-function place() {
-  const view = $('#homeView');
+function place(view = $('#homeView')) {
   const nav = $('#mobNav');
   view.style.top = `${Math.round(document.querySelector('.topbar').getBoundingClientRect().bottom)}px`;
   view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : '';
@@ -212,8 +258,12 @@ export const isHomeOpen = () => !$('#homeView')?.hidden;
 
 async function act(k) {
   touched = true;
-  if (k === 'showfav') { showFav = true; render(); return; }
-  if (k === 'live' || k === 'results') { closeHome(); return; }
+  if (k === 'showfav') { showFav = true; renderFav(); return; }
+  if (k === 'editfav') { editFav = !editFav; renderFav(); return; }
+  if (k.startsWith('favd:')) { toggleDriver(k.slice(5)); return; }
+  if (k.startsWith('favt:')) { toggleTeamFav(k.slice(5)); return; }
+  if (k === 'results') resultsOpen = true;
+  if (k === 'live' || k === 'results') { closeHome(); noLiveCheck(); return; }
   // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
   // jusqu'au lancement du replay
   if (k === 'season') { (await import('./season.js')).openSeason(); return; }
@@ -226,6 +276,7 @@ async function act(k) {
     try {
       await api('/api/replay', { method: 'POST', body: { path: ls.path, startOffsetMs: 0 } });
       closeHome();
+      $('#noLiveView').hidden = true;
       toast(`Chargement du replay : ${gp(ls.meeting)} — ${sessionName(ls.name)}`, 4000);
     } catch (err) { toast(err.message, 5000); }
   }
@@ -249,7 +300,9 @@ export function initHome() {
     if (s?.mode === 'replay' && mode !== 'replay') closeHome();
     mode = s?.mode;
   });
+  on('prefs', (k) => { if ((k === 'favs' || k === 'favTeams') && isHomeOpen()) renderFav(); });
   Promise.all([loadSchedule(), loadArchive()]).then(() => {
+    noLiveCheck();
     if (!touched && liveNow() && isHomeOpen()) { closeHome(); return; }
     render();
   });
@@ -257,3 +310,56 @@ export function initHome() {
 
 // Navigation ailleurs (Direct, Saison, Actu…) : l'accueil ne se rouvre ni ne se ferme plus tout seul
 export function homeTouched() { touched = true; }
+
+// ---------- Pas de séance en direct ----------
+// Le tableau de bord n'apparaît qu'en direct, en replay, ou quand on demande les résultats de la
+// dernière séance : sinon un écran d'attente (prochaine séance, replay, résultats).
+const COVERS = ['#homeView', '#seasonView', '#newsView', '#replayView'];
+let noLiveKey = '';
+// show = false (contrôle régulier, évènements de la séance) : l'écran peut seulement se retirer.
+// Il ne s'affiche qu'en arrivant sur le tableau de bord, jamais par-dessus des résultats en cours de lecture.
+function noLiveCheck(show = true) {
+  const view = $('#noLiveView');
+  if (!view) return;
+  const st = store.state.SessionStatus?.Status;
+  const running = st === 'Started' || st === 'Aborted' || !!liveNow();
+  if (running) resultsOpen = false;
+  const covered = COVERS.some((s) => $(s) && !$(s).hidden);
+  if (!schedule || running || covered || resultsOpen || store.status?.mode === 'replay') { view.hidden = true; return; }
+  if (view.hidden && !show) return;
+  if (view.hidden) { place(view); view.hidden = false; noLiveKey = ''; }
+  const nx = nextSession(), ls = lastSession();
+  const key = `${nx?.t}|${ls?.t}|${nx ? countdown(nx.t - Date.now()) : ''}`;
+  if (key === noLiveKey) return;
+  noLiveKey = key;
+  $('#noLiveBox').innerHTML = `<div class="nl-icon">${icon('signal')}</div>
+    <h2>Pas de séance en direct</h2>
+    ${nx ? `<p class="nl-next">Prochaine séance : <b>${esc(gp(nx.race))} : ${esc(nx.label)}</b><br><span class="muted">${esc(when(nx.t))}</span></p>
+      <div class="nl-count">${countdown(nx.t - Date.now())}</div>` : '<p class="muted">Saison terminée.</p>'}
+    <p class="muted small">Le tableau de bord s'ouvre tout seul au début de la séance.</p>
+    <div class="nl-actions">
+      ${ls ? `<button class="btn btn-accent" data-nl="replay">${icon('play')} Revoir ${esc(gp(ls.meeting))} : ${esc(sessionName(ls.name))}</button>` : ''}
+      <button class="btn" data-nl="results" title="Tableau de bord avec l'état final de la dernière séance (résultat visible)">${icon('checkered')} Voir les résultats</button>
+      <button class="btn" data-nl="replays">${icon('history')} Toutes les séances</button>
+    </div>`;
+}
+
+export function initNoLive() {
+  const view = $('#noLiveView');
+  if (!view || new URLSearchParams(location.search).has('win')) return;
+  view.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-nl]');
+    if (!b) return;
+    if (b.dataset.nl === 'results') { resultsOpen = true; noLiveCheck(); } else act(b.dataset.nl);
+  });
+  // Vues ouvertes ou fermées, source changée, séance qui démarre : écran affiché ou retiré aussitôt
+  const mo = new MutationObserver(() => noLiveCheck());
+  for (const s of COVERS) if ($(s)) mo.observe($(s), { attributes: true, attributeFilter: ['hidden'] });
+  // Retour au direct après un replay : comme une arrivée sur le tableau de bord
+  let mode = store.status?.mode;
+  on('status', (s) => { noLiveCheck(mode === 'replay' && s?.mode !== 'replay'); mode = s?.mode; });
+  on('events', (events) => { if (events.some(([t]) => t === 'SessionStatus' || t === 'SessionInfo')) noLiveCheck(false); });
+  addEventListener('resize', () => { if (!view.hidden) place(view); });
+  setInterval(() => noLiveCheck(false), 5000);
+  noLiveCheck();
+}

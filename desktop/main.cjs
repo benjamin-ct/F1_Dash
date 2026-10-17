@@ -94,7 +94,28 @@ function snapshotChildren() {
 
 const childPrefs = () => ({ contextIsolation: true, sandbox: true, preload: path.join(__dirname, 'preload.cjs') });
 
+// Carte flottante : fenêtre transparente, sans cadre ni fond, au-dessus de tout (par-dessus la vidéo)
+const isFloatUrl = (u) => /[?&]float=1(&|$)/.test(u || '');
+const floatOptions = (b) => ({
+  frame: false, transparent: true, backgroundColor: '#00000000', hasShadow: false, alwaysOnTop: true,
+  resizable: true, minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: false,
+  minWidth: 160, minHeight: 120, icon: APP_ICON, title: 'Paddock Live — carte flottante',
+  ...(b && boundsVisible(b) ? b : { width: 560, height: 460 }),
+  webPreferences: childPrefs(),
+});
+function floatOnTop(win) {
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setVisibleOnAllWorkspaces?.(true, { visibleOnFullScreen: true });
+}
+
 function openChild(baseUrl, c) {
+  if (isFloatUrl(c.search)) {
+    const fw = new BrowserWindow(floatOptions(c.bounds));
+    setupContents(fw.webContents, baseUrl);
+    floatOnTop(fw);
+    fw.loadURL(`${baseUrl}${c.search}`);
+    return fw;
+  }
   const win = new BrowserWindow({
     autoHideMenuBar: true,
     icon: APP_ICON,
@@ -271,6 +292,9 @@ function setupContents(wc, url) {
         },
       };
     }
+    if (target.startsWith(url) && isPanelUrl(target) && isFloatUrl(target)) {
+      return { action: 'allow', overrideBrowserWindowOptions: floatOptions() };
+    }
     if (target.startsWith(url) && isPanelUrl(target)) {
       const other = otherDisplay();
       const area = other ? other.workArea : null;
@@ -294,6 +318,7 @@ function setupContents(wc, url) {
   });
   wc.on('did-create-window', (win, { url: target }) => {
     setupContents(win.webContents, url);
+    if (isFloatUrl(target)) { floatOnTop(win); return; }
     if (/\/mini\.html(\?|$)/.test(target || '')) {
       // Au-dessus de tout, y compris d'une vidéo en plein écran
       win.setAlwaysOnTop(true, 'screen-saver');
@@ -423,6 +448,20 @@ ipcMain.handle('app-memory', () => {
   const by = {};
   for (const m of app.getAppMetrics()) by[m.type] = (by[m.type] || 0) + (m.memory?.workingSetSize || 0) * 1024;
   return by;
+});
+// Carte flottante : déplacement et taille réglés depuis la page (fenêtre sans cadre)
+ipcMain.on('float-bounds', (e, b) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  if (!w || w.isDestroyed() || !isFloatUrl(e.sender.getURL()) || !b || typeof b !== 'object') return;
+  const cur = w.getBounds();
+  const n = (v, d) => (Number.isFinite(v) ? Math.round(v) : d);
+  const width = Math.max(160, Math.min(4000, n(b.width, cur.width)));
+  const height = Math.max(120, Math.min(4000, n(b.height, cur.height)));
+  w.setBounds({ x: n(b.x, cur.x), y: n(b.y, cur.y), width, height });
+});
+ipcMain.handle('float-bounds-get', (e) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  return w && !w.isDestroyed() ? w.getBounds() : null;
 });
 ipcMain.handle('window-focus', (e) => {
   const w = BrowserWindow.fromWebContents(e.sender);

@@ -1,5 +1,7 @@
 // Liste des documents officiels de la FIA (fia.com/documents) : lecture des pages, sans accès
 // réseau. Partagé entre l'appli (serveur) et la page web du créateur.
+import { fold } from './news.js';
+
 export const BASE = 'https://www.fia.com';
 export const CHAMPIONSHIP = '/documents/championships/fia-formula-one-world-championship-14';
 
@@ -56,7 +58,7 @@ export function parseSeasons(html) {
   return { bySeason, events };
 }
 
-const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+const norm = (s) => fold(s).replace(/[^a-z0-9]+/g, ' ').trim();
 const STOP = new Set(['grand', 'prix', 'of', 'the', 'formula', '1', 'gp']);
 
 // Nom de l'épreuve côté FIA (« Italian Grand Prix », « Grand Prix of Japan »…).

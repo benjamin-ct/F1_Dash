@@ -554,24 +554,43 @@ function open() {
     dlg = document.createElement('dialog');
     dlg.id = 'postsDlg';
     dlg.className = 'modal posts-dlg';
-    dlg.innerHTML = `<div class="sum-head"><b>${icon('megaphone')} ${t('Posts pour les réseaux sociaux')}</b><button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button></div>
-      <div class="posts-bar">
-        <div class="posts-seg" role="tablist">${[['session', 'Séance'], ['season', 'Saison'], ['news', 'News']].map(([k, v]) => `<button class="posts-fmt" data-mode="${k}">${t(v)}</button>`).join('')}</div>
-        <div class="posts-seg" role="tablist">${Object.entries({ ig: 'Instagram / Facebook', story: 'Story / TikTok / Shorts', x: 'X / Threads / Bluesky' }).map(([k, v]) => `<button class="posts-fmt" data-fmt="${k}">${v}</button>`).join('')}</div>
-        <label class="toggle small"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
-        <label class="toggle small" title="${t("Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
-        <label class="toggle small" title="${t('Une question adaptée au post en fin de texte et en avant-dernière image des carrousels, pour faire réagir en commentaire')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>
-        <label class="toggle small" title="${t("Dernière image des carrousels et une ligne dans les textes pour inviter à s'abonner au compte (X et Bluesky : dans le texte seulement)")}"><input type="checkbox" data-follow> ${t('Image « Abonnez-vous »')}</label>
-        <label class="small muted">${t('Signature')} <input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
-        <span class="spacer"></span>
-        <button class="btn" data-open hidden>${icon('external')} ${t('Ouvrir le dossier')}</button>
-        <button class="btn" data-stats>${icon('chart')} ${t('Statistiques')}</button>
-        <button class="btn" data-all>${icon('save')} ${t('Enregistrer toutes les images')}</button>
-        <button class="btn btn-accent" data-publish>${icon('megaphone')} ${t('Publier…')}</button>
+    const MODES = [['session', 'Séance', 'Résultats, avant-course, flash', 'checkered'], ['season', 'Saison', 'Race week, records, notes', 'calendar'], ['news', 'News', 'Grosses news et récap', 'news']];
+    const FMTS = [['ig', 'Instagram / Facebook', 'Carrousel 4:5', 'r45'], ['story', 'Story / TikTok / Shorts', 'Vertical 9:16', 'r916'], ['x', 'X / Threads / Bluesky', 'Paysage 16:9', 'r169']];
+    dlg.innerHTML = `<div class="pv-shell">
+      <aside class="pv-side">
+        <div class="pv-brand">${icon('megaphone')} ${t('Posts')}</div>
+        <div class="pv-sec">${t('Contenu')}</div>
+        <nav class="pv-nav">${MODES.map(([k, v, sub, ic]) => `<button class="pv-item" data-mode="${k}"><span class="pv-ico">${icon(ic)}</span><span class="pv-lbl"><b>${t(v)}</b><small>${t(sub)}</small></span></button>`).join('')}</nav>
+        <div class="pv-sec">${t('Format')}</div>
+        <nav class="pv-nav">${FMTS.map(([k, v, sub, r]) => `<button class="pv-item" data-fmt="${k}"><span class="pv-ico"><i class="pv-ratio ${r}"></i></span><span class="pv-lbl"><b>${v}</b><small>${t(sub)}</small></span></button>`).join('')}</nav>
+        <div class="pv-sec">${t('Options')}</div>
+        <div class="pv-opts">
+          <label class="toggle"><input type="checkbox" data-photos> ${t('Photos des pilotes')}</label>
+          <label class="toggle" title="${t("Début du texte sans le nom du vainqueur : le résultat se découvre en faisant défiler les images")}"><input type="checkbox" data-nospoil> ${t('Texte sans spoiler')}</label>
+          <label class="toggle" title="${t('Une question adaptée au post en fin de texte et en avant-dernière image des carrousels, pour faire réagir en commentaire')}"><input type="checkbox" data-question> ${t('Question en fin de texte')}</label>
+          <label class="toggle" title="${t("Dernière image des carrousels et une ligne dans les textes pour inviter à s'abonner au compte (X et Bluesky : dans le texte seulement)")}"><input type="checkbox" data-follow> ${t('Image « Abonnez-vous »')}</label>
+          <label class="pv-sig"><span>${t('Signature')}</span><input type="text" class="posts-sig" maxlength="40" spellcheck="false"></label>
+        </div>
+        <button class="pv-item pv-stats" data-stats><span class="pv-ico">${icon('chart')}</span><span class="pv-lbl"><b>${t('Statistiques')}</b><small>${t('Vues, abonnés, meilleurs posts')}</small></span></button>
+      </aside>
+      <div class="pv-main">
+        <header class="pv-head">
+          <div><h3 data-ptitle tabindex="-1" autofocus></h3><p data-psub></p></div>
+          <div class="pv-actions">
+            <button class="btn" data-open hidden>${icon('external')} ${t('Ouvrir le dossier')}</button>
+            <button class="btn" data-all>${icon('save')} ${t('Tout enregistrer')}</button>
+            <button class="btn btn-accent" data-publish>${icon('megaphone')} ${t('Publier…')}</button>
+            <button class="icon-btn" data-close title="${t('Fermer')}">${icon('close')}</button>
+          </div>
+        </header>
+        <div class="posts-body"></div>
       </div>
-      <div class="posts-body"></div>`;
+    </div>`;
     document.body.appendChild(dlg);
     const sync = () => {
+      const m = MODES.find(([k]) => k === mode);
+      $('[data-ptitle]', dlg).textContent = t(m[1]);
+      $('[data-psub]', dlg).textContent = `${t(m[2])} · ${FMTS.find(([k]) => k === fmt)[1]}`;
       for (const b of dlg.querySelectorAll('[data-fmt]')) b.classList.toggle('active', b.dataset.fmt === fmt);
       $('[data-photos]', dlg).checked = withPhotos;
       for (const b of dlg.querySelectorAll('[data-mode]')) b.classList.toggle('active', b.dataset.mode === mode);

@@ -240,6 +240,10 @@ function isVisible(id) {
 
 // ---------------- Rendu ----------------
 let renderKey = '';
+// Redimensionnement en cours : la disposition change à chaque mouvement, mais la grille n'est pas
+// redessinée (sinon la barre tenue serait remplacée et le relâchement perdu) ; elle l'est à la fin.
+let resizing = false;
+let renderLater = false;
 
 function narrow() {
   return isMain && window.innerWidth <= 1000;
@@ -338,6 +342,7 @@ function mobMore(btn) {
 }
 
 function render(force = false) {
+  if (resizing) { renderLater = true; return; }
   const grid = $('.grid');
   const key = `${mobile()}|${narrow()}|${JSON.stringify(layout)}|${PANELS.map((p) => isVisible(p.id)).join()}`;
   if (key === renderKey && !force) return;
@@ -503,6 +508,7 @@ function freeDrag(id, e, mode) {
   document.body.classList.add('dragging-panel');
   const target = e.currentTarget;
   target.setPointerCapture?.(e.pointerId);
+  startResize();
   let rect = { left: r0.left, top: r0.top, width: r0.width, height: r0.height };
   const move = (ev) => {
     const dx = ev.clientX - sx, dy = ev.clientY - sy;
@@ -525,21 +531,37 @@ function freeDrag(id, e, mode) {
     layout.free.rects[id] = r;
     applyRect(el, r);
   };
+  let done = false;
   const up = () => {
+    if (done) return;
+    done = true;
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
-    document.body.classList.remove('dragging-panel');
-    renderKey = '';
+    window.removeEventListener('pointercancel', up);
+    window.removeEventListener('blur', up);
+    endResize();
     save();
     window.dispatchEvent(new Event('resize'));   // graphiques et carte à la nouvelle taille
   };
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
+  window.addEventListener('blur', up);
+}
+
+// Début et fin d'un redimensionnement (séparateur ou coin d'un panneau libre)
+function startResize() { resizing = true; renderLater = false; }
+function endResize() {
+  resizing = false;
+  document.body.classList.remove('resizing-x', 'resizing-y', 'dragging-panel');
+  renderKey = '';
+  if (renderLater) { renderLater = false; render(true); }
 }
 
 // Séparateur : redistribue la place entre les deux voisins (a avant, b après) en gardant leur total.
 function splitter(el, axis, a, b) {
   el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
     e.preventDefault();
     const prev = el.previousElementSibling, next = el.nextElementSibling;
     const size = (x) => (axis === 'x' ? x.getBoundingClientRect().width : x.getBoundingClientRect().height);
@@ -550,9 +572,10 @@ function splitter(el, axis, a, b) {
     const start = axis === 'x' ? e.clientX : e.clientY;
     // Valeurs affichées = proportions × facteur commun (panneaux masqués exclus, voir render)
     const k = (parseFloat(prev.style.flexGrow) || a[key]) / a[key];
-    el.setPointerCapture(e.pointerId);
+    el.setPointerCapture?.(e.pointerId);
     el.classList.add('active');
     document.body.classList.add(axis === 'x' ? 'resizing-x' : 'resizing-y');
+    startResize();
     const move = (ev) => {
       const d = (axis === 'x' ? ev.clientX : ev.clientY) - start;
       const na = Math.max(min, Math.min(pa + pb - min, pa + d));
@@ -561,16 +584,25 @@ function splitter(el, axis, a, b) {
       prev.style.flex = `${a[key] * k} 1 0`;
       next.style.flex = `${b[key] * k} 1 0`;
     };
+    // Relâchement où qu'il ait lieu (hors de la barre, hors de la fenêtre, capture perdue) : une seule fin
+    let done = false;
     const up = () => {
-      el.removeEventListener('pointermove', move);
+      if (done) return;
+      done = true;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      window.removeEventListener('blur', up);
+      el.removeEventListener('lostpointercapture', up);
       el.classList.remove('active');
-      document.body.classList.remove('resizing-x', 'resizing-y');
-      renderKey = '';
+      endResize();
       save();
     };
-    el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up, { once: true });
-    el.addEventListener('pointercancel', up, { once: true });
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    window.addEventListener('blur', up);
+    el.addEventListener('lostpointercapture', up);
   });
   // Double-clic : partage égal
   el.addEventListener('dblclick', () => {
@@ -702,6 +734,23 @@ function announce() {
 function openWindow(win) {
   track('feature.popout');
   return window.open(`/?win=${encodeURIComponent(win)}`, `paddock-${win}`, 'width=1200,height=800');
+}
+
+// Carte flottante (application de bureau) : la carte part dans une fenêtre transparente, sans cadre,
+// au-dessus de tout ; elle revient ici quand on ferme cette fenêtre.
+export function floatMap() {
+  if (!isMain) return;
+  if ([...others.values()].some((o) => o.panels?.includes('map'))) { toast('La carte est déjà dans une autre fenêtre : ramenez-la d\'abord ici', 3500, 'warning'); return; }
+  const all = allLayouts();
+  for (const k of Object.keys(all)) { const w = k.split('@')[0]; if (w !== 'main' && !others.has(w)) delete all[k]; }
+  const target = `float${Date.now().toString(36)}`;
+  all[lkey(target)] = { cols: [{ w: 1, items: [{ id: 'map', h: 1 }] }] };
+  storageSet(LAYOUTS_KEY, all);
+  track('feature.floatmap');
+  if (!window.open(`/?win=${target}&float=1`, `paddock-${target}`, 'width=560,height=460')) return;
+  others.set(target, { panels: ['map'], last: Date.now() + 5000 });
+  if ($('.grid').classList.contains('has-max')) unmaximize();
+  render();
 }
 
 // Envoie un panneau vers une autre fenêtre (existante : il s'y ajoute ; sinon nouvelle fenêtre).
@@ -883,8 +932,6 @@ function checkProfile() {
   if (!kind && prefs.layoutMode !== 'race' && prefs.layoutMode !== 'quali') return;
   switchProfile(profileFor(prefs.layoutMode, kind));
 }
-
-export const currentProfile = () => profile;
 
 // Boutons de panneau (poignée, agrandir, envoyer, masquer) centrés sur la hauteur de la première ligne de l'en-tête (titre, outils ou
 // onglets), quelle que soit sa hauteur réelle (thème, boutons « Calques », onglets sur 2 lignes)

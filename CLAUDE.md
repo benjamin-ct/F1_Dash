@@ -19,3 +19,8 @@
 - Avant de pousser : `npm test`.
 - **Version anglaise** : tout nouveau texte affiché a sa traduction dans `public/js/i18n-en.js` (clé = texte
   français, `{}` pour les valeurs) ; `node scripts/i18n-missing.mjs` liste ceux qui manquent.
+- **Ponytail** (`.claude/skills/ponytail*`, licence MIT, github.com/DietrichGebert/ponytail) : la plus petite
+  modification qui règle tout le problème, réutiliser l'existant, rien « pour plus tard ». `/ponytail-review`
+  (une modification), `/ponytail-audit` (tout le dépôt), `/ponytail-debt` (raccourcis `shortcut:` en attente).
+  Ces consignes priment sur ses règles : réponses, rapports et commentaires en français, journal et
+  traductions anglaises toujours tenus.

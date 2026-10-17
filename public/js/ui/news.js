@@ -168,6 +168,7 @@ function favTags() {
     if (d.Tla) out.add(d.Tla);
     for (const t of newsTags(d.TeamName || '')) out.add(t);
   }
+  for (const k of prefs.favTeams || []) out.add(k);
   return out;
 }
 
@@ -486,7 +487,7 @@ on('news', (list) => {
 });
 
 on('prefs', (k) => {
-  if (k === 'favs' && open()) scheduleRender();
+  if ((k === 'favs' || k === 'favTeams') && open()) scheduleRender();
   if ((k === 'newsTranslate' || k === 'cloudTranslate') && store.isHost !== false) shareNewsLang();
 });
 
@@ -623,8 +624,6 @@ export function closeNews() {
   // Ce qui a été vu est marqué comme lu
   markRead();
 }
-
-export const isNewsOpen = open;
 
 // Dernières actualités (page d'accueil) : titre traduit si besoin, source, date
 export async function latestNews(n = 4) {

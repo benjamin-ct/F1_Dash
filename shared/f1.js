@@ -16,9 +16,6 @@ export const ARCHIVE_TOPICS = [
   'TyreStintSeries', 'ChampionshipPrediction', 'Position.z', 'CarData.z',
 ];
 
-// Topics "flux continu" (positions GPS / télémétrie) : volumineux, gérés à part.
-export const STREAM_TOPICS = new Set(['Position', 'CarData']);
-
 export function topicName(raw) {
   return raw.endsWith('.z') ? raw.slice(0, -2) : raw;
 }

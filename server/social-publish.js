@@ -10,7 +10,6 @@ import { YOUTUBE, tiktokOAuth, googleOAuth, tiktokTokens, youtubeTokens, freshTi
 
 const XAPI = 'https://api.x.com/2';
 const TIKTOK = 'https://open.tiktokapis.com/v2';
-export const NETWORKS = ['x', 'facebook', 'instagram', 'threads', 'bluesky', 'tiktok', 'youtube'];
 
 const conf = () => getConfig().social || {};
 const save = (net, v) => saveConfig({ social: { ...conf(), [net]: v } });

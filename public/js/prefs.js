@@ -5,6 +5,7 @@ import { LANG } from './i18n.js';
 
 const DEFAULTS = {
   favs: [],               // numéros des pilotes favoris
+  favTeams: [],           // écuries favorites (clés de shared/news.js : 'ferrari', 'redbull'…)
   alerts: { sound: true, vibrate: true, notify: false, flags: true, fastest: true, favPit: true, favRcm: true, retire: true, finish: true },
   hiddenPanels: [],
   hiddenCols: [],
@@ -116,6 +117,11 @@ export function isFav(num) {
 export function toggleFav(num) {
   num = String(num);
   setPref('favs', isFav(num) ? prefs.favs.filter((n) => n !== num) : [...prefs.favs, num]);
+}
+
+export function toggleTeamFav(key) {
+  const list = prefs.favTeams || [];
+  setPref('favTeams', list.includes(key) ? list.filter((k) => k !== key) : [...list, key]);
 }
 
 // Préférences modifiées dans une autre fenêtre (favoris, colonnes, filtres…).
