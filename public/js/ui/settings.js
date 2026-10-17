@@ -4,7 +4,7 @@ import { store, serverNow, on } from '../store.js';
 import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, storageSet } from '../util.js';
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
-import { NEWS_TEAMS } from '/shared/news.js';
+import { NEWS_TEAMS, fold } from '/shared/news.js';
 import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { icon } from '../icons.js';
 import { LANG, LOCALE, EN } from '../i18n.js';
@@ -169,7 +169,6 @@ export function initSettings() {
     $('#setSub').textContent = tab?.querySelector('small')?.textContent || '';
     $('#settingsModal .modal-body').scrollTop = 0;
   };
-  const fold = (t) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const find = () => {
     const q = fold(search.value.trim());
     if (!q) { showGroup($('#setNav .set-tab.active')?.dataset.sgroup || 'f1tv'); return; }

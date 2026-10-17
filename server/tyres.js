@@ -7,6 +7,7 @@ import { archiveJSON } from './archive.js';
 import { seasonIndex } from './replay.js';
 import { CACHE_DIR } from './circuits.js';
 import { dryAllocation, builtinNomination } from '../shared/tyres.js';
+import { fold } from '../shared/news.js';
 
 export { NOMINATIONS } from '../shared/tyres.js';
 
@@ -108,9 +109,8 @@ async function feed() {
 // peut accueillir plusieurs Grands Prix)
 function meetingWords(m) {
   return [m.location, m.name?.replace(/ Grand Prix$/i, ''), m.circuit].filter(Boolean)
-    .map((w) => w.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase());
+    .map(fold);
 }
-const plain = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 export function nominationFor(year, m, found = []) {
   // Table intégrée (vérifiée), sinon annonce repérée dans le flux de Pirelli : une phrase qui
@@ -120,7 +120,7 @@ export function nominationFor(year, m, found = []) {
   const words = meetingWords(m);
   const hit = [...found].sort((a, b) => b.date - a.date).find((n) => {
     if (n.date && m.start && (n.date > m.start + 3 * 86400000 || n.date < m.start - 120 * 86400000)) return false;
-    const t = plain(n.text);
+    const t = fold(n.text);
     return words.some((w) => w.length > 3 && t.includes(w));
   });
   return hit ? { hard: hit.c[0], medium: hit.c[1], soft: hit.c[2], url: hit.url } : null;
@@ -192,7 +192,7 @@ export async function weekendTyres(sessionPath, until = Date.now(), hint = {}) {
   const raceEnd = (Date.parse(meeting.sessions[meeting.sessions.length - 1]?.start) || start) + 86400000;
   const articles = items
     .filter((a) => a.date <= until && a.date >= start - 12 * 86400000 && a.date <= raceEnd)
-    .filter((a) => { const t = plain(`${a.title} ${a.paras.join(' ')}`); return words.some((w) => w.length > 3 && t.includes(w)); })
+    .filter((a) => { const t = fold(`${a.title} ${a.paras.join(' ')}`); return words.some((w) => w.length > 3 && t.includes(w)); })
     .sort((a, b) => b.date - a.date)
     .slice(0, 6)
     .map((a) => { const paras = f1Paragraphs(a.paras); return { ...a, paras, advice: adviceSentences(paras) }; });
