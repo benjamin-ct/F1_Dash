@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.28 — à venir
+## v1.27.28 — 2026-10-17
 
 ### Accueil
 - Votre pilote favori (ou vos favoris) avec sa place, ses points et ses victoires au championnat. Juste
