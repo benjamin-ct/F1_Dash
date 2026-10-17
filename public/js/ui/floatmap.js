@@ -74,7 +74,9 @@ export function initFloatMap() {
   // Menu « Calques » du panneau, déplacé dans la barre (l'en-tête du panneau est masqué)
   const layers = $('#mapLayers');
   if (layers) {
-    layers.querySelector('summary').innerHTML = icon('sliders');
+    const sum = layers.querySelector('summary');
+    sum.className = '';   // bouton de la barre, pas du panneau (marges, bordure)
+    sum.innerHTML = icon('sliders');
     bar.querySelector('[data-fl="back"]').before(layers);
   }
   bar.addEventListener('click', (e) => {
