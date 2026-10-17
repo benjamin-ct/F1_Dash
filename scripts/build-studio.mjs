@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { PAGES, linksPage } from '../analytics/links/pages.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'analytics', 'site');
@@ -81,6 +82,11 @@ copy(path.join(ROOT, 'analytics', 'launch'), path.join(OUT, 'site'), (f) => f !=
 copy(path.join(ROOT, 'analytics', 'launch', 'img'), path.join(OUT, 'site', 'img'));
 // Présentation publique de l'appli (/app/), site officiel déclaré à TikTok
 copy(path.join(ROOT, 'analytics', 'home'), path.join(OUT, 'app'));
+// Pages « tous les liens » à mettre en bio des réseaux (/liens/, /benjy/)
+for (const id of Object.keys(PAGES)) {
+  fs.mkdirSync(path.join(OUT, id), { recursive: true });
+  fs.writeFileSync(path.join(OUT, id, 'index.html'), linksPage(id));
+}
 // Fichiers servis à la racine du site (vérification du domaine par TikTok)
 copy(path.join(ROOT, 'analytics', 'root'), OUT);
 copy(path.join(ROOT, 'public', 'fonts'), path.join(OUT, 'fonts'), (f) => /^(titillium|sairacondensed|jetbrainsmono).*\.woff2$|^OFL/.test(f));
@@ -101,6 +107,10 @@ fs.writeFileSync(path.join(OUT, '_headers'), `/studio/*
 /app/*
   Cache-Control: public, max-age=3600
 /site/*
+  Cache-Control: public, max-age=3600
+/liens/*
+  Cache-Control: public, max-age=3600
+/benjy/*
   Cache-Control: public, max-age=3600
 /site/img/*
   Cache-Control: public, max-age=86400
