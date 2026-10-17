@@ -125,7 +125,7 @@ footer a { color: var(--muted); }
   <div class="list">${p.nets.map((n) => link(n)).join('')}</div>
   <div class="sep">${esc(p.other[0])}</div>
   <div class="list">${link(['other', p.other[1], p.other[2], p.other[3]], '', p.other[4])}</div>
-  <footer><a href="https://paddocklive.app/">paddocklive.app</a> · <a href="/legal/privacy">Confidentialité</a></footer>
+  <footer><a href="https://paddocklive.app/">paddocklive.app</a> · <a href="/legal/privacy">Confidentialité</a> · © 2026 Paddock Live</footer>
 </main>
 </body>
 </html>
