@@ -6,6 +6,7 @@ import { buildSets, setSummary, DRY, WET } from '/shared/tyres.js';
 import { translated, requestTranslations, onTranslation } from './fia-translate.js';
 import { icon } from '../icons.js';
 import { LOCALE, EN } from '../i18n.js';
+import { gpFull } from '/shared/gp-names.js';
 
 let data = null;          // réponse de /api/tyres
 let dataKey = '';
@@ -48,7 +49,7 @@ function pirelliCard(d) {
     return `<div class="ty-comp" style="--tc:${ci.color}"><span class="tyre">${ci.letter}</span><div><b>${c ? `C${c}` : '—'}</b><span>${NAME_FR[key]} · ${a[key]} jeux${key === 'SOFT' && !d.meeting.sprint ? ' (+1 en Q3)' : ''}</span></div></div>`;
   };
   return `<div class="ty-card">
-    <div class="ty-card-head"><b>Choix de Pirelli</b><span class="muted small">${esc(d.meeting.name)}${d.meeting.sprint ? ' · week-end sprint' : ''}</span>
+    <div class="ty-card-head"><b>Choix de Pirelli</b><span class="muted small">${esc(gpFull(d.meeting.name, EN))}${d.meeting.sprint ? ' · week-end sprint' : ''}</span>
       ${n?.url ? `<a class="ty-src" href="${esc(n.url)}" target="_blank" rel="noopener">source ${icon('external', 'ic-s')}</a>` : ''}</div>
     ${n ? `<div class="ty-comps">${comp('HARD', n.hard)}${comp('MEDIUM', n.medium)}${comp('SOFT', n.soft)}</div>`
       : `<div class="note">Composés pas encore annoncés par Pirelli pour ce Grand Prix.</div>`}

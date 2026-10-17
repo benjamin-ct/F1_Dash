@@ -1,5 +1,5 @@
 // Légendes affichées sous chaque panneau : à quoi correspondent les couleurs, les colonnes et
-// les graphiques. Elles changent avec l'onglet actif et se masquent dans Réglages → Affichage.
+// les graphiques. Elles changent avec l'onglet actif et se masquent dans Réglages → Apparence.
 import { tabOrigin } from './tabmove.js';
 import { prefs, setPref } from '../prefs.js';
 import { on } from '../store.js';
@@ -61,7 +61,6 @@ const L = {
     tyres: [txt('Pour chaque composé : pastille = jeux neufs jamais montés (allocation moins les jeux neufs déjà utilisés ; certains doivent être rendus à Pirelli en cours de week-end), chiffres = jeux déjà utilisés avec leur nombre de tours ; encadré = jeu monté en ce moment. Q3 = un jeu de tendres en plus.')],
     pitsim: [txt('Simulateur : où ressortirait le pilote s\'il s\'arrêtait maintenant, d\'après le temps perdu dans la voie des stands (réglable) et les écarts actuels. Cercle : un tour complet = un tour de cercle, chaque pastille est placée selon son écart au leader ; arc rouge = temps perdu au stand, cercle pointillé = sortie des stands.')],
     battles: [txt('Bagarres en cours (en course) : pilotes à moins de 1,5 s l\'un de l\'autre ; en surbrillance sous la seconde, avec la tendance de l\'écart sur les derniers tours.')],
-    weather: [txt('Station météo du circuit : températures de l\'air et de la piste, humidité, pression, vent (la flèche indique d\'où il vient) et pluie.')],
     champ: [txt('Championnat si la course s\'arrêtait maintenant : points avant la course, points gagnés avec la position du moment et total projeté.')],
   },
 };
@@ -78,12 +77,24 @@ function update(panel, id) {
   if (!el) {
     el = document.createElement('div');
     el.className = 'panel-legend';
+    el.classList.toggle('compact', panel.getBoundingClientRect().height < COMPACT_H && !panel.closest('.grid.mobile'));
     panel.appendChild(el);
   }
-  const html = `${items.join('')}<button class="lg-hide" title="Masquer les légendes (réaffichables dans Réglages, onglet Affichage)">${icon('close')} Masquer</button>`;
+  const html = `<button class="lg-more" title="Afficher la légende de ce panneau">${icon('info')} Légende</button><div class="lg-body">${items.join('')}</div><button class="lg-hide" title="Masquer les légendes (réaffichables dans Réglages, onglet Apparence)">${icon('close')} Masquer</button>`;
   const k = `${id}|${tab}|${document.documentElement.dataset.scheme}`;
   if (el.dataset.k !== k) { el.innerHTML = html; el.dataset.k = k; }
 }
+
+// Panneau trop court : la légende se replie en un bouton « Légende » (déroulée par-dessus le
+// contenu au clic) pour laisser la place aux graphiques et aux tableaux
+const COMPACT_H = 420;
+const sizes = new ResizeObserver((entries) => {
+  for (const e of entries) {
+    const el = e.target.querySelector(':scope > .panel-legend');
+    const compact = e.contentRect.height < COMPACT_H && !e.target.closest('.grid.mobile');
+    if (el && el.classList.contains('compact') !== compact) { el.classList.toggle('compact', compact); el.classList.remove('open'); }
+  }
+});
 
 function updateAll() {
   for (const id of PANEL_IDS) {
@@ -96,14 +107,19 @@ export function initLegends() {
   for (const id of PANEL_IDS) {
     const panel = document.querySelector(`.panel.p-${id}`);
     panel?.querySelector('.panel-head')?.addEventListener('click', (e) => { if (e.target.closest('[data-tab]')) setTimeout(() => update(panel, id), 0); });
+    if (panel) sizes.observe(panel);
   }
   on('prefs', (k) => { if (k === 'legends') updateAll(); });
   on('scheme', () => updateAll());
   on('tabsMoved', () => updateAll());
   document.addEventListener('click', (e) => {
+    const more = e.target.closest('.lg-more');
+    if (more) { more.parentElement.classList.toggle('open'); return; }
+    // Légende déroulée : se replie au clic ailleurs
+    for (const open of document.querySelectorAll('.panel-legend.open')) if (!open.contains(e.target)) open.classList.remove('open');
     if (!e.target.closest('.lg-hide')) return;
     setPref('legends', false);
-    toast('Légendes masquées — pour les réafficher : Réglages → Affichage → « Légendes sous les panneaux »', 6000);
+    toast('Légendes masquées — pour les réafficher : Réglages → Apparence → « Légendes sous les panneaux »', 6000);
   });
   updateAll();
 }

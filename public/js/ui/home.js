@@ -6,18 +6,22 @@ import { $, $$, esc, api } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { LOCALE, EN } from '../i18n.js';
+import { gpShort, sessionLabel } from '/shared/gp-names.js';
 import { toast } from './delay.js';
+import { prefs } from '../prefs.js';
 
 let schedule = null;   // [{ race, round, label, t }]
 let archive = null;    // dernière séance rejouable { meeting, name, path, t }
 let timer = 0;
+let standings = null;  // classement du championnat (carte du favori)
+let weather = null;    // { key, days } : météo prévue du prochain Grand Prix
+let showFav = false;   // carte du favori dévoilée (peut contenir le dernier résultat)
 let touched = false;   // l'utilisateur a quitté l'accueil : plus d'ouverture ou de fermeture automatique
 
 // Durée approximative d'une séance (fenêtre « en cours »)
 const LONG = /course|race|grand prix/i;
 const lengthOf = (label) => (LONG.test(label) && !/sprint/i.test(label) ? 150 : 75) * 60e3;
-const NAMES = { Race: 'Course', Qualifying: 'Qualifications', Sprint: 'Sprint', 'Sprint Qualifying': 'Qualifications sprint', 'Sprint Shootout': 'Qualifications sprint', 'Practice 1': 'Essais libres 1', 'Practice 2': 'Essais libres 2', 'Practice 3': 'Essais libres 3' };
-const sessionName = (n) => (EN ? n : NAMES[n] || n);
+const sessionName = (n) => sessionLabel(n, EN);
 
 async function loadSchedule() {
   const year = new Date().getFullYear();
@@ -26,7 +30,7 @@ async function loadSchedule() {
     try { races.push(...(await api(`/api/schedule?year=${y}`)).races.map((r) => ({ ...r, year: y }))); } catch { /* hors ligne */ }
     if (races.some((r) => r.sessions.some((s) => Date.parse(s.t) > Date.now()))) break;
   }
-  schedule = races.flatMap((r) => r.sessions.filter((s) => s.t).map((s) => ({ race: r.name, round: r.round, year: r.year, label: s.label, t: Date.parse(s.t) })))
+  schedule = races.flatMap((r) => r.sessions.filter((s) => s.t).map((s) => ({ race: r.name, round: r.round, year: r.year, label: s.label, t: Date.parse(s.t), lat: r.lat, lon: r.lon })))
     .sort((a, b) => a.t - b.t);
 }
 
@@ -72,7 +76,48 @@ function ago(t) {
   return d === 1 ? 'hier' : `il y a ${d} jours`;
 }
 const when = (t) => new Date(t).toLocaleString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-const gp = (name) => name.replace(/ Grand Prix$/, '');
+const gp = (name) => gpShort(name, EN);
+
+// Météo prévue des jours du prochain week-end (Open-Meteo, 16 jours au plus)
+async function loadWeather(nx) {
+  if (!nx?.lat || nx.t - Date.now() > 15 * 86400e3) return;
+  const key = `${nx.race}|${nx.year}`;
+  if (weather?.key === key) return;
+  weather = { key, days: null };
+  try {
+    const d = await api(`/api/forecast?lat=${nx.lat}&lon=${nx.lon}`);
+    const dates = new Set(schedule.filter((s) => s.race === nx.race && s.year === nx.year).map((s) => new Date(s.t).toISOString().slice(0, 10)));
+    weather.days = (d.days || []).filter((x) => dates.has(x.date));
+  } catch { weather.days = []; }
+  render();
+}
+function weatherHtml(nx) {
+  const days = weather?.key === `${nx.race}|${nx.year}` ? weather.days : null;
+  if (!days?.length) return '';
+  return `<div class="hm-wx">${days.map((d) => `<span title="Météo prévue sur le circuit"><b>${esc(new Date(`${d.date}T12:00:00`).toLocaleDateString(LOCALE, { weekday: 'short' }))}</b> ${Math.round(d.tmax)}° ${d.rain != null ? `<small>${icon('rain')} ${d.rain} %</small>` : ''}</span>`).join('')}</div>`;
+}
+
+// Pilote favori : position et points au championnat. Masqué juste après une séance (il peut
+// dévoiler le résultat) tant qu'on ne demande pas à le voir.
+async function loadStandings() {
+  if (standings) return;
+  standings = { drivers: [] };
+  try { standings = await api(`/api/season?year=${new Date().getFullYear()}`); } catch { /* hors ligne */ }
+  render();
+}
+function favHtml() {
+  const favs = prefs.favs.map((n) => standings?.drivers?.find((d) => String(d.number) === String(n))).filter(Boolean).slice(0, 2);
+  if (!prefs.favs.length) {
+    return `<section class="hm-card hm-fav"><div class="hm-kicker">Mon favori</div><div class="muted">Choisissez un pilote favori avec l'étoile du classement, ou dans Réglages → Alertes & favoris : il apparaîtra ici avec sa place au championnat.</div></section>`;
+  }
+  if (!favs.length) return '';
+  const recent = lastSession() && Date.now() - lastSession().t < 72 * 3600e3;
+  const hide = recent && !showFav;
+  return `<section class="hm-card hm-fav"><div class="hm-kicker">${favs.length > 1 ? 'Mes favoris au championnat' : 'Mon favori au championnat'}</div>
+    <div class="hm-favs${hide ? ' hm-blur' : ''}">${favs.map((d) => `<div class="hm-fav-row"><span class="hm-fav-pos">P${d.pos}</span><b>${esc(d.name)}</b><span class="muted">${esc(d.team)}</span>
+      <span class="muted">${d.points} pts${d.wins ? ` · ${d.wins} victoire${d.wins > 1 ? 's' : ''}` : ''}</span></div>`).join('')}</div>
+    ${hide ? `<button class="btn small" data-home="showfav">${icon('eye-off')} Afficher (peut dévoiler le dernier résultat)</button>` : ''}</section>`;
+}
 
 function render() {
   const view = $('#homeView');
@@ -88,6 +133,7 @@ function render() {
         ${nx ? `<div class="hm-title"><span class="hm-round">R${nx.round}</span> ${esc(gp(nx.race))} : ${esc(nx.label)}</div>
         <div class="hm-count" id="hmCount">${countdown(nx.t - Date.now())}</div>
         <div class="muted">${esc(when(nx.t))}</div>
+        ${weatherHtml(nx)}
         <div class="hm-actions"><a class="btn small" href="/api/calendar.ics?year=${nx.year}&round=${nx.round}${EN ? '&lang=en' : ''}" download title="Séances de ce week-end dans votre agenda (Google, Apple, Outlook), avec une alarme 15 min avant">${icon('calendar')} Ajouter ce week-end à mon agenda</a></div>`
           : `<div class="hm-title">${schedule ? 'Saison terminée' : 'Calendrier en chargement…'}</div>`}</section>`;
   const ls = live ? null : lastSession();
@@ -100,6 +146,7 @@ function render() {
     : '';
   view.querySelector('.hm-main').innerHTML = `<h1 class="hm-hello">Paddock Live</h1>
     <div class="hm-grid">${card}${last}</div>
+    ${favHtml()}
     <section class="hm-card hm-news"><div class="hm-kicker">Dernières actus <button class="btn small" data-home="news">Toute l'actu ${icon('arrow-right', 'ic-s')}</button></div><div id="hmNews" class="hm-list"><div class="muted small">Chargement…</div></div></section>
     <nav class="hm-go">
       <button data-home="live">${icon('signal')}<b>Direct</b><small>Tableau de bord</small></button>
@@ -108,6 +155,8 @@ function render() {
       <button data-home="replays">${icon('history')}<b>Replays</b><small>Rejouer une séance</small></button>
     </nav>`;
   news();
+  if (nx && !live) loadWeather(nx);
+  loadStandings();
 }
 
 async function news() {
@@ -127,22 +176,14 @@ function place() {
   view.style.bottom = nav && !nav.hidden ? `${nav.offsetHeight}px` : '';
 }
 
-// Téléphone : « Accueil » allumé dans la barre du bas tant que l'accueil est affiché
-let mobPrev = null;
-function markMob(open) {
-  const btns = $$('#mobNav [data-mob]');
-  if (open) mobPrev = btns.find((b) => b.classList.contains('active') && b.dataset.mob !== 'home')?.dataset.mob || mobPrev;
-  for (const b of btns) b.classList.toggle('active', open ? b.dataset.mob === 'home' : b.dataset.mob === mobPrev);
-}
-
 export function openHome() {
   const view = $('#homeView');
   if (!view) return;
   import('./season.js').then((m) => m.closeSeason());
   import('./news.js').then((m) => m.closeNews());
+  import('./replays.js').then((m) => m.closeReplays());
   place();
   view.hidden = false;
-  markMob(true);
   render();
   clearInterval(timer);
   timer = setInterval(() => {
@@ -163,7 +204,6 @@ export function closeHome() {
   const view = $('#homeView');
   if (!view || view.hidden) return;
   view.hidden = true;
-  markMob(false);
   clearInterval(timer);
   document.dispatchEvent(new Event('viewchange'));
 }
@@ -172,20 +212,21 @@ export const isHomeOpen = () => !$('#homeView')?.hidden;
 
 async function act(k) {
   touched = true;
+  if (k === 'showfav') { showFav = true; render(); return; }
   if (k === 'live' || k === 'results') { closeHome(); return; }
   // Saison et Actu ferment l'accueil elles-mêmes ; Replays : l'accueil reste derrière les réglages
   // jusqu'au lancement du replay
   if (k === 'season') { (await import('./season.js')).openSeason(); return; }
   if (k === 'news') { (await import('./news.js')).openNews(); return; }
-  if (k === 'replays') { $('#settingsBtn').click(); $('#setNav [data-sgroup="source"]')?.click(); return; }
+  if (k === 'replays') { (await import('./replays.js')).openReplays(); return; }
   if (k === 'replay') {
     const ls = lastSession();
-    // Séance absente des archives (compte F1 TV non connecté) : choix du replay dans les réglages
+    // Séance absente des archives (compte F1 TV non connecté) : espace Replays (enregistrements)
     if (!ls?.path) { act('replays'); return; }
     try {
       await api('/api/replay', { method: 'POST', body: { path: ls.path, startOffsetMs: 0 } });
       closeHome();
-      toast(`Chargement du replay : ${ls.meeting} — ${sessionName(ls.name)}`, 4000);
+      toast(`Chargement du replay : ${gp(ls.meeting)} — ${sessionName(ls.name)}`, 4000);
     } catch (err) { toast(err.message, 5000); }
   }
 }

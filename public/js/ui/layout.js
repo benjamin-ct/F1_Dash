@@ -287,11 +287,54 @@ function renderMobile(grid) {
     grid.appendChild(el);
   }
   for (const el of grid.querySelectorAll('.lcol, .lsplit-v, .lstash')) el.remove();
+  // Téléphone : 5 boutons fixes en bas ; dans « Direct », les panneaux en onglets en haut
   const nav = $('#mobNav');
   nav.hidden = false;
-  // Téléphone : l'accueil en premier (pas de barre latérale)
-  nav.innerHTML = `<button data-mob="home"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/></svg><span class="mn-l">Accueil</span></button>` + tabs.map(([id, label]) => `<button data-mob="${id}" class="${id === mobTab ? 'active' : ''}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${MOB_SVG[id] || ''}</svg><span class="mn-l">${label}</span></button>`).join('');
-  nav.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  if (!nav.children.length) nav.innerHTML = MOB_NAV.map(([k, label, svg]) => `<button data-mob="${k}"><svg class="mn-svg" viewBox="0 0 24 24" aria-hidden="true">${svg}</svg><span class="mn-l">${label}</span></button>`).join('');
+  const strip = $('#mobPanels');
+  strip.hidden = false;
+  strip.innerHTML = tabs.map(([id, label]) => `<button data-mobp="${id}" class="${id === mobTab ? 'active' : ''}">${label}</button>`).join('');
+  strip.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  syncMobNav();
+}
+
+// Barre du bas du téléphone : Accueil, Direct, Saison, Actu, Plus (Replays, Commentaires…)
+const MOB_NAV = [
+  ['home', 'Accueil', '<path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10"/>'],
+  ['live', 'Direct', '<circle cx="12" cy="12" r="3"/><path d="M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7"/>'],
+  ['season', 'Saison', '<path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v4M8 20h8M16 6h3a3 3 0 0 1-3 4M8 6H5a3 3 0 0 0 3 4"/>'],
+  ['news', 'Actu', '<path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 12h7M7 15h4"/>'],
+  ['more', 'Plus', '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'],
+];
+function syncMobNav() {
+  const open = (id) => !$(id)?.hidden;
+  const cur = open('#homeView') ? 'home' : open('#seasonView') ? 'season' : open('#newsView') ? 'news' : open('#replayView') ? 'more' : 'live';
+  for (const b of $$('#mobNav [data-mob]')) b.classList.toggle('active', b.dataset.mob === cur);
+}
+
+// Menu « Plus » du téléphone
+function mobMore(btn) {
+  document.querySelector('.lpop-menu')?.remove();
+  const menu = document.createElement('div');
+  menu.className = 'lpop-menu mob-more';
+  menu.innerHTML = [
+    ['replays', 'history', 'Replays'], ['comm', 'mic', 'Commentaires en direct'], ['summary', 'doc', 'Résumé de la séance'],
+    ['settings', 'gear', 'Réglages'],
+  ].map(([k, ic, label]) => `<button data-more="${k}">${icon(ic)} ${label}</button>`).join('');
+  document.body.appendChild(menu);
+  const r = btn.getBoundingClientRect();
+  menu.style.right = '8px';
+  menu.style.bottom = `${innerHeight - r.top + 8}px`;
+  menu.addEventListener('click', async (e) => {
+    const k = e.target.closest('[data-more]')?.dataset.more;
+    if (!k) return;
+    menu.remove();
+    if (k === 'replays') (await import('./replays.js')).openReplays();
+    else if (k === 'comm') $('#commBtn')?.click();
+    else if (k === 'summary') $('#summaryBtn')?.click();
+    else if (k === 'settings') $('#settingsBtn')?.click();
+  });
+  setTimeout(() => document.addEventListener('pointerdown', function off(e) { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('pointerdown', off); } }), 0);
 }
 
 function render(force = false) {
@@ -302,6 +345,7 @@ function render(force = false) {
   if (mobile()) { renderMobile(grid); return; }
   grid.classList.remove('mobile');
   if ($('#mobNav')) $('#mobNav').hidden = true;
+  if ($('#mobPanels')) $('#mobPanels').hidden = true;
   const stash = grid.querySelector('.lstash') || Object.assign(document.createElement('div'), { className: 'lstash', hidden: true });
   if (narrow()) {
     // Petit écran : empilement vertical classique
@@ -831,7 +875,7 @@ function switchProfile(next, quiet = false) {
   save();
   applyTabs();
   renderLayoutOptions();
-  if (isMain && !quiet) toast(`Disposition « ${PROFILES[next]} » (Réglages → Affichage)`, 3500);
+  if (isMain && !quiet) toast(`Disposition « ${PROFILES[next]} » (Réglages → Disposition)`, 3500);
 }
 
 function checkProfile() {
@@ -902,12 +946,21 @@ export function initLayout() {
   $('#mobNav')?.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-mob]');
     if (!b) return;
-    const home = await import('./home.js');
-    if (b.dataset.mob === 'home') { home.openHome(); return; }
+    const k = b.dataset.mob;
+    if (k === 'more') { mobMore(b); return; }
+    const [home, season, news, replays] = await Promise.all([import('./home.js'), import('./season.js'), import('./news.js'), import('./replays.js')]);
+    if (k === 'home') { home.openHome(); return; }
     home.homeTouched();
     home.closeHome();
-    showMobilePanel(b.dataset.mob);
+    replays.closeReplays();
+    if (k === 'season') season.openSeason();
+    else if (k === 'news') news.openNews();
+    else { season.closeSeason(); news.closeNews(); }
   });
+  $('#mobPanels')?.addEventListener('click', (e) => { const b = e.target.closest('[data-mobp]'); if (b) showMobilePanel(b.dataset.mobp); });
+  // Bouton actif de la barre du bas : suit les espaces ouverts (accueil, saison, actu, replays)
+  const mo = new MutationObserver(syncMobNav);
+  for (const id of ['#homeView', '#seasonView', '#newsView', '#replayView']) if ($(id)) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
   // Disposition modifiée dans une autre instance de la même fenêtre (rechargement) : rien à faire ;
   // la fenêtre principale suit seulement les préférences.
   on('prefs', (k) => {

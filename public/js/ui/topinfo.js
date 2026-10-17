@@ -1,14 +1,15 @@
 // Barre du haut, menus façon MultiViewer : documents officiels de la FIA, vitesses de chaque
 // pilote (intermédiaires, ligne d'arrivée, speed trap) et meilleurs secteurs (tour idéal).
 import { store, f1Now } from '../store.js';
-import { $, esc, drivers, orderedNumbers, teamMark, lapSeconds, fmtLap, storageGet, storageSet } from '../util.js';
+import { $, esc, api, drivers, orderedNumbers, teamMark, lapSeconds, fmtLap, storageGet, storageSet } from '../util.js';
 import { docSummaryFr } from '/shared/fia-docs-fr.js';
 import { parseFiaDoc } from '/shared/stewards.js';
 import { fiaState } from './feed.js';
 import { icon } from '../icons.js';
-import { LOCALE } from '../i18n.js';
+import { LOCALE, EN } from '../i18n.js';
+import { gpFull } from '/shared/gp-names.js';
 
-let open = null;      // outil ouvert : 'docs' | 'speeds' | 'sectors'
+let open = null;      // outil ouvert : 'docs' | 'speeds' | 'sectors' | 'weather'
 let pop = null;
 let timer = 0;
 let lastHtml = '';
@@ -18,8 +19,38 @@ let speedMode = 'best';   // 'best' : meilleures vitesses de la séance ; 'last'
 
 const list = (o) => (!o ? [] : Array.isArray(o) ? o : Object.keys(o).sort((a, b) => a - b).map((k) => o[k]));
 
-// Documents publiés avant l'instant affiché (pas de spoiler en replay ni avec le délai TV)
-function visibleDocs() {
+// Documents d'un autre Grand Prix de la saison (choisi dans la liste) : chargés une fois
+let docGp = '';       // '' : Grand Prix de la séance affichée
+let races = null;     // Grands Prix déjà commencés de la saison, du plus récent au plus ancien
+const otherDocs = new Map();
+function loadRaces() {
+  if (races) return;
+  races = [];
+  const year = new Date().getFullYear();
+  api(`/api/schedule?year=${year}`).then((d) => {
+    races = d.races.filter((r) => r.sessions.some((s) => Date.parse(s.t) < Date.now())).reverse().map((r) => ({ name: r.name, locality: r.locality || '', year }));
+    render(true);
+  }).catch(() => { races = null; });
+}
+function otherState(r) {
+  let o = otherDocs.get(r.name);
+  if (!o) {
+    o = { key: r.name, docs: [], loading: true };
+    otherDocs.set(r.name, o);
+    api(`/api/fia-docs?${new URLSearchParams({ year: r.year, name: r.name, location: r.locality, country: '' })}`)
+      .then((x) => { o.docs = x.docs || []; o.page = x.page; })
+      .catch((err) => { o.error = err.message; otherDocs.delete(r.name); })
+      .finally(() => { o.loading = false; render(true); });
+  }
+  return o;
+}
+
+// Documents publiés avant l'instant affiché (pas de spoiler en replay ni avec le délai TV) ;
+// all = false : Grand Prix de la séance seulement (point de nouveauté sur l'icône)
+function visibleDocs(all = true) {
+  const current = store.state.SessionInfo?.Meeting?.Name;
+  const r = all && docGp && docGp !== current ? races?.find((x) => x.name === docGp) : null;
+  if (r) { const f = otherState(r); return { f, docs: f.docs || [] }; }
   const f = fiaState();
   const now = f1Now();
   return { f, docs: (f.docs || []).filter((d) => !d.published || d.published <= now + 60000) };
@@ -40,14 +71,17 @@ function docsHtml() {
     const t = new Date(ms);
     return t.toLocaleString(LOCALE, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
   };
-  const event = store.state.SessionInfo?.Meeting?.Name || 'Grand Prix';
+  loadRaces();
+  const current = store.state.SessionInfo?.Meeting?.Name || '';
+  const choices = [['', current ? `${gpFull(current, EN)} (séance affichée)` : 'Grand Prix de la séance'], ...(races || []).filter((r) => r.name !== current).map((r) => [r.name, gpFull(r.name, EN)])];
+  const gpSel = `<select id="tbDocGp" aria-label="Grand Prix">${choices.map(([v, l]) => `<option value="${esc(v)}"${v === (docGp === current ? '' : docGp) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   const body = rows.length ? rows.map(({ d, sum, cars }) => `<div class="tbd-doc">
       <div class="tbd-main"><div class="tbd-title">${esc(d.title)}</div>
         <div class="tbd-sum">${cars.length ? `<b>${esc(cars.join(', '))}</b> · ` : ''}${esc(sum.text)}</div></div>
       <span class="tbd-time">${esc(time(d.published))}</span>
       <a class="tbd-dl" href="${esc(d.url)}" target="_blank" rel="noopener" title="Ouvrir / télécharger le PDF">⤓</a></div>`).join('')
     : `<div class="note">${f.loading && !f.docs?.length ? 'Chargement des documents…' : f.error ? `Documents indisponibles : ${esc(f.error)}` : q ? 'Aucun document ne correspond.' : 'Aucun document publié pour l\'instant.'}</div>`;
-  return `<div class="tbp-head"><b>Documents FIA</b><span class="muted small">${esc(event)} · ${docs.length} document${docs.length > 1 ? 's' : ''}</span>
+  return `<div class="tbp-head"><b>Documents FIA</b>${gpSel}<span class="muted small">${docs.length} document${docs.length > 1 ? 's' : ''}</span>
       ${f.page ? `<a class="small" href="${esc(f.page)}" target="_blank" rel="noopener">fia.com ${icon('external', 'ic-s')}</a>` : ''}</div>
     <input class="tbp-filter" id="tbDocFilter" type="search" placeholder="Filtrer (pilote, convocation, classement…)" value="${esc(filter)}">
     <div class="tbp-scroll">${body}</div>`;
@@ -120,7 +154,7 @@ function sectorsHtml() {
 }
 
 function render(force = false) {
-  if (!pop) return;
+  if (!pop || open === 'weather') return;
   const html = open === 'docs' ? docsHtml() : open === 'speeds' ? speedsHtml() : sectorsHtml();
   if (!force && html === lastHtml) return;
   // Le champ de filtre garde le focus et la position du curseur
@@ -134,6 +168,9 @@ function render(force = false) {
 }
 
 function close() {
+  // Météo : le bloc (mis à jour par extra.js et radar.js) retourne dans son abri
+  const wx = $('#weather');
+  if (wx && open === 'weather') $('#weatherHold')?.appendChild(wx);
   pop?.remove();
   pop = null;
   open = null;
@@ -153,6 +190,7 @@ function show(tool, btn) {
   pop.style.top = `${r.bottom + 8}px`;
   pop.style.right = `${Math.max(8, innerWidth - r.right - 40)}px`;
   pop.addEventListener('input', (e) => { if (e.target.id === 'tbDocFilter') { filter = e.target.value; render(); } });
+  pop.addEventListener('change', (e) => { if (e.target.id === 'tbDocGp') { docGp = e.target.value; render(true); } });
   pop.addEventListener('click', (e) => {
     const th = e.target.closest('[data-sort]');
     if (th) {
@@ -165,6 +203,11 @@ function show(tool, btn) {
     if (m) { speedMode = m.dataset.mode; render(true); }
   });
   if (tool === 'docs') { markDocsSeen(); $('.tb-tool[data-tool="docs"] .tb-dot').hidden = true; }
+  if (tool === 'weather') {
+    pop.innerHTML = '<div class="tbp-head"><b>Météo du circuit</b></div>';
+    pop.appendChild($('#weather'));
+    return;
+  }
   render(true);
   timer = setInterval(() => render(), 1000);
 }
@@ -172,10 +215,10 @@ function show(tool, btn) {
 // Point sur l'icône des documents quand de nouveaux documents sont publiés (depuis la dernière
 // ouverture de la liste, pour ce Grand Prix)
 const seenDocs = () => { const v = storageGet('paddock.docsSeen', null); return v && v.key === fiaState().key ? v.n : 0; };
-function markDocsSeen() { storageSet('paddock.docsSeen', { key: fiaState().key, n: visibleDocs().docs.length }); }
+function markDocsSeen() { storageSet('paddock.docsSeen', { key: fiaState().key, n: visibleDocs(false).docs.length }); }
 function docsBadge() {
   const dot = $('.tb-tool[data-tool="docs"] .tb-dot');
-  const { f, docs } = visibleDocs();
+  const { f, docs } = visibleDocs(false);
   if (!dot || !f.key) return;
   if (open === 'docs') markDocsSeen();
   dot.hidden = open === 'docs' || docs.length <= seenDocs();
@@ -188,7 +231,7 @@ export function initTopInfo() {
     const b = e.target.closest('[data-tool]');
     if (b) show(b.dataset.tool, b);
   });
-  document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !tools.contains(e.target)) close(); });
+  document.addEventListener('pointerdown', (e) => { if (pop && !pop.contains(e.target) && !tools.contains(e.target) && !e.target.closest('.csel-pop')) close(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   setInterval(docsBadge, 3000);
 }

@@ -1,5 +1,6 @@
 // Duel entre deux pilotes : écart en direct, tendance, historique, comparaison détaillée.
-import { store, setDuel, displayNow, versionOf, on } from '../store.js';
+import { store, setDuel, displayNow, versionOf, on, emit } from '../store.js';
+import { prefs } from '../prefs.js';
 import { $, esc, drivers, orderedNumbers, sessionKind, teamColor, tyreBadge, currentStint, fmtLap, fmtSigned, photoUrl } from '../util.js';
 import { parseGap, parseLapTime } from '/shared/f1.js';
 import { lineChart } from './charts.js';
@@ -8,6 +9,7 @@ import { DEC } from '../i18n.js';
 import { realStopCount } from '/shared/pits.js';
 
 let skeletonFor = null;
+let autoFilled = false;   // duel choisi tout seul une fois (jamais après un choix effacé à la main)
 let lastSlowKey = '';
 let liveSeries = [];
 let liveSeriesKey = '';
@@ -294,6 +296,17 @@ export function renderDuel() {
   const s = store.state;
   const dl = drivers(s);
   const nums = orderedNumbers(s).filter((n) => dl[n]);
+  // Aucun duel choisi : le pilote favori contre la voiture de devant (de derrière s'il mène),
+  // sinon les deux premiers ; modifiable comme d'habitude
+  if (!autoFilled && !store.duel.a && !store.duel.b && nums.length >= 2) {
+    autoFilled = true;
+    const fav = nums.find((n) => prefs.favs.includes(String(n)));
+    store.duel = fav
+      ? { a: fav, b: null, auto: nums.indexOf(fav) === 0 ? 'behind' : 'ahead' }
+      : { a: nums[0], b: nums[1], auto: null };
+    emit('duel', store.duel);
+  }
+  if (store.duel.a || store.duel.b) autoFilled = true;
   fillSelect($('#duelA'), store.duel.a, dl, nums);
   fillSelect($('#duelB'), store.duel.b, dl, nums);
   // Duel automatique contre la voiture de devant / derrière

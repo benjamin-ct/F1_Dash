@@ -1,6 +1,6 @@
 // Statistiques d'utilisation anonymes (avec accord) : les fonctions utilisées dans cette fenêtre sont
-// comptées puis confiées au serveur de l'appli, qui envoie les totaux. Question posée une fois sur
-// l'ordinateur ; réglage dans Réglages → Application.
+// comptées puis confiées au serveur de l'appli, qui envoie les totaux. Question posée dans un bandeau
+// discret jusqu'à la réponse ; réglage dans Réglages → Application.
 import { $ } from '../util.js';
 import { t, EN } from '../i18n.js';
 import { icon } from '../icons.js';
@@ -112,32 +112,39 @@ function apply(state) {
 }
 
 const STATS_TEXT = "Paddock Live peut envoyer des statistiques d'utilisation anonymes pour savoir quelles fonctions servent le plus ou le moins : panneaux, onglets et fonctions utilisés, version de l'appli, système (Windows, macOS, Linux), ordinateur ou téléphone, direct ou replay, et les erreurs rencontrées.";
+const STATS_SHORT = "Envoyer des statistiques d'utilisation anonymes : fonctions utilisées et erreurs rencontrées.";
 const STATS_PRIVACY = "Rien qui permette de vous identifier : ni compte F1 TV, ni identifiant, ni contenu, et l'adresse IP n'est pas conservée. Seuls des totaux par jour sont envoyés.";
 
+// Bandeau discret dans un coin (rien n'est bloqué) : Oui, Non merci, Détails. La croix le referme
+// sans réponse : il revient au prochain lancement.
 function ask() {
-  const dlg = document.createElement('dialog');
-  dlg.className = 'modal stats-dlg';
-  dlg.innerHTML = `<div class="modal-head"><h3>${icon('chart')} ${t('Aider à améliorer Paddock Live ?')}</h3></div>
-    <div class="stats-body">
-      <p>${t(STATS_TEXT)}</p>
-      <p class="small muted">${t(STATS_PRIVACY)}</p>
-      <p class="small muted">${t('Modifiable à tout moment dans Réglages → Application.')}</p>
-      <div class="row stats-actions">
-        <button class="btn" data-no>${t('Non merci')}</button>
-        <button class="btn btn-accent" data-yes>${t('Oui, envoyer les statistiques')}</button>
-      </div>
+  const bar = document.createElement('div');
+  bar.className = 'stats-bar';
+  bar.setAttribute('role', 'region');
+  bar.setAttribute('aria-label', t('Statistiques anonymes'));
+  bar.innerHTML = `<button class="icon-btn stats-later" title="${t('Plus tard')}" aria-label="${t('Plus tard')}">${icon('close')}</button>
+    <div class="stats-bar-head">${icon('chart')} <b>${t('Aider à améliorer Paddock Live ?')}</b></div>
+    <p class="small">${t(STATS_SHORT)}</p>
+    <div class="stats-more small muted" hidden><p>${t(STATS_TEXT)}</p><p>${t(STATS_PRIVACY)}</p><p>${t('Modifiable à tout moment dans Réglages → Application.')}</p></div>
+    <div class="row stats-actions">
+      <button class="btn small stats-details">${t('Détails')}</button>
+      <button class="btn small" data-no>${t('Non merci')}</button>
+      <button class="btn small btn-accent" data-yes>${t('Oui')}</button>
     </div>`;
-  document.body.appendChild(dlg);
+  document.body.appendChild(bar);
   const answer = async (value) => {
-    dlg.close();
-    dlg.remove();
+    bar.remove();
     try { apply(await setConsent(value)); } catch (err) { toast(err.message, 4000, 'warning'); }
     if (value) toast(t('Merci ! Statistiques anonymes activées'), 3000, 'check');
   };
-  dlg.addEventListener('cancel', (e) => e.preventDefault());   // Échap : pas de réponse implicite
-  $('[data-yes]', dlg).addEventListener('click', () => answer(true));
-  $('[data-no]', dlg).addEventListener('click', () => answer(false));
-  dlg.showModal();
+  $('[data-yes]', bar).addEventListener('click', () => answer(true));
+  $('[data-no]', bar).addEventListener('click', () => answer(false));
+  $('.stats-later', bar).addEventListener('click', () => bar.remove());
+  $('.stats-details', bar).addEventListener('click', (e) => {
+    const more = $('.stats-more', bar);
+    more.hidden = !more.hidden;
+    e.currentTarget.textContent = t(more.hidden ? 'Détails' : 'Moins de détails');
+  });
 }
 
 export async function initStats() {
@@ -152,6 +159,6 @@ export async function initStats() {
   $('#statsOn')?.addEventListener('change', async (e) => {
     try { apply(await setConsent(e.target.checked)); } catch (err) { e.target.checked = !e.target.checked; toast(err.message, 4000, 'warning'); }
   });
-  // Première fois sur l'ordinateur : la question, une fois l'interface affichée
+  // Tant que la question n'a pas de réponse : le bandeau, une fois l'interface affichée
   if (state.available && state.canSet && !state.asked && main) setTimeout(ask, 4000);
 }

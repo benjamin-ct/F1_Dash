@@ -293,6 +293,9 @@ async function handleApi(req, res, url) {
       const d = await season(year);
       return sendJSON(res, 200, { year, races: d.races.map((r) => ({ round: r.round, name: r.name, locality: r.locality, lat: r.lat, lon: r.lon, sessions: r.sessions })) });
     }
+    // Météo prévue sur un circuit (accueil : prochain Grand Prix)
+    case 'GET /api/forecast':
+      return sendJSON(res, 200, { days: await forecast(url.searchParams.get('lat'), url.searchParams.get('lon')) });
     case 'GET /api/calendar.ics': {
       const year = yearOf(url.searchParams.get('year'));
       const round = Number(url.searchParams.get('round')) || null;

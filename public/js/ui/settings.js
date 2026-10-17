@@ -1,37 +1,14 @@
-// Réglages : choix live / replay, jeton F1 TV, barre de contrôle du replay.
+// Réglages : jeton F1 TV, affichage, alertes, application, et barre de contrôle du replay
+// (le choix live / replay est dans l'espace Replays, replays.js).
 import { store, serverNow, on } from '../store.js';
 import { $, $$, esc, api, fmtDuration, drivers, orderedNumbers, storageGet, storageSet } from '../util.js';
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav } from '../prefs.js';
 import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { icon } from '../icons.js';
-import { LANG, LOCALE } from '../i18n.js';
+import { LANG, LOCALE, EN } from '../i18n.js';
 
-let archive = [];
 let dragging = false;
-
-async function loadYear(year) {
-  $('#rpMeeting').innerHTML = '<option>Chargement…</option>';
-  $('#rpSession').innerHTML = '';
-  try {
-    archive = await api(`/api/archive?year=${year}`);
-  } catch (err) {
-    archive = [];
-    $('#rpMsg').textContent = err.message;
-  }
-  const meetings = archive.filter((m) => m.sessions.length);
-  $('#rpMeeting').innerHTML = meetings.map((m, i) => `<option value="${i}">${esc(m.name)} (${esc(m.location || '')})</option>`).join('');
-  $('#rpMeeting').value = String(meetings.length - 1);
-  archive = meetings;
-  fillSessions();
-}
-
-function fillSessions() {
-  const m = archive[Number($('#rpMeeting').value)];
-  const sessions = m?.sessions || [];
-  $('#rpSession').innerHTML = sessions.map((s, i) => `<option value="${i}">${esc(s.name)} — ${esc((s.start || '').slice(0, 10))}</option>`).join('');
-  $('#rpSession').value = String(Math.max(0, sessions.length - 1));
-}
 
 const fmtWhen = (ms) => new Date(ms).toLocaleString(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const SESSION_WARN = 3 * 86400000;   // rappel 3 jours avant la fin de la session formula1.com
@@ -180,33 +157,16 @@ async function renderLan(change) {
 }
 
 export function initSettings() {
-  // Réglages en onglets (Source, Compte F1 TV, Affichage, Alertes, Application)
+  // Réglages en onglets (Compte F1 TV, Apparence, Disposition, Alertes, Application)
   const showGroup = (g) => {
     for (const b of document.querySelectorAll('#setNav .set-tab')) b.classList.toggle('active', b.dataset.sgroup === g);
     for (const sec of document.querySelectorAll('#settingsModal .set-block')) sec.classList.toggle('set-hidden', sec.dataset.sgroup !== g);
   };
   $('#setNav').addEventListener('click', (e) => { const b = e.target.closest('.set-tab'); if (b) showGroup(b.dataset.sgroup); });
-  showGroup('source');
+  showGroup('f1tv');
   const modal = $('#settingsModal');
-  const open = () => { modal.showModal(); refreshAuth(); renderRecordings(); renderFavs(); };
+  const open = () => { modal.showModal(); refreshAuth(); renderFavs(); };
   $('#settingsBtn').addEventListener('click', open);
-  $('#sourceBadge').addEventListener('click', open);
-
-  // Enregistrements locaux
-  $('#recList').addEventListener('click', async (e) => {
-    const play = e.target.closest('[data-play]');
-    const del = e.target.closest('[data-del-rec]');
-    try {
-      if (play) {
-        await api('/api/replay', { method: 'POST', body: { local: play.dataset.play } });
-        modal.close();
-        toast('Lecture de l\'enregistrement…');
-      } else if (del && confirm('Supprimer définitivement cet enregistrement ?')) {
-        await api(`/api/recordings?id=${encodeURIComponent(del.dataset.delRec)}`, { method: 'DELETE' });
-        renderRecordings();
-      }
-    } catch (err) { toast(err.message); }
-  });
 
   // Favoris
   $('#favList').addEventListener('click', (e) => {
@@ -310,35 +270,6 @@ export function initSettings() {
       .catch((err) => toast(err.message, 6000));
   }
 
-  const now = new Date().getFullYear();
-  $('#rpYear').innerHTML = Array.from({ length: now - 2018 + 1 }, (_, i) => now - i).map((y) => `<option>${y}</option>`).join('');
-  $('#rpYear').addEventListener('change', (e) => loadYear(e.target.value));
-  $('#rpMeeting').addEventListener('change', fillSessions);
-  let yearLoaded = false;
-  modal.addEventListener('toggle', () => { if (modal.open && !yearLoaded) { yearLoaded = true; loadYear(now); } });
-  // Compatibilité navigateurs sans évènement "toggle" sur <dialog>
-  $('#settingsBtn').addEventListener('click', () => { if (!yearLoaded) { yearLoaded = true; loadYear(now); } });
-  $('#sourceBadge').addEventListener('click', () => { if (!yearLoaded) { yearLoaded = true; loadYear(now); } });
-
-  $('#goLive').addEventListener('click', async () => {
-    await api('/api/live', { method: 'POST' }).catch((err) => toast(err.message));
-    modal.close();
-    toast('Connexion au flux live…');
-  });
-
-  $('#goReplay').addEventListener('click', async () => {
-    const m = archive[Number($('#rpMeeting').value)];
-    const sess = m?.sessions[Number($('#rpSession').value)];
-    if (!sess) return;
-    const begin = $$('input[name=rpStartAt]').find((i) => i.checked)?.value === 'begin';
-    try {
-      await api('/api/replay', { method: 'POST', body: { path: sess.path, ...(begin ? { startOffsetMs: 0 } : {}) } });
-      modal.close();
-      toast(`Chargement du replay : ${m.name} — ${sess.name}`, 4000);
-    } catch (err) {
-      $('#rpMsg').textContent = err.message;
-    }
-  });
 
   $('#tokenSave').addEventListener('click', async () => {
     try {
@@ -398,17 +329,6 @@ export function initSettings() {
 
   on('status', renderReplayBar);
   setInterval(renderReplayBar, 250);
-}
-
-async function renderRecordings() {
-  const el = $('#recList');
-  try {
-    const recs = await api('/api/recordings');
-    el.innerHTML = recs.length ? recs.map((r) => `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(r.name)}</span>
-      <span class="muted">${(r.size / 1e6).toFixed(1)} Mo</span>
-      <button class="btn small" data-play="${esc(r.id)}">${icon('play')} Rejouer</button><button class="btn small" data-del-rec="${esc(r.id)}" title="Supprimer">${icon('trash')}</button></div>`).join('')
-      : '<span class="muted small">Aucun enregistrement pour l\'instant : ils se créent automatiquement pendant les sessions live.</span>';
-  } catch (err) { el.textContent = err.message; }
 }
 
 function renderFavs() {

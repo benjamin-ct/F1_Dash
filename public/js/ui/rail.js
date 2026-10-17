@@ -4,11 +4,12 @@ import { $, $$ } from '../util.js';
 import { openSeason, closeSeason } from './season.js';
 import { openNews, closeNews } from './news.js';
 import { openHome, closeHome, homeTouched, startWindows } from './home.js';
+import { openReplays, closeReplays } from './replays.js';
 import { unmaximize, showPanelLarge, setFreeLayout, isFreeLayout, saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { toast } from './delay.js';
 import { icon } from '../icons.js';
 import { prefs, setPref } from '../prefs.js';
-import { on } from '../store.js';
+import { on, store } from '../store.js';
 
 // Apparence : automatique (comme le système), sombre ou clair
 const SCHEMES = [
@@ -50,17 +51,18 @@ function openSettings(group) {
 
 const ACTIONS = {
   home: () => openHome(),
-  live: () => { homeTouched(); closeHome(); closeSeason(); closeNews(); unmaximize(); },
+  live: () => { homeTouched(); closeHome(); closeReplays(); closeSeason(); closeNews(); unmaximize(); },
   ana: () => {
     homeTouched();
     closeHome();
+    closeReplays();
     closeSeason();
     closeNews();
     if (showPanelLarge('analysis') === 'elsewhere') toast('Analyse affichée en grand dans l\'autre fenêtre (second écran)');
   },
-  season: () => { closeNews(); if ($('#seasonView').hidden) openSeason(); else closeSeason(); },
-  news: () => ($('#newsView').hidden ? openNews() : closeNews()),
-  replay: () => openSettings('source'),
+  season: () => { closeNews(); closeReplays(); if ($('#seasonView').hidden) openSeason(); else closeSeason(); },
+  news: () => { closeReplays(); if ($('#newsView').hidden) openNews(); else closeNews(); },
+  replay: () => ($('#replayView').hidden ? openReplays() : closeReplays()),
   radio: () => $('#commBtn').click(),
   reset: (btn) => layoutMenu(btn),
   scheme: (btn) => schemeMenu(btn),
@@ -105,8 +107,9 @@ function sync() {
   const season = !$('#seasonView').hidden;
   const news = !$('#newsView').hidden;
   const home = !$('#homeView')?.hidden;
+  const replays = !$('#replayView')?.hidden;
   const ana = $('.p-analysis')?.classList.contains('maximized');
-  const cur = home ? 'home' : news ? 'news' : season ? 'season' : ana ? 'ana' : 'live';
+  const cur = home ? 'home' : replays ? 'replay' : news ? 'news' : season ? 'season' : ana ? 'ana' : 'live';
   // Tableau de bord affiché : fenêtres du second écran rouvertes (pas sur l'accueil)
   if (cur === 'live' || cur === 'ana') startWindows();
   for (const b of $$('#rail [data-rail]')) {
@@ -128,10 +131,14 @@ export function initRail() {
   const mo = new MutationObserver(sync);
   mo.observe($('#seasonView'), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('#newsView'), { attributes: true, attributeFilter: ['hidden'] });
-  if ($('#homeView')) mo.observe($('#homeView'), { attributes: true, attributeFilter: ['hidden'] });
+  for (const id of ['#homeView', '#replayView']) if ($(id)) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
   mo.observe($('.grid'), { attributes: true, attributeFilter: ['class'] });
   mo.observe($('#commBtn'), { attributes: true, attributeFilter: ['class'] });
   sync();
   schemeButton();
+  // Résumé et mini-classement : grisés tant qu'aucune séance n'est chargée
+  const noSession = () => { const off = !store.state.SessionInfo; for (const k of ['summary', 'mini']) { const b = $(`#rail [data-rail="${k}"]`); if (b) b.disabled = off; } };
+  noSession();
+  setInterval(noSession, 2000);
   on('prefs', (k) => { if (k === 'scheme') schemeButton(); });
 }
