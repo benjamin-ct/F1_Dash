@@ -108,3 +108,54 @@ export async function summarizeArticle(env, req, day = new Date().toISOString().
   }
   return { points: null, error: REASONS[why.reason] || REASONS.format };
 }
+
+// ---------- Post écrit à la main dans le Studio : texte du créateur mis en forme ----------
+const POST_COST = 3;         // pèse comme 3 traductions dans le plafond du jour
+const POST_SYSTEM = `You help the owner of a French Formula 1 fan account turn his own notes into a social media post.
+From the notes given by the user, write in French:
+- "title": a short, punchy, factual headline (at most 90 characters, no emoji, no hashtag);
+- "summary": one or two sentences that tell the news clearly (at most 260 characters);
+- "points": 0 to 5 key points, one complete sentence each (12 to 30 words), only if the notes contain enough details; otherwise an empty list.
+Rules: keep only facts from the notes, add nothing, no opinion unless the notes give one. Keep names of drivers, teams and people exactly as written. Write French accents correctly.
+Answer ONLY with a JSON object: {"title": "...", "summary": "...", "points": ["..."]}`;
+
+// Corps reçu -> texte du créateur (20 à 4 000 caractères), ou null
+export function cleanPostRequest(body) {
+  const text = typeof body?.text === 'string' ? body.text.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, 4000) : '';
+  return text.length >= 20 ? text : null;
+}
+
+// Réponse du modèle -> { title, summary, points }, ou null si inutilisable
+export function parsePostReply(reply) {
+  let o = reply && typeof reply === 'object' && !Array.isArray(reply) ? reply : null;
+  if (!o) {
+    const t = String(reply || '');
+    const a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if (a >= 0 && b > a) { try { o = JSON.parse(t.slice(a, b + 1)); } catch { o = null; } }
+  }
+  const one = (s, max) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+  const title = one(o?.title, 120);
+  const summary = one(o?.summary, 320);
+  if (!title || !summary || badScript(`${title} ${summary}`, 'fr')) return null;
+  const points = (Array.isArray(o.points) ? o.points : []).map((x) => one(x, 320).replace(/^(?:[-–—•*]|\d+[.)])\s*/, '')).filter((x) => x.length >= 15 && !badScript(x, 'fr')).slice(0, 5);
+  return { title, summary, points };
+}
+
+export async function rewritePost(env, text, day = new Date().toISOString().slice(0, 10)) {
+  const limit = Number(env.AI_DAILY_LIMIT) || 20000;
+  const used = (await env.DB.prepare('SELECT n FROM ai_usage WHERE day = ?1').bind(day).first())?.n || 0;
+  if (used + POST_COST > limit) return { limited: true };
+  await env.DB.prepare('INSERT INTO ai_usage (day, n) VALUES (?1, ?2) ON CONFLICT (day) DO UPDATE SET n = n + excluded.n').bind(day, POST_COST).run();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const r = await env.AI.run(MODEL, {
+        messages: [{ role: 'system', content: POST_SYSTEM }, { role: 'user', content: text }],
+        temperature: attempt ? 0.5 : 0.3,
+        max_tokens: 900,
+      });
+      const post = parsePostReply(r?.response ?? r?.choices?.[0]?.message?.content);
+      if (post) return post;
+    } catch { /* nouvel essai */ }
+  }
+  return { error: "L'IA n'a pas pu mettre ce texte en forme, réessayez ou écrivez le post vous-même" };
+}

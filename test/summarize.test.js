@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanSummaryRequest, copiedFrom, parsePoints, summarizeArticle } from '../analytics/summarize.js';
+import { cleanSummaryRequest, copiedFrom, parsePoints, summarizeArticle, cleanPostRequest, parsePostReply, rewritePost } from '../analytics/summarize.js';
 import { MODEL } from '../analytics/translate.js';
 import { createNewsSummarizer, articleText } from '../server/news-summary.js';
 import worker from '../analytics/worker.js';
@@ -116,4 +116,18 @@ test('résumé détaillé : adresse /s du serveur', async () => {
   const r = await post(f.env, JSON.stringify({ title: 'Hamilton extends Ferrari deal', text: ARTICLE }));
   assert.equal(r.status, 200);
   assert.deepEqual((await r.json()).points, POINTS);
+});
+
+test('post écrit à la main : texte mis en forme par l\'IA (titre, résumé, points), plafond du jour', async () => {
+  assert.equal(cleanPostRequest({ text: 'court' }), null);
+  assert.equal(cleanPostRequest({ text: '  Norris   prolonge chez McLaren jusqu\'en 2030  ' }), 'Norris prolonge chez McLaren jusqu\'en 2030');
+  const post = { title: 'Norris prolonge jusqu\'en 2030', summary: 'McLaren a confirmé la prolongation de Lando Norris.', points: ['- Le contrat court désormais jusqu\'à la fin de la saison 2030.', 'court'] };
+  assert.deepEqual(parsePostReply(`Voici : ${JSON.stringify(post)}`), { ...post, points: ['Le contrat court désormais jusqu\'à la fin de la saison 2030.'] });
+  assert.deepEqual(parsePostReply(post).title, post.title);   // réponse déjà décodée
+  assert.equal(parsePostReply('Désolé'), null);
+  assert.equal(parsePostReply({ title: 'T', summary: '' }), null);
+  const f = fakeEnv({ limit: 5, replies: ['rien', JSON.stringify(post)] });
+  assert.equal((await rewritePost(f.env, 'Norris prolonge chez McLaren', '2026-10-17')).title, post.title);
+  assert.equal(f.calls.length, 2);   // réponse mal formée : nouvel essai
+  assert.deepEqual(await rewritePost(f.env, 'Norris prolonge chez McLaren', '2026-10-17'), { limited: true });
 });

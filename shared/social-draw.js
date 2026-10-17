@@ -198,6 +198,19 @@ export function photo(ctx, img, x, y, w, h, color, fade = 0) {
   ctx.drawImage(off, dx, dy);
 }
 
+// Photo importée (post écrit à la main) : recadrée pour remplir la zone, coins arrondis, bas assombri
+export function coverPhoto(ctx, img, x, y, w, h, r = 24) {
+  const k = Math.max(w / img.width, h / img.height);
+  const dw = img.width * k; const dh = img.height * k;
+  ctx.save();
+  rr(ctx, x, y, w, h, r); ctx.clip();
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  const g = ctx.createLinearGradient(0, y + h * 0.55, 0, y + h);
+  g.addColorStop(0, 'rgba(11,13,18,0)'); g.addColorStop(1, 'rgba(11,13,18,0.6)');
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  ctx.restore();
+}
+
 // Logo blanc d'une écurie (o.logos) calé sur la hauteur h, centré verticalement sur cy ; largeur au plus
 // maxW. Renvoie la largeur dessinée (0 sans logo : à l'appelant de mettre une barre de couleur)
 export function teamLogo(ctx, o, team, x, cy, h, align = 'left', maxW = h * 1.8) {
@@ -563,7 +576,16 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   let colW = W - pad * 2;
   let areaTop = top + 110 * u;
   let centered = false;
-  if (land) {
+  const custom = d.image?.width ? d.image : null;   // photo importée : à la place des portraits
+  if (custom && land) {
+    colW = W * 0.54;
+    coverPhoto(ctx, custom, W * 0.6, top + 40 * u, W * 0.36, bottom - top - 20 * u);
+    centered = true;
+  } else if (custom) {
+    const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);
+    coverPhoto(ctx, custom, pad, areaTop, W - pad * 2, ph);
+    areaTop += ph + 30 * u;
+  } else if (land) {
     colW = W * 0.54;
     if (withPhoto.length === 1) photo(ctx, o.photos[withPhoto[0].num], W * 0.6, top + 40 * u, W * 0.36, bottom - top - 20 * u, withPhoto[0].color, 0.25);
     else if (d.drivers.length) d.drivers.forEach((p, i) => driverPhoto(ctx, o.photos?.[p.num], W * 0.79, top + (130 + i * 230) * u + (3 - d.drivers.length) * 115 * u, 100 * u, p.color, p.tla));

@@ -14,6 +14,8 @@ const KINDS = [
   ['accident', 'ACCIDENT', '#ff5252', /crash|accident|incidente|unfall|injur|blesse|infortun|verletz|hospital|hopital/],
   ['officiel', 'OFFICIEL', '#e10600', /official|officiel|ufficiale|oficial|offiziell|confirm|announce|annonce|annuncia|anuncia|statement|communique/],
 ];
+// Types au choix (post écrit à la main), « Actu F1 » compris
+export const NEWS_BADGES = [...KINDS.map(([key, label, color]) => ({ key, label, color })), { key: 'actu', label: 'ACTU F1', color: '#e10600' }];
 export function newsKind(item) {
   const t = fold(`${item.title} ${item.summary || ''}`.slice(0, 500));
   const k = KINDS.find(([, , , re]) => re.test(t));

@@ -1,7 +1,8 @@
 // Studio : posts des news (et récap de la semaine) et des séances (résultats, avant-course,
 // championnat, flash). Chargé à l'ouverture d'un post.
 import { decodeBody } from '/shared/news-collect.js';
-import { bigNews, newsPost, newsCaptions, OTHER_SERIES } from '/shared/social-news.js';
+import { bigNews, newsPost, newsCaptions, OTHER_SERIES, NEWS_BADGES } from '/shared/social-news.js';
+import { newsTags } from '/shared/news.js';
 import { postData, captions } from '/shared/social.js';
 import { preraceData, champData, flashEvents, flashData, moreCaptions, FLASH_KINDS } from '/shared/social-more.js';
 import { builtinNomination } from '/shared/tyres.js';
@@ -66,6 +67,80 @@ export async function newsEditor(it, done, back) {
         } catch (err) { $('#nsumst').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
       };
       $('#linkcomment').onchange = (e) => { state.linkComment = e.target.checked; redraw(true); };
+    },
+  });
+}
+
+// ---------- Post écrit à la main : texte libre, mise en forme par l'IA, photo, visuels automatiques ----------
+// Pilotes et écuries reconnus dans le texte (portraits, couleurs) ; type d'info deviné ou choisi.
+export async function manualEditor(back) {
+  const it = { id: `m${Date.now().toString(36)}`, cat: 'official', t: Date.now(), link: '' };
+  const f = { title: '', summary: '', points: '', kind: '', source: '', image: null };
+  const drivers = await latestDrivers();
+  const make = () => {
+    const text = `${f.title} ${f.summary} ${f.points}`;
+    const title = f.title.trim() || 'Votre titre ici';
+    const d = newsPost({ ...it, title, summary: f.summary, tags: newsTags(text) }, { title, summary: f.summary, points: f.points, driverList: drivers, sourceName: f.source.trim() });
+    if (f.kind) d.badge = NEWS_BADGES.find((b) => b.key === f.kind) || d.badge;
+    if (f.image) d.image = f.image;
+    return d;
+  };
+  let d = make();
+  editor({
+    back,
+    title: 'Écrire un post',
+    subtitle: 'Texte libre, visuels faits tout seuls',
+    head: `<label class="field"><span>Votre texte <small>(l'info en vrac, vos notes, un brouillon)</small></span><textarea id="mraw" rows="5" maxlength="4000" placeholder="Ex. : Norris prolonge chez McLaren jusqu'en 2030, annonce faite ce matin avant le GP des États-Unis…"></textarea></label>
+      <div class="row"><button class="btn small" id="mai">${icon('wand')}Mettre en forme avec l'IA</button><span class="hint" id="maist">Titre, résumé et points clés rédigés à partir de votre texte.</span></div>
+      <label class="field"><span>Titre</span><input type="text" id="mtitle" maxlength="120" placeholder="Le titre du visuel"></label>
+      <label class="field"><span>Résumé</span><textarea id="msum" rows="3" maxlength="320"></textarea></label>
+      <label class="field"><span>Points clés, un par ligne <small>(images suivantes du carrousel)</small></span><textarea id="mpoints" rows="4" maxlength="1600" placeholder="Facultatif"></textarea></label>
+      <label class="field"><span>Type d'info</span><select id="mkind"><option value="">Deviné d'après le texte</option>${NEWS_BADGES.map((b) => `<option value="${b.key}">${esc(b.label.charAt(0) + b.label.slice(1).toLowerCase())}</option>`).join('')}</select></label>
+      <label class="field"><span>Source <small>(facultatif, citée en bas de l'image)</small></span><input type="text" id="msrc" maxlength="60" placeholder="Ex. : communiqué de McLaren"></label>
+      <div class="field"><span>Photo <small>(facultatif : remplace les portraits des pilotes)</small></span>
+        <div class="row"><label class="btn small">${icon('image')}Choisir une photo<input type="file" id="mimg" accept="image/*" hidden></label><button class="btn small" id="mimgdel" hidden>${icon('close')}Retirer</button><span class="hint" id="mimgst"></span></div></div>
+      <p class="hint">Les pilotes et écuries cités sont reconnus dans le texte : portraits, logos et couleurs suivent tout seuls.</p>`,
+    data: () => d,
+    caps: () => newsCaptions(d, SIG),
+    record: () => ({ key: `manual:${it.id}`, kind: 'manual', title: d.title }),
+    bind: (redraw) => {
+      let tm = null;
+      const upd = (now = false) => {
+        clearTimeout(tm);
+        tm = setTimeout(() => {
+          Object.assign(f, { title: $('#mtitle').value, summary: $('#msum').value, points: $('#mpoints').value, kind: $('#mkind').value, source: $('#msrc').value });
+          d = make();
+          redraw(true);
+        }, now ? 0 : 400);
+      };
+      for (const id of ['#mtitle', '#msum', '#mpoints', '#msrc']) $(id).oninput = () => upd();
+      $('#mkind').onchange = () => upd(true);
+      $('#mai').onclick = async () => {
+        const text = $('#mraw').value.trim() || `${$('#mtitle').value}\n${$('#msum').value}\n${$('#mpoints').value}`.trim();
+        if (text.length < 20) { $('#maist').textContent = 'Écrivez d\'abord quelques phrases dans « Votre texte ».'; return; }
+        const btn = $('#mai');
+        btn.disabled = true; btn.classList.add('busy');
+        $('#maist').textContent = 'Mise en forme…';
+        try {
+          const r = await api('rewrite', { method: 'POST', body: JSON.stringify({ text }) });
+          $('#mtitle').value = r.title;
+          $('#msum').value = r.summary;
+          if (r.points?.length) $('#mpoints').value = r.points.join('\n');
+          $('#maist').textContent = 'Rédigé par l\'IA à partir de votre texte : relisez et corrigez avant de publier.';
+          upd(true);
+        } catch (err) { $('#maist').textContent = err.message; } finally { btn.disabled = false; btn.classList.remove('busy'); }
+      };
+      $('#mimg').onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+          f.image = await createImageBitmap(file);
+          $('#mimgst').textContent = file.name;
+          $('#mimgdel').hidden = false;
+          upd(true);
+        } catch { $('#mimgst').textContent = 'Image illisible'; }
+      };
+      $('#mimgdel').onclick = () => { f.image = null; $('#mimg').value = ''; $('#mimgst').textContent = ''; $('#mimgdel').hidden = true; upd(true); };
     },
   });
 }

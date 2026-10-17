@@ -16,6 +16,7 @@ import { postStats } from '../shared/post-stats.js';
 import { recentPosts, importEntries } from './post-import.js';
 import { pushApi } from './alerts.js';
 import { packFeeds } from '../shared/feed-pack.js';
+import { cleanPostRequest, rewritePost } from './summarize.js';
 
 // Empreinte du code (la même que dans l'appli) : SHA-256 de « paddock-live:<CODE> » (STUDIO_CODE_HASH :
 // autre empreinte, pour les tests)
@@ -524,6 +525,16 @@ export async function studioApi(req, env, url) {
       tiktok: vault.tiktok ? vault.tiktok.name || 'TikTok' : null, youtube: vault.youtube ? vault.youtube.name || 'YouTube' : null,
       sources: DEFAULT_SOURCES.filter((s) => s.kind === 'rss').map(({ id, name, cat, lang, filter }) => ({ id, name, cat, lang, filter: filter || null })),
     });
+  }
+  // Post écrit à la main : texte mis en forme par l'IA (titre, résumé, points clés)
+  if (path === 'rewrite' && req.method === 'POST') {
+    if (!env.AI) return json({ error: 'IA indisponible' }, 503);
+    let body;
+    try { body = await req.json(); } catch { return json({ error: 'JSON invalide' }, 400); }
+    const text = cleanPostRequest(body);
+    if (!text) return json({ error: 'Texte trop court' }, 400);
+    const r = await rewritePost(env, text);
+    return json(r.limited ? { error: 'Plafond du jour atteint, réessayez demain' } : r, r.limited ? 429 : r.error ? 502 : 200);
   }
   // Journal des publications (partagé avec l'appli)
   if (path === 'history' || path === 'history/remove') {
