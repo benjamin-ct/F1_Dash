@@ -393,7 +393,7 @@ function renderH2H() {
 function renderTitle() {
   const tr = titleRace(data, data.year);
   const dl = Object.values(store.state.DriverList || {});
-  const photo = (code) => photoUrl(dl.find((x) => x?.Tla === code));
+  const photo = (code) => photoUrl(dl.find((x) => x?.Tla === code) || { Tla: code });
   const out = (e, team) => (e.alive ? '' : `<div class="tr-out">${team ? t('Éliminée') : t('Éliminé')} · R${e.outRound} ${esc(gpShort(e.outName, EN))}</div>`);
   // Barre : points actuels (couleur d'écurie) + maximum encore possible (hachures) ; trait = leader
   const bars = (e, list, col) => {

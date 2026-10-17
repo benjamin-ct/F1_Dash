@@ -49,6 +49,11 @@ l'application (Réglages → Application → Nouveautés).
   un petit tableau, toutes les conditions pour l'être dès le prochain Grand Prix, rival par rival : points
   à prendre sur le week-end, et place que le rival ne doit pas dépasser si le leader gagne ou finit 2e.
 
+### Portraits des pilotes
+- Les mêmes portraits officiels de la saison partout (Duel, Radios, Course au titre), quelle que soit la
+  séance chargée : plus de photos d'années différentes d'un pilote à l'autre, et un portrait aussi pour
+  les pilotes que la F1 laisse sans photo (Lindblad) ou absents de la séance (Tsunoda).
+
 ### Saison : Duels
 - La vue « Coéquipiers » devient « Duels » et occupe toute la largeur : le duel à gauche, l'écart en
   qualification à droite (l'un sous l'autre sur un écran étroit).
@@ -76,6 +81,8 @@ l'application (Réglages → Application → Nouveautés).
 - Thème clair : les noms des pilotes et les temps sont de nouveau lisibles dans la bulle qui apparaît au
   survol des graphiques d'analyse (écarts, positions, temps au tour) ; textes des drapeaux de la carte
   lisibles aussi.
+- Le Grand Prix de Bahreïn couru en Malaisie (manche 16 de 2026) s'affiche « Bahreïn (Malaisie) », et
+  « Grand Prix de Bahreïn en Malaisie » en entier, au lieu de « Bahrain Grand Prix in Malaysia ».
 - Version anglaise : le bouton « Revoir … » de l'écran « Pas de séance en direct » est traduit, ainsi que
   « en faveur de … » sous les écarts en qualification des Duels.
 
