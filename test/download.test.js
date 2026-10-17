@@ -23,3 +23,15 @@ test('téléchargement : chaque système mène au bon fichier de la dernière ve
   // Système inconnu : page des versions
   assert.match((await download('/download/amiga', { fetchFn: gh, now: 3 })).headers.get('Location'), /releases\/latest$/);
 });
+
+test('nom de domaine : racine = site de l\'appli, www redirigé, workers.dev inchangé', async () => {
+  const { default: worker } = await import('../analytics/worker.js');
+  const env = { ASSETS: { fetch: async (req) => new Response(`site:${new URL(req.url).pathname}`) } };
+  let r = await worker.fetch(new Request('https://paddocklive.app/'), env);
+  assert.equal(await r.text(), 'site:/site/');
+  r = await worker.fetch(new Request('https://www.paddocklive.app/legal/privacy?x=1'), env);
+  assert.equal(r.status, 301);
+  assert.equal(r.headers.get('location'), 'https://paddocklive.app/legal/privacy?x=1');
+  r = await worker.fetch(new Request('https://paddock-live-stats.paddock-live.workers.dev/'), env);
+  assert.notEqual(await r.text(), 'site:/site/');
+});

@@ -9,7 +9,9 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Paddock Live : la F1 en direct, calée sur ta TV">
 <meta property="og:description" content="Chronos, carte GPS, radios traduites et stratégie en direct, sans spoiler. Gratuit, pour Windows, macOS et Linux.">
-<meta property="og:image" content="/site/img/tableau-de-bord.webp">
+<meta property="og:url" content="https://paddocklive.app/">
+<meta property="og:image" content="https://paddocklive.app/site/img/tableau-de-bord.webp">
+<link rel="canonical" href="https://paddocklive.app/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="/site/img/logo.png">
 <link rel="apple-touch-icon" href="/site/img/apple-touch-icon.png">
@@ -356,12 +358,14 @@ footer .brand { -webkit-user-select: none; user-select: none; -webkit-touch-call
 </footer>
 
 <script>
-// Comptes à afficher en bas de page (à compléter ou corriger au lancement)
+// Comptes à afficher en bas de page
 const SOCIAL = [
   ['Instagram', 'https://www.instagram.com/paddockliveapp/'],
   ['TikTok', 'https://www.tiktok.com/@paddockliveapp'],
   ['X', 'https://x.com/paddockliveapp'],
   ['Threads', 'https://www.threads.com/@paddockliveapp'],
+  ['Bluesky', 'https://bsky.app/profile/paddockliveapp.bsky.social'],
+  ['YouTube', 'https://www.youtube.com/@paddockliveapp'],
 ];
 document.getElementById('social').innerHTML = SOCIAL.map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join('');
 
