@@ -42,6 +42,7 @@ test('posts news : données du post et légendes', () => {
   assert.match(d.drivers[0].headshot, /w_800.*\/2026mclarenlannor01right\.webp$/);
   const other = newsPost(it({ title: 'Lindblad extends with Racing Bulls', tags: ['LIN'] }), { title: 'Lindblad prolonge', summary: 'Une phrase.', sourceName: 'X' });
   assert.match(other.drivers[0].headshot, /\/2026racingbullsarvlin01right\.webp$/);
+  assert.equal(other.drivers[0].color, '#6692FF');   // couleur d'écurie de la saison
   assert.equal(d.color, '#FF8000');
   assert.ok(d.summary.length <= 280);
   assert.deepEqual(slidesFor(d), ['news']);

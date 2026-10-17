@@ -4,7 +4,7 @@
 // Code pur, partagé par l'appli et la page web du créateur.
 import { NEWS_DRIVERS, NEWS_TEAMS, fold, newsSimilarity } from './news.js';
 import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
-import { portraitUrl } from './portraits.js';
+import { portraitUrl, portraitTeam } from './portraits.js';
 
 // Type de nouvelle, d'après le titre et le résumé (toutes langues des sources, sans accents)
 const KINDS = [
@@ -110,6 +110,9 @@ const TEAM_COLORS = {
   ferrari: '#E80020', mercedes: '#27F4D2', mclaren: '#FF8000', redbull: '#3671C6', rb: '#6692FF', aston: '#229971',
   williams: '#64C4FF', alpine: '#0093CC', haas: '#B6BABD', audi: '#F50537', cadillac: '#C9A86A', fia: '#2b5fd9',
 };
+// Écurie de la base des portraits -> couleur ci-dessus (pilote absent de la liste de la séance)
+const SLUG_COLOR = { redbullracing: 'redbull', racingbulls: 'rb', astonmartin: 'aston', haasf1team: 'haas' };
+const seasonColor = (tla) => { const t = portraitTeam(tla); return t ? TEAM_COLORS[SLUG_COLOR[t] || t] : null; };
 const cap = (s) => String(s).replace(/(^|[\s-])\p{L}/gu, (m) => m.toUpperCase());
 
 // Pilotes et écuries cités, avec photo et couleur quand la liste des pilotes de la séance les donne
@@ -123,7 +126,7 @@ function people(tags = [], driverList = {}) {
       const d = byTla.get(k);
       drivers.push({
         tla: k, num: d?.num || k, first: d?.FirstName || '', last: d?.LastName || cap(drv[1][0]), team: d?.TeamName || '',
-        color: d?.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: portraitUrl(k, true) || d?.HeadshotUrl || null,
+        color: d?.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : seasonColor(k) || '#8b95a8', headshot: portraitUrl(k, true) || d?.HeadshotUrl || null,
       });
       continue;
     }

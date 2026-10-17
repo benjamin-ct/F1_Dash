@@ -17,3 +17,6 @@ export function portraitUrl(tla, big = false) {
   const crop = big ? 'c_thumb,g_face,w_800,h_800,z_0.6' : 'c_thumb,g_face,w_240,h_240,z_0.8';
   return id ? `https://media.formula1.com/image/upload/${crop}/q_auto/v1740000001/common/f1/${YEAR}/${team}/${id}/${YEAR}${team}${id}right.webp` : null;
 }
+
+// Écurie de la saison d'un pilote de la base (« mclaren », « redbullracing »…), null sinon
+export const portraitTeam = (tla) => PORTRAITS[tla]?.split('/')[0] || null;

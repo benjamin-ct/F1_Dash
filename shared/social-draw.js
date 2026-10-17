@@ -194,20 +194,15 @@ export function photo(ctx, img, x, y, w, h, color, fade = 0) {
   ctx.drawImage(off, dx, dy);
 }
 
-export function circlePhoto(ctx, img, cx, cy, r, color, label) {
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = alpha(color, 0.35); ctx.fill();
-  ctx.clip();
-  if (img) {
-    const k = (r * 2.2) / img.width;
-    ctx.drawImage(img, cx - (img.width * k) / 2, cy - r * 0.92, img.width * k, img.height * k);
-  } else if (label) {
-    txt(ctx, label, cx, cy + r * 0.2, { size: Math.round(r * 0.6), weight: 800, family: TITLE, align: 'center' });
-  }
-  ctx.restore();
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.lineWidth = Math.max(4, r * 0.06); ctx.strokeStyle = vivid(color); ctx.stroke();
+// Portrait détouré (tête et épaules) dans un carré de côté 2r centré sur (cx, cy) : halo et trait aux
+// couleurs de l'écurie, bas fondu ; sans photo, le trigramme
+export function driverPhoto(ctx, img, cx, cy, r, color, label) {
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  g.addColorStop(0, alpha(color, 0.45)); g.addColorStop(1, alpha(color, 0));
+  ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  if (img) photo(ctx, img, cx - r, cy - r, r * 2, r * 2, color, 0.22);
+  else if (label) txt(ctx, label, cx, cy + r * 0.2, { size: Math.round(r * 0.6), weight: 800, family: TITLE, align: 'center' });
+  rr(ctx, cx - r * 0.6, cy + r - Math.max(4, r * 0.05), r * 1.2, Math.max(4, r * 0.05), 3); ctx.fillStyle = vivid(color); ctx.fill();
 }
 
 // ---------- Diapositives ----------
@@ -287,7 +282,7 @@ function podium(ctx, W, H, d, o) {
     txt(ctx, String(i + 1), cx, y0 + h * 0.5 + 40, { size: Math.round(h * 0.42), weight: 800, family: TITLE, color: MEDAL[i], align: 'center' });
     const tt = y0 - (land ? 150 : 172);
     const cy = tt - 18 - r;
-    circlePhoto(ctx, o.photos?.[p.num], cx, cy, r, p.color, p.tla);
+    driverPhoto(ctx, o.photos?.[p.num], cx, cy, r, p.color, p.tla);
     txt(ctx, p.first, cx, tt + 40, { size: land ? 30 : 34, weight: 600, align: 'center', max: colW - 20 });
     txt(ctx, p.last.toUpperCase(), cx, tt + (land ? 90 : 100), { size: land ? 50 : 60, weight: 800, family: TITLE, align: 'center', max: colW - 16 });
     txt(ctx, i === 0 ? (d.kind !== 'race' ? p.gap || p.team : p.team) : p.gap || p.team, cx, tt + (land ? 132 : 150), { size: land ? 28 : 32, weight: 600, family: i === 0 && d.kind === 'race' ? BODY : MONO, color: C.muted, align: 'center', max: colW - 16 });
@@ -533,7 +528,7 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
     txt(ctx, `L'ESSENTIEL EN ${more} POINTS`, ax - 52 * u, ay + 10 * u, { size: Math.round(26 * u), weight: 700, family: TITLE, align: 'right', spacing: 2 });
   }
 
-  // Photos des pilotes cités : une grande, ou une rangée de ronds
+  // Photos des pilotes cités : une grande, ou une rangée de portraits
   const withPhoto = d.drivers.filter((p) => o.photos?.[p.num]);
   const x = pad;
   let colW = W - pad * 2;
@@ -542,7 +537,7 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
   if (land) {
     colW = W * 0.54;
     if (withPhoto.length === 1) photo(ctx, o.photos[withPhoto[0].num], W * 0.6, top + 40 * u, W * 0.36, bottom - top - 20 * u, withPhoto[0].color, 0.25);
-    else if (d.drivers.length) d.drivers.forEach((p, i) => circlePhoto(ctx, o.photos?.[p.num], W * 0.79, top + (130 + i * 230) * u + (3 - d.drivers.length) * 115 * u, 100 * u, p.color, p.tla));
+    else if (d.drivers.length) d.drivers.forEach((p, i) => driverPhoto(ctx, o.photos?.[p.num], W * 0.79, top + (130 + i * 230) * u + (3 - d.drivers.length) * 115 * u, 100 * u, p.color, p.tla));
     centered = true;
   } else if (withPhoto.length === 1) {
     const ph = (bottom - areaTop) * (H > 1600 ? 0.42 : 0.38);
@@ -550,7 +545,7 @@ export function newsSlide(ctx, W, H, d, o, fmt = 'ig') {
     areaTop += ph + 30 * u;
   } else if (d.drivers.length) {
     const r = Math.round(100 * u);
-    d.drivers.forEach((p, i) => circlePhoto(ctx, o.photos?.[p.num], pad + r + i * (r * 2 + 40 * u), areaTop + r + 10 * u, r, p.color, p.tla));
+    d.drivers.forEach((p, i) => driverPhoto(ctx, o.photos?.[p.num], pad + r + i * (r * 2 + 40 * u), areaTop + r + 10 * u, r, p.color, p.tla));
     areaTop += r * 2 + 60 * u;
   } else centered = true;
 
