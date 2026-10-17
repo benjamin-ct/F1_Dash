@@ -1,6 +1,7 @@
 // Petits utilitaires d'affichage.
 import { parseLapTime, parseUtc } from '/shared/f1.js';
 import { onLight } from '/shared/colors.js';
+import { portraitUrl } from '/shared/portraits.js';
 import { DEC, LOCALE } from './i18n.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
@@ -65,27 +66,10 @@ const VIVID_TEAMS = [
 let vividTeams = false;
 export function setVividTeams(v) { vividTeams = !!v; }
 
-// Portraits officiels de la saison (formula1.com), recadrés sur le visage : la même photo pour un pilote
-// partout et quelle que soit la séance chargée (celles des séances datent d'années différentes, ou
-// manquent). Trigramme -> écurie/identifiant F1 ; à mettre à jour à chaque nouvelle saison.
-const PORTRAIT_YEAR = 2026;
-const PORTRAITS = {
-  NOR: 'mclaren/lannor01', PIA: 'mclaren/oscpia01', VER: 'redbullracing/maxver01', HAD: 'redbullracing/isahad01',
-  LEC: 'ferrari/chalec01', HAM: 'ferrari/lewham01', RUS: 'mercedes/georus01', ANT: 'mercedes/andant01',
-  ALO: 'astonmartin/feralo01', STR: 'astonmartin/lanstr01', ALB: 'williams/alealb01', SAI: 'williams/carsai01',
-  LAW: 'racingbulls/lialaw01', LIN: 'racingbulls/arvlin01', GAS: 'alpine/piegas01', COL: 'alpine/fracol01',
-  OCO: 'haasf1team/estoco01', BEA: 'haasf1team/olibea01', HUL: 'audi/nichul01', BOR: 'audi/gabbor01',
-  PER: 'cadillac/serper01', BOT: 'cadillac/valbot01', TSU: 'racingbulls/yuktsu01',
-};
-function portrait(tla) {
-  const [team, id] = PORTRAITS[tla]?.split('/') || [];
-  return id ? `https://media.formula1.com/image/upload/c_thumb,g_face,w_240,h_240,z_0.8/q_auto/v1740000001/common/f1/${PORTRAIT_YEAR}/${team}/${id}/${PORTRAIT_YEAR}${team}${id}right.webp` : null;
-}
-
 // Photo d'un pilote (portrait de la saison, sinon celle de la séance), relayée par le serveur et gardée
 // en cache ; null si la F1 n'en fournit pas
 export function photoUrl(driver) {
-  const u = portrait(driver?.Tla) || driver?.HeadshotUrl;
+  const u = portraitUrl(driver?.Tla) || driver?.HeadshotUrl;
   return u ? `/api/headshot?u=${encodeURIComponent(u)}` : null;
 }
 

@@ -38,7 +38,10 @@ test('posts news : données du post et légendes', () => {
   const dl = { 4: { Tla: 'NOR', FirstName: 'Lando', LastName: 'Norris', TeamName: 'McLaren', TeamColour: 'FF8000', HeadshotUrl: 'https://h.test/n.png' } };
   const d = newsPost(item, { title: 'Norris prolonge avec McLaren', summary: 'Première phrase. Deuxième phrase. Troisième phrase très longue '.repeat(5), driverList: dl, sourceName: 'Autosport' });
   assert.equal(d.badge.key, 'transfert');
-  assert.equal(d.drivers[0].headshot, 'https://h.test/n.png');
+  // Portrait officiel de la saison (grand format), même sans la liste des pilotes de la séance
+  assert.match(d.drivers[0].headshot, /w_800.*\/2026mclarenlannor01right\.webp$/);
+  const other = newsPost(it({ title: 'Lindblad extends with Racing Bulls', tags: ['LIN'] }), { title: 'Lindblad prolonge', summary: 'Une phrase.', sourceName: 'X' });
+  assert.match(other.drivers[0].headshot, /\/2026racingbullsarvlin01right\.webp$/);
   assert.equal(d.color, '#FF8000');
   assert.ok(d.summary.length <= 280);
   assert.deepEqual(slidesFor(d), ['news']);

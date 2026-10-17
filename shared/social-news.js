@@ -4,6 +4,7 @@
 // Code pur, partagé par l'appli et la page web du créateur.
 import { NEWS_DRIVERS, NEWS_TEAMS, fold, newsSimilarity } from './news.js';
 import { hashtag, teamTag, BRAND_TAG, xLength } from './social.js';
+import { portraitUrl } from './portraits.js';
 
 // Type de nouvelle, d'après le titre et le résumé (toutes langues des sources, sans accents)
 const KINDS = [
@@ -122,7 +123,7 @@ function people(tags = [], driverList = {}) {
       const d = byTla.get(k);
       drivers.push({
         tla: k, num: d?.num || k, first: d?.FirstName || '', last: d?.LastName || cap(drv[1][0]), team: d?.TeamName || '',
-        color: d?.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: d?.HeadshotUrl || null,
+        color: d?.TeamColour ? `#${String(d.TeamColour).replace('#', '')}` : '#8b95a8', headshot: portraitUrl(k, true) || d?.HeadshotUrl || null,
       });
       continue;
     }
