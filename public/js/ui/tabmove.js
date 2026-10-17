@@ -292,7 +292,8 @@ export function initTabMove() {
   // Disposition d'une version précédente (onglet regroupé déplacé seul) : il rejoint son onglet principal
   for (const t of Object.keys(GROUPS)) follow(t);
   for (const id of HOSTS) tidy(id);
-  on('prefs', (k) => { if (k === 'tabLayout') apply(prefs.tabLayout); });
+  // Disposition changée dans les réglages : ses onglets rouverts (layout.js) sont filtrés ensuite
+  on('prefs', (k) => { if (k === 'tabLayout') apply(prefs.tabLayout); if (k === 'layoutMode') setTimeout(applySession, 0); });
   applySession();
   on('reset', applySession);
   on('events', (events) => { if (events.some(([t]) => t === 'SessionInfo')) setTimeout(applySession, 0); });
