@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseFeed, cleanText, newsTags, newsImportance, clusterNews, newsSimilarity } from '../shared/news.js';
+import { parseFeed, cleanText, newsTags, newsImportance, clusterNews, newsSimilarity, teamKey } from '../shared/news.js';
 
 const RSS = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:content="http://purl.org/rss/1.0/modules/content/">
@@ -97,4 +97,16 @@ test('actualités : dates avec fuseau en lettres', async () => {
   assert.equal(parseDate('Wed, 14 Oct 2026 05:42:11 EST'), Date.parse('2026-10-14T10:42:11Z'));
   assert.equal(parseDate('Wed, 14 Oct 2026 12:08:08 +0200'), Date.parse('2026-10-14T10:08:08Z'));
   assert.equal(parseDate('pas une date'), null);
+});
+
+test('actualités : écurie du classement -> clé des écuries favorites', () => {
+  assert.equal(teamKey('red_bull', 'Red Bull'), 'redbull');
+  assert.equal(teamKey('rb', 'RB F1 Team'), 'rb');
+  assert.equal(teamKey('sauber', 'Kick Sauber'), 'audi');
+  assert.equal(teamKey('aston_martin', 'Aston Martin'), 'aston');
+  assert.equal(teamKey('ferrari', 'Ferrari'), 'ferrari');
+  // Identifiant inconnu : reconnue par son nom, sinon aucune clé (jamais « fia »)
+  assert.equal(teamKey('haas_2027', 'Haas F1 Team'), 'haas');
+  assert.equal(teamKey('fia', 'FIA'), null);
+  assert.equal(teamKey('nouvelle_ecurie', 'Nouvelle Écurie'), null);
 });

@@ -133,10 +133,8 @@ const TEAM_RES = NEWS_TEAMS.map(([k, , names]) => [k, nameRe(names)]);
 // Écurie des classements (identifiant et nom de Jolpica, ou nom de la F1) -> clé ci-dessus
 const TEAM_IDS = { red_bull: 'redbull', rb: 'rb', racing_bulls: 'rb', aston_martin: 'aston', sauber: 'audi', kick_sauber: 'audi' };
 export function teamKey(id, name = '') {
-  const k = TEAM_IDS[id] || NEWS_TEAMS.find(([key]) => key === id)?.[0];
-  if (k) return k;
-  const tags = newsTags(name).filter((t) => NEWS_TEAMS.some(([key]) => key === t && key !== 'fia'));
-  return tags[0] || null;
+  const team = (k) => k !== 'fia' && NEWS_TEAMS.some(([key]) => key === k);
+  return TEAM_IDS[id] || (team(id) ? id : newsTags(name).find(team) || null);
 }
 
 export function newsTags(text) {
