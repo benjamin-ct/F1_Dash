@@ -1,6 +1,8 @@
 // Mode créateur (appli et page web) : vidéo verticale (TikTok) à partir des visuels au format story. Diaporama avec
-// léger zoom et fondus, enregistré en temps réel (MediaRecorder), avec une musique générée sur
-// place (libre de droits), un fichier audio choisi, ou sans musique.
+// léger zoom et fondus, ou animation (vidéo de la course, Breaking news), avec une musique générée
+// sur place (libre de droits), un fichier audio choisi, ou sans musique.
+// Fabriquée image par image (WebCodecs) : 30 images par seconde exactes, quel que soit le temps de
+// dessin de chaque image. Navigateur sans WebCodecs : enregistrée en temps réel (MediaRecorder).
 
 const W = 1080;
 const H = 1920;
@@ -98,8 +100,106 @@ export function webmWithDuration(buf, ms) {
   return buf;
 }
 
-// Enregistrement d'une animation : draw(ctx, t) dessine l'image à l'instant t (secondes)
-export async function makeAnimation(paint, duration, { music = 'gen', file = null, onProgress } = {}) {
+// Musique de la vidéo, calculée d'avance (fondu d'entrée et de sortie comme en temps réel)
+async function renderMusic(music, file, duration, rate = 48000) {
+  const ac = new OfflineAudioContext(2, Math.ceil(duration * rate), rate);
+  const master = ac.createGain();
+  master.gain.setValueAtTime(0.0001, 0);
+  master.gain.exponentialRampToValueAtTime(0.8, 0.6);
+  master.gain.setValueAtTime(0.8, Math.max(0.7, duration - 1.2));
+  master.gain.exponentialRampToValueAtTime(0.0001, duration);
+  master.connect(ac.destination);
+  if (music === 'file' && file) {
+    const src = ac.createBufferSource();
+    src.buffer = await ac.decodeAudioData(await file.arrayBuffer());
+    src.loop = src.buffer.duration < duration;
+    src.connect(master); src.start();
+  } else generatedMusic(ac, master, duration);
+  return ac.startRendering();
+}
+
+// Formats essayés dans l'ordre : MP4 (H.264 + AAC, lu partout), sinon WebM (VP9 + Opus, accepté par TikTok)
+const PLANS = [
+  { mime: 'video/mp4', lib: () => import('./mp4-muxer.js'), video: [['avc1.640028', 'avc'], ['avc1.4d0028', 'avc'], ['avc1.42002a', 'avc']], audio: ['mp4a.40.2', 'aac'], opts: { fastStart: 'in-memory' } },
+  { mime: 'video/webm', lib: () => import('./webm-muxer.js'), video: [['vp09.00.40.08', 'V_VP9'], ['vp8', 'V_VP8']], audio: ['opus', 'A_OPUS'], opts: {} },
+];
+const FPS = 30;
+async function pickPlan(withAudio) {
+  if (!window.VideoEncoder || !window.VideoFrame || (withAudio && !window.AudioEncoder)) return null;
+  for (const plan of PLANS) {
+    if (withAudio && !(await AudioEncoder.isConfigSupported({ codec: plan.audio[0], sampleRate: 48000, numberOfChannels: 2, bitrate: 192e3 }).catch(() => ({}))).supported) continue;
+    for (const [codec, name] of plan.video) {
+      const config = { codec, width: W, height: H, bitrate: 8e6, framerate: FPS, ...(name === 'avc' ? { avc: { format: 'avc' } } : {}) };
+      if ((await VideoEncoder.isConfigSupported(config).catch(() => ({}))).supported) return { ...plan, config, name };
+    }
+  }
+  return null;
+}
+
+// Vidéo fabriquée image par image : chaque image dessinée puis encodée, sans limite de temps.
+// null si le navigateur ne sait pas faire (enregistrement en temps réel à la place).
+async function encodeFrames(paint, duration, { music, file, onProgress }) {
+  const withAudio = music !== 'none';
+  const plan = await pickPlan(withAudio);
+  if (!plan) return null;
+  const { Muxer, ArrayBufferTarget } = await plan.lib();
+  const target = new ArrayBufferTarget();
+  const muxer = new Muxer({
+    target, firstTimestampBehavior: 'offset', ...plan.opts,
+    video: { codec: plan.name, width: W, height: H, frameRate: FPS },
+    ...(withAudio ? { audio: { codec: plan.audio[1], numberOfChannels: 2, sampleRate: 48000 } } : {}),
+  });
+  let failure = null;
+  const fail = (e) => { failure = failure || e; };
+  if (withAudio) {
+    const buf = await renderMusic(music, file, duration);
+    const enc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: fail });
+    enc.configure({ codec: plan.audio[0], sampleRate: 48000, numberOfChannels: 2, bitrate: 192e3 });
+    const step = 4800;
+    for (let i = 0; i < buf.length; i += step) {
+      const n = Math.min(step, buf.length - i);
+      const data = new Float32Array(n * 2);
+      data.set(buf.getChannelData(0).subarray(i, i + n), 0);
+      data.set(buf.getChannelData(1).subarray(i, i + n), n);
+      const ad = new AudioData({ format: 'f32-planar', sampleRate: 48000, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round(i / 48000 * 1e6), data });
+      enc.encode(ad); ad.close();
+    }
+    await enc.flush(); enc.close();
+  }
+  const out = document.createElement('canvas');
+  out.width = W; out.height = H;
+  const ctx = out.getContext('2d');
+  const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: fail });
+  enc.configure(plan.config);
+  const frames = Math.round(duration * FPS);
+  for (let i = 0; i < frames && !failure; i++) {
+    paint(ctx, Math.min(i / FPS, duration - 0.001));
+    const vf = new VideoFrame(out, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+    enc.encode(vf, { keyFrame: i % (FPS * 2) === 0 });
+    vf.close();
+    // Encodeur en retard : on l'attend ; et la page respire (avancement affiché)
+    while (enc.encodeQueueSize > 3) await new Promise((r) => setTimeout(r, 2));
+    if (i % 5 === 4) { onProgress?.((i + 1) / frames); await new Promise((r) => setTimeout(r, 0)); }
+  }
+  if (!failure) await enc.flush();
+  enc.close();
+  if (failure) throw failure;
+  muxer.finalize();
+  onProgress?.(1);
+  return { blob: new Blob([target.buffer], { type: plan.mime }), mime: plan.mime };
+}
+
+// Animation : paint(ctx, t) dessine l'image à l'instant t (secondes)
+export async function makeAnimation(paint, duration, opts = {}) {
+  try {
+    const v = await encodeFrames(paint, duration, { music: 'gen', ...opts });
+    if (v) return v;
+  } catch { /* encodeur du navigateur en échec : enregistrement en temps réel */ }
+  return recordLive(paint, duration, opts);
+}
+
+// Enregistrement en temps réel (navigateur sans WebCodecs)
+async function recordLive(paint, duration, { music = 'gen', file = null, onProgress } = {}) {
   if (!window.MediaRecorder) throw new Error('Enregistrement vidéo indisponible dans ce navigateur');
   const out = document.createElement('canvas');
   out.width = W; out.height = H;
