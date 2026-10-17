@@ -2028,6 +2028,7 @@ export default {
   ") et peut être revue aussitôt, sans compte F1 TV.": ") and can be watched again right away, without an F1 TV account.",
   "Aucun enregistrement pour l'instant : ils se créent automatiquement pendant les séances suivies en direct.": "No recordings yet: they are created automatically during sessions followed live.",
   "Revoir": "Watch again",
+  "Revoir {} : {}": "Watch {}: {} again",
   "Chargement du replay : {}": "Loading replay: {}",
   "Connexion au flux live…": "Connecting to the live feed…",
   "Supprimer définitivement cet enregistrement ?": "Permanently delete this recording?",

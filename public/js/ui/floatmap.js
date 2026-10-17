@@ -71,6 +71,12 @@ export function initFloatMap() {
   grip.className = 'float-resize';
   grip.title = 'Glisser pour changer la taille';
   document.body.append(bar, grip);
+  // Menu « Calques » du panneau, déplacé dans la barre (l'en-tête du panneau est masqué)
+  const layers = $('#mapLayers');
+  if (layers) {
+    layers.querySelector('summary').innerHTML = icon('sliders');
+    bar.querySelector('[data-fl="back"]').before(layers);
+  }
   bar.addEventListener('click', (e) => {
     const k = e.target.closest('[data-fl]')?.dataset.fl;
     if (k === 'smaller') scale(1 / 1.15);
@@ -82,6 +88,7 @@ export function initFloatMap() {
   // Glisser la carte (ou la poignée) : la fenêtre suit
   const moveWin = (e) => {
     if (e.button !== 0 || e.target.closest('.float-bar button, .float-resize')) return;
+    if (layers) layers.open = false;
     drag(e, (b, dx, dy) => setBounds({ x: b.x + dx, y: b.y + dy }));
   };
   wrap.addEventListener('pointerdown', moveWin, true);

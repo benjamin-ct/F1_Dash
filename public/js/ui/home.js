@@ -5,7 +5,7 @@
 import { $, $$, esc, api, drivers } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
-import { LOCALE, EN } from '../i18n.js';
+import { LOCALE, EN, t } from '../i18n.js';
 import { gpShort, sessionLabel } from '/shared/gp-names.js';
 import { toast } from './delay.js';
 import { prefs, setPref, toggleFav, toggleTeamFav } from '../prefs.js';
@@ -338,7 +338,7 @@ function noLiveCheck(show = true) {
       <div class="nl-count">${countdown(nx.t - Date.now())}</div>` : '<p class="muted">Saison terminée.</p>'}
     <p class="muted small">Le tableau de bord s'ouvre tout seul au début de la séance.</p>
     <div class="nl-actions">
-      ${ls ? `<button class="btn btn-accent" data-nl="replay">${icon('play')} Revoir ${esc(gp(ls.meeting))} : ${esc(sessionName(ls.name))}</button>` : ''}
+      ${ls ? `<button class="btn btn-accent" data-nl="replay">${icon('play')} ${esc(t('Revoir {} : {}', gp(ls.meeting), sessionName(ls.name)))}</button>` : ''}
       <button class="btn" data-nl="results" title="Tableau de bord avec l'état final de la dernière séance (résultat visible)">${icon('checkered')} Voir les résultats</button>
       <button class="btn" data-nl="replays">${icon('history')} Toutes les séances</button>
     </div>`;

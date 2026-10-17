@@ -927,7 +927,14 @@ function drawGaps(cars, lines) {
     let nx = d ? -dy / d : 0, ny = d ? dx / d : -1;
     if ((mx - size.w / 2) * nx + (my - size.h / 2) * ny < 0) { nx = -nx; ny = -ny; }
     const off = Math.max(c.r, a.r) + 20;
-    const bx = mx + nx * off, by = my + ny * off;
+    const txt = v.toFixed(2).replace('.', DEC);
+    ctx.font = `700 11px ${MONO()}`;
+    const w = ctx.measureText(txt).width + 14;
+    // Bulle hors de la carte (tracé au bord) : de l'autre côté, et jamais coupée
+    const out = (x, y) => x - w / 2 < 2 || x + w / 2 > size.w - 2 || y < 11 || y > size.h - 11;
+    if (out(mx + nx * off, my + ny * off)) { nx = -nx; ny = -ny; }
+    const bx = Math.min(size.w - w / 2 - 2, Math.max(w / 2 + 2, mx + nx * off));
+    const by = Math.min(size.h - 11, Math.max(11, my + ny * off));
     const color = v < 0.7 ? '#34D399' : '#FACC15';
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.2;
@@ -935,9 +942,6 @@ function drawGaps(cars, lines) {
     ctx.moveTo(mx, my);
     ctx.lineTo(bx, by);
     ctx.stroke();
-    const txt = v.toFixed(2).replace('.', DEC);
-    ctx.font = `700 11px ${MONO()}`;
-    const w = ctx.measureText(txt).width + 14;
     ctx.fillStyle = 'rgba(7,8,10,.94)';
     ctx.beginPath();
     ctx.roundRect(bx - w / 2, by - 9, w, 18, 9);

@@ -4,6 +4,18 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.30 — à venir
+
+### Carte flottante
+- Menu « Calques » dans la barre de la carte flottante (icône des réglages, au survol) : noms des
+  pilotes, traînées, écarts, numéros de virage, secteurs… s'activent et se désactivent sans revenir
+  dans la fenêtre principale.
+
+### Corrections
+- Carte : les bulles d'écart (moins d'une seconde) ne sont plus coupées au bord de la carte, surtout
+  dans la carte flottante ; près du bord, elles passent de l'autre côté du tracé.
+- Version anglaise : le bouton « Revoir … » de l'écran « Pas de séance en direct » est traduit.
+
 ## v1.27.29 — 2026-10-17
 
 ### Favoris

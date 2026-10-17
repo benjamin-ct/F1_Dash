@@ -2547,7 +2547,10 @@ html.float-map :is(.map-zoom, .map-legend, .map-ribbon) { display: none !importa
 .float-bar .ic { width: 15px; height: 15px; }
 .float-resize { position: fixed; right: 0; bottom: 0; z-index: 50; width: 18px; height: 18px; cursor: nwse-resize; opacity: 0; transition: opacity .15s;
   background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, .55) 50%, rgba(255, 255, 255, .55) 58%, transparent 58%, transparent 70%, rgba(255, 255, 255, .55) 70%, rgba(255, 255, 255, .55) 78%, transparent 78%); }
-html.float-map:hover :is(.float-bar, .float-resize), html.float-moving :is(.float-bar, .float-resize) { opacity: 1; }
+html.float-map:hover :is(.float-bar, .float-resize), html.float-moving :is(.float-bar, .float-resize), .float-bar:has(.map-layers[open]) { opacity: 1; }
+.float-bar .map-layers > summary { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; color: #e9ecf1; cursor: pointer; }
+.float-bar .map-layers > summary:hover, .float-bar .map-layers[open] > summary { background: rgba(255, 255, 255, .14); }
+.float-bar .map-layers-menu { max-height: calc(100vh - 50px); max-width: calc(100vw - 16px); overflow-y: auto; }
 
 /* ---------- Réglages : rubriques à gauche, contenu en cartes, recherche ---------- */
 #settingsModal.set-modal { width: min(1040px, calc(100vw - 48px)); height: min(740px, calc(100vh - 48px)); max-height: none; overflow: hidden;
