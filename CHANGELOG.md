@@ -11,6 +11,12 @@ l'application (Réglages → Application → Nouveautés).
   pilotes, traînées, écarts, numéros de virage, secteurs… s'activent et se désactivent sans revenir
   dans la fenêtre principale.
 
+### Mini-classement sans fond
+- Application de bureau : le mini-classement s'ouvre comme la carte flottante, sans cadre ni fond, au-dessus
+  de tout. Chaque ligne est une pastille translucide posée sur la vidéo. On le déplace en le glissant ; au
+  survol, une petite barre en bas change sa taille (− / +) ou le ferme ; le coin en bas à droite et
+  Ctrl + molette règlent aussi la taille.
+
 ### Corrections
 - Carte : les bulles d'écart (moins d'une seconde) ne sont plus coupées au bord de la carte, surtout
   dans la carte flottante ; près du bord, elles passent de l'autre côté du tracé.

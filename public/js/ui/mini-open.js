@@ -22,7 +22,8 @@ async function openMini() {
       return;
     } catch { /* refusé : petite fenêtre classique */ }
   }
-  const w = window.open('/mini.html', 'paddock-mini', `popup,width=${size.width},height=${size.height}`);
+  // Appli de bureau : fenêtre sans cadre ni fond (comme la carte flottante)
+  const w = window.open(window.f1desktop ? '/mini.html?float=1' : '/mini.html', 'paddock-mini', `popup,width=${size.width},height=${size.height}`);
   if (!w) toast('Fenêtre bloquée : autorisez les fenêtres surgissantes pour ce site', 5000);
 }
 

@@ -2096,6 +2096,7 @@ export default {
   "Plus grande": "Larger",
   "Vue d'ensemble du circuit": "Whole circuit view",
   "Remettre la carte dans la fenêtre principale": "Put the map back in the main window",
+  "Fermer le mini-classement": "Close the mini standings",
   "Fermer la carte flottante": "Close the floating map",
   "Glisser pour changer la taille": "Drag to resize",
   "La carte est déjà dans une autre fenêtre : ramenez-la d'abord ici": "The map is already in another window: bring it back here first",
