@@ -174,6 +174,7 @@ async function feed(req, url) {
 const FEEDS_TTL = 120e3;
 let feedsMemo = null;
 let feedsLoading = null;
+let feedsLoadingAt = 0;
 const feedsGood = new Map();   // dernière lecture réussie de chaque source
 export async function feeds({ fetchFn = fetch, now = Date.now() } = {}) {
   const key = new Request('https://studio.cache/feeds-all');
@@ -182,31 +183,37 @@ export async function feeds({ fetchFn = fetch, now = Date.now() } = {}) {
   if (feedsMemo && now - feedsMemo.at < FEEDS_TTL) return send(feedsMemo.body);
   const hit = await caches.default.match(key).catch(() => null);
   if (hit) return send(hit.body);
-  // Plusieurs « Actualiser » en même temps : une seule lecture des sources, partagée
-  feedsLoading ||= (async () => {
-    const list = DEFAULT_SOURCES.filter((s) => s.kind === 'rss');
-    let missing = 0;
-    const parts = await Promise.all(list.map(async (s) => {
-      try {
-        const res = await fetchFn(feedUrl(s), { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' }, signal: AbortSignal.timeout(8000) });
-        if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
-        const part = { id: s.id, type: res.headers.get('Content-Type') || '', body: new Uint8Array(await res.arrayBuffer()) };
-        feedsGood.set(s.id, { ...part, at: now });
-        return part;
-      } catch {
-        // Source lente ou en panne : dernière lecture réussie (moins de 6 heures), sinon absente
-        missing++;
-        const old = feedsGood.get(s.id);
-        return old && now - old.at < 6 * 3600e3 ? old : null;
-      }
-    }));
-    // Texte pour la compression de Cloudflare ; lu en octets par la page
-    const body = packFeeds(parts);
-    // Lecture incomplète : gardée 20 secondes seulement (la suivante réessaie les sources en panne)
-    feedsMemo = { at: missing > list.length / 5 ? now - FEEDS_TTL + 20e3 : now, body };
-    await caches.default.put(key, new Response(body, { headers: { 'Cache-Control': `max-age=${FEEDS_TTL / 1000}` } })).catch(() => {});
-    return body;
-  })().finally(() => { feedsLoading = null; });
+  // Plusieurs « Actualiser » en même temps : une seule lecture des sources, partagée. Une lecture
+  // commencée par une requête annulée peut ne jamais se terminer : au-delà de 15 s, une nouvelle part.
+  if (!feedsLoading || now - feedsLoadingAt > 15e3) {
+    feedsLoadingAt = now;
+    const job = (async () => {
+      const list = DEFAULT_SOURCES.filter((s) => s.kind === 'rss');
+      let missing = 0;
+      const parts = await Promise.all(list.map(async (s) => {
+        try {
+          const res = await fetchFn(feedUrl(s), { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' }, signal: AbortSignal.timeout(8000) });
+          if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+          const part = { id: s.id, type: res.headers.get('Content-Type') || '', body: new Uint8Array(await res.arrayBuffer()) };
+          feedsGood.set(s.id, { ...part, at: now });
+          return part;
+        } catch {
+          // Source lente ou en panne : dernière lecture réussie (moins de 6 heures), sinon absente
+          missing++;
+          const old = feedsGood.get(s.id);
+          return old && now - old.at < 6 * 3600e3 ? old : null;
+        }
+      }));
+      // Texte pour la compression de Cloudflare ; lu en octets par la page
+      const body = packFeeds(parts);
+      // Lecture incomplète : gardée 20 secondes seulement (la suivante réessaie les sources en panne)
+      feedsMemo = { at: missing > list.length / 5 ? now - FEEDS_TTL + 20e3 : now, body };
+      await caches.default.put(key, new Response(body, { headers: { 'Cache-Control': `max-age=${FEEDS_TTL / 1000}` } })).catch(() => {});
+      return body;
+    })();
+    feedsLoading = job;
+    job.finally(() => { if (feedsLoading === job) feedsLoading = null; }).catch(() => {});
+  }
   return send(await feedsLoading);
 }
 

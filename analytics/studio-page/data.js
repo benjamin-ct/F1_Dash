@@ -33,6 +33,7 @@ export const knownFrench = (text, from) => (!text || from === 'fr' ? text : frCa
 let news = null;          // nouvelles lues pendant cette visite
 let newsAt = 0;
 let newsLoading = null;
+let newsLoadingAt = 0;
 const NEWS_KEEP = 12 * 3600e3;
 
 function finish(items) {
@@ -87,14 +88,19 @@ export function freshNews({ force = false } = {}) {
     if (hit) { news = hit.v; newsAt = hit.at; }
   }
   if (news && !force && Date.now() - newsAt < NEWS_FRESH) return Promise.resolve(news);
-  newsLoading ||= fetchNews().then((items) => {
+  // Lecture en cours depuis plus de 45 s (bloquée pendant une mise en pause) : une nouvelle part
+  if (newsLoading && Date.now() - newsLoadingAt < 45e3) return newsLoading;
+  newsLoadingAt = Date.now();
+  const job = fetchNews().then((items) => {
     news = items;
     newsAt = Date.now();
     // Gardées sans les champs inutiles à l'affichage (place limitée sur le téléphone)
     store.set('news', items.filter((it) => it.t > Date.now() - 8 * 86400e3).map(({ img, ...it }) => it));
     return items;
-  }).finally(() => { newsLoading = null; });
-  return newsLoading;
+  });
+  newsLoading = job;
+  job.finally(() => { if (newsLoading === job) newsLoading = null; }).catch(() => {});
+  return job;
 }
 
 // ---------- Séances (archives de la F1) ----------
