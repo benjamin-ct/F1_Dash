@@ -7,9 +7,10 @@ l'application (Réglages → Application → Nouveautés).
 ## v1.27.31 — à venir
 
 ### À propos
-- Paddock Live est publié sous licence MIT : mention « © 2026 Paddock Live · Licence MIT » dans
-  Réglages → À propos (lien vers le texte de la licence), sur le site et dans les conditions
-  d'utilisation.
+- L'application est publiée sous licence MIT (le serveur et le Studio sous licence AGPL v3) :
+  mention « © 2026 Paddock Live · Licence MIT » dans Réglages → À propos (lien vers le texte de la
+  licence), sur le site et dans les conditions d'utilisation. Le nom « Paddock Live » et le logo ne
+  sont pas couverts par la licence.
 
 ## v1.27.30 — 2026-10-17
 
