@@ -4,7 +4,7 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
-## v1.27.27 — à venir
+## v1.27.27 — 2026-10-17
 
 ### Accueil
 - Nouvelle page d'accueil au lancement, sans spoiler : compte à rebours de la prochaine séance (avec ajout à
