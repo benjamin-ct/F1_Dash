@@ -4,6 +4,27 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.28 — à venir
+
+### Mise en page
+- Panneaux courts (petits écrans, nombreux panneaux) : la légende se replie en un bouton « Légende »
+  qui la déroule par-dessus le panneau. Les tableaux, la carte et les graphiques gagnent toute la place :
+  10 pilotes au lieu de 7 dans le classement en 900 pixels de haut, carte et radios enfin visibles.
+
+### En français
+- Noms des Grands Prix et des séances en français partout : barre du haut (« Singapour — Course »),
+  Saison (calendrier, résultats, profil des circuits, statistiques), pronostics, rappels, choix de Pirelli,
+  documents FIA et replays.
+- Enregistrements des séances plus lisibles : « GP de Singapour · Course », avec la date.
+
+### Corrections
+- Apparence claire : la pastille « Arrivée » de la barre du haut était invisible (texte blanc sur blanc).
+- Apparence sombre : le champ « Votre prénom ou pseudo » des pronostics restait blanc.
+- Délai TV : le préréglage « Temps réel (0 s) » n'est plus coupé sur les écrans de 1 500 pixels ou moins.
+- Commentaires en direct : noms des canaux raccourcis (« International », « F1 Live ») pour ne plus être coupés.
+- Replays : listes et bouton grisés quand les archives de la F1 sont indisponibles (compte F1 TV non
+  connecté), et ancien message d'erreur effacé en changeant d'année.
+
 ## v1.27.27 — 2026-10-17
 
 ### Accueil

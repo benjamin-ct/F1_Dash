@@ -4,7 +4,8 @@ import { $, esc, api, storageGet, storageSet } from '../util.js';
 import { icon, arrows } from '../icons.js';
 import { toast } from './delay.js';
 import { POINTS } from '/shared/predict.js';
-import { LOCALE } from '../i18n.js';
+import { LOCALE, EN } from '../i18n.js';
+import { gpShort, gpFull } from '/shared/gp-names.js';
 import { track } from './stats.js';
 
 let view = null;
@@ -56,7 +57,7 @@ function fill() {
   const poleOpen = next && (!next.locks.pole || now < next.locks.pole);
   const others = next ? next.picks.filter((p) => !p.mine).length : 0;
   const form = next ? `<section class="sz-box pd-next">
-      <h3>${icon('target')} ${esc(next.name)} <span class="muted small">manche ${next.round}</span></h3>
+      <h3>${icon('target')} ${esc(gpFull(next.name, EN))} <span class="muted small">manche ${next.round}</span></h3>
       <form id="pdForm" data-round="${next.round}">
         <label class="small pd-name">Votre prénom ou pseudo <input name="name" value="${esc(me())}" maxlength="24" placeholder="ex. Benjamin" required></label>
         <div class="pd-picks">
@@ -72,16 +73,16 @@ function fill() {
     </section>` : '<section class="sz-box"><p class="muted">Plus de Grand Prix à pronostiquer cette saison.</p></section>';
 
   const done = view.races.filter((r) => r.result && r.picks.length).reverse();
-  const board = view.board.length ? `<table class="sz-table pd-board"><tr><th>#</th><th>Joueur</th><th>Points</th>${done.slice(0, 6).reverse().map((r) => `<th title="${esc(r.name)}">R${r.round}</th>`).join('')}</tr>
+  const board = view.board.length ? `<table class="sz-table pd-board"><tr><th>#</th><th>Joueur</th><th>Points</th>${done.slice(0, 6).reverse().map((r) => `<th title="${esc(gpFull(r.name, EN))}">R${r.round}</th>`).join('')}</tr>
     ${view.board.map((p, i) => `<tr class="${p.name.toLowerCase() === me().toLowerCase() ? 'pd-me' : ''}"><td>${i + 1}</td><td>${esc(p.name)}</td><td><b>${p.total}</b></td>${done.slice(0, 6).reverse().map((r) => `<td class="muted">${p.rounds[r.round] ?? '—'}</td>`).join('')}</tr>`).join('')}</table>`
     : '<p class="muted small">Le classement apparaîtra après le premier Grand Prix pronostiqué.</p>';
-  const history = done.map((r, i) => `<details class="sz-box pd-round" ${i === 0 ? 'open' : ''}><summary><b>R${r.round} · ${esc(r.name.replace(' Grand Prix', ''))}</b>
+  const history = done.map((r, i) => `<details class="sz-box pd-round" ${i === 0 ? 'open' : ''}><summary><b>R${r.round} · ${esc(gpShort(r.name, EN))}</b>
       <span class="muted small">pole ${esc(r.result.pole || '—')} · podium ${esc(r.result.podium.join(', ') || '—')}</span></summary>${picksTable(r)}</details>`).join('');
   const locked = view.races.filter((r) => !r.result && r.picks.length && r !== next);
   root.innerHTML = `${form}
     <section class="sz-box"><h3>${icon('trophy')} Classement des pronostics ${view.year}</h3>${board}
       <p class="muted small">Points : pole exacte ${POINTS.pole} · pilote à la bonne place du podium ${POINTS.exact} · sur le podium mais à une autre place ${POINTS.podium} · podium exact dans l'ordre +${POINTS.perfect}.</p></section>
-    ${locked.map((r) => `<section class="sz-box pd-round"><h3>R${r.round} · ${esc(r.name.replace(' Grand Prix', ''))} <span class="muted small">en attente des résultats</span></h3>${picksTable(r)}</section>`).join('')}
+    ${locked.map((r) => `<section class="sz-box pd-round"><h3>R${r.round} · ${esc(gpShort(r.name, EN))} <span class="muted small">en attente des résultats</span></h3>${picksTable(r)}</section>`).join('')}
     ${history}`;
 }
 

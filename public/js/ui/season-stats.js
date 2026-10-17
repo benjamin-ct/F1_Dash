@@ -4,7 +4,8 @@
 import { esc, teamColor, teamMark } from '../util.js';
 import { cleanLaps, lapsLed, similarCircuits, SEASON_CRITERIA, MATE_CRITERIA, GRADES } from '/shared/season-calc.js';
 import { icon } from '../icons.js';
-import { DEC } from '../i18n.js';
+import { DEC, EN } from '../i18n.js';
+import { gpShort } from '/shared/gp-names.js';
 
 const median = (a) => {
   if (!a.length) return null;
@@ -29,7 +30,7 @@ const statusFr = (st) => {
   const m = /^\+(\d+) Laps?$/.exec(st || '');
   return m ? `+${m[1]} tour${m[1] > 1 ? 's' : ''}` : STATUS_FR[st] || st || '';
 };
-const short = (name) => String(name || '').replace(/ Grand Prix$/, '');
+const short = (name) => gpShort(name, EN);
 const mark = (team, col) => teamMark({ TeamName: team, TeamColour: col?.replace('#', '') });
 const tcol = (team, col) => teamColor({ TeamName: team, TeamColour: col?.replace('#', '') });
 

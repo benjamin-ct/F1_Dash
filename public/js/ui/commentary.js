@@ -126,7 +126,7 @@ async function refreshContent(force = false) {
 function renderSelectors() {
   const chSel = $('#commChannel');
   const channels = content?.channels?.length ? content.channels : [{ channelId: null, title: 'INTERNATIONAL', main: true }];
-  chSel.innerHTML = channels.map((c) => `<option value="${c.main ? '' : esc(c.channelId)}">${esc(c.title === 'INTERNATIONAL' ? 'International (commentaires)' : c.title === 'F1 LIVE' ? 'F1 Live (émission F1 TV)' : c.title)}</option>`).join('');
+  chSel.innerHTML = channels.map((c) => `<option value="${c.main ? '' : esc(c.channelId)}">${esc(c.title === 'INTERNATIONAL' ? 'International' : c.title === 'F1 LIVE' ? 'F1 Live' : c.title)}</option>`).join('');
   chSel.value = prefs.commChannel && channels.some((c) => String(c.channelId) === String(prefs.commChannel) && !c.main) ? String(prefs.commChannel) : '';
   renderLanguages();
 }

@@ -6,6 +6,7 @@ import { $, $$, esc, api } from '../util.js';
 import { store, on } from '../store.js';
 import { icon } from '../icons.js';
 import { LOCALE, EN } from '../i18n.js';
+import { gpShort, sessionLabel } from '/shared/gp-names.js';
 import { toast } from './delay.js';
 
 let schedule = null;   // [{ race, round, label, t }]
@@ -16,8 +17,7 @@ let touched = false;   // l'utilisateur a quitté l'accueil : plus d'ouverture o
 // Durée approximative d'une séance (fenêtre « en cours »)
 const LONG = /course|race|grand prix/i;
 const lengthOf = (label) => (LONG.test(label) && !/sprint/i.test(label) ? 150 : 75) * 60e3;
-const NAMES = { Race: 'Course', Qualifying: 'Qualifications', Sprint: 'Sprint', 'Sprint Qualifying': 'Qualifications sprint', 'Sprint Shootout': 'Qualifications sprint', 'Practice 1': 'Essais libres 1', 'Practice 2': 'Essais libres 2', 'Practice 3': 'Essais libres 3' };
-const sessionName = (n) => (EN ? n : NAMES[n] || n);
+const sessionName = (n) => sessionLabel(n, EN);
 
 async function loadSchedule() {
   const year = new Date().getFullYear();
@@ -72,7 +72,7 @@ function ago(t) {
   return d === 1 ? 'hier' : `il y a ${d} jours`;
 }
 const when = (t) => new Date(t).toLocaleString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-const gp = (name) => name.replace(/ Grand Prix$/, '');
+const gp = (name) => gpShort(name, EN);
 
 function render() {
   const view = $('#homeView');
@@ -185,7 +185,7 @@ async function act(k) {
     try {
       await api('/api/replay', { method: 'POST', body: { path: ls.path, startOffsetMs: 0 } });
       closeHome();
-      toast(`Chargement du replay : ${ls.meeting} — ${sessionName(ls.name)}`, 4000);
+      toast(`Chargement du replay : ${gp(ls.meeting)} — ${sessionName(ls.name)}`, 4000);
     } catch (err) { toast(err.message, 5000); }
   }
 }

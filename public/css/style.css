@@ -94,8 +94,11 @@ code { background: var(--panel-3); padding: 1px 5px; border-radius: 4px; font-si
 .track-status.sc .ts-dot, .track-status.vsc .ts-dot { background: #1d1200; }
 .track-status.red { background: var(--red); color: #fff; animation: pulse 1s infinite; }
 .track-status.red .ts-dot { background: #fff; }
-.track-status.chequered { background: #f2f4f8; color: var(--bg); }
-.track-status.chequered .ts-dot { width: 16px; height: 16px; border-radius: 3px; background: repeating-conic-gradient(var(--bg) 0 25%, #fff 0 50%) 0 0 / 8px 8px; }
+/* Damier : texte toujours foncé sur fond clair (en apparence claire, pastille foncée pour ressortir) */
+.track-status.chequered { background: #f2f4f8; color: #0b0c0f; }
+.track-status.chequered .ts-dot { width: 16px; height: 16px; border-radius: 3px; background: repeating-conic-gradient(#0b0c0f 0 25%, #fff 0 50%) 0 0 / 8px 8px; }
+[data-scheme="light"] .track-status.chequered { background: #15171c; color: #fff; }
+[data-scheme="light"] .track-status.chequered .ts-dot { box-shadow: 0 0 0 1px rgba(255, 255, 255, .5); }
 @keyframes pulse { 50% { filter: brightness(1.25); } }
 
 .hstat { display: flex; flex-direction: column; align-items: flex-start; }
@@ -1362,15 +1365,15 @@ select option { background: var(--panel-2); color: var(--text); }
 
 /* ---------- Champs de saisie : même allure partout (fond sombre, liseré, accent au focus) ----------
    Sélecteur sans poids (:where) : les champs qui ont leur propre style (délai, recherche…) le gardent */
-:where(input[type="text"], input[type="password"], input[type="url"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="date"], input[type="time"], textarea):where(:not(.x-native)) {
+:where(input:not([type]), input[type="text"], input[type="password"], input[type="url"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="date"], input[type="time"], textarea):where(:not(.x-native)) {
   appearance: none; -webkit-appearance: none; box-sizing: border-box;
   background: var(--panel-3); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
   padding: 5px 9px; line-height: 1.35; min-width: 0;
   transition: border-color .15s, background-color .15s, box-shadow .15s;
 }
-:where(input[type="text"], input[type="password"], input[type="url"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="date"], input[type="time"], textarea):where(:not(.x-native))::placeholder { color: var(--muted); opacity: 1; }
-:where(input[type="text"], input[type="password"], input[type="url"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="date"], input[type="time"], textarea):where(:not(.x-native)):hover { border-color: var(--line-2); }
-:where(input[type="text"], input[type="password"], input[type="url"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="date"], input[type="time"], textarea):where(:not(.x-native)):focus { outline: none; border-color: var(--accent); background-color: var(--panel-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+:where(input:not([type]), input[type="text"], input[type="password"], input[type="url"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="date"], input[type="time"], textarea):where(:not(.x-native))::placeholder { color: var(--muted); opacity: 1; }
+:where(input:not([type]), input[type="text"], input[type="password"], input[type="url"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="date"], input[type="time"], textarea):where(:not(.x-native)):hover { border-color: var(--line-2); }
+:where(input:not([type]), input[type="text"], input[type="password"], input[type="url"], input[type="email"], input[type="number"], input[type="datetime-local"], input[type="date"], input[type="time"], textarea):where(:not(.x-native)):focus { outline: none; border-color: var(--accent); background-color: var(--panel-2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
 :where(input[type="datetime-local"], input[type="date"], input[type="time"])::-webkit-calendar-picker-indicator { filter: invert(.75); cursor: pointer; }
 :root[data-scheme="light"] :where(input[type="datetime-local"], input[type="date"], input[type="time"])::-webkit-calendar-picker-indicator { filter: none; }
 
@@ -1433,6 +1436,17 @@ body.solo #muteBtn { display: none; }
 .panel-legend, .grid.mobile .panel-legend { position: relative; padding-right: 78px; }
 .panel-legend .lg-hide { position: absolute; right: 8px; top: 4px; background: none; border: 1px solid transparent; border-radius: 5px; color: var(--muted); font-size: 11px; padding: 1px 6px; cursor: pointer; }
 .panel-legend .lg-hide:hover { border-color: var(--border); color: var(--text); }
+/* Légende repliée (panneau court) : un bouton, la légende se déroule par-dessus le contenu */
+.panel { position: relative; }
+.panel-legend .lg-body { display: contents; }
+.panel-legend .lg-more { display: none; align-items: center; gap: 5px; background: none; border: 1px solid transparent; border-radius: 5px; color: var(--muted); font: inherit; font-size: 11.5px; padding: 1px 6px; cursor: pointer; }
+.panel-legend .lg-more:hover { border-color: var(--border); color: var(--text); }
+.panel-legend .lg-more .ic { width: 13px; height: 13px; }
+.panel-legend.compact { padding: 2px 6px; }
+.panel-legend.compact .lg-more { display: inline-flex; }
+.panel-legend.compact:not(.open) .lg-body, .panel-legend.compact:not(.open) .lg-hide { display: none; }
+.panel-legend.compact.open { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; max-height: 75%; padding: 6px 78px 8px 12px; box-shadow: 0 -10px 24px rgba(0, 0, 0, .35); }
+.panel-legend.compact.open .lg-more { color: var(--text); }
 
 /* Analyse → Comparaison (js/ui/compare.js) */
 #anaCompare { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 12px; }
@@ -1638,7 +1652,7 @@ body.solo #muteBtn { display: none; }
 @media (min-width: 901px) and (max-width: 1500px) {
   [data-theme="pitwall"] .topbar { gap: 14px; padding: 6px 12px; }
   [data-theme="pitwall"] .topbar #lapsLeftBox { display: none !important; }
-  [data-theme="pitwall"] .delay .preset { max-width: 120px; }
+  [data-theme="pitwall"] .delay .preset { max-width: 150px; }
 }
 
 /* ---------- Onglet Pneus (js/ui/tyres.js) ---------- */

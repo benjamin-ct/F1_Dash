@@ -3,6 +3,8 @@ import { store, f1Now, versionOf } from '../store.js';
 import { $, esc, fmtDuration, sessionKind, currentStint } from '../util.js';
 import { trackStatusInfo, SESSION_STATUS_FR, parseUtc, parseLapTime } from '/shared/f1.js';
 import { FLAG_ISO } from '/shared/flags.js';
+import { gpShort, gpFull, sessionLabel } from '/shared/gp-names.js';
+import { EN } from '../i18n.js';
 
 export { FLAG_ISO };
 import { icon } from '../icons.js';
@@ -20,8 +22,8 @@ export function renderHeader() {
     const kind = sessionKind(s);
     // « Azerbaijan GP — Race » (nom complet au survol), comme MultiViewer : plus de place pour le reste
     const sn = $('#sessionName');
-    sn.textContent = info ? `${String(info.Meeting?.Name || '').replace(/\bGrand Prix\b/i, 'GP')} — ${info.Name || ''}` : (store.connected ? 'En attente de données…' : 'Connexion au serveur…');
-    sn.title = info ? `${info.Meeting?.Name || ''} — ${info.Name || ''}` : '';
+    sn.textContent = info ? `${EN ? gpFull(info.Meeting?.Name, true, 'GP') : gpShort(info.Meeting?.Name)} — ${sessionLabel(info.Name, EN)}` : (store.connected ? 'En attente de données…' : 'Connexion au serveur…');
+    sn.title = info ? `${gpFull(info.Meeting?.Name, EN)} — ${sessionLabel(info.Name, EN)}` : '';
     const status = s.SessionStatus?.Status || info?.SessionStatus;
     $('#sessionSub').textContent = info
       ? [info.Meeting?.Circuit?.ShortName, info.Meeting?.Country?.Name, status ? SESSION_STATUS_FR[status] || status : null].filter(Boolean).join(' · ')

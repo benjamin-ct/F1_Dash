@@ -2012,4 +2012,7 @@ export default {
   "Apparence : {}. Cliquer pour changer (automatique, sombre ou clair)": "Appearance: {}. Click to change (automatic, dark or light)",
   "Apparence : automatique, sombre ou clair": "Appearance: automatic, dark or light",
   "Auto": "Auto",
+  "Afficher la légende de ce panneau": "Show this panel's legend",
+  "{} Légende": "{} Legend",
+  "Légende": "Legend",
 };

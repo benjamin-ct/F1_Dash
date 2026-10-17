@@ -5,7 +5,8 @@ import { toast } from './delay.js';
 import { prefs, setPref, toggleFav } from '../prefs.js';
 import { saveWindowsSnapshot, restoreWindowsSnapshot, hasWindowsSnapshot } from './layout.js';
 import { icon } from '../icons.js';
-import { LANG, LOCALE } from '../i18n.js';
+import { LANG, LOCALE, EN } from '../i18n.js';
+import { gpFull, sessionLabel } from '/shared/gp-names.js';
 
 let archive = [];
 let dragging = false;
@@ -13,6 +14,7 @@ let dragging = false;
 async function loadYear(year) {
   $('#rpMeeting').innerHTML = '<option>Chargement…</option>';
   $('#rpSession').innerHTML = '';
+  $('#rpMsg').textContent = '';
   try {
     archive = await api(`/api/archive?year=${year}`);
   } catch (err) {
@@ -20,16 +22,18 @@ async function loadYear(year) {
     $('#rpMsg').textContent = err.message;
   }
   const meetings = archive.filter((m) => m.sessions.length);
-  $('#rpMeeting').innerHTML = meetings.map((m, i) => `<option value="${i}">${esc(m.name)} (${esc(m.location || '')})</option>`).join('');
+  $('#rpMeeting').innerHTML = meetings.map((m, i) => `<option value="${i}">${esc(gpFull(m.name, EN))} (${esc(m.location || '')})</option>`).join('');
   $('#rpMeeting').value = String(meetings.length - 1);
   archive = meetings;
+  // Archives indisponibles (compte F1 TV non connecté) : listes et bouton grisés
+  for (const id of ['#rpMeeting', '#rpSession', '#goReplay']) $(id).disabled = !meetings.length;
   fillSessions();
 }
 
 function fillSessions() {
   const m = archive[Number($('#rpMeeting').value)];
   const sessions = m?.sessions || [];
-  $('#rpSession').innerHTML = sessions.map((s, i) => `<option value="${i}">${esc(s.name)} — ${esc((s.start || '').slice(0, 10))}</option>`).join('');
+  $('#rpSession').innerHTML = sessions.map((s, i) => `<option value="${i}">${esc(sessionLabel(s.name, EN))} — ${esc((s.start || '').slice(0, 10))}</option>`).join('');
   $('#rpSession').value = String(Math.max(0, sessions.length - 1));
 }
 
@@ -334,7 +338,7 @@ export function initSettings() {
     try {
       await api('/api/replay', { method: 'POST', body: { path: sess.path, ...(begin ? { startOffsetMs: 0 } : {}) } });
       modal.close();
-      toast(`Chargement du replay : ${m.name} — ${sess.name}`, 4000);
+      toast(`Chargement du replay : ${gpFull(m.name, EN)} — ${sessionLabel(sess.name, EN)}`, 4000);
     } catch (err) {
       $('#rpMsg').textContent = err.message;
     }
@@ -400,13 +404,20 @@ export function initSettings() {
   setInterval(renderReplayBar, 250);
 }
 
+// « 2026-10-11 Singapore Grand Prix Race 11388 » -> « GP de Singapour · Course », date à part
+function recLabel(name) {
+  const m = /^(\d{4}-\d{2}-\d{2}) (.+? Grand Prix) (.+?) \d+$/.exec(name || '');
+  if (!m) return { title: name, date: '' };
+  return { title: `${gpFull(m[2], EN, 'GP')} · ${sessionLabel(m[3], EN)}`, date: new Date(`${m[1]}T12:00:00`).toLocaleDateString(LOCALE, { day: 'numeric', month: 'short', year: 'numeric' }) };
+}
+
 async function renderRecordings() {
   const el = $('#recList');
   try {
     const recs = await api('/api/recordings');
-    el.innerHTML = recs.length ? recs.map((r) => `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(r.name)}</span>
-      <span class="muted">${(r.size / 1e6).toFixed(1)} Mo</span>
-      <button class="btn small" data-play="${esc(r.id)}">${icon('play')} Rejouer</button><button class="btn small" data-del-rec="${esc(r.id)}" title="Supprimer">${icon('trash')}</button></div>`).join('')
+    el.innerHTML = recs.length ? recs.map((r) => { const l = recLabel(r.name); return `<div class="rec"><span class="rec-name" title="${esc(r.name)}">${esc(l.title)}${l.date ? ` <span class="muted small">${esc(l.date)}</span>` : ''}</span>
+      <span class="muted">${(r.size / 1e6).toFixed(1).replace('.', EN ? '.' : ',')} Mo</span>
+      <button class="btn small" data-play="${esc(r.id)}">${icon('play')} Rejouer</button><button class="btn small" data-del-rec="${esc(r.id)}" title="Supprimer">${icon('trash')}</button></div>`; }).join('')
       : '<span class="muted small">Aucun enregistrement pour l\'instant : ils se créent automatiquement pendant les sessions live.</span>';
   } catch (err) { el.textContent = err.message; }
 }

@@ -9,6 +9,7 @@ import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleT
 import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
 import { DEC, LOCALE, EN } from '../i18n.js';
+import { gpShort, gpFull } from '/shared/gp-names.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
 const OFFICIAL = {
@@ -181,7 +182,7 @@ function renderHome() {
   const [p1, p2] = data.drivers;
   const [c1, c2] = data.constructors;
   return `<div class="sz-cards">
-      <div class="sz-card sz-count">${nx ? `<div class="sz-kicker"><span class="sz-badge">R${nx.race.round}</span> ${esc(nx.race.name)} : ${esc(nx.s.label)}</div>
+      <div class="sz-card sz-count">${nx ? `<div class="sz-kicker"><span class="sz-badge">R${nx.race.round}</span> ${esc(gpFull(nx.race.name, EN))} : ${esc(nx.s.label)}</div>
         <div class="sz-countdown" id="szCountdown" data-t="${esc(nx.s.t)}"></div>
         <div class="small sz-when">${fmtDate(nx.s.t, { weekday: 'long', day: 'numeric', month: 'long' })} à ${fmtTime(nx.s.t)}</div>` : '<div class="sz-kicker">Saison terminée</div>'}</div>
       <div class="sz-card"><div class="muted small">Calendrier ${data.year}</div><div class="sz-big">${esc(nx?.race.locality || nx?.race.country || '—')}</div>
@@ -190,7 +191,7 @@ function renderHome() {
         <div class="muted small">${p1 ? `${p1.points} pts${p2 ? ` · +${p1.points - p2.points} sur ${esc(p2.last)}` : ''}` : ''}</div></div>
       <div class="sz-card"><div class="muted small">Leader constructeurs</div><div class="sz-big">${c1 ? `${bar(c1.name, c1.id)}${esc(c1.name)}` : '—'}</div>
         <div class="muted small">${c1 ? `${c1.points} pts${c2 ? ` · +${c1.points - c2.points} sur ${esc(c2.name)}` : ''}` : ''}</div></div>
-      ${last ? `<div class="sz-card"><div class="muted small">Dernier vainqueur · R${last.round}</div><div class="sz-big">${bar(last.results[0].team, last.results[0].teamId)}${esc(last.results[0].last)}</div><div class="muted small">${esc(last.name)}</div></div>` : ''}
+      ${last ? `<div class="sz-card"><div class="muted small">Dernier vainqueur · R${last.round}</div><div class="sz-big">${bar(last.results[0].team, last.results[0].teamId)}${esc(last.results[0].last)}</div><div class="muted small">${esc(gpFull(last.name, EN))}</div></div>` : ''}
     </div>
     <div class="sz-grid2">
       <section class="sz-box"><h3>Classement pilotes</h3>${standingsTable(data.drivers, 'd', 10)}<button class="btn small" data-szgo="standings">Classement complet ${icon('arrow-right', 'ic-s')}</button></section>
@@ -206,7 +207,7 @@ function renderCalendar() {
     const w = r.results[0];
     return `<details class="sz-race ${nx?.race.round === r.round ? 'is-next' : ''}" ${nx?.race.round === r.round ? 'open' : ''}>
       <summary><div class="sz-race-top"><span class="muted">R${r.round}</span> ${r.sprint ? '<span class="sz-tag sprint">Sprint</span>' : ''} ${status}</div>
-        <div class="sz-race-name">${esc(r.name.replace(' Grand Prix', ''))}</div>
+        <div class="sz-race-name">${esc(gpShort(r.name, EN))}</div>
         <div class="muted small">${esc(r.circuit || '')} · ${fmtDate(first)} – ${fmtDate(r.date)}</div>
         ${w ? `<div class="small">${icon('trophy')} ${chip(w)} ${r.quali[0] ? `· pole ${chip(r.quali.find((q) => q.pos === 1) || r.quali[0])}` : ''}</div>` : ''}</summary>
       <ul class="sz-sessions">${r.sessions.map((s) => `<li><span>${esc(s.label)}</span><span>${s.t ? `${fmtDate(s.t, { weekday: 'short', day: 'numeric', month: 'short' })} · ${fmtTime(s.t)}` : '—'}</span></li>`).join('')}</ul>
@@ -267,7 +268,7 @@ function renderResults() {
       ${card('Victoire la plus serrée', st.closest ? `+${st.closest.v.toFixed(3).replace('.', DEC)} s` : '—', st.closest ? `${esc(st.closest.d.last)} · R${st.closest.r.round} ${esc(st.closest.r.locality || '')}` : '')}
     </div>
     <section class="sz-box"><h3>Grands Prix</h3><table class="sz-table sz-results"><tr><th>Manche</th><th>Grand Prix</th><th>Date</th><th>Vainqueur sprint</th><th>Pole</th><th>Vainqueur</th><th>2e</th><th>3e</th></tr>
-      ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${esc(r.name.replace(' Grand Prix', ''))}</td><td>${fmtDate(r.date)}</td>
+      ${data.races.map((r) => `<tr class="${done(r) ? '' : 'muted'}"><td>R${r.round}</td><td>${esc(gpShort(r.name, EN))}</td><td>${fmtDate(r.date)}</td>
         <td>${r.sprintResults[0] ? chip(r.sprintResults[0]) : '—'}</td><td>${r.quali.find((q) => q.pos === 1) ? chip(r.quali.find((q) => q.pos === 1)) : '—'}</td>
         <td>${r.results[0] ? chip(r.results[0]) : '—'}</td><td>${r.results[1] ? chip(r.results[1]) : ''}</td><td>${r.results[2] ? chip(r.results[2]) : ''}</td></tr>`).join('')}</table></section>`;
 }
@@ -288,7 +289,7 @@ function qualiGapBox(g, A, B, ca) {
   const bars = g.rounds.map((x, i) => {
     const y = Y(-x.s), x0 = pl + i * bw + bw * 0.18;
     const c = x.s <= 0 ? ca : 'var(--muted)';
-    return `<rect x="${x0}" y="${Math.min(y, mid)}" width="${bw * 0.64}" height="${Math.max(1, Math.abs(y - mid))}" rx="2" fill="${c}" ${x.outlier ? 'opacity=".35"' : ''}><title>R${x.round} ${esc(x.name.replace(' Grand Prix', ''))} (Q${x.part}) : ${esc(x.s <= 0 ? A.last : B.last)} devant de ${f3(x.s)}</title></rect>
+    return `<rect x="${x0}" y="${Math.min(y, mid)}" width="${bw * 0.64}" height="${Math.max(1, Math.abs(y - mid))}" rx="2" fill="${c}" ${x.outlier ? 'opacity=".35"' : ''}><title>R${x.round} ${esc(gpShort(x.name, EN))} (Q${x.part}) : ${esc(x.s <= 0 ? A.last : B.last)} devant de ${f3(x.s)}</title></rect>
       ${Math.abs(x.s) > cap ? `<text x="${pl + i * bw + bw / 2}" y="${x.s < 0 ? y + 12 : y - 4}" class="sz-ax sz-clip" text-anchor="middle">${Math.abs(x.s).toFixed(2).replace('.', DEC)} s</text>` : ''}
       <text x="${pl + i * bw + bw / 2}" y="${H - 18}" class="sz-ax" text-anchor="middle">R${x.round}</text><text x="${pl + i * bw + bw / 2}" y="${H - 5}" class="sz-ax" text-anchor="middle">Q${x.part}</text>`;
   }).join('');

@@ -6,7 +6,8 @@ import { docSummaryFr } from '/shared/fia-docs-fr.js';
 import { parseFiaDoc } from '/shared/stewards.js';
 import { fiaState } from './feed.js';
 import { icon } from '../icons.js';
-import { LOCALE } from '../i18n.js';
+import { LOCALE, EN } from '../i18n.js';
+import { gpFull } from '/shared/gp-names.js';
 
 let open = null;      // outil ouvert : 'docs' | 'speeds' | 'sectors'
 let pop = null;
@@ -40,7 +41,7 @@ function docsHtml() {
     const t = new Date(ms);
     return t.toLocaleString(LOCALE, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
   };
-  const event = store.state.SessionInfo?.Meeting?.Name || 'Grand Prix';
+  const event = gpFull(store.state.SessionInfo?.Meeting?.Name || 'Grand Prix', EN);
   const body = rows.length ? rows.map(({ d, sum, cars }) => `<div class="tbd-doc">
       <div class="tbd-main"><div class="tbd-title">${esc(d.title)}</div>
         <div class="tbd-sum">${cars.length ? `<b>${esc(cars.join(', '))}</b> · ` : ''}${esc(sum.text)}</div></div>

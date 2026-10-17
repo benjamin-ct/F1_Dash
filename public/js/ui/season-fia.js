@@ -4,6 +4,7 @@ import { $, esc, teamColor, teamMark, storageGet, storageSet } from '../util.js'
 import { translated, requestTranslations, onTranslation, translationState } from './fia-translate.js';
 import { icon } from '../icons.js';
 import { DEC, EN } from '../i18n.js';
+import { gpShort } from '/shared/gp-names.js';
 
 const TYPES_FR = { Performance: 'Performance', 'Circuit specific': 'Spécifique au circuit', Reliability: 'Fiabilité', 'Structural Improvement': 'Structure' };
 const REASONS_FR = {
@@ -93,7 +94,7 @@ const EL_FR = { ICE: 'Moteur thermique', TC: 'Turbo', EX: 'Échappement', 'MGU-K
 
 const mark = (team, ctx, teamId) => teamMark({ TeamName: team, TeamColour: ctx.official(teamId) });
 const tcol = (team, ctx, teamId) => teamColor({ TeamName: team, TeamColour: ctx.official(teamId) });
-const short = (n) => String(n || '').replace(/ Grand Prix$/, '').replace(/^Grand Prix of /, '');
+const short = (n) => gpShort(n, EN);
 
 function note(fia) {
   if (!fia) return '<div class="note">Chargement des documents de la FIA…</div>';
