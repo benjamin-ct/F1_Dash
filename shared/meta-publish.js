@@ -149,6 +149,18 @@ export async function storyFacebook(meta, images) {
   return { url: `https://www.facebook.com/${meta.pageId}`, id: null, count: hosted.length };
 }
 
+// Reel Instagram : vidéo lue par Instagram à une adresse publique (fichier du site), montrée aussi
+// dans le fil. La préparation d'une vidéo prend souvent une à deux minutes.
+export async function reelInstagram(meta, videoUrl, caption) {
+  if (!meta?.igId) throw new Error('Aucun compte Instagram professionnel relié à la page Facebook');
+  const tok = { access_token: meta.pageToken };
+  const c = await call(`${GRAPH}/${meta.igId}/media`, { method: 'POST', form: { media_type: 'REELS', video_url: videoUrl, caption: String(caption || '').slice(0, 2200), share_to_feed: 'true', ...tok } });
+  await ready(`${GRAPH}/${c.id}?${new URLSearchParams({ fields: 'status_code,status', ...tok })}`, 'status_code', 'Reel');
+  const pub = await call(`${GRAPH}/${meta.igId}/media_publish`, { method: 'POST', form: { creation_id: c.id, ...tok } });
+  const link = await call(`${GRAPH}/${pub.id}?${new URLSearchParams({ fields: 'permalink', ...tok })}`).catch(() => ({}));
+  return { url: link.permalink || `https://www.instagram.com/${meta.igUsername || ''}`, id: pub.id };
+}
+
 // Jeton Threads de 60 jours : prolongé quand il reste moins de 10 jours. Renvoie le compte à jour
 // (à enregistrer par l'appelant s'il a changé), ou le même si la prolongation échoue.
 export async function freshThreads(th) {

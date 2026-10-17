@@ -119,7 +119,7 @@ const NETS = [
   { id: 'bluesky', name: 'Bluesky', media: 'x', text: 'bluesky', api: 'bluesky', hint: '4 images au plus', max: 300 },
   { id: 'x', name: 'X', media: 'x', text: 'x', hint: 'Images à joindre au post', max: 280, intent: 'https://x.com/intent/post?text=' },
   { id: 'tiktok', name: 'TikTok', media: 'video', text: 'tiktok', draft: 'tiktok', hint: 'Vidéo verticale : envoyée en brouillon, son et texte à ajouter dans TikTok' },
-  { id: 'reels', name: 'Reels Instagram', media: 'video', text: 'tiktok', hint: 'Même vidéo, en Reel' },
+  { id: 'reels', name: 'Reels Instagram', media: 'reel', text: 'reels', draft: 'instagram-reel', who: 'instagram', hint: 'Même vidéo, en Reel (montré aussi dans le fil)' },
   { id: 'youtube', name: 'YouTube Shorts', media: 'video', text: 'youtube', draft: 'youtube', hint: '1re ligne = titre (100 caractères au plus). Envoyé en privé : verrouillé tant que l\'audit de l\'API YouTube n\'est pas passé' },
   { id: 'story', name: 'Stories Instagram et Facebook', media: 'story', hint: 'Une story par image, dans l\'ordre', stories: [['instagram-story', 'instagram', 'Instagram'], ['facebook-story', 'facebook', 'Facebook']] },
 ];
@@ -130,7 +130,8 @@ const setDone = (acc, id, on) => {
   d[`${acc}.${id}`] = on;
   store.set('launch', d);
 };
-const mediaOf = (acc, kind) => (kind === 'video' ? [`/kit/${acc}/video.mp4`] : files(acc, kind, ACCOUNTS[acc][kind]));
+// Vidéo : plein cadre (TikTok, Shorts) ; Reel : même vidéo un peu réduite, dans la partie visible sur iPhone
+const mediaOf = (acc, kind) => (kind === 'video' || kind === 'reel' ? [`/kit/${acc}/${kind}.mp4`] : files(acc, kind, ACCOUNTS[acc][kind]));
 
 // Fichiers du kit (gardés pendant la visite)
 const blobs = new Map();
@@ -182,14 +183,15 @@ function render() {
 
 function block(x, a, isDone) {
   const media = mediaOf(acc, x.media);
-  const text = x.text ? a.text[x.text] : '';
+  // Reel : texte TikTok sans le hashtag propre à TikTok
+  const text = x.text === 'reels' ? a.text.tiktok.replace(/\s*#F1TikTok\b/g, '') : x.text ? a.text[x.text] : '';
   // Publication directe seulement sur le compte du kit choisi (le Studio est relié à un seul compte
   // par réseau : pas de post de Paddock Live sur le compte de Benjy Paddock, ni l'inverse)
-  const linked = x.api || x.draft ? session.me?.[x.api || x.draft] : null;
+  const linked = x.api || x.draft ? session.me?.[x.api || x.who || x.draft] : null;
   const mine = (name) => (name && a.match.test(String(name).replace(/[\s._-]/g, '')) ? name : null);
   const account = mine(linked);
   const stories = (x.stories || []).filter(([, net]) => mine(session.me?.[net]));
-  const thumbs = x.media === 'video'
+  const thumbs = x.media === 'video' || x.media === 'reel'
     ? `<video src="${media[0]}" playsinline controls preload="metadata"></video>`
     : `<div class="kit-media ${x.media}">${media.map((u, i) => `<img src="${u}" alt="" loading="lazy" data-i="${i}">`).join('')}</div>`;
   return `<section class="panel kit-net${isDone ? ' done' : ''}" data-net="${x.id}">
@@ -200,7 +202,7 @@ function block(x, a, isDone) {
       <div class="row kit-actions">
         ${account && x.api ? `<button class="btn primary small" data-publish>${icon('send')}Publier sur ${esc(account)}</button>` : ''}
         ${stories.map(([id, net, label]) => `<button class="btn primary small" data-story="${id}">${icon('send')}Story ${label} (${esc(session.me[net])})</button>`).join('')}
-        ${account && x.draft ? `<button class="btn primary small" data-draft>${icon('send')}${x.draft === 'tiktok' ? 'Brouillon' : 'Envoyer en privé'} sur ${esc(account)}</button>` : ''}
+        ${account && x.draft ? `<button class="btn primary small" data-draft>${icon('send')}${{ tiktok: 'Brouillon', youtube: 'Envoyer en privé', 'instagram-reel': 'Publier le Reel' }[x.draft]} sur ${esc(account)}</button>` : ''}
         ${x.intent ? `<button class="btn small" data-intent>${icon('link')}Ouvrir ${esc(x.name)}</button>` : ''}
         <button class="btn small" data-share>${icon('share')}${IOS ? 'Partager' : 'Enregistrer'}</button>
         ${x.text ? `<button class="btn small" data-copy>${icon('copy')}Copier le texte</button>` : ''}
@@ -256,19 +258,39 @@ function bind(x) {
     $('[data-draft]', box).onclick = async (e) => {
       const b = e.currentTarget;
       const st = $('[data-st]', box);
-      const who = session.me?.[x.draft];
-      if (!confirm(x.draft === 'tiktok'
-        ? `Envoyer la vidéo en brouillon sur TikTok (${who}) ?\n\nRien n'est publié : ouvrez ensuite la notification dans TikTok pour ajouter le son, coller le texte et publier.`
-        : `Envoyer la vidéo en privé sur YouTube (${who}) ?\n\nTant que votre projet Google n'a pas passé l'audit de l'API YouTube, YouTube la verrouille en privé (impossible de la rendre publique).`)) return;
+      const who = session.me?.[x.who || x.draft];
+      if (!confirm({
+        tiktok: `Envoyer la vidéo en brouillon sur TikTok (${who}) ?\n\nRien n'est publié : ouvrez ensuite la notification dans TikTok (Boîte de réception → Notifications système) pour ajouter le son, coller le texte et publier.`,
+        youtube: `Envoyer la vidéo en privé sur YouTube (${who}) ?\n\nTant que votre projet Google n'a pas passé l'audit de l'API YouTube, YouTube la verrouille en privé (impossible de la rendre publique).`,
+        'instagram-reel': `Publier maintenant le Reel sur Instagram (${who}) ?\n\nLe Reel sera public. La préparation de la vidéo par Instagram prend une à deux minutes.`,
+      }[x.draft])) return;
       b.disabled = true;
       st.className = 'st';
-      st.textContent = 'Envoi de la vidéo…';
+      st.textContent = x.draft === 'instagram-reel' ? 'Publication du Reel (1 à 2 minutes)…' : 'Envoi de la vidéo…';
       try {
         const r = await api('video', { method: 'POST', body: JSON.stringify({ network: x.draft, src: media[0], text: area?.value || '' }) });
         if (x.draft === 'tiktok') { try { await navigator.clipboard.writeText(area.value); } catch { /* presse-papiers refusé */ } }
         st.className = 'st ok';
         st.innerHTML = `${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Envoyé ${icon('check')}</a>` : `Envoyé ${icon('check')}`} ${esc(r.note || '')}${x.draft === 'tiktok' ? ' (texte copié)' : ''}`;
-        toast(x.draft === 'tiktok' ? 'Brouillon envoyé dans TikTok' : 'Short envoyé en privé', 'ok');
+        // TikTok encore en train de traiter la vidéo : nouvelle lecture de l'état à la demande
+        if (r.pending && r.id) {
+          const again = document.createElement('button');
+          again.className = 'btn small';
+          again.textContent = 'Vérifier l\'état';
+          again.onclick = async () => {
+            again.disabled = true;
+            try {
+              const s = await api('video', { method: 'POST', body: JSON.stringify({ network: 'tiktok-status', id: r.id }) });
+              st.className = 'st ok';
+              st.textContent = s.note;
+              if (s.pending) st.append(' ', again);
+            } catch (err) { st.className = 'st err'; st.textContent = err.message; }
+            again.disabled = false;
+          };
+          st.append(' ', again);
+        }
+        toast({ tiktok: 'Brouillon envoyé dans TikTok', youtube: 'Short envoyé en privé', 'instagram-reel': 'Reel publié' }[x.draft], 'ok');
+        if (x.draft === 'instagram-reel') { setDone(acc, x.id, true); setTimeout(render, 1500); }
       } catch (err) {
         st.className = 'st err';
         st.textContent = err.message;
