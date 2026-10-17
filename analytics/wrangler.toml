@@ -31,3 +31,26 @@ binding = "AI"
 SITE_ORIGIN = "https://paddocklive.app"
 AI_DAILY_LIMIT = "20000"
 ASR_DAILY_LIMIT = "3000"
+
+# Journaux et traces du Worker dans le tableau de bord Cloudflare (Observability) : chaque requête,
+# ses console.log et ses erreurs, conservés pour retrouver l'origine d'un problème
+[observability]
+enabled = false
+head_sampling_rate = 1
+redact_query_string = false
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 1
+persist = true
+
+# Pas encore connu de wrangler 4.151 (simple avertissement au déploiement) : à activer aussi dans le
+# tableau de bord Cloudflare si besoin
+[observability.issue_detection]
+enabled = true
