@@ -736,6 +736,23 @@ function openWindow(win) {
   return window.open(`/?win=${encodeURIComponent(win)}`, `paddock-${win}`, 'width=1200,height=800');
 }
 
+// Carte flottante (application de bureau) : la carte part dans une fenêtre transparente, sans cadre,
+// au-dessus de tout ; elle revient ici quand on ferme cette fenêtre.
+export function floatMap() {
+  if (!isMain) return;
+  if ([...others.values()].some((o) => o.panels?.includes('map'))) { toast('La carte est déjà dans une autre fenêtre : ramenez-la d\'abord ici', 3500, 'warning'); return; }
+  const all = allLayouts();
+  for (const k of Object.keys(all)) { const w = k.split('@')[0]; if (w !== 'main' && !others.has(w)) delete all[k]; }
+  const target = `float${Date.now().toString(36)}`;
+  all[lkey(target)] = { cols: [{ w: 1, items: [{ id: 'map', h: 1 }] }] };
+  storageSet(LAYOUTS_KEY, all);
+  track('feature.floatmap');
+  if (!window.open(`/?win=${target}&float=1`, `paddock-${target}`, 'width=560,height=460')) return;
+  others.set(target, { panels: ['map'], last: Date.now() + 5000 });
+  if ($('.grid').classList.contains('has-max')) unmaximize();
+  render();
+}
+
 // Envoie un panneau vers une autre fenêtre (existante : il s'y ajoute ; sinon nouvelle fenêtre).
 function sendTo(id, target) {
   if (target === 'main') {

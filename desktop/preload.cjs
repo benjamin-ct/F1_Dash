@@ -24,4 +24,7 @@ contextBridge.exposeInMainWorld('f1desktop', {
   focusWindow: () => ipcRenderer.invoke('window-focus'),
   memory: () => ipcRenderer.invoke('app-memory'),
   setLang: (l) => ipcRenderer.send('ui-lang', l),
+  // Carte flottante (fenêtre sans cadre) : position et taille
+  floatBounds: (b) => ipcRenderer.send('float-bounds', b),
+  floatGetBounds: () => ipcRenderer.invoke('float-bounds-get'),
 });

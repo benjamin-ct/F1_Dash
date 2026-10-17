@@ -13,6 +13,7 @@
   <title>Paddock Live</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/style.css">
+  <script>/* Carte flottante : page transparente dès l'affichage */ if (/[?&]float=1(&|$)/.test(location.search)) document.documentElement.classList.add('float-map');</script>
   <script>/* Thème Pitwall et apparence (sombre / clair / système) posés avant l'affichage : pas d'éclair */ try { const p = JSON.parse(localStorage.getItem('paddock.prefs') || '{}'); const s = p.schemeSet || p.scheme === 'light' ? p.scheme : 'auto'; const light = s === 'light' || (s === 'auto' && matchMedia('(prefers-color-scheme: light)').matches); document.documentElement.dataset.scheme = light ? 'light' : 'dark'; } catch { document.documentElement.dataset.scheme = 'dark'; } document.documentElement.dataset.theme = 'pitwall';</script>
 </head>
 <body>
@@ -227,6 +228,7 @@
         <div class="panel-tools">
           <span class="map-mode" id="mapMode"></span>
           <label class="toggle" title="Centrer la carte sur le pilote suivi (clic sur un pilote du classement)"><input type="checkbox" id="mapFollow"> Suivre</label>
+          <button class="btn small" id="mapFloatBtn" hidden title="Carte flottante : seule, sans fond ni fenêtre, au-dessus de tout (par-dessus la vidéo) ; taille réglable"><svg class="ic" aria-hidden="true"><use href="#i-window"/></svg> Flottante</button>
           <details class="map-layers" id="mapLayers">
             <summary class="btn small" title="Éléments affichés sur la carte">Calques <svg class="ic ic-s" aria-hidden="true"><use href="#i-chevron-down"/></svg></summary>
             <div class="map-layers-menu">

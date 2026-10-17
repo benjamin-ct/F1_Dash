@@ -13,6 +13,13 @@ l'application (Réglages → Application → Nouveautés).
   victoires au classement des constructeurs, et leurs actualités sont mises en avant (filtre « Favoris »
   et alertes d'actualités). Elles se règlent aussi dans Réglages → Alertes & favoris.
 
+### Carte flottante
+- Application de bureau : bouton « Flottante » dans le panneau Carte. Le circuit part dans une fenêtre
+  sans cadre et sans fond, toujours au-dessus des autres (par-dessus la vidéo, même en plein écran).
+  On la déplace en la glissant ; au survol, une petite barre change sa taille (− / +), recadre le
+  circuit, la remet dans la fenêtre principale ou la ferme ; le coin en bas à droite et Ctrl + molette
+  règlent aussi la taille. Elle se rouvre à sa place au lancement suivant.
+
 ### Moins d'onglets
 - Les onglets proches sont réunis : « Écarts » (race trace et positions), « Temps » (tours et rythme) et
   « Direction de course » (messages, enquêtes et limites de piste). Un petit sélecteur en haut de chacun

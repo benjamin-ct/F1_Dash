@@ -2537,3 +2537,26 @@ a.btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5
 .hm-fav-edit { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
 .hm-fav-edit .fav-list { gap: 6px; }
 .hm-fav-edit .fav { padding: 4px 11px; font-size: 13px; font-weight: 600; }
+
+/* ---------- Carte flottante (application de bureau) : la carte seule, sans fond ni fenêtre ---------- */
+html.float-map, html.float-map body { background: transparent !important; overflow: hidden; }
+html.float-map body > :not(.grid):not(.float-bar):not(.float-resize):not(.toast) { display: none !important; }
+html.float-map .grid { position: fixed; inset: 0; padding: 0 !important; margin: 0; background: transparent !important; display: block !important; }
+html.float-map .grid .panel:not(.p-map), html.float-map .grid :is(.lsplit-v, .lsplit-h) { display: none !important; }
+html.float-map .grid .lcol { background: transparent !important; }
+html.float-map .p-map { position: fixed !important; z-index: 1; inset: 0 !important; width: auto !important; height: auto !important; background: transparent !important;
+  border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+html.float-map .p-map > :not(.panel-body) { display: none !important; }
+html.float-map .map-wrap { position: absolute; inset: 0; background: transparent !important; cursor: grab; }
+html.float-map.float-moving, html.float-map.float-moving * { cursor: grabbing !important; }
+html.float-map :is(.map-zoom, .map-legend, .map-ribbon) { display: none !important; }
+/* Barre d'outils et coin de redimensionnement : visibles au survol seulement */
+.float-bar { position: fixed; top: 6px; right: 6px; z-index: 50; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 10px;
+  background: rgba(10, 11, 14, .72); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, .12); opacity: 0; transition: opacity .15s; }
+.float-bar button, .float-grip { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 7px; background: none; color: #e9ecf1; font: 700 15px/1 inherit; cursor: pointer; }
+.float-grip { cursor: grab; }
+.float-bar button:hover { background: rgba(255, 255, 255, .14); }
+.float-bar .ic { width: 15px; height: 15px; }
+.float-resize { position: fixed; right: 0; bottom: 0; z-index: 50; width: 18px; height: 18px; cursor: nwse-resize; opacity: 0; transition: opacity .15s;
+  background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, .55) 50%, rgba(255, 255, 255, .55) 58%, transparent 58%, transparent 70%, rgba(255, 255, 255, .55) 70%, rgba(255, 255, 255, .55) 78%, transparent 78%); }
+html.float-map:hover :is(.float-bar, .float-resize), html.float-moving :is(.float-bar, .float-resize) { opacity: 1; }
