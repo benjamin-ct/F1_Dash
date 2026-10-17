@@ -13,6 +13,7 @@ import { publishBluesky, replyBluesky } from '../shared/bluesky-publish.js';
 import { freshTiktok, freshYoutube, tiktokDraft, tiktokStatus, tiktokOutcome, youtubeUpload } from '../shared/video-publish.js';
 import { addEntry, removeEntry, cleanKey } from '../shared/post-history.js';
 import { postStats } from '../shared/post-stats.js';
+import { recentPosts, importEntries } from './post-import.js';
 import { pushApi } from './alerts.js';
 import { packFeeds } from '../shared/feed-pack.js';
 
@@ -540,6 +541,16 @@ export async function studioApi(req, env, url) {
       if (k && removed.includes(k)) await setRow(env, 'history-removed', JSON.stringify(removed.filter((x) => x !== k)));
       return json({ items: next });
     }
+  }
+  // Posts publiés hors du Studio (à la main, kit de démarrage) : retrouvés sur les comptes reliés
+  if (path === 'history/import' && req.method === 'POST') {
+    const v = await refresh(env, a.raw, vault);
+    const { posts, errors } = await recentPosts({ meta: v.meta, threads: v.threads, bluesky: v.bluesky });
+    const list = JSON.parse(await getRow(env, 'history') || '[]');
+    const removed = JSON.parse(await getRow(env, 'history-removed') || '[]');
+    const add = importEntries(list, removed, posts);
+    if (add.length) await setRow(env, 'history', JSON.stringify(add.reduce(addEntry, list)));
+    return json({ added: add.length, errors });
   }
   if (path === 'stats' && req.method === 'GET') {
     const v = await refresh(env, a.raw, vault);

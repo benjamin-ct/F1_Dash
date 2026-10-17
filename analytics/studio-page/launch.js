@@ -228,9 +228,18 @@ function block(x, a, isDone) {
     </section>`;
 }
 
+// Post publié par le kit : ajouté au journal des publications (statistiques), carrousel et Reel de
+// chaque compte en deux entrées
+const logKit = (kit, net, kind, r) => api('history', { method: 'POST', body: JSON.stringify({ entry: {
+  key: `kit-${kit}-${kind}`, at: Date.now(), kind: 'session',
+  title: `Kit de démarrage${kind === 'reel' ? ' : Reel' : ''} (${ACCOUNTS[kit].name})`,
+  nets: { [net]: { id: r.id ?? null, url: r.url || null } },
+} }) }).catch(() => {});
+
 function bind(x) {
   const box = $(`[data-net="${x.id}"]`);
   const area = $('[data-text]', box);
+  const kit = acc;
   const media = mediaOf(acc, x.media);
   const count = () => {
     const c = $('[data-count]', box);
@@ -326,7 +335,7 @@ function bind(x) {
           st.append(' ', again);
         }
         toast({ tiktok: 'Brouillon envoyé dans TikTok', youtube: 'Short envoyé en privé', 'instagram-reel': 'Reel publié' }[x.draft], 'ok');
-        if (x.draft === 'instagram-reel') { setDone(acc, x.id, true); setTimeout(render, 1500); }
+        if (x.draft === 'instagram-reel') { logKit(kit, 'instagram', 'reel', r); setDone(acc, x.id, true); setTimeout(render, 1500); }
       } catch (err) {
         st.className = 'st err';
         st.textContent = err.message;
@@ -344,6 +353,7 @@ function bind(x) {
       try {
         const imgs = await Promise.all(media.slice(0, x.id === 'bluesky' ? 4 : 10).map(fileOf));
         const r = await sendPost(x.api, area.value, imgs);
+        logKit(kit, x.api, 'post', r);
         st.className = 'st ok';
         st.innerHTML = r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Publié ${icon('check')}</a>` : `Publié ${icon('check')}`;
         markDone();
