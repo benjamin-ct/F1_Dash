@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { qualiGap, qualiGaps, driverRatings, grade, lapsLed, similarCircuits } from '../shared/season-calc.js';
+import { qualiGap, qualiGaps, driverRatings, grade, lapsLed, similarCircuits, titleRace } from '../shared/season-calc.js';
 
 const res = (code, teamId, pos, points, grid = pos, posText = String(pos)) => ({ code, name: code, last: code, team: teamId, teamId, pos, posText, points, grid });
 const q = (code, teamId, pos, times) => ({ code, teamId, pos, q: times });
@@ -65,4 +65,29 @@ test('circuits proches', () => {
   const near = similarCircuits(items, 2);
   assert.equal(near.get('b')[0].key, 'a');
   assert.ok(!near.get('a').some((x) => x.key === 'a'));
+});
+
+test('course au titre : éliminés quand points + maximum restant < leader, manche de l\'élimination', () => {
+  const res = (pts) => Object.entries(pts).map(([code, points]) => ({ code, teamId: code === 'BBB' ? 'red' : 'blue', points }));
+  const data = {
+    races: [
+      { round: 1, name: 'GP A', sprint: false, results: res({ AAA: 25, BBB: 18, CCC: 0 }), sprintResults: [] },
+      { round: 2, name: 'GP B', sprint: true, results: res({ AAA: 25, BBB: 18, CCC: 0 }), sprintResults: res({ AAA: 8, BBB: 7 }) },
+      { round: 3, name: 'GP C', sprint: false, results: [], sprintResults: [] },
+    ],
+    drivers: [{ pos: 1, code: 'AAA', points: 58, team: 'Blue', teamId: 'blue' }, { pos: 2, code: 'BBB', points: 43, team: 'Red', teamId: 'red' }, { pos: 3, code: 'CCC', points: 0, team: 'Blue', teamId: 'blue' }],
+    constructors: [{ pos: 1, id: 'blue', name: 'Blue', points: 58 }, { pos: 2, id: 'red', name: 'Red', points: 43 }],
+  };
+  const t = titleRace(data, 2026);
+  assert.equal(t.races, 1);
+  assert.equal(t.maxD, 25, 'une course de 25 points à disputer');
+  const d = Object.fromEntries(t.drivers.map((e) => [e.code, e]));
+  assert.equal(d.AAA.alive, true);
+  assert.equal(d.BBB.alive, true, '43 + 25 >= 58');
+  assert.equal(d.CCC.alive, false);
+  assert.equal(d.CCC.outRound, 2, 'après la manche 2 : 0 + 25 < 58 (après la manche 1 : 0 + 58 >= 25)');
+  assert.equal(d.BBB.behind, 15);
+  assert.equal(t.champion, null);
+  // Meilleur tour (1 point) compté de 2019 à 2024
+  assert.equal(titleRace(data, 2022).maxD, 26);
 });

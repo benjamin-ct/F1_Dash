@@ -201,3 +201,40 @@ export function similarCircuits(items, n = 3) {
   }
   return out;
 }
+
+// Course au titre : qui peut encore être champion, pilotes et constructeurs. Après chaque manche
+// courue (sprint compris), un concurrent est éliminé quand ses points plus le maximum encore à
+// prendre ne rattrapent plus le leader. Points max par manche : course 25 (+1 meilleur tour de 2019 à
+// 2024) et sprint 8 ; constructeurs : les deux voitures (25 + 18, sprint 8 + 7).
+export function titleRace(data, year) {
+  const fl = year >= 2019 && year <= 2024 ? 1 : 0;
+  const races = [...(data?.races || [])].sort((a, b) => a.round - b.round);
+  const done = races.filter((r) => r.results?.length);
+  const future = races.filter((r) => !r.results?.length);
+  const maxRound = { d: (r) => 25 + fl + (r.sprint ? 8 : 0), c: (r) => 43 + fl + (r.sprint ? 15 : 0) };
+  const left = (kind, from) => [...done.slice(from), ...future].reduce((s, r) => s + maxRound[kind](r), 0);
+  const run = (kind, list, keyOf) => {
+    const cum = new Map(), out = new Map();
+    done.forEach((r, i) => {
+      for (const x of [...(r.results || []), ...(r.sprintResults || [])]) cum.set(keyOf(x), (cum.get(keyOf(x)) || 0) + (x.points || 0));
+      const lead = Math.max(0, ...cum.values());
+      const rest = left(kind, i + 1);
+      for (const e of list) if (!out.has(e.key) && (cum.get(e.key) || 0) + rest < lead) out.set(e.key, r);
+    });
+    // Points officiels (pénalités, décisions) : ils décident de l'état actuel
+    const rest = left(kind, done.length);
+    const lead = Math.max(0, ...list.map((e) => e.points));
+    return list.map((e) => {
+      const alive = e.points + rest >= lead;
+      const r = alive ? null : out.get(e.key) || done.at(-1) || null;
+      return { ...e, alive, maxPts: e.points + rest, behind: lead - e.points, outRound: r?.round || null, outName: r?.name || '' };
+    });
+  };
+  const drivers = run('d', (data?.drivers || []).map((d) => ({ ...d, key: d.code })), (x) => x.code);
+  const constructors = run('c', (data?.constructors || []).map((c) => ({ ...c, key: c.id })), (x) => x.teamId);
+  const champ = (list) => (list.filter((e) => e.alive).length === 1 && done.length ? list.find((e) => e.alive) : null);
+  return {
+    drivers, constructors, champion: champ(drivers), champTeam: champ(constructors),
+    races: future.length, sprints: future.filter((r) => r.sprint).length, maxD: left('d', done.length), maxC: left('c', done.length),
+  };
+}

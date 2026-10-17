@@ -2,13 +2,14 @@
 // séance, calendrier, classements avec évolution des points, résultats et records, duels entre
 // coéquipiers, statistiques détaillées. Données : API Jolpica (via le serveur, /api/season) et
 // analyse des archives F1 Live Timing (/api/season/stats).
-import { $, esc, api, teamColor, teamLogo } from '../util.js';
+import { $, esc, api, teamColor, teamLogo, photoUrl } from '../util.js';
+import { store } from '../store.js';
 import { renderDrivers, renderConsistency, renderPits, renderSpeeds, renderCircuits, renderRatings, gradeBadge } from './season-stats.js';
-import { driverRatings, qualiGaps } from '/shared/season-calc.js';
+import { driverRatings, qualiGaps, titleRace } from '/shared/season-calc.js';
 import { renderTech, renderElements, setTechFilter, translateTechDetail, toggleTechOriginal } from './season-fia.js';
 import { icon } from '../icons.js';
 import { renderPredict, initPredict } from './predict-view.js';
-import { DEC, LOCALE, EN } from '../i18n.js';
+import { DEC, LOCALE, EN, t } from '../i18n.js';
 import { gpShort, gpFull } from '/shared/gp-names.js';
 
 // Couleurs officielles (utilisées si les couleurs contrastées sont désactivées)
@@ -387,9 +388,53 @@ function renderH2H() {
     <p class="muted small">Duel en course : meilleure place à l'arrivée quand les deux pilotes ont couru (un abandon compte comme une défaite). Écart en qualification : dans la dernière partie disputée par les deux (Q3, sinon Q2, sinon Q1) ; les écarts de plus de 3 % (incident, piste qui change) sont montrés en transparence mais pas comptés.</p>`;
 }
 
+// Course au titre : pilotes et constructeurs encore capables d'être champions ; les autres grisés,
+// avec la manche où ils ont été éliminés (mathématiquement)
+function renderTitle() {
+  const tr = titleRace(data, data.year);
+  const dl = Object.values(store.state.DriverList || {});
+  const photo = (code) => photoUrl(dl.find((x) => x?.Tla === code));
+  const out = (e, team) => (e.alive ? '' : `<div class="tr-out">${team ? t('Éliminée') : t('Éliminé')} · R${e.outRound} ${esc(gpShort(e.outName, EN))}</div>`);
+  // Barre : points actuels (couleur d'écurie) + maximum encore possible (hachures) ; trait = leader
+  const bars = (e, list, col) => {
+    const lead = Math.max(...list.map((x) => x.points));
+    const top = Math.max(...list.map((x) => x.maxPts), 1);
+    return `<div class="tr-bar"><i class="now" style="width:${(e.points / top) * 100}%;background:${col}"></i><i class="max" style="width:${((e.maxPts - e.points) / top) * 100}%;--tc:${col}"></i><b style="left:${(lead / top) * 100}%"></b></div>`;
+  };
+  const sub = (e, team) => (e.alive
+    ? (e.behind ? `<div class="tr-sub">${t('{} pts du leader', e.behind)}</div>` : `<div class="tr-sub lead">${t('Leader')}</div>`)
+    : out(e, team));
+  const driverCard = (e) => {
+    const col = color(e.team, e.teamId);
+    const img = photo(e.code);
+    return `<div class="tr-card${e.alive ? '' : ' out'}" style="--tc:${col}">
+      <div class="tr-pic">${img ? `<img src="${img}" alt="" loading="lazy">` : `<span>${esc(e.code)}</span>`}<em>${e.pos}</em></div>
+      <div class="tr-info"><b>${esc(e.name)}</b><span class="tr-team">${esc(e.team)}</span>
+        <div class="tr-pts"><b>${e.points}</b> pts <span class="muted">· max ${e.maxPts}</span></div>${sub(e, false)}${bars(e, tr.drivers, col)}</div></div>`;
+  };
+  const teamCard = (e) => {
+    const col = color(e.name, e.id);
+    const logo = teamLogo(e.name);
+    return `<div class="tr-card team${e.alive ? '' : ' out'}" style="--tc:${col}">
+      <div class="tr-pic logo">${logo ? `<span class="team-logo color" style="--tc:${col};background-image:url('${logo}')"></span>` : bar(e.name, e.id)}<em>${e.pos}</em></div>
+      <div class="tr-info"><b>${esc(e.name)}</b>
+        <div class="tr-pts"><b>${e.points}</b> pts <span class="muted">· max ${e.maxPts}</span></div>${sub(e, true)}${bars(e, tr.constructors, col)}</div></div>`;
+  };
+  const alive = (l) => l.filter((e) => e.alive).length;
+  const head = (l, champ, kind) => (champ
+    ? `<div class="tr-champ">${icon('trophy')} ${kind === 'd' ? t('{} est champion du monde', esc(champ.name)) : t('{} est championne du monde des constructeurs', esc(champ.name))}</div>`
+    : `<div class="tr-count"><b>${alive(l)}</b> ${kind === 'd' ? t('pilotes encore en lice') : t('écuries encore en lice')}</div>`);
+  const left = tr.races ? `${t('{} courses', tr.races)}${tr.sprints ? ` ${t('et {} sprints', tr.sprints)}` : ''} ${t('à disputer')}` : t('Saison terminée');
+  return `<div class="tr-intro sz-box"><div><div class="muted small">${t('Reste')}</div><div class="tr-big">${left}</div></div>
+      <div><div class="muted small">${t('Points encore à prendre')}</div><div class="tr-big">${tr.maxD} <span class="muted small">${t('par pilote')}</span> · ${tr.maxC} <span class="muted small">${t('par écurie')}</span></div></div></div>
+    <section class="sz-box"><h3>${t('Championnat pilotes')}</h3>${head(tr.drivers, tr.champion, 'd')}<div class="tr-grid">${tr.drivers.map(driverCard).join('')}</div></section>
+    <section class="sz-box"><h3>${t('Championnat constructeurs')}</h3>${head(tr.constructors, tr.champTeam, 'c')}<div class="tr-grid">${tr.constructors.map(teamCard).join('')}</div></section>`;
+}
+
 // Explication en tête des vues qui n'en ont pas déjà une
 const HELP = {
   standings: 'Classements officiels des pilotes et des constructeurs, mis à jour après chaque course (sprints compris).',
+  title: 'Qui peut encore être champion : un pilote (ou une écurie) est éliminé quand ses points, plus le maximum encore à prendre dans les courses et sprints restants, ne rattrapent plus le leader. La barre montre ses points (plein) et ce qu\'il peut encore marquer (hachures) ; le trait vertical, les points du leader.',
   drivers: 'Fiche d\'un pilote : ses chiffres clés et ses notes de la saison, sa position au départ et à l\'arrivée de chaque course, la répartition de ses arrivées, ses points comparés à la saison précédente, puis le détail course par course (qualification, grille, arrivée, points, tours en tête, meilleur tour, vitesse, arrêts).',
   ratings: 'Une note sur 100 et une lettre (S, A, B, C, D, F) pour chaque pilote : la note de la saison le compare à tous les pilotes, la note face au coéquipier le compare à son coéquipier dans la même voiture.',
   predict: 'Avant chaque Grand Prix, chacun pronostique la pole et le podium, sur cet ordinateur ou sur son téléphone (accès réseau). Les choix des autres restent cachés jusqu\'à la fermeture : début des qualifications pour la pole, départ de la course pour le podium.',
@@ -404,7 +449,7 @@ function render() {
   if (section === 'drivers') loadPrev();
   const fiaData = fia?.year === data.year ? fia : null;
   const html = {
-    home: renderHome, calendar: renderCalendar, standings: renderStandings, results: renderResults, h2h: renderH2H,
+    home: renderHome, calendar: renderCalendar, standings: renderStandings, title: renderTitle, results: renderResults, h2h: renderH2H,
     drivers: () => renderDrivers(ctx, drvCode), consistency: () => renderConsistency(ctx), pits: () => renderPits(ctx),
     speeds: () => renderSpeeds(ctx, speedPt), circuits: () => renderCircuits(ctx, circSort), ratings: () => renderRatings(ctx, rateSort),
     tech: () => renderTech(ctx, fiaData), elements: () => renderElements(ctx, fiaData), predict: () => renderPredict(data.year),

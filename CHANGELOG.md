@@ -32,6 +32,15 @@ l'application (Réglages → Application → Nouveautés).
 - Le **Résumé** est maintenant visuel : les mêmes cartes (podium, remontées, pneus, neutralisations,
   abandons, meilleur tour) ; le texte rédigé reste copiable.
 
+### Saison : Course au titre
+- Nouvelle vue « Course au titre » : qui peut encore être champion, chez les pilotes (avec leur portrait)
+  et chez les constructeurs (avec leur logo). Un pilote ou une écurie est éliminé quand ses points, plus
+  le maximum encore à prendre dans les courses et sprints restants, ne rattrapent plus le leader : il
+  passe alors en gris, avec la manche où il a été éliminé. Pour chacun : points, écart au leader, maximum
+  atteignable, et une barre (points actuels, ce qu'il peut encore marquer, position du leader).
+- En tête : courses et sprints restants, points encore à prendre ; le champion est annoncé dès que le
+  titre est joué.
+
 ### Saison : Duels
 - La vue « Coéquipiers » devient « Duels » et occupe toute la largeur : le duel à gauche, l'écart en
   qualification à droite (l'un sous l'autre sur un écran étroit).
