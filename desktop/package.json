@@ -5,6 +5,7 @@
   "main": "main.cjs",
   "desktopName": "paddock-live-desktop.desktop",
   "private": true,
+  "license": "MIT",
   "author": {
     "name": "Paddock Live",
     "email": "paddock-live@users.noreply.github.com"
@@ -29,6 +30,7 @@
   "build": {
     "appId": "local.paddocklive.desktop",
     "productName": "Paddock Live",
+    "copyright": "© 2026 Paddock Live",
     "icon": "icon.png",
     "files": [
       "main.cjs",

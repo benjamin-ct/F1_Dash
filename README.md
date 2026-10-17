@@ -100,6 +100,10 @@ Tests : `npm test`.
 
 **Statistiques anonymes (facultatives)** : au premier lancement, Paddock Live demande s'il peut envoyer des statistiques d'utilisation anonymes (fonctions utilisées, version, système). Ni compte, ni identifiant, ni contenu ; refusable et modifiable à tout moment dans Réglages → Application. Détails dans le [guide](docs/GUIDE.md#-statistiques-dutilisation-anonymes).
 
+## Licence
+
+Code sous **[licence MIT](LICENSE)** — © 2026 Paddock Live. Les bibliothèques incluses gardent leur propre licence (indiquée en tête de leurs fichiers).
+
 > Projet non officiel, sans lien avec la Formula 1, la FIA ni aucun diffuseur TV. Les données proviennent du flux public F1 Live Timing et sont destinées à un usage personnel.
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/X6Y427QAUT)

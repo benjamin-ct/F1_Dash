@@ -4,6 +4,13 @@ Toutes les nouveautés de Paddock Live, version par version. Chaque nouvelle ver
 sa section ici : elle est reprise telle quelle sur la page de la version (GitHub) et dans
 l'application (Réglages → Application → Nouveautés).
 
+## v1.27.31 — à venir
+
+### À propos
+- Paddock Live est publié sous licence MIT : mention « © 2026 Paddock Live · Licence MIT » dans
+  Réglages → À propos (lien vers le texte de la licence), sur le site et dans les conditions
+  d'utilisation.
+
 ## v1.27.30 — 2026-10-17
 
 ### Carte flottante
