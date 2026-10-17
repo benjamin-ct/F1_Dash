@@ -37,7 +37,8 @@ ASR_DAILY_LIMIT = "3000"
 [observability]
 enabled = false
 head_sampling_rate = 1
-redact_query_string = false
+# Paramètres des adresses masqués (un ancien lien /stats?key=… contient le mot de passe)
+redact_query_string = true
 
 [observability.logs]
 enabled = true
