@@ -999,10 +999,6 @@ body.dragging-panel, body.dragging-panel * { cursor: grabbing !important; user-s
 .sector-board tr[data-num]:hover td { background: var(--hover); }
 
 /* Réglages en onglets */
-.set-nav { display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.set-tab { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
-.set-tab:hover { color: var(--text); }
-.set-tab.active { color: var(--text); border-bottom-color: var(--red); }
 #settingsModal .set-block.set-hidden { display: none; }
 /* Panneaux à nombreux onglets : onglets plus compacts pour tenir sur une ligne */
 .panel-head.tabs.many .tab { padding: 4px 7px; letter-spacing: .2px; font-size: 12px; }
@@ -1741,8 +1737,6 @@ body.solo .grid .panel-head { padding-right: 116px; }
 .grid.mobile .panel-legend { max-height: 26%; }
 /* Réglages : hauteur fixe, la fenêtre ne saute plus d'un onglet à l'autre */
 @media (min-width: 901px) {
-  #settingsModal[open] { height: min(720px, calc(100vh - 60px)); display: flex; flex-direction: column; overflow: hidden; }
-  #settingsModal .modal-body { flex: 1; overflow-y: auto; min-height: 0; }
 }
 /* Écran peu haut (portable 1366×768…) : les panneaux gardent une taille utile et la page défile ;
    barre du haut et barre de replay restent visibles */
@@ -2560,3 +2554,76 @@ html.float-map :is(.map-zoom, .map-legend, .map-ribbon) { display: none !importa
 .float-resize { position: fixed; right: 0; bottom: 0; z-index: 50; width: 18px; height: 18px; cursor: nwse-resize; opacity: 0; transition: opacity .15s;
   background: linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, .55) 50%, rgba(255, 255, 255, .55) 58%, transparent 58%, transparent 70%, rgba(255, 255, 255, .55) 70%, rgba(255, 255, 255, .55) 78%, transparent 78%); }
 html.float-map:hover :is(.float-bar, .float-resize), html.float-moving :is(.float-bar, .float-resize) { opacity: 1; }
+
+/* ---------- Réglages : rubriques à gauche, contenu en cartes, recherche ---------- */
+#settingsModal.set-modal { width: min(1040px, calc(100vw - 48px)); height: min(740px, calc(100vh - 48px)); max-height: none; overflow: hidden;
+  border-radius: 18px; border-color: var(--line-2); box-shadow: 0 30px 80px rgba(0, 0, 0, .55); }
+#settingsModal.set-modal::backdrop { background: rgba(4, 5, 8, .62); backdrop-filter: blur(6px); }
+:root:not([data-motion="off"]) #settingsModal.set-modal[open] { animation: set-in .26s var(--ease-out, ease-out); }
+@keyframes set-in { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+.set-shell { display: grid; grid-template-columns: 268px minmax(0, 1fr); height: 100%; }
+.set-side { display: flex; flex-direction: column; gap: 12px; padding: 18px 12px; background: var(--panel-2); border-right: 1px solid var(--border); min-height: 0; overflow-y: auto; }
+.set-brand { display: flex; align-items: center; gap: 9px; padding: 2px 8px; font-size: 18px; font-weight: 900; }
+.set-brand .ic { color: var(--accent); width: 20px; height: 20px; }
+.set-search { display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.set-search:focus-within { border-color: var(--accent); }
+.set-search .ic { color: var(--muted); width: 15px; height: 15px; flex: none; }
+#settingsModal .set-search input { border: 0; background: none; padding: 9px 0; width: 100%; min-width: 0; font-size: 13.5px; box-shadow: none; outline: none; }
+#settingsModal .set-nav { display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; }
+#settingsModal .set-tab { display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 10px; border: 0; border-radius: 11px; background: none; color: var(--text-2);
+  font: inherit; text-align: left; cursor: pointer; transition: background-color .15s, color .15s; }
+#settingsModal .set-tab:hover { background: var(--panel-3); color: var(--text); }
+#settingsModal .set-tab.active { background: var(--panel); color: var(--text); box-shadow: inset 3px 0 0 var(--accent), 0 1px 0 var(--border); }
+.set-ico { flex: none; width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--panel-3); color: var(--muted); transition: background-color .15s, color .15s; }
+.set-ico .ic { width: 16px; height: 16px; }
+#settingsModal .set-tab.active .set-ico { background: var(--accent); color: #fff; }
+.set-lbl { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.set-lbl b { font-size: 13.5px; font-weight: 700; }
+.set-lbl small { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.set-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.set-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 26px 14px; margin: 0; border-bottom: 1px solid var(--border); }
+.set-head h3 { margin: 0; font-size: 22px; font-weight: 900; letter-spacing: .2px; }
+.set-head p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+.set-close { flex: none; }
+#settingsModal .modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 18px 26px 26px; display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth; }
+#settingsModal .set-block { padding: 16px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel-2); }
+#settingsModal .set-block:last-child { border-bottom: 1px solid var(--border); }
+#settingsModal .set-block h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 14.5px; font-weight: 800; }
+#settingsModal .set-block h4 .ic { color: var(--accent); width: 17px; height: 17px; }
+#settingsModal .set-block p { line-height: 1.5; }
+#settingsModal .set-block .row { margin: 10px 0; gap: 10px; }
+#settingsModal .set-block .row:last-child { margin-bottom: 0; }
+#settingsModal .set-block .toggle { line-height: 1.4; white-space: normal; }
+/* Réglages simples (un interrupteur ou un menu par ligne) : liste façon réglages du téléphone,
+   texte à gauche, commande à droite, lignes séparées */
+#settingsModal .set-block .row:has(> .toggle:only-child), #settingsModal .set-block .row:has(> label.small:only-child > select) {
+  margin: 0; padding: 11px 0; border-top: 1px solid var(--border); }
+#settingsModal .set-block h4 + .row:has(> .toggle:only-child), #settingsModal .set-block h4 + .row:has(> label.small:only-child > select) { border-top: 0; padding-top: 2px; }
+#settingsModal .set-block .row > .toggle:only-child { flex: 1; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 18px; font-size: 13.5px; }
+#settingsModal .set-block .row > label.small:only-child:has(> select) { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 13.5px; }
+#settingsModal .set-block .row > label.small:only-child > select { flex: 0 1 auto; width: auto; min-width: 0; max-width: 58%; }
+.set-status { padding: 10px 12px; margin: 0 0 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border); line-height: 1.5; }
+.set-status:empty { display: none; }
+.set-more { margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.set-more > summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--text-2); list-style: none; display: flex; align-items: center; gap: 6px; }
+.set-more > summary::-webkit-details-marker { display: none; }
+.set-more > summary::before { content: '›'; display: inline-block; transition: transform .15s; font-size: 16px; line-height: 1; }
+.set-more[open] > summary::before { transform: rotate(90deg); }
+.set-more[open] > summary { margin-bottom: 8px; }
+/* Téléphone et petite fenêtre : plein écran, rubriques en bande défilante en haut */
+@media (max-width: 900px) {
+  #settingsModal.set-modal { width: 100vw !important; height: 100dvh; max-width: none !important; max-height: 100dvh; inset: 0; border-radius: 0; border: 0; margin: 0; }
+  .set-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .set-side { flex-direction: column; gap: 8px; padding: 10px 10px 8px; border-right: 0; border-bottom: 1px solid var(--border); overflow: visible; }
+  .set-brand { display: none; }
+  #settingsModal .set-nav { flex-direction: row; overflow-x: auto; scrollbar-width: none; gap: 6px; }
+  #settingsModal .set-nav::-webkit-scrollbar { display: none; }
+  #settingsModal .set-tab { width: auto; flex: none; padding: 6px 12px 6px 6px; border-radius: 999px; }
+  #settingsModal .set-tab.active { box-shadow: 0 0 0 1px var(--border); }
+  .set-ico { width: 26px; height: 26px; border-radius: 50%; }
+  .set-lbl small { display: none; }
+  .set-head { padding: 12px 14px 10px; }
+  .set-head h3 { font-size: 18px; }
+  #settingsModal .modal-body { padding: 12px 12px 24px; gap: 10px; }
+  #settingsModal .set-block { padding: 14px; }
+}

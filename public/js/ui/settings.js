@@ -158,15 +158,40 @@ async function renderLan(change) {
 }
 
 export function initSettings() {
-  // Réglages en onglets (Compte F1 TV, Apparence, Disposition, Alertes, Application)
+  // Réglages : rubriques à gauche (Compte F1 TV, Apparence, Disposition, Alertes, Application, À propos),
+  // titre de la rubrique en haut, et recherche dans tous les réglages
+  const search = $('#setSearch');
   const showGroup = (g) => {
-    for (const b of document.querySelectorAll('#setNav .set-tab')) b.classList.toggle('active', b.dataset.sgroup === g);
+    const tab = $(`#setNav .set-tab[data-sgroup="${g}"]`);
+    for (const b of document.querySelectorAll('#setNav .set-tab')) b.classList.toggle('active', b === tab);
     for (const sec of document.querySelectorAll('#settingsModal .set-block')) sec.classList.toggle('set-hidden', sec.dataset.sgroup !== g);
+    $('#setTitle').textContent = tab?.querySelector('b')?.textContent || '';
+    $('#setSub').textContent = tab?.querySelector('small')?.textContent || '';
+    $('#settingsModal .modal-body').scrollTop = 0;
   };
-  $('#setNav').addEventListener('click', (e) => { const b = e.target.closest('.set-tab'); if (b) showGroup(b.dataset.sgroup); });
+  const fold = (t) => t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const find = () => {
+    const q = fold(search.value.trim());
+    if (!q) { showGroup($('#setNav .set-tab.active')?.dataset.sgroup || 'f1tv'); return; }
+    let n = 0;
+    for (const sec of document.querySelectorAll('#settingsModal .set-block')) {
+      const hit = !sec.hidden && fold(sec.textContent).includes(q);
+      sec.classList.toggle('set-hidden', !hit);
+      n += hit;
+    }
+    $('#setTitle').textContent = n ? `Résultats pour « ${search.value.trim()} »` : 'Aucun réglage trouvé';
+    $('#setSub').textContent = n ? `${n} rubrique${n > 1 ? 's' : ''}` : 'Essayez un autre mot (ex. : délai, langue, favoris, téléphone)';
+  };
+  search.addEventListener('input', find);
+  $('#setNav').addEventListener('click', (e) => { const b = e.target.closest('.set-tab'); if (b) { search.value = ''; showGroup(b.dataset.sgroup); } });
   showGroup('f1tv');
   const modal = $('#settingsModal');
-  const open = () => { modal.showModal(); refreshAuth(); renderFavs(); };
+  const open = () => {
+    if (search.value) { search.value = ''; find(); }
+    modal.showModal();
+    refreshAuth();
+    renderFavs();
+  };
   $('#settingsBtn').addEventListener('click', open);
 
   // Favoris
@@ -260,6 +285,9 @@ export function initSettings() {
       toast('Session F1 TV oubliée');
       refreshAuth();
     });
+  } else {
+    // Navigateur : pas de connexion intégrée, les méthodes manuelles sont dépliées
+    $('#f1tvMore').open = true;
   }
 
   // Jeton F1 TV en un clic : favori à glisser dans la barre du navigateur. Exécuté sur formula1.com,

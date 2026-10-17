@@ -13,6 +13,16 @@ l'application (Réglages → Application → Nouveautés).
   victoires au classement des constructeurs, et leurs actualités sont mises en avant (filtre « Favoris »
   et alertes d'actualités). Elles se règlent aussi dans Réglages → Alertes & favoris.
 
+### Nouveaux Réglages
+- Réglages entièrement redessinés : rubriques à gauche avec un résumé de chacune, titre de la rubrique
+  en haut, réglages rangés en cartes et en listes (texte à gauche, interrupteur ou menu à droite).
+- Recherche dans tous les réglages : tapez un mot (délai, langue, favoris, téléphone…) pour afficher
+  les réglages correspondants, quelle que soit leur rubrique.
+- Nouvelle rubrique « À propos » (nouveautés, réseaux, informations légales).
+- Compte F1 TV plus simple : l'état de la connexion en tête, les méthodes manuelles (navigateur, jeton)
+  repliées dans l'application de bureau.
+- Sur téléphone : réglages en plein écran, rubriques en bande défilante en haut.
+
 ### Carte flottante
 - Application de bureau : bouton « Flottante » dans le panneau Carte. Le circuit part dans une fenêtre
   sans cadre et sans fond, toujours au-dessus des autres (par-dessus la vidéo, même en plein écran).
